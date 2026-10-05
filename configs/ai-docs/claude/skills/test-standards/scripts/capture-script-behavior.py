@@ -33,7 +33,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 # Shared, declared mask set - the ONLY place non-deterministic
 # values get normalized.
@@ -152,6 +152,8 @@ class Row:
         _validate_field_types(data)
         _validate_env(data.get("env"))
         _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
+        for key in data.get("fixture_files") or {}:
+            _validate_fixture_key(key)
         _validate_script_relpath(data.get("script_relpath"), data.get("fixture_files"))
         return cls(**data)
 
@@ -292,6 +294,7 @@ def _validate_script_relpath(script_relpath, fixture_files) -> None:
             f"script_relpath {script_relpath!r} escapes the fixture directory "
             "(absolute paths and '..' segments are rejected)"
         )
+    _validate_path_form(script_relpath, field_name="script_relpath")
     for key in fixture_files or {}:
         key_path = Path(key)
         if key_path == script_path or key_path in script_path.parents or script_path in key_path.parents:
@@ -301,6 +304,19 @@ def _validate_script_relpath(script_relpath, fixture_files) -> None:
             )
 
 
+def _validate_path_form(path: str, *, field_name: str) -> None:
+    """One rule for a fixture key and script_relpath, so the two
+    cannot drift: a path must name one file in normal form. A
+    spelling like './a' or 'a/' reaches the same file but would
+    not match the path string compared elsewhere, and '' or '.'
+    names the fixture directory itself."""
+    if "\0" in path or PurePosixPath(path).as_posix() != path or path == ".":
+        raise InvalidRowError(
+            f"{field_name} {path!r} is not a normalized relative file path "
+            "(no empty path, '.', './' prefix, trailing or doubled '/', or NUL byte)"
+        )
+
+
 def _validate_fixture_key(key: str) -> None:
     if Path(key).is_absolute() or any(marker in Path(key).parts for marker in FIXTURE_ESCAPE_MARKERS):
         raise FixtureEscapeError(
@@ -308,6 +324,7 @@ def _validate_fixture_key(key: str) -> None:
             "(absolute paths and '..' segments are rejected before the "
             "script ever runs)"
         )
+    _validate_path_form(key, field_name="fixture_files key")
 
 
 def hash_fixture_tree(root: Path, *, fixture_dir: Path, skip_relpath: str | None = None) -> dict:

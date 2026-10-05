@@ -984,3 +984,76 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
         harness = self._load_harness()
 
         self.assertEqual(set(harness.ROW_FIELD_TYPES), set(harness.Row.__dataclass_fields__))
+
+
+class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
+    def _load_harness(self):
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        return harness
+
+    def test_should_reject_a_fixture_key_that_is_not_a_normal_relative_path_naming_the_field_and_the_key(self):
+        harness = self._load_harness()
+
+        for bad_key in ("", ".", "./a", "a/", "a//b", "a/./b", "a\0b"):
+            with self.subTest(key=bad_key):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "path-row", "fixture_files": {bad_key: "x"}})
+
+                self.assertIn("fixture_files", str(raised.exception))
+                self.assertIn(repr(bad_key), str(raised.exception))
+
+    def test_should_reject_an_escaping_fixture_key_at_load_as_a_fixture_escape(self):
+        harness = self._load_harness()
+
+        for bad_key in ("/etc/x", "../x", "a/../../x"):
+            with self.subTest(key=bad_key):
+                with self.assertRaises(harness.FixtureEscapeError):
+                    harness.Row.from_dict({"name": "escape-row", "fixture_files": {bad_key: "x"}})
+
+    def test_should_reject_a_script_relpath_that_is_not_a_normal_relative_path_naming_the_field_and_the_path(self):
+        harness = self._load_harness()
+
+        for bad_relpath in (".", "./toy", "tools/./toy", "tools//toy", "tools/", "toy\0"):
+            with self.subTest(script_relpath=bad_relpath):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "path-row", "script_relpath": bad_relpath})
+
+                self.assertIn("script_relpath", str(raised.exception))
+                self.assertIn(repr(bad_relpath), str(raised.exception))
+
+    def test_should_accept_a_nested_normal_form_fixture_key_and_script_relpath(self):
+        harness = self._load_harness()
+
+        row = harness.Row.from_dict({
+            "name": "nested-row", "fixture_files": {"dir/sub/a.txt": "x", ".hidden": "y"},
+            "script_relpath": "tools/toy",
+        })
+
+        self.assertEqual(sorted(row.fixture_files), [".hidden", "dir/sub/a.txt"])
+
+    def test_should_still_reject_a_malformed_fixture_key_on_a_row_built_without_from_dict(self):
+        harness = self._load_harness()
+        row = harness.Row(name="direct-row", fixture_files={"a/": "x"})
+
+        with self.assertRaises(harness.InvalidRowError):
+            harness.setup_fixture(self.tmp_path, row)
+
+    def test_should_run_no_row_when_a_later_row_holds_a_malformed_fixture_key(self):
+        harness = self._load_harness()
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "good-row"},
+            {"name": "bad-row", "fixture_files": {"a/": "x"}},
+        ])
+        stderr = io.StringIO()
+
+        with mock.patch.object(harness, "capture_row") as capture_row, \
+                contextlib.redirect_stderr(stderr):
+            exit_code = harness.main(["capture", "--script", str(self.tmp_path / "never-run.sh"),
+                                      "--table", str(table)])
+
+        self.assertEqual(exit_code, 1)
+        capture_row.assert_not_called()
+        self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
