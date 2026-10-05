@@ -29,13 +29,13 @@ Each state file has exactly this shape:
 
 ## Field meanings
 
-- `start_sha` is `git rev-parse HEAD`, identical in every unit's file — the run's anchor.
-- `batch_base_sha` stays `""` until that unit starts (§3.2) — a dependent PR branches off its parent, so its base doesn't exist yet.
+- `start_sha` is `git rev-parse HEAD`, identical in every unit's file - the run's anchor.
+- `batch_base_sha` stays `""` until that unit starts (§3.2) - a dependent PR branches off its parent, so its base doesn't exist yet.
 - One `tasks[]` entry per task-id that unit resolved, flipped to `"in_progress"` at dispatch.
   - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and `quality_gate.wanted` come from §1.2's answers.
 
 - Populate `depends_on` from the plan's `**Depends on**:` clause `check-tasks-dag.sh` validated (§1.3), as bare id strings (`["3", "5"]`; `none` → `[]`).
-  - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it degrades to lowest-id-first — seed it here.
+  - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it degrades to lowest-id-first - seed it here.
 
   - An id absent from this unit's `tasks[]` counts as satisfied: it belongs to an earlier PR that `pr-awareness.md`'s stop predicate requires `[Done]`.
 

@@ -88,7 +88,7 @@ function jira-api-request() {
     return 1
   fi
 
-  # NOTE: printf, not echo — these library functions are
+  # NOTE: printf, not echo - these library functions are
   # `source`d into the caller's interactive shell (zsh
   # here), and zsh's builtin echo reinterprets backslash
   # escapes (\n, \t) by default.

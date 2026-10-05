@@ -10,7 +10,7 @@
 # Usage:
 #   bash test-tmux-window-title.sh
 
-# No bats dependency by design — same precedent as these
+# No bats dependency by design - same precedent as these
 # sibling suites under configs/ai-docs/claude/:
 #
 # - scripts/tests/test-statusline-tier.sh
@@ -47,13 +47,13 @@ assert_eq() {
 # addressing that server from the test itself.
 #
 # Sets globals rather than echoing the socket, because the
-# exports have to land in the CALLER's environment — a
+# exports have to land in the CALLER's environment - a
 # command substitution would strand them in a subshell.
 #
 # $TMUX's real format is "<socket>,<pid>,<session>"; the
 # script only tests it for non-emptiness, while the tmux
 # client parses the socket path out of it to find the
-# server — so the pid/session fields can be stubbed.
+# server - so the pid/session fields can be stubbed.
 start_server() {
   SOCK="tmux-title-test-$$-${RANDOM}"
   tmux -L "$SOCK" new-session -d -s t 2>/dev/null
@@ -692,7 +692,7 @@ it_should_let_a_new_root_be_frozen_after_a_reset() {
 
   # The new root is "db-store" (the post-reset base, untruncated
   # since it fits the tail's 16-char room), the title the pane
-  # carried when the reset landed — not the released "auth-fix".
+  # carried when the reset landed - not the released "auth-fix".
   assert_eq \
     "TmuxWindowTitle > reset > should anchor the next session to its own first title" \
     "db-store/api-cache[1]" "$(window_name)"
@@ -708,7 +708,7 @@ it_should_release_the_root_even_when_no_counter_is_present() {
   title --reset-counter
 
   # Second reset: no counter to strip, so the mode returns
-  # early — the root must already have been released.
+  # early - the root must already have been released.
   title --reset-counter
   title --bump-counter
   title "api-cache"
@@ -780,7 +780,7 @@ it_should_print_help_to_stdout() {
 }
 
 if ! command -v tmux >/dev/null 2>&1; then
-  echo "tmux not installed — cannot exercise tmux-window-title.sh" >&2
+  echo "tmux not installed - cannot exercise tmux-window-title.sh" >&2
   exit 1
 fi
 

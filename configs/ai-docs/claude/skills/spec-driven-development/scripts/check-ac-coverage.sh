@@ -10,7 +10,7 @@
 # an `// AC-<n>` or `T<n>` token puts the WHOLE plan
 # in annotated form).
 #
-# ANNOTATED form (single source — the AC -> test mapping lives
+# ANNOTATED form (single source - the AC -> test mapping lives
 # ONLY as inline `// AC-N T<n>` comments on Test Design's it()
 # lines; see plan-template.md).
 #
@@ -25,10 +25,10 @@
 #
 # HONESTY existed to catch a plan citing a test that was never
 # designed, and annotated form has no second copy of the mapping
-# left to fake — the failure class it guarded against no longer
+# left to fake - the failure class it guarded against no longer
 # exists.
 #
-# LIST form (old — still required so plans listing tests
+# LIST form (old - still required so plans listing tests
 # under each task's `**Tests (planned)**:` bullets keep
 # passing unchanged; a transition path this comment already
 # marks for removal once no plan uses it).
@@ -183,7 +183,7 @@ if [ "$is_annotated" = "yes" ]; then
   exit 1
 fi
 
-# LIST form (below): unchanged from before this dispatch — see
+# LIST form (below): unchanged from before this dispatch - see
 # header comment.
 
 # plan AC headers: `- **AC-N**` bullets.

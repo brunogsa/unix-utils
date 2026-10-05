@@ -20,7 +20,7 @@ A spec is useful when it exists, but never a precondition.
 
 ## Usage
 
-`/brainstorm-how` — no arguments. A run starts from a settled problem, never from a raw request.
+`/brainstorm-how` - no arguments. A run starts from a settled problem, never from a raw request.
 
 An approved `spec_<slug>.md` in CWD is the best seed but is optional.
 
@@ -63,4 +63,4 @@ Why no `/clear` hand-off: `to-plan` grounds from this session's context, `notes.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

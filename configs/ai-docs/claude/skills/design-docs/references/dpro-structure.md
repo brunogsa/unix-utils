@@ -4,12 +4,12 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 
 ## Item shape and stable tokens
 
-- **One item, one sub-section — never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
-  - Applies uniformly to all four sections — don't leave one as a bullet list and another as sub-sections.
+- **One item, one sub-section - never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
+  - Applies uniformly to all four sections - don't leave one as a bullet list and another as sub-sections.
 
-  - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details — so the title must carry the gist, not just the token.
+  - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details - so the title must carry the gist, not just the token.
 
-  - Format: `### <TOKEN> — <summary>`, e.g. `### OQ-08 — Preço do item: unitário vs total`.
+  - Format: `### <TOKEN> - <summary>`, e.g. `### OQ-08 - Preço do item: unitário vs total`.
   - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
   - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number.
     - Items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
@@ -19,12 +19,12 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 ## Choosing which of the four sections an item belongs in
 
 - **Label by what you actually know.** A fact you've validated or assume true is a *Premise*; a genuine unknown is an *Open Question*.
-  - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer — both directions matter.
+  - Don't dress an unknown as a Premise, nor prematurely close a question you can't yet answer - both directions matter.
 
 - **An unknown that would block execution becomes a provisional Premise + Risk, not an Open Question.**
-  - Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória — confirmar com o time X").
+  - Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória - confirmar com o time X").
   - Register what breaks if the assumption is wrong as a Risk that cites the Premise back.
-  - This keeps the build moving on the assumed default while the real answer is chased in parallel — reserve Open Questions for unknowns that don't gate work already in flight.
+  - This keeps the build moving on the assumed default while the real answer is chased in parallel - reserve Open Questions for unknowns that don't gate work already in flight.
 
   - Since Risks (section 5) follows Premises (section 3), the Premise points forward with a linkless phrase ("risco ... registrado adiante"); the Risk then carries the backward token once both entries exist.
 
@@ -34,38 +34,38 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 ## No duplicates, and Open Questions burn down to none
 
 - **Each fact lives once.** When a question is answered, move the answer into *Decisions*; don't leave decided content embedded inside the *Open Question*.
-  - Drop any Open Question that a Premise already settles — no duplicate item across sections.
+  - Drop any Open Question that a Premise already settles - no duplicate item across sections.
 
-- **Open Questions is a burn-down list — its goal is "Nenhuma".** It records only what is *still* unknown, not a history of what got resolved.
-  - When a question closes, **relocate** its content to the right home — a *Premise*, *Decision*, *Risk*, or embedded directly in the solution/mapping — and **remove** it from the Open Questions list.
+- **Open Questions is a burn-down list - its goal is "Nenhuma".** It records only what is *still* unknown, not a history of what got resolved.
+  - When a question closes, **relocate** its content to the right home - a *Premise*, *Decision*, *Risk*, or embedded directly in the solution/mapping - and **remove** it from the Open Questions list.
 
-  - Never leave a "[RESOLVIDA]" / "resolved" stub sitting in the Open Questions section — that defeats the burn-down and clutters the list.
+  - Never leave a "[RESOLVIDA]" / "resolved" stub sitting in the Open Questions section - that defeats the burn-down and clutters the list.
 
   - When relocating, keep cross-references intact: repoint any `OQ-N` pointer to the item's new home (or state the fact inline), then grep the doc for dangling `OQ-/PR-/D-/R-` tokens before calling it done.
 
-## Granularity — what counts as one item
+## Granularity - what counts as one item
 
-- **One item, one idea — explode bundles.** An entry carrying two independently-falsifiable assumptions, two failure modes, or two decisions splits into one item per idea, each with its own token.
+- **One item, one idea - explode bundles.** An entry carrying two independently-falsifiable assumptions, two failure modes, or two decisions splits into one item per idea, each with its own token.
   - Test: if a reader could confirm one half while refuting the other, it is two items.
-  - Smell: an entry opening with "two coupled risks" / "dois riscos acoplados" — that is two tokens, not one.
+  - Smell: an entry opening with "two coupled risks" / "dois riscos acoplados" - that is two tokens, not one.
 
-- **Clustering means merging related fields into one item — not placing similar items next to each other.**
+- **Clustering means merging related fields into one item - not placing similar items next to each other.**
   - When one assumption or rule covers several fields, write ONE item listing every field it spans; never mint one item per field.
   - The unit of an item is the idea, not the field: one idea across many fields = one item; two ideas about the same field = two items.
 
 - **One logical decision, one Decision.** Consolidate; don't fragment a single choice across several `D-` items. Rejected options belong as *"discarded alternatives"* sub-bullets under the decision they lost to, not separate entries.
 
-- **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option — more scannable and easier to keep inside the density cap than a markdown table.
+- **Trade-offs as sub-bullets, not a table.** For a decision's pros/cons, nest bullets under each option - more scannable and easier to keep inside the density cap than a markdown table.
 
 ## Ordering the items and opening with a roadmap
 
 - **Group items by theme, then order the groups along one stable narrative.** Don't leave the four sections in the accidental order the tokens were minted.
-  - Pick a narrative the whole doc already follows and reuse it in every section — e.g. the payload/call flow (source-of-truth → header → items → response → read-back), or foundational-scope-first.
+  - Pick a narrative the whole doc already follows and reuse it in every section - e.g. the payload/call flow (source-of-truth → header → items → response → read-back), or foundational-scope-first.
 
   - Reorder freely: the stable `<TOKEN>` is a named anchor, so moving a `### OQ-08` block never breaks a `(OQ-08)` cross-reference elsewhere.
-  - **Never renumber a token to fit the new order** — that *does* break every reference.
+  - **Never renumber a token to fit the new order** - that *does* break every reference.
 
   - Open the section with a **roadmap** naming each theme group and listing its tokens in reading order (one group per line), then order the `###` items to match.
 
   - The roadmap gives the reader the map before the details.
-  - Prefer the roadmap over per-group headings — a heading with a single item under it violates the "never a one-item heading" rule, and singleton groups are common.
+  - Prefer the roadmap over per-group headings - a heading with a single item under it violates the "never a one-item heading" rule, and singleton groups are common.

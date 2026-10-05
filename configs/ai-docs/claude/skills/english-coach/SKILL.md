@@ -18,7 +18,7 @@ articles, idiomaticity, sentence structure, register.
 ```
 
 Best run at the end of the day's work or after creating a
-PR — by then the session has accumulated enough material for patterns to
+PR - by then the session has accumulated enough material for patterns to
 emerge from noise.
 
 ## How it works
@@ -33,19 +33,19 @@ and the subagent's reasoning doesn't pollute the active conversation.
 
 ## Run
 
-1. Spawn `agent(subAgent=english-coach-analyst, title=English-coach analysis pass)`
-   — its frontmatter pins sonnet at high effort.
+1. Spawn `agent(subAgent=english-coach-analyst, title=English-coach analysis pass)` -
+   its frontmatter pins sonnet at high effort.
    Prompt: "Run the English-coach analysis pass for the current session."
-   The subagent reads its own instructions from disk — the orchestrator never
+   The subagent reads its own instructions from disk - the orchestrator never
    loads `assets/subagent-prompt.md`.
 2. When the Agent reports back, share the output file path with the user
    along with its one-line summary of the top pattern.
 
 ## Files
 
-- `scripts/extract-user-messages.sh` — finds the session JSONL and filters
+- `scripts/extract-user-messages.sh` - finds the session JSONL and filters
   to typed user text (excludes tool results, slash-command markers, system
   reminders, local-command output).
-- `assets/subagent-prompt.md` — the self-contained instructions handed to
+- `assets/subagent-prompt.md` - the self-contained instructions handed to
   the subagent.
-- `assets/lesson-template.md` — output structure for the lesson markdown.
+- `assets/lesson-template.md` - output structure for the lesson markdown.

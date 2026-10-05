@@ -1,6 +1,6 @@
 # C4L1 Context Diagram
 
-Shows the system under design and its external actors. Keep it high-level — no internal implementation details. Use `flowchart TD` with clear node shapes to distinguish actors from systems.
+Shows the system under design and its external actors. Keep it high-level - no internal implementation details. Use `flowchart TD` with clear node shapes to distinguish actors from systems.
 
 ```mermaid
 flowchart TD
@@ -14,19 +14,19 @@ flowchart TD
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
 ```
 
-## Edge incidence — only edges touching the focal system
+## Edge incidence - only edges touching the focal system
 
 [Instruction] In a C4L1 with focal subject X, only show edges whose source OR target is X.
 
-Don't draw inter-third-party arrows for "completeness" — they belong in a wider ecosystem diagram or in L2.
+Don't draw inter-third-party arrows for "completeness" - they belong in a wider ecosystem diagram or in L2.
 
 [Why] L1's purpose is X's contract with its surroundings. Inter-third-party edges misrepresent that focus and clutter the diagram with information that doesn't decide anything about X.
 
-[Example] If a Hub posts orders directly to OMS (bypassing X), don't draw `Hub --> OMS` in X's L1 — drop the arrow even though the relationship exists.
+[Example] If a Hub posts orders directly to OMS (bypassing X), don't draw `Hub --> OMS` in X's L1 - drop the arrow even though the relationship exists.
 
 Annotate it inside the Hub's node label if context-critical.
 
-## Abstraction level — roles, not fields
+## Abstraction level - roles, not fields
 
 [Instruction] L1 talks about ROLES (orders, invoices, sync, fan-out). L2 talks about specific containers/objects/fields. Don't leak L2 detail into L1.
 
@@ -38,7 +38,7 @@ Annotate it inside the Hub's node label if context-critical.
 
 [Instruction] When N entities share a role, use the SAME edge labels for the common pattern; append per-instance deltas only where they truly differ.
 
-[Why] Uniformity is itself information — it tells the reader "these all play the same role" at a glance.
+[Why] Uniformity is itself information - it tells the reader "these all play the same role" at a glance.
 
 Bespoke labels per entity force the reader to read each label and *infer* the shared role.
 
@@ -50,7 +50,7 @@ Append per-brand deltas only where they apply (SAS adds `+ envia Pedidos e dispa
 
 ## Worked example lives in a sibling file
 
-A validated real-world C4L1 — the Integrador as anti-corruption layer across a strangler-fig migration — is in [`diagram-c4l1-strangler-fig-example.md`](diagram-c4l1-strangler-fig-example.md).
+A validated real-world C4L1 - the Integrador as anti-corruption layer across a strangler-fig migration - is in [`diagram-c4l1-strangler-fig-example.md`](diagram-c4l1-strangler-fig-example.md).
 
 It realizes every rule above and adds four techniques for busier diagrams.
 

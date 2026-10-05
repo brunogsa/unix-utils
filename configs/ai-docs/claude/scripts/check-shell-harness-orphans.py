@@ -31,7 +31,7 @@ SUBJECT_EXTENSIONS = (".sh", ".py", ".js")
 
 def is_excluded(path):
     """Return True when path falls under node_modules or the stale
-    worktree checkout, so the caller skips it with no output — never
+    worktree checkout, so the caller skips it with no output - never
     a reason to report, never mixed into a pass/fail count."""
     if "node_modules" in path.parts:
         return True
@@ -62,7 +62,7 @@ def subject_dir_for(harness):
 def naive_subject(harness):
     """Return the single sibling file naive stem-matching resolves as
     harness's subject, or None when zero or multiple candidates exist
-    (ambiguous — never guessed, falls through to the override map)."""
+    (ambiguous - never guessed, falls through to the override map)."""
     stem = harness.stem  # e.g. "test-check-density"
     if not stem.startswith("test-"):
         return None
@@ -79,7 +79,7 @@ def classify_by_extension(subject_path):
     """Return True (still shell, OK), False (now .py/.js, orphaned),
     or None (unrecognized extension) for subject_path's suffix. The
     same rule classifies a naively-found subject and an override-
-    mapped one — the map supplies WHICH file is the subject, never a
+    mapped one - the map supplies WHICH file is the subject, never a
     verdict, so the checker's contract stays mechanical and uniform."""
     suffix = subject_path.suffix
     if suffix == ".sh":
@@ -93,7 +93,7 @@ def evaluate_harness(harness, tree_root, overrides):
     """Return (status, message) for one harness: OK/FAIL plus the
     reason. Resolution order: naive stem-match first; on ambiguity
     (zero or 2+ candidates), the override map; a harness absent from
-    both fails loudly and distinctly from an orphan — never silently
+    both fails loudly and distinctly from an orphan - never silently
     passes and never guesses a subject the map didn't name."""
     subject = naive_subject(harness)
     if subject is not None:

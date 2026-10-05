@@ -89,7 +89,7 @@ def test_violation_in_a_file_fails_the_gate(tmp_path):
 
 def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
     """A brand-new file is where a regression most often arrives, and
-    it is untracked right up to the commit that ships it — so leaving
+    it is untracked right up to the commit that ships it - so leaving
     untracked files out of enumeration would blind the gate exactly
     when it matters most."""
     repo = _make_repo(tmp_path)
@@ -148,7 +148,7 @@ def test_unlistable_checker_extensions_abort_instead_of_scanning_nothing(
 
 def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
     """git still lists a deleted-but-not-yet-committed file as tracked,
-    and handing that path to the checker makes it exit 2 — an
+    and handing that path to the checker makes it exit 2 - an
     environment error dressed up as a violation. Mid-deletion is a
     normal working-tree state, so it must stay green."""
     repo = _make_repo(tmp_path)

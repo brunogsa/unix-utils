@@ -2,7 +2,7 @@
 """Convert Markdown (from stdin) to Atlassian Document Format JSON (to stdout).
 
 The Jira Cloud REST API v3 requires descriptions, comments, and other rich-text
-fields to be ADF documents — not plain markdown. This script does a minimal
+fields to be ADF documents - not plain markdown. This script does a minimal
 markdown -> ADF conversion sufficient for typical issue descriptions:
 
   - H1-H6 headings (cap at H6 since ADF supports up to level 6)
@@ -12,7 +12,7 @@ markdown -> ADF conversion sufficient for typical issue descriptions:
   - Inline: **bold**, `code`, [text](url)
 
 Anything more exotic (tables, blockquotes, fenced code blocks, images, nested
-lists) falls back to paragraphs of plain text — preserves the words, not the
+lists) falls back to paragraphs of plain text - preserves the words, not the
 formatting.
 
 Usage:

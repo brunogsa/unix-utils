@@ -166,7 +166,7 @@ it_should_fail_a_ref_whose_anchor_heading_does_not_exist_in_an_existing_target()
 it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style() {
     echo "it_should_pass_a_ref_whose_anchor_matches_an_em_dash_heading_github_style"
     local d; d=$(new_fixture)
-    printf '# Target\n## Counting conventions — markers for deterministic measurement\nBody.\n' > "$d/target.md"
+    printf '# Target\n## Counting conventions \xe2\x80\x94 markers for deterministic measurement\nBody.\n' > "$d/target.md"
     printf 'See [target](target.md#counting-conventions--markers-for-deterministic-measurement) for details.\n' > "$d/source.md"
     local status; bash "$CHECK" "$d/source.md" >/tmp/check-refs-out.txt 2>&1; status=$?
     assert_status "exits 0" "0" "$status"

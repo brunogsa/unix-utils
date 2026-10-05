@@ -2,10 +2,10 @@
 
 Source: `code-review-pipeline/references/review-checklists.md#Code Design Checklist` + SRP/OCP/LSP/ISP/DIP from `code-review-pipeline/references/review-principles.md` + `code-standards`.
 
-Scope spans two angles, both aimed at the same outcome — a reader should understand the diff without having to reverse-engineer it:
+Scope spans two angles, both aimed at the same outcome - a reader should understand the diff without having to reverse-engineer it:
 
-- Structural design — layering, SRP, parameter shape, duplication.
-- Cognitive complexity — nesting, naming-for-purpose, clarity of dense expressions.
+- Structural design - layering, SRP, parameter shape, duplication.
+- Cognitive complexity - nesting, naming-for-purpose, clarity of dense expressions.
 
 **Focus: modularity + reuse + simplicity.** Push complexity into well-named, reusable units; avoid unnecessary duplication; keep each piece as simple as its responsibility allows.
 
@@ -13,7 +13,7 @@ Scope spans two angles, both aimed at the same outcome — a reader should under
 
 ```
 Your scope: structural quality and cognitive clarity of the diff's new or
-changed code — layering, SRP, nesting, parameter shape, duplication, naming
+changed code - layering, SRP, nesting, parameter shape, duplication, naming
 for purpose, readability of dense expressions, and reuse-vs-reinvention.
 
 ## How to work
@@ -51,7 +51,7 @@ Structure:
   a clear stdlib call without adding retry/logging/validation.
 
 Reuse and modularity:
-- Duplicated logic that should be consolidated (DRY) — flag when two or more
+- Duplicated logic that should be consolidated (DRY) - flag when two or more
   instances exist AND the shared piece is non-trivial.
 - New helper added when an existing module/utility in the codebase already
   does the same thing. Grep the repo before flagging; don't invent
@@ -61,7 +61,7 @@ Reuse and modularity:
   and better-tested.
 
 Cognitive load / clarity:
-- Function longer than ~30 lines without clear sub-structure — usually a
+- Function longer than ~30 lines without clear sub-structure - usually a
   sign it's doing more than one thing.
 - Deep nesting (>3 levels) where guard clauses would flatten.
 - Parameter count >5 (even with a named-param object, the function is

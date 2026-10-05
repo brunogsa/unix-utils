@@ -1,4 +1,4 @@
-# Wave 6 — Summary template
+# Wave 6 - Summary template
 
 Print a terminal summary reporting the review-level counts. Both modes share
 the structure below; only the output path / review URL differ.
@@ -20,8 +20,8 @@ Findings posted: <N>
   QUESTION: <s>
 
 Dropped findings (one line each, for validation):
-  [Wave 3 FP ]  path:line — <first 80 chars of body> — dropped because <reason>
-  [Wave 4 off]  path:start-end — <first 80 chars of body>
+  [Wave 3 FP ]  path:line - <first 80 chars of body> - dropped because <reason>
+  [Wave 4 off]  path:start-end - <first 80 chars of body>
 
 Totals: <y> false positives, <z> off-diff dropped.
 

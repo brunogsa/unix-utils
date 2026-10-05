@@ -255,13 +255,13 @@ fi
 
 RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
-One paragraph = one physical line — never hard-wrap. Never drop information.
+One paragraph = one physical line - never hard-wrap. Never drop information.
 Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.
 Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.
 Fix these by re-issuing Write/Edit with the corrected text. Never bypass this hook by writing or editing the file through Bash (sed, heredoc, redirect, tee, scripts).'
 
 {
-  printf 'prose-format: %s — %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"
+  printf 'prose-format: %s - %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"
 
   # labels_seen preserves first-appearance order across
   # checkers, matching the fixed run order above.

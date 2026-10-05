@@ -21,25 +21,25 @@ This is not a hypothetical: the contaminated-prompt pattern was observed twice i
 - Claude Code CLI (agentic coding tool by Anthropic)
 - macOS Darwin 25.6.0
 - zsh shell
-- Repo: a local git repository with a standard `origin` remote configured — unremarkable, the defect does not depend on repo-specific configuration
+- Repo: a local git repository with a standard `origin` remote configured - unremarkable, the defect does not depend on repo-specific configuration
 
 ## Reproduction
 
 The exact trigger sequence, as best determined from observing it:
 
-1. Run a long session in which, at some point, the operator (or an in-flight task) issues an instruction that includes a remote git-publishing step —
+1. Run a long session in which, at some point, the operator (or an in-flight task) issues an instruction that includes a remote git-publishing step -
    - in the observed case, `git push -u origin HEAD` as part of a multi-step task the session was midway through.
 
 2. The session's context grows large enough that Claude Code auto-compacts (or the operator manually triggers `/compact`).
    - Compaction produces a resume block: a summary/restatement of the session's state that lets the session continue coherently after its transcript has been compacted away.
-   - This resume block includes the in-flight instructions the session was executing at the time of compaction, verbatim or near-verbatim — including the `git push -u origin HEAD` step from (1).
+   - This resume block includes the in-flight instructions the session was executing at the time of compaction, verbatim or near-verbatim - including the `git push -u origin HEAD` step from (1).
 
 3. After compaction, the session dispatches one or more subagents via the Agent tool (e.g., `general-purpose`, `deep-reviewer`, `tdd-coder`, or any other agent type) to continue the work.
 
 4. The prompt text actually delivered to the dispatched subagent is observed to contain the parent session's compaction resume block prepended ahead of the task-specific prompt the calling session composed.
-   - The resume block's content is addressed, semantically, to the parent session — it describes what "you" (the parent) were doing and instructs "you" to continue doing it, including the push.
+   - The resume block's content is addressed, semantically, to the parent session - it describes what "you" (the parent) were doing and instructs "you" to continue doing it, including the push.
 
-5. A dispatched subagent cannot reliably distinguish "this is my actual task" from "this is contextual scaffolding from my caller" —
+5. A dispatched subagent cannot reliably distinguish "this is my actual task" from "this is contextual scaffolding from my caller" -
    - the resume block is not delimited, tagged, or otherwise marked as out-of-band caller context. It reads as an ordinary part of the prompt.
 
 We do not have instrumented, byte-exact logging of the raw prompt Claude Code transmits to the subagent process, so we cannot paste the literal wire-level payload here.
@@ -54,17 +54,17 @@ The subagent has no signal that this content is not its own task.
 
 **Expected:** a subagent's prompt should contain only the task-specific content the dispatching call composed (the `prompt` parameter passed to the Agent tool call).
 
-Session-level continuity state — including the compaction resume block — is the parent session's own scaffolding for resuming itself, and should never be forwarded into a dispatched subagent's prompt.
+Session-level continuity state - including the compaction resume block - is the parent session's own scaffolding for resuming itself, and should never be forwarded into a dispatched subagent's prompt.
 
 An instruction to mutate remote state (git push, deploy) the parent ran should never re-surface in a *different* context. The subagent never decided to run it, and its approval doesn't cover it.
 
 ## Evidence
 
-What was directly observed, and what is risk reasoning built on it — kept separate below, since the report's whole job is being checkable by a maintainer.
+What was directly observed, and what is risk reasoning built on it - kept separate below, since the report's whole job is being checkable by a maintainer.
 
 **Directly observed:** in one compacted session, a dispatched `deep-reviewer` subagent's prompt carried the parent session's leaked `git push -u origin HEAD` instruction.
 
-`deep-reviewer`'s agent definition carries an explicit read-only boundary — "Never modify source, tests, configs, or any repository file" — and the agent refused to act on the push, citing that boundary.
+`deep-reviewer`'s agent definition carries an explicit read-only boundary - "Never modify source, tests, configs, or any repository file" - and the agent refused to act on the push, citing that boundary.
 
 This refusal surfaced the leak. Without it, the contamination would have gone unnoticed, since the refusal message was the only signal reaching the operator.
 
@@ -80,7 +80,7 @@ The operator mitigated `tdd-coder` (see below). A boundary forbids `git push` "w
 
 The boundary added to `tdd-coder` only protects that one agent definition, in this one local repository's configuration. It does nothing for:
 
-- Any other subagent type — built-in (e.g. `general-purpose`, which has full tool access and no such boundary) or custom — that a user has not thought to guard the same way.
+- Any other subagent type - built-in (e.g. `general-purpose`, which has full tool access and no such boundary) or custom - that a user has not thought to guard the same way.
 
 - Any other remote-mutating action besides `git push`.
   - The same mechanism could leak instructions to call paid APIs, send messages, deploy to production, delete resources, or take any side-effecting action the parent was mid-task on during compaction.

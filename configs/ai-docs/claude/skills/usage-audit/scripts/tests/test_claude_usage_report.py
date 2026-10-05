@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Billing-correctness and snapshot-mechanics tests for claude-usage-report.py.
 
-Fixtures: none on disk — every transcript is a handful of hand-readable
+Fixtures: none on disk - every transcript is a handful of hand-readable
 records built in code via _assistant_record()/_write_transcript() below, each
 one small enough that the expected dollar figure can be verified by hand
 against MODEL_PRICES / SONNET_5_INTRO_PRICES / FAST_MODE_PRICES.
 
 The billing-correctness tests force TZ=America/Sao_Paulo (UTC-3, no DST) for
-their whole class so local-day bucketing is deterministic on any machine —
+their whole class so local-day bucketing is deterministic on any machine -
 Sao Paulo is also the real-world timezone the local-day bug was measured
 against. Every filesystem path used (transcripts root, snapshots dir) is a
 tempfile.TemporaryDirectory(); this file never reads or writes
@@ -58,7 +58,7 @@ def _iso(epoch):
 
 
 def _advisor_iteration(*, input_tokens, output_tokens, model="claude-opus-5"):
-    """One usage.iterations entry for an /advisor turn's second model —
+    """One usage.iterations entry for an /advisor turn's second model -
     the only place Claude Code reports that model's tokens."""
     return {
         "type": "advisor_message",
@@ -144,7 +144,7 @@ def _write_transcript(dir_path, filename, records):
 
 
 class TestPricingRates(unittest.TestCase):
-    """Pure unit tests of message_rates() — the branch that picks which price
+    """Pure unit tests of message_rates() - the branch that picks which price
     tuple a message bills at, given its model, day, and usage.speed.
     """
 
@@ -207,8 +207,8 @@ class TestBillingCorrectness(unittest.TestCase):
         time.tzset()
 
     def test_a_response_written_as_three_content_block_records_bills_exactly_once(self):
-        """A response Claude Code writes as N transcript records — one per
-        content block, each stamped with the identical message.usage — must
+        """A response Claude Code writes as N transcript records - one per
+        content block, each stamped with the identical message.usage - must
         bill exactly once, not once per block. Regression for the bug fixed
         2026-07-27: summing every record inflated a day 3.4x."""
         day = "2026-07-20"
@@ -246,7 +246,7 @@ class TestBillingCorrectness(unittest.TestCase):
     def test_a_response_with_growing_output_tokens_bills_the_peak_not_the_anchor_or_the_sum(self):
         """output_tokens is written cumulatively as a response streams, so a
         response whose blocks report output_tokens 100, then 400, then 900
-        must bill the peak (900) — not the earliest block's partial 100, and
+        must bill the peak (900) - not the earliest block's partial 100, and
         not the naive sum 1400. Regression for the bug fixed 2026-08-08."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
@@ -272,7 +272,7 @@ class TestBillingCorrectness(unittest.TestCase):
         """cache_read_input_tokens grows across a response's blocks on a
         minority of responses, exactly as output_tokens does, so a response
         whose blocks report 200, then 500, then 1200 cache-read tokens must
-        bill the peak (1200) — not the anchor block's 200, and not the sum
+        bill the peak (1200) - not the anchor block's 200, and not the sum
         1900. Under-billing here left whole days below ccusage and cost them
         their citable status. Regression for the bug fixed 2026-08-09."""
         day = "2026-07-20"
@@ -413,8 +413,8 @@ class TestBillingCorrectness(unittest.TestCase):
                 "its UTC day 2026-07-21")
 
     def test_a_subagent_nested_two_levels_deep_rolls_up_to_the_top_level_session_once(self):
-        """A subagent transcript nested under .../subagents/... at any depth
-        — including a subagent's own subagent — rolls its cost up to the
+        """A subagent transcript nested under .../subagents/... at any depth -
+        including a subagent's own subagent - rolls its cost up to the
         top-level parent session, via path.split("/subagents/")[0], and is
         counted exactly once in that parent's subagent tally."""
         day = "2026-07-20"
@@ -462,7 +462,7 @@ class TestBillingCorrectness(unittest.TestCase):
 
     def test_an_advisor_turn_bills_its_second_model_on_top_of_the_main_one(self):
         """An /advisor turn bills a second model whose tokens appear ONLY in
-        usage.iterations — the top-level usage fields sum the "message"
+        usage.iterations - the top-level usage fields sum the "message"
         iterations alone. Regression for the bug fixed 2026-08-09, where
         those tokens were structurally invisible to the aggregator."""
         day = "2026-07-20"
@@ -492,7 +492,7 @@ class TestBillingCorrectness(unittest.TestCase):
 
     def test_advisor_tokens_on_a_non_anchor_block_still_bill_and_bill_only_once(self):
         """A subagent transcript never carries its advisor iterations on the
-        ANCHOR block record — measured 2026-07-19: 0 of 13 on the anchor. The
+        ANCHOR block record - measured 2026-07-19: 0 of 13 on the anchor. The
         dedup gate skips every non-anchor record, so reading the iterations
         off the record being priced dropped every subagent advisor call."""
         day = "2026-07-20"
@@ -536,8 +536,8 @@ class TestBillingCorrectness(unittest.TestCase):
 class TestRepoClassSplit(unittest.TestCase):
     """Coverage for splitting a day's spend and human touches into the work
     half and the tooling half. Only the work half has a merged-PR
-    denominator — the delivered-work ledger excludes the personal-env repos
-    by design — so dividing TOTAL spend by PRs measured which repo the day
+    denominator - the delivered-work ledger excludes the personal-env repos
+    by design - so dividing TOTAL spend by PRs measured which repo the day
     was spent in more than how efficiently it was spent.
     """
 
@@ -728,7 +728,7 @@ class TestRepoClassSplit(unittest.TestCase):
 
     def test_a_subagents_user_records_never_count_as_touches_in_either_half(self):
         """A subagent's "user" records are its spawn prompt and tool results,
-        not the human typing — counting them would inflate the very
+        not the human typing - counting them would inflate the very
         denominator touches-per-merged-PR divides by."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
@@ -922,7 +922,7 @@ class TestSnapshotMechanics(unittest.TestCase):
 
     def test_refuses_to_snapshot_the_current_open_day(self):
         """--day for today (not yet closed) must exit non-zero and must not
-        write a snapshot — a day is only immutable once it has ended."""
+        write a snapshot - a day is only immutable once it has ended."""
         today = date.today().isoformat()
         with tempfile.TemporaryDirectory() as tmp:
             transcripts_root = os.path.join(tmp, "projects")
@@ -971,7 +971,7 @@ class TestSnapshotMechanics(unittest.TestCase):
 
     def test_backfill_with_rebuild_overwrites_a_days_existing_snapshot(self):
         """--backfill --rebuild must re-measure and overwrite a day's
-        existing snapshot file rather than skipping it — the escape hatch
+        existing snapshot file rather than skipping it - the escape hatch
         for when an aggregation fix leaves old snapshots wrong."""
         day = "2026-07-20"
         cur._ccusage_days.clear()
@@ -1001,7 +1001,7 @@ class TestSnapshotMechanics(unittest.TestCase):
     def test_a_day_before_the_retention_floor_writes_unretained_coverage(self):
         """A day whose transcripts have already been pruned past Claude
         Code's retention floor must record coverage: "unretained", not
-        "complete" — unretained means unmeasurable, not idle."""
+        "complete" - unretained means unmeasurable, not idle."""
         payload = self._snapshot_against_floor(day="2026-06-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1012,7 +1012,7 @@ class TestSnapshotMechanics(unittest.TestCase):
     def test_the_retention_floor_day_itself_writes_partial_coverage(self):
         """The prune cuts through the floor day at an hour, not at
         midnight, so its earlier sessions are gone while its later ones
-        survive — that day must read "partial", never "complete"."""
+        survive - that day must read "partial", never "complete"."""
         payload = self._snapshot_against_floor(day="2026-07-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1034,7 +1034,7 @@ class TestSnapshotMechanics(unittest.TestCase):
     def test_a_partially_retained_day_reports_no_ccusage_verdict(self):
         """A day the prune has reached is measured against a shrunken
         corpus, so its ccusage cross-check would compare two different
-        corpora — it must report the coverage word instead of ok/drift."""
+        corpora - it must report the coverage word instead of ok/drift."""
         payload = self._snapshot_against_floor(day="2026-07-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1045,7 +1045,7 @@ class TestSnapshotMechanics(unittest.TestCase):
 
     def test_rebuilding_a_pruned_day_keeps_the_committed_snapshot(self):
         """--rebuild is mandatory after an aggregation fix, but a day
-        whose transcripts are gone can only re-measure LOWER — the older,
+        whose transcripts are gone can only re-measure LOWER - the older,
         richer measurement must survive the rebuild."""
         day = "2026-06-01"
         cur._ccusage_days.clear()
@@ -1079,7 +1079,7 @@ class TestSnapshotMechanics(unittest.TestCase):
 
     def test_rebuilding_a_retained_day_overwrites_a_higher_committed_total(self):
         """A fully retained day measuring lower is an aggregation fix
-        landing, not history being lost — the 2026-07-27 dedup fix cut
+        landing, not history being lost - the 2026-07-27 dedup fix cut
         2026-07-20 from $441.44 to $130.16 and had to be allowed to."""
         day = "2026-07-20"
         cur._ccusage_days.clear()
@@ -1140,7 +1140,7 @@ class TestSnapshotMechanics(unittest.TestCase):
     def test_reconciliation_degrades_to_unavailable_when_ccusage_returns_an_unrecognized_schema(self):
         """A ccusage output whose schema this script doesn't recognize (e.g.
         a future version renaming or dropping a field) must degrade to
-        status "unavailable" instead of crashing the snapshot run — the
+        status "unavailable" instead of crashing the snapshot run - the
         exact failure mode a ccusage 20.x schema change hit in production."""
         cur._ccusage_days.clear()
         empty_tokens = {"tokens": dict.fromkeys(cur.TOKEN_KINDS, 0)}
@@ -1160,7 +1160,7 @@ class TestSessionMode(unittest.TestCase):
     """--session SID --json: the existing aggregate()/build_payload() pipeline
     run over one session id's own transcripts (its main file plus any
     subagent runs under it), found by searching every ~/.claude/projects/*/
-    directory rather than only the caller's cwd project — a --session audit
+    directory rather than only the caller's cwd project - a --session audit
     commonly targets a past run made from elsewhere. Never touches
     snapshot_day()/run_backfill(): a mid-session read is inherently partial
     and must not be written under usage-history/snapshots/.
@@ -1201,7 +1201,7 @@ class TestSessionMode(unittest.TestCase):
 
     def test_includes_the_main_vs_subagent_cost_split_for_a_session_that_has_subagent_runs(self):
         """A session that delegated to a subagent must report the two
-        halves separately, not just their sum — main_cost and
+        halves separately, not just their sum - main_cost and
         subagent_cost using distinct token counts so a swapped key would
         be caught rather than masked by equal totals."""
         day = "2026-07-20"
@@ -1233,7 +1233,7 @@ class TestSessionMode(unittest.TestCase):
 
     def test_reports_zero_subagent_cost_never_fails_when_the_session_has_no_subagents_directory(self):
         """A session that never delegated has no subagents/ directory at
-        all on disk — that must read as zero cost, not raise."""
+        all on disk - that must read as zero cost, not raise."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1322,7 +1322,7 @@ class TestSessionMode(unittest.TestCase):
     def test_reuses_local_day_and_parse_ts_for_any_date_bucketed_figures_instead_of_reimplementing_them(self):
         """A response stamped just after UTC midnight, still before local
         midnight in America/Sao_Paulo (UTC-3), must bucket under its LOCAL
-        day in by_day — proof --session calls the shared local_day()/
+        day in by_day - proof --session calls the shared local_day()/
         parse_ts() rather than re-deriving day bucketing from the raw
         UTC timestamp."""
         original_tz = os.environ.get("TZ")
@@ -1387,7 +1387,7 @@ class TestSessionMode(unittest.TestCase):
 
     def test_never_writes_to_usage_history_snapshots_when_run_in_session_mode(self):
         """--session must never create the snapshots directory, and must
-        never reach snapshot_day()/run_backfill() at all — a mid-session
+        never reach snapshot_day()/run_backfill() at all - a mid-session
         read is inherently partial and must not be mistaken for the
         immutable closed-day record those two produce."""
         day = "2026-07-20"
@@ -1421,7 +1421,7 @@ class TestSessionMode(unittest.TestCase):
     def test_leaves_the_backfill_and_day_code_paths_producing_identical_output_to_before_the_session_flag_was_added(self):
         """Regression guard: --day's snapshot pipeline (aggregate() ->
         build_payload() -> snapshot_day()) must still produce the exact
-        pre-change dollar figure and coverage/reconciliation verdict —
+        pre-change dollar figure and coverage/reconciliation verdict -
         proven against a hand-computed expected value, not f(X) === f(X),
         so a real drift in the shared pipeline would be caught here."""
         day = "2026-07-20"

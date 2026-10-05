@@ -1,4 +1,4 @@
-# Step 5 — Apply post-push changes
+# Step 5 - Apply post-push changes
 
 Two entry points: a change the user asks for after the push, or step 4 finding the branch already had an open PR. Either way:
 
@@ -12,5 +12,5 @@ Two entry points: a change the user asks for after the push, or step 4 finding t
   - Re-deriving the final body from it would discard the user's own edits, and nobody reads the ideal description after the push.
 
 - **Confirm with the user before writing to GitHub** -- the local edit is cheap to revise; the pushed body notifies reviewers.
-- **Updating an existing PR's body: never use `gh pr edit --body-file`** — take the REST command and its mandatory read-back from the `gh-cli-usage` skill, which authors that hazard.
+- **Updating an existing PR's body: never use `gh pr edit --body-file`** - take the REST command and its mandatory read-back from the `gh-cli-usage` skill, which authors that hazard.
   - Restating the command would be a third copy that drifts the next time GitHub changes the endpoint.

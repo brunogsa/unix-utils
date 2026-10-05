@@ -1,7 +1,7 @@
 ---
 # performance-check budget override, approved by the user 2026-07-27.
 # This file governs both renderings a flowchart.md carries, and the two always
-# load together on the same run — so splitting it would create the co-loading
+# load together on the same run - so splitting it would create the co-loading
 # pair this skill's own rule forbids, and trimming to 1024 would delete the
 # pseudo-code rules rather than tighten them.
 words-budget: 2048
@@ -15,7 +15,7 @@ The file carries an H1 title and a human-facing non-authoritative preamble (SKIL
 
 Then the control flow, rendered twice: a `## Pseudo-code` section, followed by a `## Flowchart` section holding one mermaid diagram.
 
-Both renderings are mandatory and cover the same steps. Write the diagram first — the pseudo-code cross-references its node ids.
+Both renderings are mandatory and cover the same steps. Write the diagram first - the pseudo-code cross-references its node ids.
 
 ## The diagram stands alone
 
@@ -25,7 +25,7 @@ Spell out every step this skill owns; never collapse a range into a prose pointe
 
 This doesn't contradict collapsing a callee (below): collapse what belongs to *another* file's flow, never this skill's own steps.
 
-Why: the flowchart is read *instead of* the numbered steps — a pointer into SKILL.md reintroduces the cross-reference the diagram exists to spare, and rots the moment a step is renumbered.
+Why: the flowchart is read *instead of* the numbered steps - a pointer into SKILL.md reintroduces the cross-reference the diagram exists to spare, and rots the moment a step is renumbered.
 
 ## Every node carries an id
 
@@ -35,7 +35,7 @@ Ids are diagram-local, ordered top to bottom (`1`, `2`, `3`, …), one per main-
 
 A node hanging off a decision takes that decision's number plus a letter (`5a`, `5b`, `5c`), and the main line resumes at `6` where branches rejoin.
 
-Where one branch terminates (abort/stop/skip) and another continues, the onward branch IS the main line — only the terminal branch gets a letter.
+Where one branch terminates (abort/stop/skip) and another continues, the onward branch IS the main line - only the terminal branch gets a letter.
 
 A multi-node branch takes sequential letters (`5b`, `5c`), assigned depth-first: it consumes its whole run before the next sibling branch's letters start.
 
@@ -45,7 +45,7 @@ A node where 3+ branches converge takes a plain main-line number, since no singl
 
 A fork inside a lettered branch appends a digit (`5c1`, `5c2`).
 
-Deeper nesting alternates letter/digit (`5c1a`, `5c1a1`), one level per character — never digit-on-digit (`5c11` is unreadable; `5c1a` says the same).
+Deeper nesting alternates letter/digit (`5c1a`, `5c1a1`), one level per character - never digit-on-digit (`5c11` is unreadable; `5c1a` says the same).
 
 An offshoot that never rejoins still letters this way, even off a plain node.
 
@@ -59,21 +59,21 @@ Keep the sequence gapless on every regeneration, renumbering whatever a flow cha
 
 Name each mermaid node identifier after its id with an `n` prefix (`n5c1`), so the edge list matches the label numbering.
 
-A node mapping to a SKILL.md step keeps its `Step N ·` marker after the id (`9. Step 4 · Interview (Socratic rounds)`) — id is diagram position, marker is skill step.
+A node mapping to a SKILL.md step keeps its `Step N ·` marker after the id (`9. Step 4 · Interview (Socratic rounds)`) - id is diagram position, marker is skill step.
 
 Normalize a bare `N. ` marker into that form, so no label opens with two bare numbers (`3. Step 1 · Glob the CWD`, never `3. 1. Glob the CWD`).
 
 Why: the id lets the human name the node they want changed unambiguously ("drop 5c1", unlike a quoted label), and reads ordering instead of tracing arrows.
 
-An id is a position in one diagram revision, never a durable reference — never cite one from SKILL.md, another flowchart, a commit, or a code comment, since regeneration renumbers it silently.
+An id is a position in one diagram revision, never a durable reference - never cite one from SKILL.md, another flowchart, a commit, or a code comment, since regeneration renumbers it silently.
 
 ## The pseudo-code rendering
 
-Write it in a ```python fence — near-Python, so it syntax-highlights and reads without a legend. Nothing in it is runnable.
+Write it in a ```python fence - near-Python, so it syntax-highlights and reads without a legend. Nothing in it is runnable.
 
 Say so in one line under the `## Pseudo-code` heading: the function names stand for orchestrator actions, not real APIs. Otherwise a reader hunts for `implement_loop_state` in the repo.
 
-Tag every step with its diagram node id as a comment — `# 19c ·` before the line, or trailing it.
+Tag every step with its diagram node id as a comment - `# 19c ·` before the line, or trailing it.
 
 Use the plain id, never the `n` prefix, which belongs to mermaid identifiers.
 
@@ -83,7 +83,7 @@ State that contract in the preamble, so a future editor knows the comments are l
 
 Keep the same `Step N ·`/`§N` skill-step markers the diagram's labels carry, so all three surfaces line up.
 
-Model control flow with real Python control flow — `while` for a retry loop, `match` for a script verdict, early `return` for a halt.
+Model control flow with real Python control flow - `while` for a retry loop, `match` for a script verdict, early `return` for a halt.
 
 Prefer a named helper (`def halt():`) over duplicating a terminal branch at each of its call sites.
 
@@ -93,7 +93,7 @@ An invariant like "ONLY this script sends a unit to the gates" is a comment, sin
 
 Where a diagram edge and a Python construct disagree, follow the diagram and note the seam.
 
-A retry edge pointing back at the dispatch node, not at activation, is an inner `while True` — write that, and say why in a comment.
+A retry edge pointing back at the dispatch node, not at activation, is an inner `while True` - write that, and say why in a comment.
 
 Why: prose and a diagram fail differently. A diagram hides sequencing inside arrow soup once branches nest, while pseudo-code cannot show convergence at a glance.
 
@@ -116,7 +116,7 @@ Wrap a statically-known set in a `subgraph` whose label carries the why (seeded 
 
 Keep a runtime-sized set (one entry per plan task, per review cluster) as a single node naming what it covers, since the count isn't knowable at authoring time.
 
-Why: the diagram is the human's audit of the run's whole timeline — a collapsed range hides a step that could silently never be seeded.
+Why: the diagram is the human's audit of the run's whole timeline - a collapsed range hides a step that could silently never be seeded.
 
 ## Scope it to this skill's own flow
 
@@ -124,15 +124,15 @@ Draw the edge in and the edge out; never redraw what happens inside.
 
 Keep only what this skill's own flow branches on: a returned status the next decision node reads is its business, not how the callee produced it.
 
-Why: those internals live in their own file and change on its schedule — a copy here rots unnoticed, and the reader can't tell stale from live.
+Why: those internals live in their own file and change on its schedule - a copy here rots unnoticed, and the reader can't tell stale from live.
 
-Collapsing also holds the diagram at a single altitude — what makes it auditable at a glance.
+Collapsing also holds the diagram at a single altitude - what makes it auditable at a glance.
 
 Bad: a dispatch node listing the five skills an agent preloads, or a hook node spelling out its auto-approved write paths. Good: `Dispatch tdd-coder (agent-pinned, background, serial)`, `Hook: check-reviewer-writes`.
 
 ## Model and effort come from the agent file
 
-Write `agent-pinned` whenever `agents/<name>.md` pins `model:`/`effort:` — never copy the values or `maxTurns`.
+Write `agent-pinned` whenever `agents/<name>.md` pins `model:`/`effort:` - never copy the values or `maxTurns`.
 
 Spell out an explicit tier only where the caller genuinely owns it (an unpinned agent like `general-purpose`, or a per-call override).
 
@@ -158,7 +158,7 @@ Prove node coverage rather than eyeballing it: extract every declared mermaid no
 
 Anything under 100% is an unwritten step, not a formatting nit.
 
-Run `doc-standards/scripts/check-density.sh` on the file. Fenced blocks are skipped, so it only ever measures the preamble — a violation there is real and one sentence away from fixed.
+Run `doc-standards/scripts/check-density.sh` on the file. Fenced blocks are skipped, so it only ever measures the preamble - a violation there is real and one sentence away from fixed.
 
 Both renderings count toward the same bundled-resource budgets, so a first pseudo-code pass roughly doubles the file.
 

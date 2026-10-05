@@ -8,10 +8,10 @@
 #     | extract-skipped-files - <output-dir>
 #
 # Output: writes two files into <output-dir>:
-#   skipped-binary.txt   — one path per line, files the diff
+#   skipped-binary.txt   - one path per line, files the diff
 #                          reports as binary
 #
-#   skipped-deleted.txt  — one path per line, files removed by
+#   skipped-deleted.txt  - one path per line, files removed by
 #                          the diff
 #
 # Examples:

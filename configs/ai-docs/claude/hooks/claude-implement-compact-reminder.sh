@@ -33,8 +33,8 @@
 #
 #   This hook is the third guard.
 #
-#   It fires at the compaction boundary itself — the one moment
-#   working memory resets — and re-injects the remaining §8
+#   It fires at the compaction boundary itself - the one moment
+#   working memory resets - and re-injects the remaining §8
 #   checklist for the FIRST mid-flight unit so the batch never
 #   ends at the last task's commit.
 #
@@ -46,9 +46,9 @@
 #   is named by its pr_label when the run has one (a PR-label
 #   run).
 #
-#   Within that §8 list the push step is NOT conditional —
-#   every batch end pushes, whether or not a PR was wanted
-#   — so it is always present once the list is due.
+#   Within that §8 list the push step is NOT conditional -
+#   every batch end pushes, whether or not a PR was wanted,
+#   so it is always present once the list is due.
 #
 # Why task state, not phase, picks which directive is due:
 #   Phase 'tasks' covers the WHOLE task loop, so keying the
@@ -62,7 +62,7 @@
 #
 #   And its 'git push' step targets a branch that a
 #   concurrent session may have loaded with its own
-#   unreviewed commits — the same harm the subagent guard
+#   unreviewed commits - the same harm the subagent guard
 #   below exists to prevent, reached down a second path.
 #
 #   claude-implement-stop-hook.sh answers the neighbouring
@@ -70,7 +70,7 @@
 #   files, and its block reason is the wording the
 #   task-loop branch here reuses, so the two read alike.
 #
-# Session scoping — identical to claude-implement-stop-hook.sh:
+# Session scoping - identical to claude-implement-stop-hook.sh:
 #   State file paths are keyed by session_id. No file matching
 #   this session id → silent exit 0.
 #
@@ -92,7 +92,7 @@
 #   precedent as claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
 #
-# Safeguards (all silent no-ops — never break Claude on a
+# Safeguards (all silent no-ops - never break Claude on a
 # tooling/state gap):
 # - jq missing → exit 0.
 # - No session_id, or no state files match it → exit 0.
@@ -148,7 +148,7 @@ for f in "${state_files[@]}"; do
   esac
 done
 
-# nothing mid-flight — nothing to remind
+# nothing mid-flight - nothing to remind
 [ -z "$chosen_file" ] && exit 0
 
 # Count other units still pending (not yet presented), for the
@@ -171,7 +171,7 @@ unit_desc="the plain run"
 
 # The PR step is conditional: only a run that opted into a PR
 # writes one.
-# Its "create only" wording matters — the pr-creator agent runs
+# Its "create only" wording matters - the pr-creator agent runs
 # the create-pr skill, which pushes by default otherwise.
 pr_step=""
 [ "$pr_wanted" = "true" ] && pr_step=" → open the draft PR via the pr-creator agent (create only; the push above already ran)"
@@ -183,7 +183,7 @@ sha_display="${base_sha:-<BATCH_BASE_SHA>}"
 remaining_line=""
 [ "$pending_after" -gt 0 ] && remaining_line="$pending_after more unit(s) remain after this one."
 
-# Which directive is due — see the header. "Unfinished" is
+# Which directive is due - see the header. "Unfinished" is
 # every task the loop has not recorded as done, so a
 # blocked or unreadable status lands in the task-loop
 # branch, which withholds the push instead of guessing.
@@ -201,20 +201,20 @@ if [ -n "$unfinished_ids" ]; then
 read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' has $unit_desc still in phase '$phase', with $unfinished_count task(s) not yet done: $unfinished_ids. The batch isn't done yet, and this compaction may have dropped that from working memory.
 
-Keep working the task loop (see the implement skill and implement-loop-state.sh) instead of winding the batch down: ask implement-loop-state.sh for the unit's next verdict and dispatch from there. Do NOT start the batch-end procedure — it falls due only when that verdict moves this unit to phase 'gates', which cannot happen while a task is still unfinished.
+Keep working the task loop (see the implement skill and implement-loop-state.sh) instead of winding the batch down: ask implement-loop-state.sh for the unit's next verdict and dispatch from there. Do NOT start the batch-end procedure - it falls due only when that verdict moves this unit to phase 'gates', which cannot happen while a task is still unfinished.
 $remaining_line
 EOF
 
 else
 
 read -r -d '' DIRECTIVE <<EOF || true
-A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory — do NOT let the batch end at the last task's commit.
+A /implement batch for '$slug' has $unit_desc mid-flight (state phase: '$phase'). This compaction may have dropped the §8 batch-end steps from working memory - do NOT let the batch end at the last task's commit.
 
-Resume the §8 batch-end procedure (implement skill §8, detail in references/batch-end-review.md — re-read it, do not work from this summary). Remaining steps, in order:
+Resume the §8 batch-end procedure (implement skill §8, detail in references/batch-end-review.md - re-read it, do not work from this summary). Remaining steps, in order:
 §8.1 push the branch with 'git push -u origin HEAD' (ALWAYS, no toggle) → record it as the Branch: clause on the plan's PR line$pr_step → §8.2 quality-gate tail, always --report-only (only when quality_gate.wanted) → §8.3 repo-green gate: full suite + full lint, fix-loop until green (only when repo_green_gate.wanted) → §8.4 re-push and refresh the PR description when §8.2/§8.3 landed commits, then print the batch-end package, closing with the review notification (review starts at $sha_display).
 $remaining_line
 
-Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed exactly the ones §2.2 seeds for this run's toggles — a step the interview turned off gets no entry at all. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
+Verify the batch-end [Reminder] tasks are still in your TaskList; if this compaction dropped them, re-seed exactly the ones §2.2 seeds for this run's toggles - a step the interview turned off gets no entry at all. The run is done only when phase reaches 'presented'; a 'halted' unit is waiting on the human and won't resume on its own.
 EOF
 
 fi

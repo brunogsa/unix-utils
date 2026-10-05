@@ -62,7 +62,7 @@ it_should_pass_a_scenario_whose_block_pastes_a_fenced_response_body() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — kit-less collection against Oracle EBS on stage</summary>
+<summary>Scenario 1 - kit-less collection against Oracle EBS on stage</summary>
 
 Ran a kit-less collection against Oracle EBS on stage, 2026-09-18 14:02 UTC.
 
@@ -83,7 +83,7 @@ it_should_pass_a_scenario_whose_only_artifact_is_a_screenshot() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — invoice drawer on stage</summary>
+<summary>Scenario 1 - invoice drawer on stage</summary>
 
 Opened the invoice drawer on stage, 2026-09-18, and read back the rendered total.
 
@@ -100,7 +100,7 @@ it_should_fail_a_scenario_whose_only_fence_is_a_mermaid_diagram() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — sync flow walked on stage</summary>
+<summary>Scenario 1 - sync flow walked on stage</summary>
 
 Walked the sync flow on stage, 2026-09-18, and confirmed each hop.
 
@@ -121,7 +121,7 @@ it_should_fail_a_scenario_that_narrates_findings_in_prose_bullets_only() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — kit-less collection shapes against Oracle EBS and SGE</summary>
+<summary>Scenario 1 - kit-less collection shapes against Oracle EBS and SGE</summary>
 
 Ran four kit-less-collection shapes against Oracle EBS and three against SGE
 directly on stage, 2026-09-18, reading back each ERP response.
@@ -146,7 +146,7 @@ it_should_fail_a_scenario_link_that_points_at_no_anchor() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — kit-less collection against Oracle EBS on stage</summary>
+<summary>Scenario 1 - kit-less collection against Oracle EBS on stage</summary>
 
 Ran it on stage, 2026-09-18.
 
@@ -166,7 +166,7 @@ it_should_warn_when_a_scenario_carries_an_artifact_but_no_date() {
 
 <a id="scenario-1"></a>
 <details>
-<summary>Scenario 1 — kit-less collection against Oracle EBS on stage</summary>
+<summary>Scenario 1 - kit-less collection against Oracle EBS on stage</summary>
 
 `POST /v1/collections` → `201 Created`:
 

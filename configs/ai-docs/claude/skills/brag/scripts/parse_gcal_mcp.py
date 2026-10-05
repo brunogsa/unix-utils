@@ -67,7 +67,7 @@ def parse_gcal_events(mcp_json_path, start_range, end_range):
 
         summary = ev.get("summary", "(no title)").strip()
 
-        # _created: None for recurring event occurrences — the
+        # _created: None for recurring event occurrences - the
         # series creation date is misleading for overlap
         # resolution (same reasoning as parse_ics.py).
         is_recurring = "recurringEventId" in ev

@@ -60,7 +60,7 @@ it_should_pass_a_quote_that_is_a_fragment_of_a_longer_line() {
     local f="$d/notes.md"
 
     # doc-standards mandates one prose paragraph per physical
-    # line, so real files are made of long single-line bullets —
+    # line, so real files are made of long single-line bullets -
     # an auditor quoting "the exact text" will usually hand back
     # a fragment of such a line, not the whole line.
     #
@@ -69,7 +69,7 @@ it_should_pass_a_quote_that_is_a_fragment_of_a_longer_line() {
     # so this must pass.
     write_file "$f" <<'EOF'
 Intro line.
-- [Instruction] Prefer CLI scripts + skills over MCP servers — use MCP only for capabilities CLI + skills can't provide.
+- [Instruction] Prefer CLI scripts + skills over MCP servers - use MCP only for capabilities CLI + skills can't provide.
 Outro line.
 EOF
     printf '%s' "Prefer CLI scripts + skills over MCP servers" | bash "$VERIFY" "$f" >/dev/null 2>"$STDERR_FILE"

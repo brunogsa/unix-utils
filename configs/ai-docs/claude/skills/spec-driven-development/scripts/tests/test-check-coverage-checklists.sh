@@ -115,10 +115,10 @@ it_should_pass_when_both_checklists_instantiate_every_taxonomy_row() {
   local fixture
   fixture=$(write_spec "complete" \
     '- empty / single / many: covered (AC-2)
-- null / undefined / missing: N/A — irrelevant' \
+- null / undefined / missing: N/A - irrelevant' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should pass when both checklists instantiate every taxonomy row" "0" "$VERDICT_EXIT"
 }
@@ -128,8 +128,8 @@ it_should_fail_when_one_taxonomy_row_is_missing_from_a_checklist() {
   fixture=$(write_spec "missing-row" \
     '- empty / single / many: covered (AC-2)' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should fail when one taxonomy row is missing from a checklist (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then
@@ -147,8 +147,8 @@ it_should_fail_when_a_row_has_malformed_grammar() {
     '- empty / single / many: covered (AC-2)
 - null / undefined / missing: sometimes' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should fail when a row has malformed grammar (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then
@@ -165,8 +165,8 @@ it_should_pass_when_the_whole_checklist_opt_out_marker_is_used() {
   fixture=$(write_spec "opt-out" \
     '**DECISION:** Skip boundary checklist because this is a one-line config change.' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should pass when the whole-checklist opt-out marker is used" "0" "$VERDICT_EXIT"
 }
@@ -192,10 +192,10 @@ it_should_not_count_a_row_quoted_inside_a_fenced_code_block() {
 - empty / single / many: covered (AC-2)
 ```
 
-- null / undefined / missing: N/A — irrelevant' \
+- null / undefined / missing: N/A - irrelevant' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should not count a row quoted inside a fenced code block (exit code)" "1" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in
@@ -220,10 +220,10 @@ it_should_not_count_a_row_quoted_inside_a_longer_fence_after_an_inner_opener() {
 - empty / single / many: covered (AC-2)
 ````
 
-- null / undefined / missing: N/A — irrelevant' \
+- null / undefined / missing: N/A - irrelevant' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should not count a row quoted inside a four-backtick fence after an inner three-backtick opener (exit code)" "1" "$VERDICT_EXIT"
 }
@@ -238,10 +238,10 @@ it_should_not_count_a_row_quoted_after_an_inner_bare_line_inside_a_longer_fence(
 - empty / single / many: covered (AC-2)
 ````
 
-- null / undefined / missing: N/A — irrelevant' \
+- null / undefined / missing: N/A - irrelevant' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should not count a row quoted after an inner bare three-backtick line inside a four-backtick fence (exit code)" "1" "$VERDICT_EXIT"
 }
@@ -255,10 +255,10 @@ it_should_not_count_a_row_quoted_inside_a_tilde_fenced_code_block() {
 - empty / single / many: covered (AC-2)
 ~~~
 
-- null / undefined / missing: N/A — irrelevant' \
+- null / undefined / missing: N/A - irrelevant' \
     '- validation error (4xx): covered (AC-3)
-- downstream timeout / never-responds: N/A — irrelevant
-- duplicate delivery (at-least-once redelivery): N/A — irrelevant')
+- downstream timeout / never-responds: N/A - irrelevant
+- duplicate delivery (at-least-once redelivery): N/A - irrelevant')
   run_script "$fixture"
   assert_eq "should not count a row quoted inside a ~~~-fenced code block (exit code)" "1" "$VERDICT_EXIT"
   case "$VERDICT_ERR" in

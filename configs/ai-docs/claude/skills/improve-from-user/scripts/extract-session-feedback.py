@@ -2,19 +2,19 @@
 """Recover compaction-proof feedback from a Claude Code session transcript.
 
 Mode A of the improve-from-user skill used to
-"review the conversation history" — i.e. Claude's in-context memory. Compaction
+"review the conversation history" - i.e. Claude's in-context memory. Compaction
 thins that memory to a summary, so verbatim user corrections from earlier in the
 session are gone by the time the skill runs.
 
 They are NOT gone from disk. Claude Code appends every message to a JSONL
 transcript under ~/.claude/projects/<cwd-slug>/<session-id>.jsonl, and compaction
-never rewrites that file — it only inserts a `compact_boundary` marker and keeps
+never rewrites that file - it only inserts a `compact_boundary` marker and keeps
 appending. The originals survive above each boundary. Verified: one session held
 13 compactions in a single file with all 14 pre-first-boundary user turns intact.
 
 This script reads that file and emits two things:
-  1. verbatim user turns  — each with a one-line note of what Claude did next
-  2. compaction boundaries — marked inline so you see where memory was thinned
+  1. verbatim user turns  - each with a one-line note of what Claude did next
+  2. compaction boundaries - marked inline so you see where memory was thinned
 
 Scope: a multi-session sweep, not a single file. Every transcript whose mtime
 falls in the --since window AND holds >= 2 real user turns qualifies; the
@@ -52,7 +52,7 @@ def die(msg, code=2) -> NoReturn:
 
 
 def is_real_user_prose(d):
-    """A genuine user prose turn — not a tool result, meta, slash command, or summary."""
+    """A genuine user prose turn - not a tool result, meta, slash command, or summary."""
     if d.get("type") != "user" or d.get("isMeta") or d.get("isCompactSummary"):
         return False
     content = d.get("message", {}).get("content")
@@ -124,8 +124,8 @@ def qualifying_transcripts(project_dirs, since_days, exclude_path):
 
     A transcript qualifies when its mtime falls within the last since_days
     days AND it holds >= 2 real user turns (Finding 2/3: this filter is what
-    keeps a routine sweep tractable). exclude_path — the running session's
-    own transcript — is dropped even when it otherwise qualifies (D7).
+    keeps a routine sweep tractable). exclude_path - the running session's
+    own transcript - is dropped even when it otherwise qualifies (D7).
 
     Only top-level files are considered, not nested <session>/subagents/*.jsonl
     files, which carry no user prose (derived design constraint). Returned in
@@ -153,7 +153,7 @@ def survey(qualifying):
     """Corpus survey for qualifying: file count, real user turns, estimated tokens.
 
     Estimated tokens is user_chars / 4 (D "escalation threshold ~80k
-    estimated tokens" — the same rough conversion the plan's fan-out
+    estimated tokens" - the same rough conversion the plan's fan-out
     threshold is built on). Printed before any session content (D12) so an
     oversized sweep is visible before a single message body is read.
     """
@@ -175,7 +175,7 @@ def parse_transcript(path):
     """Parse one transcript into (turns, boundaries).
 
     Restores the event-linking loop the deleted single-file resolve_transcript()
-    used to run inline in main() — each assistant burst is attached to the user
+    used to run inline in main() - each assistant burst is attached to the user
     turn it answers. Now scoped per file so the sweep's emit() can call it once
     per qualifying transcript instead of once per process.
     """
@@ -252,7 +252,7 @@ def _running_session_transcript(project_dirs):
     """Resolve the live session's own transcript via $CLAUDE_CODE_SESSION_ID, or None.
 
     The one piece of session-identity logic that survives from the deleted
-    precedence chain — now used only for exclusion, never for selection (D7).
+    precedence chain - now used only for exclusion, never for selection (D7).
     """
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
     if not session_id:
@@ -294,7 +294,7 @@ def _emit_session(out, path, index, total, turns, boundaries):
     """Write one session's verbatim turns to out.
 
     Body formatting (truncation, NEXT: line, compaction-boundary notes) is
-    unchanged from the pre-sweep single-file emit() — only the surrounding
+    unchanged from the pre-sweep single-file emit() - only the surrounding
     per-session header/grouping is new, so a multi-session sweep reads as N
     of these blocks back to back, in session order.
     """
@@ -309,13 +309,13 @@ def _emit_session(out, path, index, total, turns, boundaries):
     out.write(f"# summary    : {len(turns)} user turns · "
               f"{len(boundaries)} compaction boundaries\n")
     if boundaries:
-        out.write("# NOTE: this session compacted — the turns below are the ORIGINAL verbatim text,\n")
+        out.write("# NOTE: this session compacted - the turns below are the ORIGINAL verbatim text,\n")
         out.write("#       not the summary your in-context memory now holds. Trust these over memory.\n")
     out.write("\n")
 
     out.write("### Verbatim user turns + what Claude did next\n\n")
     if not turns:
-        out.write("(no user prose turns found — check the transcript path in the header)\n")
+        out.write("(no user prose turns found - check the transcript path in the header)\n")
     for t in turns:
         header = f"#### turn @ {t['ts'] or '?'}  [line {t['line']}]"
         out.write(header + "\n")
@@ -328,7 +328,7 @@ def _emit_session(out, path, index, total, turns, boundaries):
         nxt = one_line(t["next_text"], NEXT_TEXT_HEAD) if t["next_text"] else "(no assistant text)"
         out.write(f"NEXT: {tools} · {nxt}\n")
         for b in t["boundaries_after"]:
-            out.write(f"\n--- ⟂ COMPACTION BOUNDARY [line {b}] — "
+            out.write(f"\n--- ⟂ COMPACTION BOUNDARY [line {b}] - "
                       "in-context memory was thinned here; turns above recovered from disk ---\n")
         out.write("\n")
 
@@ -336,7 +336,7 @@ def _emit_session(out, path, index, total, turns, boundaries):
 def emit(paths):
     """Emit every qualifying session's feedback, grouped and in session order (D8)."""
     out = sys.stdout
-    out.write("# Session feedback extract (recovered from disk — survives compaction)\n\n")
+    out.write("# Session feedback extract (recovered from disk - survives compaction)\n\n")
     total = len(paths)
     for index, path in enumerate(paths, 1):
         turns, boundaries = parse_transcript(path)

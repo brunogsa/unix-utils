@@ -25,13 +25,13 @@
 # Checks, in order:
 # - A fenced non-mermaid block, or an image, per scenario.
 # - An anchor for every `#scenario-N` link in the file.
-# - A 20NN-NN-NN date per scenario — warn, never fail.
+# - A 20NN-NN-NN date per scenario - warn, never fail.
 #
 # The date only warns because the rules require a timestamp
 # but leave its form free, so failing on it would flag a
 # real timestamp the regex happens not to match.
 #
-# Output: a verdict line, then one line per scenario — on a
+# Output: a verdict line, then one line per scenario - on a
 # pass too, since a passing total says nothing about which
 # scenarios were checked.
 #
@@ -143,13 +143,13 @@ missing_date=$(printf '%s\n' "$scenarios" | awk -F'\t' '$1 == "SCENARIO" && $4 =
 
 print_breakdown() {
     printf '%s\n' "$scenarios" | awk -F'\t' 'NF == 4 {
-        if ($3 == 0) verdict = "NO ARTIFACT — prose or a mermaid diagram only, nothing pasted"
+        if ($3 == 0) verdict = "NO ARTIFACT - prose or a mermaid diagram only, nothing pasted"
         else if ($4 == 0) verdict = "no 20NN-NN-NN date in the block"
         else verdict = "artifact pasted, block dated"
         printf "  scenario %s  %s\n", $2, verdict
     }'
     printf '%s\n' "$dangling" | awk -F'\t' 'NF == 2 {
-        printf "  scenario %s  DANGLING LINK — no <a id=\"scenario-%s\"></a> anchor\n", $2, $2
+        printf "  scenario %s  DANGLING LINK - no <a id=\"scenario-%s\"></a> anchor\n", $2, $2
     }'
 }
 
@@ -164,14 +164,14 @@ if ((missing_artifact > 0 || dangling_count > 0)); then
     print_breakdown
     exit 3
 elif ((missing_date > 0)); then
-    echo "UNDATED: every artifact pasted, $missing_date with no date — $scenario_count $noun checked."
+    echo "UNDATED: every artifact pasted, $missing_date with no date - $scenario_count $noun checked."
     print_breakdown
     exit 2
 elif ((scenario_count == 0)); then
-    echo "OK: no manual scenarios — this body claims only automated coverage."
+    echo "OK: no manual scenarios - this body claims only automated coverage."
     exit 0
 else
-    echo "OK: a dated artifact pasted in every one — $scenario_count $noun checked."
+    echo "OK: a dated artifact pasted in every one - $scenario_count $noun checked."
     print_breakdown
     exit 0
 fi

@@ -92,7 +92,7 @@ it_should_exit_zero_when_every_per_task_files_entry_is_in_the_files_union() {
 
 **Files (logical order)**:
 - `a/one.sh`
-- N/A — nothing else
+- N/A - nothing else
 
 ### 2. Second
 
@@ -144,7 +144,7 @@ it_should_exit_zero_when_the_only_entry_is_an_na_line() {
   fixture=$(write_plan "na" '### 1. First
 
 **Files (logical order)**:
-- N/A — `/tmp`-scoped, no source files' '- `a/one.sh`')
+- N/A - `/tmp`-scoped, no source files' '- `a/one.sh`')
   run_script "$fixture"
   assert_eq "an N/A entry names no path" "0" "$VERDICT_EXIT"
 }

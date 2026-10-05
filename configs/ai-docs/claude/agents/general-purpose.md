@@ -14,7 +14,7 @@ so the account's single biggest slice of subagent spend
 stays allowed because callers dispatch this agent for judgment-heavy
 work such as reconciling design docs.
 
-Keep behavior otherwise equivalent to the built-in — full tool
+Keep behavior otherwise equivalent to the built-in - full tool
 access, model inherited from the caller except fable, which
 `subagent-model-guard.py` denies. Dispatch a different, pinned agent
 type when the task genuinely needs that tier.

@@ -16,7 +16,7 @@ id as "belongs to an earlier PR, already satisfied" and silently
 dispatches the task before its real prerequisite has run.
 
 Extracts "## Task Breakdown" and "## PR Breakdown" via plan-section.sh
-(never a per-line regex — PR Breakdown entries wrap across physical
+(never a per-line regex - PR Breakdown entries wrap across physical
 lines, and a line-oriented read silently drops the wrapped clause).
 Detects, each with its own diagnostic:
   - a task id claimed by no PR;
@@ -24,7 +24,7 @@ Detects, each with its own diagnostic:
   - a PR entry naming a task id the Task Breakdown does not define;
   - a task whose dependency lives in a PR that is neither the same
     PR nor a transitive ancestor of it in the PR graph (the
-    cross-level violation — subsumes both a cross-level cycle and
+    cross-level violation - subsumes both a cross-level cycle and
     the silent early-PR-assumption defect above).
 
 Exit codes:
@@ -187,7 +187,7 @@ def find_projection_problems(task_deps, pr_tasks, pr_deps) -> list[str]:
                 continue
             problems.append(
                 f"Task {tid} in PR-{home_pid} depends on Task {dep_tid}, "
-                f"which lives in PR-{dep_home} — PR-{dep_home} is neither "
+                f"which lives in PR-{dep_home} - PR-{dep_home} is neither "
                 f"PR-{home_pid} nor an ancestor of it in the PR graph"
             )
 

@@ -1,8 +1,8 @@
-# C4L1 worked example — strangler-fig migration context
+# C4L1 worked example - strangler-fig migration context
 
 Read this when drawing a C4L1 with many third-party systems or a legacy-vs-target split.
 
-[`diagram-c4l1.md`](diagram-c4l1.md) carries the base rules — edge incidence, roles-not-fields, uniform pattern — and is enough on its own for a simple diagram.
+[`diagram-c4l1.md`](diagram-c4l1.md) carries the base rules - edge incidence, roles-not-fields, uniform pattern - and is enough on its own for a simple diagram.
 
 A real C4L1 (the Integrador as anti-corruption layer between Arco 1.0 and 2.0). It realizes every rule in `diagram-c4l1.md` and adds four techniques worth reusing. Validated with `mmdc` before inclusion.
 
@@ -14,7 +14,7 @@ A real C4L1 (the Integrador as anti-corruption layer between Arco 1.0 and 2.0). 
 
 [Instruction] **Subgraph per environment / tenant / lifecycle-group, not per arbitrary cluster.** Group third-party systems by the business unit or migration cohort they belong to (here: SAS, SAE, IS, NSE, Arco 2.0).
 
-[Why] The grouping is itself information — it tells the reader which systems share a lifecycle and will be retired together. 18 scattered boxes become 5 legible clusters.
+[Why] The grouping is itself information - it tells the reader which systems share a lifecycle and will be retired together. 18 scattered boxes become 5 legible clusters.
 
 [Instruction] **Encode migration direction with color AND state the convention in a `%%` comment.** Legacy clusters red, modern target green, plus a comment naming the scheme.
 
@@ -57,8 +57,8 @@ end
 subgraph Modern["Arco 2.0"]
 sfCRM["Salesforce CRM<br/>(Fonte da Verdade: Escolas, RFs)"]
 sfOMS["Salesforce OMS<br/>gestão de pedidos B2B e B2C<br/>(Fonte da Verdade: Pedidos, Remessas e Devoluções)"]
-mdg["4MDG<br/>(Fonte da Verdade: Produtos — Kits e Avulsos)"]
-sap4["SAP4 — ERP 2.0<br/>(Fonte da Verdade: Notas Fiscais)"]
+mdg["4MDG<br/>(Fonte da Verdade: Produtos - Kits e Avulsos)"]
+sap4["SAP4 - ERP 2.0<br/>(Fonte da Verdade: Notas Fiscais)"]
 tms["TMS 2.0<br/>(Fonte da Verdade: Transportadoras)"]
 wms["WMS 2.0<br/>Warehouse Manager"]
 hubB2B["Meu Arco B2B 2.0<br/>Loja B2B NSE (inclui módulo Admin B2B)"]
@@ -72,14 +72,14 @@ viacep["ViaCEP<br/>API pública na internet<br/>consulta de CEPs"]
 %% Painel de erros consome a API de Erros do Integrador
 errorsUI -->|"consulta API de Erros"| Integrator
 
-%% SAS 1.0 — padrão ERP unificado + ciclo de pedido/NF próprio do SAS
+%% SAS 1.0 - padrão ERP unificado + ciclo de pedido/NF próprio do SAS
 Integrator -->|"lê Acordos e Produtos; sincroniza Escolas e Produtos; envia Pedidos e dispara NFs"| pSAS
 pSAS -->|"notifica NF emitida"| Integrator
 eskolareSAS -->|"envia pedidos B2C"| Integrator
 Integrator -->|"notifica NF emitida e erros de pedido"| eskolareSAS
 Integrator -->|"consulta pedidos B2B e remessas B2C; notifica NF emitida"| pdpSAS
 
-%% SAE 1.0 — ERP só faz padrão unificado (pedido/NF SAE vai pelo OMS)
+%% SAE 1.0 - ERP só faz padrão unificado (pedido/NF SAE vai pelo OMS)
 Integrator -->|"lê Acordos e Produtos; sincroniza Escolas e Produtos"| pSAE
 magento -->|"envia pedidos B2C"| Integrator
 Integrator -->|"notifica erros de pedido"| magento
@@ -97,11 +97,11 @@ Integrator -->|"consulta pedidos B2B e remessas B2C; notifica NF emitida"| lojaB
 %% NSE 1.0 (polling por cron, sem webhooks)
 Integrator -->|"lê Acordos e Produtos; sincroniza Escolas e Produtos; envia Pedidos e Devoluções; lê notificações de NF"| sap1
 
-%% Arco 2.0 — apenas edges que tocam o Integrador
+%% Arco 2.0 - apenas edges que tocam o Integrador
 sfCRM -->|"publica eventos de upsert de Escolas (por marca contratada)"| Integrator
 Integrator -->|"lê Escolas e marcas contratadas por cada Escola"| sfCRM
 mdg -->|"publica eventos de upsert de Produtos (info geral; preço/desconto/quantidade vêm do Acordo)"| Integrator
-sfOMS -->|"envia Pedidos, Remessas e Devoluções (B2B/B2C) e notificações de NF — para Lojas 2.0 cuja fatura é emitida em ERP 1.0"| Integrator
+sfOMS -->|"envia Pedidos, Remessas e Devoluções (B2B/B2C) e notificações de NF - para Lojas 2.0 cuja fatura é emitida em ERP 1.0"| Integrator
 Integrator -->|"publica eventos de upsert de Acordos e Produtos; envia Pedidos; notifica NF emitida"| sfOMS
 Integrator -->|"publica eventos de upsert de Acordos e Produtos"| config
 Integrator -->|"publica eventos de upsert de Acordos e Produtos"| hubB2B
@@ -125,7 +125,7 @@ style Modern fill:#d1fae5,stroke:#059669,stroke-width:2px
 
 [Example] It also realizes `diagram-c4l1.md`'s base rules:
 
-- **edge-incidence** — every arrow touches Integrador; the Configurador bypass lives in a label.
-- **uniform pattern** — the 4 ERPs share one skeleton label, deltas appended per brand.
-- **bidirectional handshakes** — drawn as two role-labeled edges (request out, notification back).
-- **ELK renderer** — for a subgraph-heavy layout.
+- **edge-incidence** - every arrow touches Integrador; the Configurador bypass lives in a label.
+- **uniform pattern** - the 4 ERPs share one skeleton label, deltas appended per brand.
+- **bidirectional handshakes** - drawn as two role-labeled edges (request out, notification back).
+- **ELK renderer** - for a subgraph-heavy layout.

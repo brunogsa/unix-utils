@@ -13,13 +13,13 @@ It runs no interview, writes no findings of its own, and appends nothing to any 
 
 Why: the skill that produced a finding owns persisting it, so a `to-plan` that had to append would be repairing an upstream skill's omission.
 
-The document conventions — naming, template, self-review gates — live in the `spec-driven-development` library.
+The document conventions - naming, template, self-review gates - live in the `spec-driven-development` library.
 
 Read it by path (`~/.claude/skills/spec-driven-development/SKILL.md`), never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing.
 
 ## Usage
 
-`/to-plan` — no arguments. It is model-invoked too, so a session that just finished `brainstorm-how` can reach it without the user typing the command.
+`/to-plan` - no arguments. It is model-invoked too, so a session that just finished `brainstorm-how` can reach it without the user typing the command.
 
 ## Process
 
@@ -45,9 +45,9 @@ Why: a compaction between `brainstorm-how` and `to-plan` must lose nothing, and 
 
 One `AskUserQuestion` call, recommended answer first, before anything is dispatched:
 
-- **"Every line traces to an AC?"** — `traces_to_ac`.
-- **"Right-sized plan?"** — `right_sized`.
-- **"Qualitative pass?"** — `qualitative_pass`, default yes.
+- **"Every line traces to an AC?"** - `traces_to_ac`.
+- **"Right-sized plan?"** - `right_sized`.
+- **"Qualitative pass?"** - `qualitative_pass`, default yes.
 
 Persist the answers to `/tmp/sdd_<session_id>.json` as booleans under exactly those three field names, keeping any other field already in the file.
 
@@ -90,7 +90,7 @@ Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md`
 
 Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`.
 
-A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** — report it to the user, never route it to `plan-editor`, and never count the plan as gated.
+A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `plan-editor`, and never count the plan as gated.
 
 Then dispatch `agent(subAgent=plan-reviewer, effort=high, title=Fresh-eyes review of plan)` in the background, pointed at the plan file alone (plus the spec path when one exists).
 
@@ -110,4 +110,4 @@ Give the user the plan's path and offer `sdd-to-linear`, with a free-text "somet
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

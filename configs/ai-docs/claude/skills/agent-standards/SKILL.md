@@ -22,7 +22,7 @@ Every non-shadow agent file carries these six `## ` headings, in this exact orde
 ## Report format
 ```
 
-- [Instruction] Give every non-shadow agent file all six headings — none optional.
+- [Instruction] Give every non-shadow agent file all six headings - none optional.
   - [Why] An optional heading makes a forgotten section indistinguishable from a deliberate omission, even to a checker.
 
 - [Instruction] Order the six headings exactly as listed above, with no heading repeated.
@@ -34,7 +34,7 @@ Every non-shadow agent file carries these six `## ` headings, in this exact orde
 - [Instruction] Use `## ` (h2) for each of the six headings, never `### ` or deeper.
   - [Why] A deeper heading reads as a subsection of something else to both a skimming human and a heading-level script.
 
-`scripts/check-agent-contract.sh <agents-directory>` settles every rule above deterministically — frontmatter, heading order, heading level, non-empty content.
+`scripts/check-agent-contract.sh <agents-directory>` settles every rule above deterministically - frontmatter, heading order, heading level, non-empty content.
 
 The `claude-agent-contract-stop-hook.sh` Stop gate runs it on each agent file a session edited.
 A broken contract blocks that stop instead of surviving to the next `performance-check` audit.
@@ -42,7 +42,7 @@ No instruction here to remember it.
 
 ## Shadow-file carve-out
 
-A shadow file exists only to pin settings on a Claude Code built-in agent (e.g. `general-purpose`, `Explore`) — it never defines new behavior of its own.
+A shadow file exists only to pin settings on a Claude Code built-in agent (e.g. `general-purpose`, `Explore`) - it never defines new behavior of its own.
 
 - [Instruction] Give a shadow file exactly one heading, `## Shadows`, naming the built-in it shadows and the single setting it overrides.
   - [Why] Inventing an Objective/Procedure would contradict a file whose whole point is to behave like the built-in it shadows.
@@ -50,7 +50,7 @@ A shadow file exists only to pin settings on a Claude Code built-in agent (e.g. 
 - [Instruction] Never write placeholder Procedure/Objective content into a shadow file "just to pass the check."
   - [Why] A future dispatch would follow the invented text instead of the built-in's real behavior, silently changing behavior.
 
-- [Instruction] Exempt a shadow file from the other five headings — `## Shadows` alone satisfies the contract for that file.
+- [Instruction] Exempt a shadow file from the other five headings - `## Shadows` alone satisfies the contract for that file.
   - [Why] The six-heading contract documents a distinct agent's own behavior; a shadow file has none beyond one override.
 
 - [Example]
@@ -58,7 +58,7 @@ A shadow file exists only to pin settings on a Claude Code built-in agent (e.g. 
 ## Shadows
 
 Shadows Claude Code's built-in `general-purpose` agent, overriding only
-`maxTurns: 128` as a runaway-loop backstop — this is the single biggest
+`maxTurns: 128` as a runaway-loop backstop - this is the single biggest
 slice of subagent spend in usage telemetry and had no native turn cap.
 ```
 
@@ -76,11 +76,11 @@ slice of subagent spend in usage telemetry and had no native turn cap.
 - [Instruction] Give every non-shadow agent file a frontmatter `effort:` key.
   - [Why] subagent-model-guard.py gates model only, so an undeclared effort inherits the dispatching session's tier unreported.
 
-- [Instruction] Exempt a shadow file from the `model:` and `effort:` requirements only — its `name:`/`description:` still must pass.
+- [Instruction] Exempt a shadow file from the `model:` and `effort:` requirements only - its `name:`/`description:` still must pass.
   - [Why] A shadow file's purpose can be leaving those unpinned, so forcing them there breaks the behavior it preserves.
 
 - [Instruction] Add `allowedModelOverrides:` to an agent file only when a minority of its dispatches genuinely need a tier the pin doesn't give, listing each by family alias.
-  - [Why] subagent-model-guard.py reads that list as the pin's only escape hatch — every alias listed becomes spendable later.
+  - [Why] subagent-model-guard.py reads that list as the pin's only escape hatch - every alias listed becomes spendable later.
 
   - [Example] `tdd-coder.md` pins `model: sonnet` for ordinary task execution and declares `allowedModelOverrides: opus` for the `[Harness]`-task dispatches CLAUDE.md routes to it.
 
@@ -99,7 +99,7 @@ The Stop-hook coverage described above applies here too; no separate instruction
 
 ## Descriptions
 
-The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim to agent descriptions — it lives there, not here.
+The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim to agent descriptions - it lives there, not here.
 
 - [Instruction] State an agent's purpose and when to dispatch it, never an inventory of its internal steps or procedure.
   - [Why] A caller decides whether to dispatch from the description alone; an inventory buries the one thing it needs.
@@ -108,14 +108,14 @@ The trigger-phrase rule in `skill-standards` › Descriptions applies verbatim t
   - [Why] Frontmatter validation only checks that description: is non-empty, so an unhelpful-but-present one slips through.
 
 - [Instruction] Keep every agent description at 250 chars or fewer, exempting only a guard the caller must read BEFORE dispatching, such as an ask-the-user-first rule.
-  - [Why] Nothing truncates an agent description the way a skill's tail past 250 chars stops routing — every word stays live.
+  - [Why] Nothing truncates an agent description the way a skill's tail past 250 chars stops routing - every word stays live.
 
   - [Example] That exempt guard cannot move to the body: `## Boundaries` loads only after the dispatch decision the guard exists to gate.
 
 `scripts/check-agent-contract.sh` gates this budget, exempting every shadow file: a shadow's description must mirror the built-in it shadows, so trimming diverges the routing the shadow exists to leave alone.
 Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` list, with its reason written beside the name.
 
-- [Instruction] Name the INPUT the caller must supply to dispatch the agent — the specific data, file path, or decision it needs up front.
+- [Instruction] Name the INPUT the caller must supply to dispatch the agent - the specific data, file path, or decision it needs up front.
   - [Why] An agent expecting an input the description never named gets dispatched without it, then stalls or guesses at context.
 
 ## Subagent dispatch
@@ -123,33 +123,33 @@ Any other exemption is a deliberate edit to that script's `DESC_BUDGET_EXEMPT` l
 - [Instruction] Give a recurring, repeatable unit of work its own dedicated agent type, rather than running it inline in the main session.
   - [Why] Inline work reads as the session's spend and can't be budgeted or compared; a type gets its own report row.
 
-- [Instruction] Name the model on every dispatch to an unpinned agent type — one with no file, or a file omitting `model:` — by CLAUDE.md's "Pick the pin per task" rule.
-  - [Why] subagent-model-guard.py denies an omitted model only there — that call inherits the session's model, often priciest.
+- [Instruction] Name the model on every dispatch to an unpinned agent type - one with no file, or a file omitting `model:` - by CLAUDE.md's "Pick the pin per task" rule.
+  - [Why] subagent-model-guard.py denies an omitted model only there - that call inherits the session's model, often priciest.
 
 - [Instruction] Omit the model on a dispatch to a pinned agent type, letting that file's `model:` bind.
-  - [Why] The guard accepts a pinned model only when absent or matching the file — naming it is redundant, denied on repin.
+  - [Why] The guard accepts a pinned model only when absent or matching the file - naming it is redundant, denied on repin.
 
-  - [Example] `agent(subAgent=code-reviewer, …)` — pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` — unpinned, so the tier must be named.
+  - [Example] `agent(subAgent=code-reviewer, …)` - pinned, so no `model=`. `agent(subAgent=general-purpose, …, model=sonnet)` - unpinned, so the tier must be named.
 
 - [Instruction] Name a model on a dispatch to a pinned agent type only when that file's `allowedModelOverrides:` lists it, and only for the dispatch that needs the other tier.
-  - [Why] The guard accepts only the pin plus that list — a declared tier taken by habit spends higher on routine work.
+  - [Why] The guard accepts only the pin plus that list - a declared tier taken by habit spends higher on routine work.
 
   - [Example] `agent(subAgent=tdd-coder, …)` runs its sonnet pin; `agent(subAgent=tdd-coder, …, model=opus)` is legal only because that file declares `allowedModelOverrides: opus`.
 
 - [Instruction] State in each agent's file whether that agent may spawn a worker of its own.
-  - [Why] CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH caps the chain at 4 — a spawning agent consumes one of the levels others share.
+  - [Why] CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH caps the chain at 4 - a spawning agent consumes one of the levels others share.
 
-- [Instruction] Never let a subagent spawn a second opinion on its own work — route that to a review step the orchestrator already runs.
+- [Instruction] Never let a subagent spawn a second opinion on its own work - route that to a review step the orchestrator already runs.
   - [Why] A mid-flight self-review judges one slice; the deferred whole-artifact review sees the same question against it.
 
-- [Instruction] Confine every subagent's writes to the slice it was dispatched for — never session-global state like the tmux window title, and never files outside its assigned scope.
+- [Instruction] Confine every subagent's writes to the slice it was dispatched for - never session-global state like the tmux window title, and never files outside its assigned scope.
   - [Why] Concurrent subagents share one working tree and session, so a write beyond the assigned slice races unaware siblings.
 
-- [Instruction] When dispatching a subagent that must persist an artifact, pick a basename outside the harness's reserved stems — or have the orchestrator accept the returned text and write it itself.
+- [Instruction] When dispatching a subagent that must persist an artifact, pick a basename outside the harness's reserved stems - or have the orchestrator accept the returned text and write it itself.
   - [Why] Write silently intercepts a basename starting, case-insensitive, with report/findings/analysis/summary, ending .md.
   - [Example] Interception raises no error and substitutes a "return as text" message. Blocked: `report_x.md`, `Findings.md`, `ANALYSIS.md`. Allowed: other extensions (`.txt`, `.html`), non-reserved stems (`verdict_`, `plan_`, `spec_`).
 
-- [Instruction] Never instruct a subagent to file or update a task — it has no `TaskCreate`/`TaskUpdate`/`TaskList`; take the item back in its report and file it yourself.
+- [Instruction] Never instruct a subagent to file or update a task - it has no `TaskCreate`/`TaskUpdate`/`TaskList`; take the item back in its report and file it yourself.
   - [Why] The harness gives it no task tools, so the instruction fails silently and the item is simply never filed.
 
 ## Waiting on a subagent

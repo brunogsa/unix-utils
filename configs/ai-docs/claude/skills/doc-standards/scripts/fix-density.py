@@ -27,7 +27,7 @@ That asymmetry narrows where a paragraph may split. A bullet splits at any
 recognized boundary because the sub-bullet's indent expresses subordination,
 so a clause boundary reads correctly under it. A paragraph break asserts a
 new thought instead, which only a sentence boundary ". " delivers - split a
-paragraph at "; " or " — " and the second half opens mid-sentence, severing
+paragraph at "; " or " - " and the second half opens mid-sentence, severing
 one sentence into two paragraphs rather than separating two. So a paragraph
 whose only boundary is a clause boundary is left alone and reported.
 
@@ -54,7 +54,7 @@ for a human to resolve - they are NOT gaps in this script to close:
     how a heading shortens, so the whole line is left for them.
 
 Splitting is conservative: a line is split only at a recognized boundary
-(". ", " — ", " -- ", "; ") whose remainder doesn't already start with a
+(". ", " - ", " -- ", "; ") whose remainder doesn't already start with a
 markdown structural token (a bullet/heading/table/blockquote/ordered-list
 marker) - re-marking an already-marked remainder would double its marker
 or nest it under the wrong parent - and whose first half doesn't strand an
@@ -122,7 +122,7 @@ BULLET_MAX_CHARS = 256
 BULLET_MAX_WORDS = 32
 MAX_ITERATIONS = 10
 
-BOUNDARY = re.compile(r"\. | — | -- |; ")
+BOUNDARY = re.compile(r"\. | - | -- |; ")
 STRUCTURAL_TOKEN = re.compile(r"^(?:[-*+#|>]|\d+\.)")
 
 # Trailing "[ \t]" mirrors check-density.sh's awk bullet test

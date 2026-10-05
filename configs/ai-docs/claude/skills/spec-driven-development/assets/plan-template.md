@@ -67,7 +67,7 @@ Linear:
 ## Task Details
 
 <details>
-<summary>Task N — </summary>
+<summary>Task N - </summary>
 
 **Testable Acceptance criteria**:
 

@@ -6,7 +6,7 @@
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
-# No bats dependency by design — three small scripts don't
+# No bats dependency by design - three small scripts don't
 # justify a new cross-platform test-runner dependency in
 # install.sh.
 
@@ -79,7 +79,7 @@ write_pr_state() {
 
 # run_hook - invokes the hook with the given stdin JSON,
 # capturing stdout/exit code into HOOK_OUT/HOOK_EXIT (stderr is
-# discarded — no test here asserts on it).
+# discarded - no test here asserts on it).
 #
 # An optional second arg overrides PATH (used by the "jq
 # unavailable" test).
@@ -231,7 +231,7 @@ it_should_block_a_mid_flight_unit_when_the_background_tasks_list_is_empty() {
 
 # A `shell` task (a `tail -f`, a dev server) carries no promise
 # that a later Stop wakes the session, so it must not buy the
-# exemption — same carve-out the orchestrator's step 9b makes.
+# exemption - same carve-out the orchestrator's step 9b makes.
 it_should_block_a_mid_flight_unit_when_background_tasks_holds_only_a_shell_task() {
   write_state "sess-bg-shell" '{"phase": "tails"}'
   run_hook '{"session_id": "sess-bg-shell", "stop_hook_active": false, "background_tasks": [{"type": "shell", "id": "bg_01JQZ5"}]}'

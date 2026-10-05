@@ -17,7 +17,7 @@
 # assets/viewer-template.html.
 #
 # WHY INLINE THE DATA: a page opened over file:// cannot fetch a
-# sibling .json — the browser blocks it as a cross-origin
+# sibling .json - the browser blocks it as a cross-origin
 # request.
 #
 # Inlining is what keeps the viewer a double-click away instead
@@ -27,7 +27,7 @@
 # the markdown log cannot show one.
 #
 # A spend swing from $156 to $616 inside a week reads as noise
-# in a table and as an obvious shape in a chart — and the ledger
+# in a table and as an obvious shape in a chart - and the ledger
 # markers put the config change that caused it directly under
 # the day it landed.
 
@@ -75,7 +75,7 @@ RECONCILIATION_FIELDS = ("status", "worst_delta_pct")
 # Sessions shown per day, and the columns the page renders for
 # each.
 #
-# Untrimmed, `top_sessions` alone was 139 KB of the payload —
+# Untrimmed, `top_sessions` alone was 139 KB of the payload -
 # full transcript paths and a per-session token dict nothing on
 # the page reads.
 TOP_SESSIONS = 8
@@ -87,7 +87,7 @@ def trim_marginal_skills(skills):
     """Marginal rows kept whole, with each half summed to cost and sessions.
 
     A per-skill average divides one by the other, so the dedicated/mixed split
-    only has to survive at the row level, where the day panel still shows it —
+    only has to survive at the row level, where the day panel still shows it -
     and where the reader can see how much of the total was estimated.
     """
     out = {}
@@ -179,7 +179,7 @@ def load_delivered(ordered):
         print(f"delivered-work ledger unavailable: {err}", file=sys.stderr)
         return {}
     if not ledger:
-        print("no delivered-work ledger yet — run "
+        print("no delivered-work ledger yet - run "
               "delivered-work-ledger.py --refresh to add the shipped-work "
               "metrics", file=sys.stderr)
         return {}
@@ -193,7 +193,7 @@ def load_delivered(ordered):
     covered = ledger.get("window", {}).get("until", "")
     if covered < ordered[-1]:
         print(f"delivered-work ledger covers through {covered or '(no window)'} "
-              f"but snapshots reach {ordered[-1]} — re-run "
+              f"but snapshots reach {ordered[-1]} - re-run "
               f"delivered-work-ledger.py --refresh", file=sys.stderr)
     return ledger
 
@@ -225,7 +225,7 @@ def load_days():
 
         # A snapshot predating the gate has no block at all.
         # Left absent, the page treats it as unverified rather
-        # than silently as verified — the day was measured by an
+        # than silently as verified - the day was measured by an
         # aggregator no independent reader ever checked.
         if isinstance(block, dict):
             entry["reconciliation"] = {
@@ -243,7 +243,7 @@ def main():
 
     days = load_days()
     if not days:
-        print(f"no per-day snapshots in {SNAPSHOTS_DIR} — run claude-usage-report.py --backfill first",
+        print(f"no per-day snapshots in {SNAPSHOTS_DIR} - run claude-usage-report.py --backfill first",
               file=sys.stderr)
         sys.exit(1)
 
@@ -251,7 +251,7 @@ def main():
 
     # Folded into each day rather than kept as a sibling
     # map, so the page's metric accessors all take the
-    # same day object — a shipped-work row then works in
+    # same day object - a shipped-work row then works in
     # the chart, the scatter axes, and the delta table.
     #
     # A day the ledger never listed shipped nothing, so

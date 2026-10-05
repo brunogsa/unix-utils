@@ -78,7 +78,7 @@ import shlex
 import sys
 
 # strip_heredoc_bodies() and split_into_pipelines() live in
-# lib/parse-shell-command.py, shared with claude-rm-guard.sh — see that
+# lib/parse-shell-command.py, shared with claude-rm-guard.sh - see that
 # module's header for why guards import it via spec_from_file_location
 # instead of a bare `import` (its filename is hyphenated, not a valid
 # Python identifier).
@@ -259,7 +259,7 @@ if piped_producers:
     message.append('short of its N lines, so head never exits, no SIGPIPE ever reaches the producer,')
     message.append('and it blocks forever writing into a pipe nobody drains. Two commands of this')
     message.append('shape stranded two shells for ~35 minutes each.')
-    message.append('Instead redirect to a file first, then filter the file — the "Slow commands"')
+    message.append('Instead redirect to a file first, then filter the file - the "Slow commands"')
     message.append('rule in CLAUDE.md:')
     message.append('  strings -a <binary> > /tmp/dump.txt 2>&1; echo "exit: $?"')
 

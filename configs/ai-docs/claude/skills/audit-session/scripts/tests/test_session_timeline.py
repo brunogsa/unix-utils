@@ -2,7 +2,7 @@
 """Tests for extract-session-timeline.py: the time-and-work-done extractor
 that builds timeline.json for one Claude Code session.
 
-Fixtures: none on disk — every transcript is a handful of hand-readable
+Fixtures: none on disk - every transcript is a handful of hand-readable
 records built in code via _human_record()/_tool_use_record()/
 _tool_result_record()/_turn_duration_record()/_write_transcript() below, each
 small enough that expected durations/percentages can be verified by hand.
@@ -68,7 +68,7 @@ def _turn_duration_record(end_epoch, duration_ms):
 
 
 def _away_summary_record(epoch):
-    """A system record Claude Code writes while the human is away — carries a
+    """A system record Claude Code writes while the human is away - carries a
     timestamp, so it extends the transcript's last_epoch, but is not the
     assistant producing anything."""
     return {
@@ -80,7 +80,7 @@ def _away_summary_record(epoch):
 
 
 def _assistant_text_record(epoch, text="here is what I found", model=None):
-    """A plain assistant reply carrying no tool_use — the assistant producing
+    """A plain assistant reply carrying no tool_use - the assistant producing
     output, which is what ends a turn's engaged span.
 
     `model` is omitted by default, matching a real record's shape only
@@ -158,7 +158,7 @@ class TestSessionTimeline(unittest.TestCase):
         """The D5 partition invariant: the buckets' seconds sum exactly to
         wall clock, and their rounded percentages sum to exactly 100.
         Excludes a zero-duration session, where there is no span to divide by
-        and every bucket comes back 0 — that fixture asserts its own totals."""
+        and every bucket comes back 0 - that fixture asserts its own totals."""
         partition = payload["time_partition"]
         buckets = partition["buckets"]
         total_seconds = sum(buckets[name]["seconds"] for name in buckets)
@@ -388,7 +388,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_widens_wall_clock_to_cover_a_turn_duration_span_that_starts_before_the_transcripts_first_record(self):
         """A turn_duration record's measured duration can exceed the elapsed
-        time since the session's first record (e.g. a slow first turn) —
+        time since the session's first record (e.g. a slow first turn) -
         span_start = end - duration then lands before first_epoch. That is
         evidence the session began earlier than its first record shows, so
         wall clock must widen to cover it rather than clamping engaged time,
@@ -410,7 +410,7 @@ class TestSessionTimeline(unittest.TestCase):
     def test_reconciles_every_wall_clock_percentage_to_100_after_rounding(self):
         """A 6-second wall clock split 2/1/2/1 across four of the buckets
         (the 5th, unattributed, at 0) forces two of the nonzero shares
-        (16.667%, 33.333%) to round unevenly — the largest-remainder method
+        (16.667%, 33.333%) to round unevenly - the largest-remainder method
         must still land every share on exactly 100. The subagent_files
         fixture reconstructs the same 3-5 (2s) agent_occupied span the
         main-transcript Task call's own dispatch pairing used to produce
@@ -486,7 +486,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_guards_every_duration_percentage_against_division_by_zero_for_a_zero_duration_or_single_record_session(self):
         """A session with only one record ever written has no span to divide
-        by — every bucket must come back as 0, never raise ZeroDivisionError."""
+        by - every bucket must come back as 0, never raise ZeroDivisionError."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-single", [
                 _human_record(1000),
@@ -530,7 +530,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_sorts_records_by_timestamp_before_computing_any_span_even_when_the_transcript_holds_out_of_order_entries(self):
         """The tool_result line is written to the file BEFORE its tool_use
-        line, even though it happened later in real time — pairing must
+        line, even though it happened later in real time - pairing must
         still succeed once records are sorted by timestamp, not file order."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-outoforder", [
@@ -546,7 +546,7 @@ class TestSessionTimeline(unittest.TestCase):
                               "tool_result line preceding its tool_use line on disk")
 
     def test_falls_back_to_a_computed_span_and_says_which_measure_produced_it_when_turn_duration_records_are_sparse_or_absent(self):
-        """No turn_duration record exists at all — the turn's span must fall
+        """No turn_duration record exists at all - the turn's span must fall
         back to the stretch the assistant was actually producing output over
         (0 to its last event at 2), and the payload must say which measure
         produced it. The next human message lands at 5, so a span that ran to
@@ -566,7 +566,7 @@ class TestSessionTimeline(unittest.TestCase):
     def test_stops_a_computed_turns_span_at_the_assistants_last_event_so_an_overnight_human_absence_is_never_charged_to_main_api(self):
         """The human writes at 0, the assistant answers and finishes at 40,
         then the human is away until 40000. Charging that absence to main-API
-        time is what made a real 42-hour session report 97% main-API — the
+        time is what made a real 42-hour session report 97% main-API - the
         turn's engaged span must end at 40, leaving the 11-hour gap in
         human_idle."""
         with tempfile.TemporaryDirectory() as tmp:
@@ -594,7 +594,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_collapses_a_computed_turns_span_to_zero_when_the_human_message_drew_no_assistant_activity_at_all(self):
         """The human writes at 0 and gets no answer before writing again an
-        hour later — there is no engaged time to attribute, so the turn's span
+        hour later - there is no engaged time to attribute, so the turn's span
         must collapse rather than swallow the whole hour. The second turn's
         3600-3610 span has only ONE activity record -- the assistant reply
         at 3610 that closes it -- so per Scout #33 it carries no evidence of
@@ -625,7 +625,7 @@ class TestSessionTimeline(unittest.TestCase):
     def test_stops_the_final_computed_turns_span_at_its_last_activity_rather_than_at_the_transcripts_last_record(self):
         """The final turn takes its window end from the transcript's last
         record instead of a next human message, and that last record can be an
-        away-summary written two hours after the assistant stopped — the same
+        away-summary written two hours after the assistant stopped - the same
         activity-based end must apply there, not a silent pass-through of the
         old behavior. The 0-20 span's only activity record is the assistant
         reply at 20 that closes it, so per Scout #33 it has no interior
@@ -686,7 +686,7 @@ class TestSessionTimeline(unittest.TestCase):
     def test_bounds_a_computed_turns_span_at_an_away_summary_marker_when_the_assistant_resumed_hours_later_after_the_human_stepped_away(self):
         """The human writes at 0, an away-summary is written 3 minutes later
         (the human stepped away), and the assistant's only reply lands at
-        80000 — generated when the human came back the next day, not while
+        80000 - generated when the human came back the next day, not while
         it was being produced. Last-activity alone would still charge the
         whole 80000s gap to main-API; the away-summary at 180 is itself
         evidence the assistant had stopped by then, so the span must end
@@ -722,7 +722,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_never_bounds_a_turn_duration_measured_span_by_an_away_summary_marker_inside_its_window(self):
         """A recorded turn_duration is authoritative regardless of what else
-        the transcript shows inside its span (bd3293ec's rule) — an
+        the transcript shows inside its span (bd3293ec's rule) - an
         away-summary at 50, squarely inside the measured 0-100 span, must not
         shrink it, and must not leak from the computed branch this task adds
         into the turn_duration branch it must leave untouched."""
@@ -826,7 +826,7 @@ class TestSessionTimeline(unittest.TestCase):
         """One away-summary at 0 lands before turn 0 even starts (its
         timestamp is a record no turn owns), and another at 510 lands after
         turn 0's own window closes at 500 (it belongs to turn 1's window
-        instead) — neither may bound turn 0, which must still end at its own
+        instead) - neither may bound turn 0, which must still end at its own
         last activity (150)."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-away-outside-window", [
@@ -849,7 +849,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_bounds_a_computed_turns_span_at_the_earliest_of_multiple_away_summary_markers_in_its_window(self):
         """Two away-summaries fall inside the same window (300 and 700), well
-        before the assistant's actual last event at 5000 — the span must
+        before the assistant's actual last event at 5000 - the span must
         stop at the FIRST away-summary (300), not the second, so a human who
         stepped away twice during one long turn isn't charged for the whole
         stretch up to the later marker either."""
@@ -870,7 +870,7 @@ class TestSessionTimeline(unittest.TestCase):
                               "not the second (700) or the last activity (5000)")
 
     def test_emits_a_too_early_to_rank_note_instead_of_a_ranked_timeline_when_the_session_has_only_one_turn(self):
-        """A single-turn session has nothing to rank against — the payload
+        """A single-turn session has nothing to rank against - the payload
         must say so explicitly rather than emit a degenerate one-item ranking."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-oneturn", [
@@ -883,12 +883,12 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(payload["turn_ranking"]["note"],
                           "only 1 turn(s) recorded; nothing to rank yet",
                           msg="key presence alone doesn't pin the note's actual "
-                              "text — an empty note must fail this")
+                              "text - an empty note must fail this")
         self.assertNotIn("ranked_turn_indices", payload["turn_ranking"])
 
 
     def test_lists_completed_and_pending_tasks_from_the_sessions_task_store_ordered_by_file_mtime(self):
-        """Ordered by file mtime, not filename — b.json's mtime is set
+        """Ordered by file mtime, not filename - b.json's mtime is set
         earlier than a.json's, and the task list must reflect that, not
         alphabetical order."""
         with tempfile.TemporaryDirectory() as transcripts_tmp, \
@@ -914,7 +914,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_reports_no_tasks_tracked_never_fail_when_the_sessions_task_store_directory_is_empty(self):
         """Covers both trigger shapes of the same outcome: a task-store
-        directory that was never created, and one that exists but is empty —
+        directory that was never created, and one that exists but is empty -
         neither may raise, and both must report the same note."""
         with tempfile.TemporaryDirectory() as transcripts_tmp, \
              tempfile.TemporaryDirectory() as tasks_tmp:
@@ -934,7 +934,7 @@ class TestSessionTimeline(unittest.TestCase):
         """A plain `git status` call must not be mistaken for a commit; a
         `git commit` call in a subagent transcript must be attributed to
         that subagent, not folded into main's list; the payload must say the
-        list may be incomplete (D10 — hook/amend commits leave no tool call)."""
+        list may be incomplete (D10 - hook/amend commits leave no tool call)."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-commits", [
                 _human_record(1000),
@@ -960,7 +960,7 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertIn("amend", commits["note"])
 
     def test_attributes_a_main_commit_to_the_second_turn_when_its_the_only_turn_containing_it(self):
-        """A single-turn fixture can't prove turn attribution — index 0
+        """A single-turn fixture can't prove turn attribution - index 0
         would be the only index that exists whether or not the code reads
         span containment at all. Two turns, with the sole commit landing
         only inside the SECOND turn's span, is what actually pins it."""
@@ -985,11 +985,11 @@ class TestSessionTimeline(unittest.TestCase):
         gap_commit = commits_by_timestamp[_iso(1500)]
         self.assertIsNone(gap_commit["turn_index"],
                            msg="a commit at 1500 falls in the gap between turn 0's "
-                               "1000-1100 span and turn 1's 2000-2100 span — no "
+                               "1000-1100 span and turn 1's 2000-2100 span - no "
                                "turn's span contains it")
 
     def test_labels_a_subagent_runs_agent_type_and_model_as_unknown_without_inventing_a_tier_when_its_meta_json_sidecar_is_missing(self):
-        """agent-nometa.jsonl has no agent-nometa.meta.json sidecar on disk —
+        """agent-nometa.jsonl has no agent-nometa.meta.json sidecar on disk -
         the run must still be reported, labeled unknown rather than guessed."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-nometa", [
@@ -1178,7 +1178,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_renders_every_duration_in_the_users_local_timezone_by_reusing_parse_ts_and_local_day_never_re_deriving_them(self):
         """A UTC timestamp just after midnight must fall on the PREVIOUS
-        local day at UTC-3 — the exact behavior local_day() implements —
+        local day at UTC-3 - the exact behavior local_day() implements -
         proving this script reused it rather than re-deriving its own."""
         old_tz = os.environ.get("TZ")
         os.environ["TZ"] = "America/Sao_Paulo"
@@ -1253,7 +1253,7 @@ class TestSessionTimeline(unittest.TestCase):
 
     def test_skips_a_torn_final_line_without_failing_when_the_transcript_is_still_being_written(self):
         """The last line is a truncated, mid-write JSON fragment (no closing
-        brace) — the run must still succeed using every valid line before it."""
+        brace) - the run must still succeed using every valid line before it."""
         with tempfile.TemporaryDirectory() as tmp:
             sid = _make_session(tmp, "sess-torn", [
                 _human_record(1000),
@@ -1271,7 +1271,7 @@ class TestSessionTimeline(unittest.TestCase):
         self.assertEqual(payload["turns"][0]["duration_seconds"], 10.0)
 
     def test_streams_a_multi_thousand_record_transcript_without_loading_it_fully_into_memory(self):
-        """5,000 filler records plus the one real turn — wrapping the
+        """5,000 filler records plus the one real turn - wrapping the
         transcript's file handle to forbid read()/readlines() proves the
         parse path only ever iterates it line-by-line, never materializes
         the whole file."""
@@ -1292,10 +1292,10 @@ class TestSessionTimeline(unittest.TestCase):
                 return self._fh.__exit__(*exc_info)
 
             def read(self, *args, **kwargs):
-                raise AssertionError("must not call read() — that loads the whole file into memory")
+                raise AssertionError("must not call read() - that loads the whole file into memory")
 
             def readlines(self, *args, **kwargs):
-                raise AssertionError("must not call readlines() — that loads the whole file into memory")
+                raise AssertionError("must not call readlines() - that loads the whole file into memory")
 
         with tempfile.TemporaryDirectory() as tmp:
             filler = [{"type": "assistant", "timestamp": _iso(500 + i),

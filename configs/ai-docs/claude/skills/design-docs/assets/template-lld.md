@@ -1,12 +1,12 @@
 <!--
-Authoring notes for this LLD — read, then delete this comment block before publishing.
+Authoring notes for this LLD - read, then delete this comment block before publishing.
 
 Purpose of an LLD:
 - The implementation blueprint for ONE component / integration (one LLD per component).
 - Detailed enough that another engineer could implement it without guessing.
 - Focused on the TO-BE; AS-IS only for the part you are changing.
 
-How an LLD complements its HLD(s) (do NOT repeat them — an LLD may reference one or more HLDs):
+How an LLD complements its HLD(s) (do NOT repeat them - an LLD may reference one or more HLDs):
 - HLDs decide WHAT and WHY for the whole epic: scope, architecture ADRs, alternatives, consensus. Audience: stakeholders + all engineers.
 - LLD details HOW EXACTLY to build one component: code design, data model, contracts, mappings, error/concurrency, observability. Audience: the implementer + reviewer + tester.
 - Rule of thumb: if a detail would change WHICH approach we picked → it belongs in an HLD. If it changes the CODE but not the decision → it belongs here.
@@ -20,11 +20,11 @@ Keep it simple:
 - Only the appendix may be referenced from anywhere (rule in the design-docs skill).
 -->
 
-# LLD — TODO (título — componente / integração)
+# LLD - TODO (título - componente / integração)
 
 Owner: TODO
 Status: TODO
-Documentos relacionados: TODO (1+ HLDs e, às vezes, outros LLDs — links)
+Documentos relacionados: TODO (1+ HLDs e, às vezes, outros LLDs - links)
 
 ## 1. Contexto
 
@@ -34,19 +34,19 @@ TODO
 
 ### 1.2. Escopo deste LLD
 
-TODO — em um parágrafo, o que este componente faz e as restrições que precisa honrar (recapitule dos docs relacionados, sem reescrevê-los). O que será detalhado/definido aqui, e o que fica fora.
+TODO - em um parágrafo, o que este componente faz e as restrições que precisa honrar (recapitule dos docs relacionados, sem reescrevê-los). O que será detalhado/definido aqui, e o que fica fora.
 
 ## 2. Requisitos / Critérios de Aceite (testáveis)
 
 ### 2.1. Funcionais
 
-TODO — requisitos funcionais em alto nível. Critérios de aceite concretos e testáveis vivem no spec (recap + link).
+TODO - requisitos funcionais em alto nível. Critérios de aceite concretos e testáveis vivem no spec (recap + link).
 
 ### 2.2. Não-Funcionais (técnicos)
 
-TODO — metas/restrições a atingir (ex.: latência, throughput, disponibilidade). O design que as atende fica nas seções de erros, observabilidade e configuração, adiante.
+TODO - metas/restrições a atingir (ex.: latência, throughput, disponibilidade). O design que as atende fica nas seções de erros, observabilidade e configuração, adiante.
 
-## 3. AS-IS — apenas o que muda
+## 3. AS-IS - apenas o que muda
 
 ### 3.1. Implementação e comportamento atuais relevantes
 
@@ -56,40 +56,40 @@ TODO
 
 TODO
 
-## 4. TO-BE — Design detalhado
+## 4. TO-BE - Design detalhado
 
 ### 4.1. Premissas
 
 > Tratadas como verdade pelo design; se alguma cair, o LLD precisa ser revisitado.
 
-#### PR-01 — <resumo escaneável da premissa>
+#### PR-01 - <resumo escaneável da premissa>
 
 TODO
 
 ### 4.2. Decisões de design (DRs)
 
-TODO — decisões táticas locais; ADRs de arquitetura ficam no HLD (referencie-os).
+TODO - decisões táticas locais; ADRs de arquitetura ficam no HLD (referencie-os).
 
-#### D-01 — <resumo escaneável da decisão>
+#### D-01 - <resumo escaneável da decisão>
 
 TODO
 
-#### D-02 — <resumo escaneável da decisão>
+#### D-02 - <resumo escaneável da decisão>
 
 TODO
 
 ### 4.3. Riscos e pontos de atenção (de implementação)
 
-#### R-01 — <resumo escaneável do risco>
+#### R-01 - <resumo escaneável do risco>
 
 TODO
 
 ### 4.4. Perguntas em aberto
 
-> Registro único do doc — inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
+> Registro único do doc - inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
 > Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução/mapeamento, e sai daqui.
 
-#### OQ-01 — <resumo escaneável da pergunta>
+#### OQ-01 - <resumo escaneável da pergunta>
 
 TODO
 
@@ -109,7 +109,7 @@ TODO
 
 TODO
 
-### 4.9. Diagramas (design de código/componentes, fluxograma, sequência, máquina de estados — incl. caminhos de erro)
+### 4.9. Diagramas (design de código/componentes, fluxograma, sequência, máquina de estados - incl. caminhos de erro)
 
 TODO
 
@@ -127,11 +127,11 @@ TODO
 
 ### 4.13. Estratégia de testes e UAT (alto nível, p/ alinhamento)
 
-TODO — abordagem de testes/UAT em alto nível. Títulos de teste concretos vivem no plan (recap + link); casos de borda/falha são cobertos via diagramas/prose nas seções de diagramas e de erros.
+TODO - abordagem de testes/UAT em alto nível. Títulos de teste concretos vivem no plan (recap + link); casos de borda/falha são cobertos via diagramas/prose nas seções de diagramas e de erros.
 
 ### 4.14. Task breakdown (títulos), dependências e estratégia de launch
 
-TODO — breakdown em títulos p/ estimativas, paralelização e dependências entre times; estratégia de launch (FF, rollout incremental, decisão de migração/backfill). Tarefas commit-sized, caminhos de arquivo e passos concretos vivem no plan.
+TODO - breakdown em títulos p/ estimativas, paralelização e dependências entre times; estratégia de launch (FF, rollout incremental, decisão de migração/backfill). Tarefas commit-sized, caminhos de arquivo e passos concretos vivem no plan.
 
 ## 5. Apêndice
 

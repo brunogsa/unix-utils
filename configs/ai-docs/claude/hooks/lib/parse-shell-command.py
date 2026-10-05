@@ -23,7 +23,7 @@ import re
 HEREDOC_OPENER = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
 
 # A heredoc-opening line whose sink is `cat` or
-# `python3`/`python` — a non-executing sink, its
+# `python3`/`python` - a non-executing sink, its
 # heredoc is inert data.
 #
 # Requires a boundary before the word so it doesn't false-match
@@ -36,9 +36,9 @@ _ANY_SINK_PATTERN = re.compile(r'')
 
 
 def strip_heredoc_bodies_for_sinks(text, sink_pattern):
-    """Drop heredoc body lines, but only for heredocs whose opening line matches `sink_pattern` before the `<<` — keeping the opener and delimiter lines.
+    """Drop heredoc body lines, but only for heredocs whose opening line matches `sink_pattern` before the `<<` - keeping the opener and delimiter lines.
 
-    Body text between `<<'EOF'` and its closing marker is inert data fed to a redirect target — never executed as a shell command — so prose in there (e.g. a commit message describing a past incident) must not be scanned as if it were code, PROVIDED the sink reading it never executes it.
+    Body text between `<<'EOF'` and its closing marker is inert data fed to a redirect target - never executed as a shell command - so prose in there (e.g. a commit message describing a past incident) must not be scanned as if it were code, PROVIDED the sink reading it never executes it.
 
     A heredoc fed to `bash`/`sh`/`ssh` DOES execute its body as shell commands, so a caller wanting to preserve those (to still catch a dangerous command smuggled through `bash <<EOF`) passes a sink_pattern that excludes them.
     """
@@ -68,7 +68,7 @@ def strip_heredoc_bodies(text):
     """Drop every heredoc's body lines, regardless of which sink reads it.
 
     A thin wrapper over strip_heredoc_bodies_for_sinks() with a
-    match-everything sink pattern — see that function for the mechanics.
+    match-everything sink pattern - see that function for the mechanics.
     """
     return strip_heredoc_bodies_for_sinks(text, _ANY_SINK_PATTERN)
 
@@ -86,8 +86,8 @@ def split_into_pipelines(text):
 
     Returns a list of statements; each statement is a list of its
     pipeline stages (split on `|`). A caller that only wants a flat list
-    of command segments — one per `;`/`&&`/`||`/`|`/`&`/newline, with no
-    interest in which separator produced which cut — flattens the
+    of command segments - one per `;`/`&&`/`||`/`|`/`&`/newline, with no
+    interest in which separator produced which cut - flattens the
     result: `[stage for statement in split_into_pipelines(c) for stage
     in statement]`.
     """

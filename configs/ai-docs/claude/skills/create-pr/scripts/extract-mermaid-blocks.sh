@@ -7,7 +7,7 @@
 # a PR description's Architecture section.
 #
 # Built so diagrams reach the PR by copy, never by an AI
-# re-drawing them from the source file — a re-drawn diagram
+# re-drawing them from the source file - a re-drawn diagram
 # silently diverges from the one the spec/plan was reviewed
 # against.
 #

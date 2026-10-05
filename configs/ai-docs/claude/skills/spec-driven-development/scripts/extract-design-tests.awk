@@ -19,7 +19,7 @@ fence_event != "" { next }
 }
 !in_design { next }
 
-# describe("Name", ...) — set the current describe, reset the
+# describe("Name", ...) - set the current describe, reset the
 # class.
 match($0, /describe\("[^"]*"/) {
   d = substr($0, RSTART, RLENGTH)
@@ -30,14 +30,14 @@ match($0, /describe\("[^"]*"/) {
   next
 }
 
-# Class markers — only these three exact comments set the
+# Class markers - only these three exact comments set the
 # class; other // lines are ignored so intra-section notes
 # (e.g. "// Checagens NOSSAS...") keep the current class.
 /^[[:space:]]*\/\/ Happy cases[[:space:]]*$/    { cls = "happy";   next }
 /^[[:space:]]*\/\/ Corner cases[[:space:]]*$/   { cls = "corner";  next }
 /^[[:space:]]*\/\/ Failure scenarios[[:space:]]*$/ { cls = "failure"; next }
 
-# it("Title") — emit the breadcrumb (3-segment under a
+# it("Title") - emit the breadcrumb (3-segment under a
 # class, else 2-segment). The title match ends at the
 # closing double quote, not at a quote-paren pair, so
 # one-arg and two-arg it() forms share one matchEnd.

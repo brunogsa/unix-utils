@@ -8,12 +8,12 @@
 # Usage (Claude Code UserPromptSubmit hook):
 #   stdin:  hook event JSON ({ session_id, prompt, ... })
 #
-#   stdout: NOTHING, ever — a UserPromptSubmit hook's stdout is
+#   stdout: NOTHING, ever - a UserPromptSubmit hook's stdout is
 #           injected into the conversation as context, so any
 #           output here would silently rewrite the human's
 #           prompt.
 #
-#   exit:   0, always — see "Fail-closed is not an option"
+#   exit:   0, always - see "Fail-closed is not an option"
 #           below.
 #
 # Side effect, and the only one: touches
@@ -26,7 +26,7 @@
 #   dispatch.
 #
 #   On 2026-08-10 an entire six-task batch ran with no state
-#   file at all and nothing detected it — it had to be
+#   file at all and nothing detected it - it had to be
 #   reconstructed by hand at batch close.
 #
 #   Every downstream guard was blind: implement-loop-state.py
@@ -42,10 +42,10 @@
 #   unrelated session on this machine free.
 #
 #   This hook supplies the missing bit from the one place the
-#   orchestrator cannot forget — the literal prompt text,
+#   orchestrator cannot forget - the literal prompt text,
 #   written by the harness before Claude reads it.
 #
-# Marker lifecycle (deliberately asymmetric — this hook only
+# Marker lifecycle (deliberately asymmetric - this hook only
 # ever arms):
 #
 # - Written here, on every /implement invocation, truncating any
@@ -67,7 +67,7 @@
 #
 # - NEVER consumed by a block.
 #   A batch whose orchestrator ends no turn mid-flight stops
-#   exactly once — at batch end — so a marker that a first block
+#   exactly once - at batch end - so a marker that a first block
 #   cleared would miss the very failure this guard exists for.
 #
 # - Escape hatch for a marker with no run behind it (pre-flight
@@ -78,7 +78,7 @@
 #   It says trash rather than rm because claude-rm-guard.sh
 #   blocks rm on /tmp paths.
 #
-# Coverage limits — real gaps, stated so no reader assumes this
+# Coverage limits - real gaps, stated so no reader assumes this
 # is total:
 #
 # - Only a TYPED slash command reaches UserPromptSubmit.
@@ -100,7 +100,7 @@
 #   the human's prompt (exit 2 blocks it outright).
 #
 #   So this script must be structurally incapable of a non-zero
-#   exit — hence `trap 'exit 0' EXIT`, no `set -e` (one
+#   exit - hence `trap 'exit 0' EXIT`, no `set -e` (one
 #   unexpected non-zero would otherwise eat the prompt), and `||
 #   true` on every command that can fail.
 #
@@ -108,7 +108,7 @@
 #   trimming this line for the same fail-open reason: it runs
 #   `set -eo pipefail`, dropping -u on purpose.
 #
-# Safeguards (every one a silent no-op — this hook never breaks
+# Safeguards (every one a silent no-op - this hook never breaks
 # a prompt, and every path either writes the marker or is one of
 # these enumerated gaps):
 #
@@ -124,8 +124,8 @@
 #   occupying the path) → no marker, exit 0.
 #
 #   This one IS a silent skip of the guard itself; it is
-#   enumerated rather than fixed because the alternative —
-#   failing loudly — costs the human their prompt.
+#   enumerated rather than fixed because the alternative -
+#   failing loudly - costs the human their prompt.
 #
 # NO env-var opt-out by design, matching
 # claude-implement-stop-hook.sh: a kill switch would let Claude
@@ -159,7 +159,7 @@ prompt=$(printf '%s' "$input" | jq -r '.prompt // empty' 2>/dev/null || true)
 #   would too.
 #
 # The [[:space:]] character class rather than \b: \b matches
-# before a hyphen, so \b would accept /implement-something — and
+# before a hyphen, so \b would accept /implement-something - and
 # the class behaves the same on BSD and glibc, which the repo's
 # cross-platform MUST requires.
 if [[ ! "$prompt" =~ ^[[:space:]]*/implement([[:space:]]|$) ]]; then
@@ -172,7 +172,7 @@ marker="/tmp/implement_${session_id}.expected"
 # session must reset the mtime the Stop hook compares the
 # scratchpad against.
 #
-# The content is for a human who finds the file in /tmp — never
+# The content is for a human who finds the file in /tmp - never
 # the prompt itself, which can carry anything the human typed.
 printf '%s\n' \
   "/implement was invoked in session ${session_id}; implement/SKILL.md §2.3 must write /tmp/implement_${session_id}.json" \

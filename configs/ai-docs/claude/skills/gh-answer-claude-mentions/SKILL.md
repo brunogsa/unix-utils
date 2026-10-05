@@ -10,8 +10,8 @@ disable-model-invocation: true
 Fetch comments on a GitHub PR, filter those addressed to Claude, discuss each
 with the user on terminal, and post approved replies with a `Claude:` prefix.
 
-**Boundary vs `address-pr-comments`**: this skill answers only comments directed AT Claude, in Claude's own voice — hence the mandatory `Claude:` prefix.
-To work a PR's general review comments (apply fixes, answer in the user's voice — deliberately unsigned), use `address-pr-comments`; the signature rules invert because the speaker does.
+**Boundary vs `address-pr-comments`**: this skill answers only comments directed AT Claude, in Claude's own voice - hence the mandatory `Claude:` prefix.
+To work a PR's general review comments (apply fixes, answer in the user's voice - deliberately unsigned), use `address-pr-comments`; the signature rules invert because the speaker does.
 
 ## Process
 
@@ -65,7 +65,7 @@ Every reply MUST be prefixed with `Claude:` followed by a blank line,
 so reviewers immediately know it's AI-generated context, not the user
 talking to themselves.
 
-The reply should be a concise summary of the terminal discussion — not a
+The reply should be a concise summary of the terminal discussion - not a
 verbatim dump of everything discussed. Focus on the conclusion and reasoning.
 
 ### 5. Confirm
@@ -82,4 +82,4 @@ After posting, confirm to the user which comments were answered and link to the 
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

@@ -16,7 +16,7 @@ Why the how is out of scope: solution choices belong to `brainstorm-how`, which 
 
 ## Usage
 
-`/brainstorm-why` — no arguments. A run always starts from an idea, never from a document.
+`/brainstorm-why` - no arguments. A run always starts from an idea, never from a document.
 
 ## Process
 
@@ -85,4 +85,4 @@ Why no `/clear` hand-off: `to-spec` grounds from this session's context and scra
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

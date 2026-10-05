@@ -17,12 +17,12 @@
 # separated by `===` lines.
 #
 # Excludes tool results, slash-command markers, system
-# reminders, and local-command output — only the user's own
+# reminders, and local-command output - only the user's own
 # typed text remains.
 #
 # Exit codes:
-#   0 — success
-#   1 — no Claude project dir or no session JSONL found
+#   0 - success
+#   1 - no Claude project dir or no session JSONL found
 
 set -eo pipefail
 

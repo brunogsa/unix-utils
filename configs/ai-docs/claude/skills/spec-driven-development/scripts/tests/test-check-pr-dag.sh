@@ -35,7 +35,7 @@ assert_eq() {
 
 # run_script - invokes check-pr-dag.sh against a plan-file
 # fixture, capturing stderr/exit code into
-# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded - these tests
 # assert on exit code and diagnostic presence only).
 run_script() {
   local plan_file="$1"
@@ -57,10 +57,10 @@ write_plan() {
 
 it_should_pass_when_every_pr_dependency_resolves_to_a_real_non_cyclic_pr_label() {
   local fixture
-  fixture=$(write_plan "happy-resolves" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
-2. **PR-2** — Worktree hygiene. Tasks: 4. Depends on: none.
-3. **PR-3** — Core loop. Tasks: 5, 6. Depends on: PR-1, PR-2.
-4. **PR-4** — Diamond merge. Tasks: 7. Depends on: PR-3.')
+  fixture=$(write_plan "happy-resolves" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+2. **PR-2** - Worktree hygiene. Tasks: 4. Depends on: none.
+3. **PR-3** - Core loop. Tasks: 5, 6. Depends on: PR-1, PR-2.
+4. **PR-4** - Diamond merge. Tasks: 7. Depends on: PR-3.')
   run_script "$fixture"
   assert_eq "should pass when every PR dependency resolves to a real, non-cyclic PR label" "0" "$VERDICT_EXIT"
 }
@@ -74,21 +74,21 @@ it_should_pass_when_the_plan_reads_single_pr_nothing_to_validate() {
 
 it_should_pass_when_every_pr_is_independent_no_depends_on_entries() {
   local fixture
-  fixture=$(write_plan "independent" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
-2. **PR-2** — Second slice. Tasks: 2. Depends on: none.
-3. **PR-3** — Third slice. Tasks: 3. Depends on: none.')
+  fixture=$(write_plan "independent" '1. **PR-1** - First slice. Tasks: 1. Depends on: none.
+2. **PR-2** - Second slice. Tasks: 2. Depends on: none.
+3. **PR-3** - Third slice. Tasks: 3. Depends on: none.')
   run_script "$fixture"
   assert_eq "should pass when every PR is independent (no Depends on entries)" "0" "$VERDICT_EXIT"
 }
 
 it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo() {
   local path="$work_dir/n-a-escape.md"
-  printf '## PR Breakdown\n\nN/A — sole-maintainer repo commits directly to master, no PR is opened.\n' > "$path"
+  printf '## PR Breakdown\n\nN/A - sole-maintainer repo commits directly to master, no PR is opened.\n' > "$path"
   run_script "$path"
-  assert_eq "should pass when the plan reads the N/A — <reason> escape for a no-PR repo" "0" "$VERDICT_EXIT"
+  assert_eq "should pass when the plan reads the N/A - <reason> escape for a no-PR repo" "0" "$VERDICT_EXIT"
 }
 
-# plan-template.md tells authors to write "N/A — no PR
+# plan-template.md tells authors to write "N/A - no PR
 # dependencies" in place of the dependency diagram, which leads
 # the numbered PR list.
 #
@@ -96,10 +96,10 @@ it_should_pass_when_the_plan_reads_the_n_a_escape_for_a_no_pr_repo() {
 # follow it.
 it_should_still_validate_pr_entries_that_follow_the_n_a_in_place_of_the_diagram() {
   local fixture
-  fixture=$(write_plan "n-a-then-cycle" 'N/A — no PR dependencies
+  fixture=$(write_plan "n-a-then-cycle" 'N/A - no PR dependencies
 
-1. **PR-1** — First. Tasks: 1. Depends on: PR-2.
-2. **PR-2** — Second. Tasks: 2. Depends on: PR-1.')
+1. **PR-1** - First. Tasks: 1. Depends on: PR-2.
+2. **PR-2** - Second. Tasks: 2. Depends on: PR-1.')
   run_script "$fixture"
   assert_eq "should still validate PR entries that follow an N/A written in place of the diagram" "1" "$VERDICT_EXIT"
 }
@@ -113,8 +113,8 @@ it_should_fail_when_the_section_has_prose_but_no_pr_n_entries_and_no_escape() {
 
 it_should_detect_a_two_pr_cycle_when_pr_1_depends_on_pr_2_and_pr_2_depends_on_pr_1() {
   local fixture
-  fixture=$(write_plan "cycle" '1. **PR-1** — First. Tasks: 1. Depends on: PR-2.
-2. **PR-2** — Second. Tasks: 2. Depends on: PR-1.')
+  fixture=$(write_plan "cycle" '1. **PR-1** - First. Tasks: 1. Depends on: PR-2.
+2. **PR-2** - Second. Tasks: 2. Depends on: PR-1.')
   run_script "$fixture"
   assert_eq "should detect a two-PR cycle when PR-1 depends on PR-2 and PR-2 depends on PR-1 (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then
@@ -128,8 +128,8 @@ it_should_detect_a_two_pr_cycle_when_pr_1_depends_on_pr_2_and_pr_2_depends_on_pr
 
 it_should_detect_a_dangling_reference_when_a_pr_depends_on_a_pr_n_label_absent_from_the_pr_breakdown() {
   local fixture
-  fixture=$(write_plan "dangling" '1. **PR-1** — First. Tasks: 1. Depends on: none.
-2. **PR-2** — Second. Tasks: 2. Depends on: PR-9.')
+  fixture=$(write_plan "dangling" '1. **PR-1** - First. Tasks: 1. Depends on: none.
+2. **PR-2** - Second. Tasks: 2. Depends on: PR-9.')
   run_script "$fixture"
   assert_eq "should detect a dangling reference when a PR depends on a PR-N label absent from the PR Breakdown (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then
@@ -143,8 +143,8 @@ it_should_detect_a_dangling_reference_when_a_pr_depends_on_a_pr_n_label_absent_f
 
 it_should_detect_a_duplicate_label_when_two_pr_breakdown_entries_share_the_same_pr_n_label() {
   local fixture
-  fixture=$(write_plan "duplicate" '1. **PR-1** — First. Tasks: 1. Depends on: none.
-2. **PR-1** — Duplicate label. Tasks: 2. Depends on: none.')
+  fixture=$(write_plan "duplicate" '1. **PR-1** - First. Tasks: 1. Depends on: none.
+2. **PR-1** - Duplicate label. Tasks: 2. Depends on: none.')
   run_script "$fixture"
   assert_eq "should detect a duplicate label when two PR Breakdown entries share the same PR-N label (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then

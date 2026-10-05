@@ -138,14 +138,14 @@ if [ -z "$edges" ]; then
   # short-circuit.
   #
   # It is tested HERE, after parsing, rather than against the
-  # raw body: plan-template.md puts "N/A — no PR dependencies"
+  # raw body: plan-template.md puts "N/A - no PR dependencies"
   # in place of the dependency DIAGRAM, which leads a real PR
   # list.
   #
   # Testing the body would let that line wave the whole list
   # through unvalidated.
   if printf '%s' "$trimmed" | grep -qiE '^N/A([^a-zA-Z]|$)'; then
-    echo "OK: PR Breakdown has nothing to validate (reads 'N/A — ...')."
+    echo "OK: PR Breakdown has nothing to validate (reads 'N/A - ...')."
     exit 0
   fi
 

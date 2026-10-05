@@ -30,7 +30,7 @@ It also names which digest format it wants; absent that, use `~/.claude/skills/c
    A base that cannot be resolved is a stop condition, not something to guess around.
 
 2. Read the commit log with FULL bodies: `git log <base>..<branch> --format='%H%n%s%n%n%b%n---'`.
-   The bodies are the primary source for rationale, rejected alternatives, and scope that changed mid-flight — a subject line alone carries almost none of that.
+   The bodies are the primary source for rationale, rejected alternatives, and scope that changed mid-flight - a subject line alone carries almost none of that.
 
 3. Read the diff: `git diff <base>...<branch> --stat` for shape, then the full diff for content.
    Read a large diff file by file (`git diff <base>...<branch> -- <path>`) rather than truncating one giant read, so no file goes unexamined.
@@ -50,7 +50,7 @@ It also names which digest format it wants; absent that, use `~/.claude/skills/c
 - Never invent a decision, a rationale, or a "discovered along the way" item the commits and diff do not support.
   - Thin or generic commit bodies are a finding to report, not a gap to fill with plausible narrative.
 
-- Distinguish planned from incidental strictly by evidence — the commit body saying so, or a change plainly unrelated to the branch's stated theme.
+- Distinguish planned from incidental strictly by evidence - the commit body saying so, or a change plainly unrelated to the branch's stated theme.
   - When the evidence does not separate them, put the item under planned and flag the ambiguity in the report.
 
 - Report a file you could not read (binary, generated, over-large) explicitly rather than silently omitting it from the digest.

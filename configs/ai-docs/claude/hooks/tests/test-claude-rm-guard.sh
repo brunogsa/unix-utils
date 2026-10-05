@@ -5,7 +5,7 @@
 #   bash test-claude-rm-guard.sh
 #
 # Exits 0 when every assertion passes, non-zero
-# otherwise. No bats dependency by design — three
+# otherwise. No bats dependency by design - three
 # small scripts don't justify a new cross-platform
 # test-runner dependency in install.sh.
 
@@ -134,7 +134,7 @@ it_should_allow_a_hyphenated_identifier_that_merely_contains_rm() {
 #
 # Here the REAL `rm -f` invocation is on the heredoc
 # OPENER line (kept, not stripped) and that opener line itself
-# has an unbalanced quote — so this must still be blocked after
+# has an unbalanced quote - so this must still be blocked after
 # the fix.
 it_should_still_block_a_real_rm_invocation_on_a_heredoc_opener_line() {
   local cmd
@@ -157,7 +157,7 @@ OUTER
 #
 # The plain text "rm -rf" alone, with no separator-shaped
 # character alongside it, never actually shattered
-# split_segments() — this case already passed before the fix and
+# split_segments() - this case already passed before the fix and
 # is kept here as a regression guard, not a bug demonstration.
 #
 # The genuine break needs a separator character (`;`,
@@ -169,8 +169,9 @@ it_should_allow_a_grep_search_for_the_double_quoted_string_rm_dash_rf() {
 }
 
 # The actual reproduction of bug 3: the "rm -rf" text alone (no
-# shell metacharacter alongside it) never tripped split_segments
-# — it takes a separator-shaped character (here, `;`)
+# shell metacharacter alongside it) never tripped
+# split_segments. It takes a separator-shaped
+# character (here, `;`)
 #
 # sitting INSIDE the quotes to make the quote-unaware regex
 # split cut the command in two mid-string, which is what turned
@@ -205,7 +206,7 @@ it_should_block_rm_of_a_real_untracked_and_not_ignored_file() {
 #
 # the real rm after && must still be recognized and blocked (its
 # target is the untracked, not-ignored fixture from
-# setup_sandbox — no git copy).
+# setup_sandbox - no git copy).
 it_should_block_a_real_rm_after_a_command_that_only_quotes_the_word_rm() {
   run_hook 'grep -rn "rm" . && rm untracked.md'
   assert_eq "should still block a real rm after && following a command that only quotes the word rm" "2" "$HOOK_EXIT"

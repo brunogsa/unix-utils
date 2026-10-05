@@ -1,6 +1,6 @@
 ---
 name: code-standards
-description: "USE PROACTIVELY when you write, edit, or review code — any language, including config that is itself code like init.lua, not just settings.json — even one-liners. Not for pure reading."
+description: "USE PROACTIVELY when you write, edit, or review code - any language, including config that is itself code like init.lua, not just settings.json - even one-liners. Not for pure reading."
 user-invocable: false
 words-budget: 4096
 instructions-budget: 80
@@ -16,11 +16,11 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 ### Lower reviewer load: nesting & dense lines
 
-- [Instruction] **CRITICAL: Treat the human reviewer as the bottleneck — favor any tactic that lowers reviewer cognitive load over author keystrokes.**
-  - [Why] AI writes in seconds; the reviewer pays minutes on every read — optimize the recurring cost, not the one-time write.
+- [Instruction] **CRITICAL: Treat the human reviewer as the bottleneck - favor any tactic that lowers reviewer cognitive load over author keystrokes.**
+  - [Why] AI writes in seconds; the reviewer pays minutes on every read - optimize the recurring cost, not the one-time write.
 
-- [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor — reduce it by extracting inner units or early returns.
-  - [Why] Each nesting level multiplies the mental state the reader holds — bugs hide where "I don't understand" lives.
+- [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor - reduce it by extracting inner units or early returns.
+  - [Why] Each nesting level multiplies the mental state the reader holds - bugs hide where "I don't understand" lives.
 
 - [Instruction] Break multi-clause one-liners across 2-3 short lines.
   - [Why] Spreading the logic moves work from the reader's mental stack into discrete, scannable steps.
@@ -31,22 +31,22 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 ### Comments
 
 - [Instruction] Cap a code comment at 4 sentences of prose, or convert it to a bullet list of one sentence each.
-  - [Why] A comment past a few sentences reads as prose to parse, not text to scan — the same problem bullets solve.
+  - [Why] A comment past a few sentences reads as prose to parse, not text to scan - the same problem bullets solve.
 
 - [Instruction] When a function needs a long or complex comment to explain itself, treat that as a signal to restructure it (clearer name, narrower params, a pure
-return over a mutated accumulator) — not a documentation task.
-  - [Why] The comment compensates for the function's shape — fixing the shape removes the need for it, not polishing it.
+return over a mutated accumulator) - not a documentation task.
+  - [Why] The comment compensates for the function's shape - fixing the shape removes the need for it, not polishing it.
 
 ### Extraction: helpers, components, wrappers
 
 - [Instruction] When a render tree exceeds ~50 lines with multiple conditional branches, extract each branch into a self-naming sub-component (inline same-file is fine; any framework's templates).
   - [Why] Flat anonymous markup forces parsing every branch; named sub-components let the top level read as an outline.
 
-- [Instruction] When extracting, preserve data-testids and behavior — you're moving the markup, not changing it.
-  - [Why] Altering behavior or testids during an extraction is a refactor disguised as a move — it breaks tests, erodes trust.
+- [Instruction] When extracting, preserve data-testids and behavior - you're moving the markup, not changing it.
+  - [Why] Altering behavior or testids during an extraction is a refactor disguised as a move - it breaks tests, erodes trust.
 
-- [Instruction] Extract a helper for 2–4 callsites only when extraction raises BOTH the readability and cognitive-load bars.
-  - [Why] One bar alone doesn't justify indirection; both must rise or inline wins — DRY cuts complexity, not a value itself.
+- [Instruction] Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars.
+  - [Why] One bar alone doesn't justify indirection; both must rise or inline wins - DRY cuts complexity, not a value itself.
 
 - [Instruction] Readability bar: the helper's name must communicate intent better than the inline form.
   - [Why] If the inline pattern is already self-evident, a helper name adds indirection without revelation.
@@ -54,11 +54,11 @@ return over a mutated accumulator) — not a documentation task.
 - [Instruction] Cognitive-load bar: extraction must shrink the working set the reader holds.
   - [Why] A 10-line helper hiding a 2-line pattern spreads the same load across two files the reader must chase.
 
-- [Instruction] A wrapper must earn its keep — by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by merely forwarding to what it wraps.
+- [Instruction] A wrapper must earn its keep - by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by merely forwarding to what it wraps.
   - [Why] Each counter-intuitive-API site is a future bug, so taming it pays off; wrapping `Date.now()` only adds indirection.
   - [Example] Bad: `const getKitBimestre = (kit) => kit.bimestre;`, or a body that is one call to what it wraps. Good: `kit.bimestre` at the call site, and call the callee directly.
 
-- [Instruction] When unifying duplicated code, normalize the callers onto one shared output — never add a parameter whose only job is to preserve a caller's existing wording or formatting.
+- [Instruction] When unifying duplicated code, normalize the callers onto one shared output - never add a parameter whose only job is to preserve a caller's existing wording or formatting.
   - [Why] The function could have stayed simple; that parameter buys permanent branching for a difference no caller needs.
   - [Example] Bad: `formatRateioViolation(sum, { prefix })`, whose body branches `const kit = options.prefix ? 'KIT' : 'Kit'`. Good: `formatRateioViolation(sum)`, with both callers' expected strings updated to the one message.
 
@@ -67,11 +67,11 @@ return over a mutated accumulator) — not a documentation task.
 ### Name by purpose, clearly
 
 - [Instruction] **CRITICAL: Name functions and variables by what the caller gets, not how it works.**
-  - [Why] Implementation changes with refactors but the contract shouldn't — a mechanism-named function lies after a rewrite.
+  - [Why] Implementation changes with refactors but the contract shouldn't - a mechanism-named function lies after a rewrite.
 
-- [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name — name the specific operation performed instead.**
+- [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name - name the specific operation performed instead.**
   - [Why] A vague verb could mean any of several operations, forcing the reader to open the body to learn which one happens.
-  - [Example] `resolveSoldSupplementaryChildSkus` — deleted, inlined at its call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`; `resolveMarca` → `getSharedMarca`; `resolveSerieRank` → `getSerieSortIndex`, naming the ordinal it returns.
+  - [Example] `resolveSoldSupplementaryChildSkus` - deleted, inlined at its call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`; `resolveMarca` → `getSharedMarca`; `resolveSerieRank` → `getSerieSortIndex`, naming the ordinal it returns.
 
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
   - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
@@ -79,72 +79,72 @@ return over a mutated accumulator) — not a documentation task.
 - [Instruction] In identifiers, avoid numbered phases (`Phase-1`), abbreviated prefixes (`sa`/`sap`), and platform-colliding acronyms (`SAP` vs ERP).
   - [Why] A reviewer skimming the diff in 18 months shouldn't have to recover spec context to decode `sa` or `Phase-2`.
 
-- [Instruction] Namespace a concept by the external system whose vocabulary it belongs to — in the file, class, and module name alike.
+- [Instruction] Namespace a concept by the external system whose vocabulary it belongs to - in the file, class, and module name alike.
   - [Why] Un-namespaced, the name implies every integrated system, so the reader can't tell which one's contract it obeys.
   - [Example] `build-professor-lines.helper.ts` → `build-ebs-professor-lines.helper.ts`; "professor line" is Oracle EBS's term, not SAP B1's, Raizes' or SGE's.
 
-- [Instruction] Use locale-neutral names in shared code (`documentNumber` over `cnpj`) — reserve locale-specific forms for where the locale IS the contract (URL segments, validators, i18n'd end-user strings).
+- [Instruction] Use locale-neutral names in shared code (`documentNumber` over `cnpj`) - reserve locale-specific forms for where the locale IS the contract (URL segments, validators, i18n'd end-user strings).
   - [Why] A `cnpj` field locks shared code to one country's regulations; `documentNumber` survives expansion to others.
 
-- [Instruction] Don't mix languages in code identifiers — keep names in one language (default English), unless a country-specific term (`cnpj`, `notaFiscal`) turns obscure when translated.
+- [Instruction] Don't mix languages in code identifiers - keep names in one language (default English), unless a country-specific term (`cnpj`, `notaFiscal`) turns obscure when translated.
   - [Why] A half-native-half-English name reads awkwardly and splits the vocabulary, forcing readers to code-switch mid-line.
 
 - [Instruction] When a name only makes sense alongside a comment explaining a business rule, rename it instead of keeping the comment.
-  - [Why] A reader trusts the name over a comment, which can go stale or be skipped — a misleading name still misleads.
+  - [Why] A reader trusts the name over a comment, which can go stale or be skipped - a misleading name still misleads.
 
 ### Booleans, conditions & naming conventions
 
 - [Instruction] Prefix booleans with `is`/`has`/`should`/`can`.
   - [Why] An affirmative prefix signals the value is a boolean and which way true points.
 
-- [Instruction] Avoid negating a negative (`!isNotReady`) — name the positive condition.
-  - [Why] Double negatives force the reader to flip the truth value at every read site — a cognitive tax.
+- [Instruction] Avoid negating a negative (`!isNotReady`) - name the positive condition.
+  - [Why] Double negatives force the reader to flip the truth value at every read site - a cognitive tax.
 
 - [Instruction] **CRITICAL: When a condition spans 3+ clauses or negates a quantifier over a collection, extract it into a named boolean used at the if site.**
   - [Why] Such a condition hides intent behind stacked clauses or a flipped negation; a named boolean documents it.
 
-- [Instruction] Encode a collection's type in its name — plural for arrays, a `Set`/`Map` suffix for those.
+- [Instruction] Encode a collection's type in its name - plural for arrays, a `Set`/`Map` suffix for those.
   - [Why] The convention is a free type system; drop it and the reader looks up the type at every use.
 
 ## Architecture & layering
 
 ### Layering & responsibilities
 
-- [Instruction] **CRITICAL: Code top-down — start at the controller/worker layer and pull a helper only once a caller needs it.**
+- [Instruction] **CRITICAL: Code top-down - start at the controller/worker layer and pull a helper only once a caller needs it.**
   - [Why] Helpers shaped by real demand match their callers; speculative ones built ahead of a caller don't.
 
 - [Instruction] **CRITICAL: One thing at one level of abstraction.**
-  - [Why] A function doing two jobs has two reasons to change (SRP) — editing it for one job risks breaking the other.
+  - [Why] A function doing two jobs has two reasons to change (SRP) - editing it for one job risks breaking the other.
 
 - [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules). "Collect" means gather
-only — translation and business rules belong in their own named steps.
+only - translation and business rules belong in their own named steps.
 
 - [Instruction] **Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).**
   - [Why] I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.
 
-- [Instruction] Make the controller the logging owner — avoid duplicate `info` across layers; helpers stay quiet (`debug` only, or `info` solely for what the controller can't see).
+- [Instruction] Make the controller the logging owner - avoid duplicate `info` across layers; helpers stay quiet (`debug` only, or `info` solely for what the controller can't see).
   - [Why] One owner per log line keeps the output deduplicated and tells the reader which layer to trust for each fact.
 
-- [Instruction] Never thread a parameter, or add an if/loop branch, through a pure or business-logic layer solely for a logging call — centralize logging in controllers, which already hold that context.
+- [Instruction] Never thread a parameter, or add an if/loop branch, through a pure or business-logic layer solely for a logging call - centralize logging in controllers, which already hold that context.
   - [Why] Keeping logging out of lower layers lets each focus on its own workload, staying simpler and easier to understand.
-  - [Example] A mapper's `buildCollectionItem` carried an `if (soldChildSkus.length > 0)` guard whose only job was calling `LogContext.extendContext` — deleted; the caller already had every field needed to log it itself.
+  - [Example] A mapper's `buildCollectionItem` carried an `if (soldChildSkus.length > 0)` guard whose only job was calling `LogContext.extendContext` - deleted; the caller already had every field needed to log it itself.
 
-- [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means — never bake the business reaction into the client.
+- [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means - never bake the business reaction into the client.
   - [Why] The client sees the protocol, not the domain, so a policy chosen there binds every caller that will ever use it.
 
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
   - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.
 
 - [Instruction] When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
-  - [Why] A 1:1 case translation couples control flow to spec — a spec change forces code change; each branch hides a bug.
+  - [Why] A 1:1 case translation couples control flow to spec - a spec change forces code change; each branch hides a bug.
 
-- [Instruction] When you work around another system's broken guarantee, say in the code that your data covers only what passed through you — it is not the source of truth.
+- [Instruction] When you work around another system's broken guarantee, say in the code that your data covers only what passed through you - it is not the source of truth.
   - [Why] The workaround misses every record that never passed through you.
-  - [Example] "ERP must reject duplicates and doesn't; this table has only the agreements we created — ERP fix tracked separately."
+  - [Example] "ERP must reject duplicates and doesn't; this table has only the agreements we created - ERP fix tracked separately."
 
 ### Design & performance choices
 
-- [Instruction] Prefer composition — small, focused pieces — over inheritance and deep class hierarchies.
+- [Instruction] Prefer composition - small, focused pieces - over inheritance and deep class hierarchies.
   - [Why] Inheritance couples to the parent's implementation, not just its contract; composition couples to interfaces only.
 
 - [Instruction] **Information hiding** -- expose intent, hide implementation across code APIs, CLI interfaces, doc structures, and test helpers; clients depend only on the contract.
@@ -156,16 +156,16 @@ only — translation and business rules belong in their own named steps.
 - [Instruction] Drive optional behavior with an explicit flag the consumer sets, not a heuristic that infers intent from incidental state.
   - [Why] An inferred trigger couples behavior to a data coincidence, firing where never meant, costing the consumer the choice.
 
-- [Example] Bad: `hasReadableDetail: detail !== undefined` — inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
+- [Example] Bad: `hasReadableDetail: detail !== undefined` - inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
 
-- [Instruction] Pass a single `ctx` object for cross-cutting values (request ID, user, trace) that logging and tracing need but business logic doesn't — not a new param at every layer.
-  - [Why] Cross-cutting concerns grow new params across every layer without a context — a hidden propagation tax.
+- [Instruction] Pass a single `ctx` object for cross-cutting values (request ID, user, trace) that logging and tracing need but business logic doesn't - not a new param at every layer.
+  - [Why] Cross-cutting concerns grow new params across every layer without a context - a hidden propagation tax.
 
 - [Instruction] Parallelize CPU-bound work with worker threads; use async only for I/O.
-  - [Why] Async on CPU-bound tasks blocks the event loop — concurrency in name only.
+  - [Why] Async on CPU-bound tasks blocks the event loop - concurrency in name only.
 
 - [Instruction] Simplest correct version first. Memoization/caching needs profiling proof OR a clear Big-O reason.
-  - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path — no measured benefit.
+  - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path - no measured benefit.
 
 - [Instruction] When a filter/dedup/build-style pipeline is hard to follow in one combined pass, split it into named sequential steps even at a performance cost, absent profiling proof
 the combined form is needed.
@@ -176,68 +176,68 @@ the combined form is needed.
 - [Instruction] Don't mark a function `async` (or return a `Promise`) unless it performs genuine asynchronous work.
   - [Why] Wrapping already-resolved or purely synchronous logic in `async` forces every caller to `await` for nothing.
 
-- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await — it propagated through every caller with no real async
+- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await - it propagated through every caller with no real async
 work anywhere. Keep the chain synchronous.
 
-- [Instruction] Avoid global mutable state — pass data through params and return values.
+- [Instruction] Avoid global mutable state - pass data through params and return values.
   - [Why] Module-scope state makes data flow invisible and breaks unit isolation.
 
-- [Instruction] Keep functions pure by default — isolate I/O into thin boundary functions.
-  - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure — keep it at the edges.
+- [Instruction] Keep functions pure by default - isolate I/O into thin boundary functions.
+  - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure - keep it at the edges.
 
-- [Instruction] **Name a helper for what it returns, not its operation — a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
+- [Instruction] **Name a helper for what it returns, not its operation - a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
   - [Why] The name is the only clue if a result is fresh or mutated; `getX` reads as a value, `appendX` a hidden command.
 
-- [Instruction] Inject what's hard to mock — pass I/O collaborators as parameters.
+- [Instruction] Inject what's hard to mock - pass I/O collaborators as parameters.
   - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at load, unsubstitutable.
 
 - [Instruction] **Use named-param objects for any function with 2+ params.**
-  - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` — what's 3?).
+  - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` - what's 3?).
 
 - [Instruction] **CRITICAL: In the signature, list the specific fields the function needs rather than passing whole config objects.**
-  - [Why] Fat-object params hide internal coupling — the signature stops documenting what the function actually depends on.
+  - [Why] Fat-object params hide internal coupling - the signature stops documenting what the function actually depends on.
 
 ## Logging & observability
 
 - [Instruction] Log progress in I/O loops with a counter: `[3/70] item-name`.
   - [Why] Silent loops feel hung; the counter answers "progressing?" and "stuck where?" at once.
 
-- [Instruction] Logs must be structured and queryable — level, timestamp, a correlation/trace id, message, and context — never bare string concatenation.
+- [Instruction] Logs must be structured and queryable - level, timestamp, a correlation/trace id, message, and context - never bare string concatenation.
   - [Why] Structured logs are queryable; free-text needs grep + human pattern matching.
 
 - [Instruction] On failure, log the full input that caused the error.
   - [Why] A failure log without input is a hunt; with input, it's a reproduction case.
 
-- [Instruction] Never add code whose only purpose is to emit a log — no log-only branch, variable, or early return.
+- [Instruction] Never add code whose only purpose is to emit a log - no log-only branch, variable, or early return.
   - [Why] A log-only branch buys observability an inline log already gives, and charges every future reader for the extra path.
-  - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }` — the branch exists only to gate the log. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
+  - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }` - the branch exists only to gate the log. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
 
-- [Instruction] Logs must never crash the flow — every reducer/accessor/template expression must tolerate undefined or empty inputs.
+- [Instruction] Logs must never crash the flow - every reducer/accessor/template expression must tolerate undefined or empty inputs.
   - [Why] Telemetry that crashes the flow removes the very thing meant to help you debug.
 
 - [Example]
 ```ts
-// Bad — reduce throws on empty agreements
+// Bad - reduce throws on empty agreements
 logger.info({
   message: 'Completed',
   skuCount: result.agreements.reduce((s, a) => s + a.skus.length, 0),
 });
 
-// Good — guard with optional chain + nullish fallback
+// Good - guard with optional chain + nullish fallback
 logger.info({
   message: 'Completed',
   skuCount: result.agreements?.reduce((s, a) => s + (a.skus?.length ?? 0), 0) ?? 0,
 });
 
-// Even better — extract a safeSum helper if the pattern repeats
+// Even better - extract a safeSum helper if the pattern repeats
 ```
 
-- [Instruction] Pick a log level by who caused the condition — the system's own degradation is `warn`, a caller's invalid input is `info`.
+- [Instruction] Pick a log level by who caused the condition - the system's own degradation is `warn`, a caller's invalid input is `info`.
   - [Why] Warn-rate is only alertable if it tracks the system's health; a warn per bad request makes it a traffic counter.
-  - [Example] `info` — designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
-  - [Example] `warn` — degradation the system itself absorbed: a fallback served after the primary failed, a retry that succeeded, an unexpected-but-recoverable state normalized.
-  - [Example] `error` — a failure the system must act on: a downstream call that exhausted its retries, a payload no mapper can process.
-  - [Example] `debug` — the sorted arrays and full request/response bodies behind an `info` count.
+  - [Example] `info` - designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
+  - [Example] `warn` - degradation the system itself absorbed: a fallback served after the primary failed, a retry that succeeded, an unexpected-but-recoverable state normalized.
+  - [Example] `error` - a failure the system must act on: a downstream call that exhausted its retries, a payload no mapper can process.
+  - [Example] `debug` - the sorted arrays and full request/response bodies behind an `info` count.
 
 - [Instruction] Pair each `info` log (counts/IDs/status) with a `debug` log carrying the full payload (sorted arrays).
   - [Why] `info` stays cheap and scannable always-on; the heavy `debug` detail rides alongside for when you need it.
@@ -260,25 +260,25 @@ logger.debug({
 });
 ```
 
-- [Instruction] When a log payload may carry sensitive data (CPF, CNPJ, email, address, tokens, free-text), surface the candidate fields and ask before shipping — never silently include or drop them.
-  - [Why] Silent-include leaks PII; silent-drop robs the choice — both replace an explicit per-field pick with a default.
+- [Instruction] When a log payload may carry sensitive data (CPF, CNPJ, email, address, tokens, free-text), surface the candidate fields and ask before shipping - never silently include or drop them.
+  - [Why] Silent-include leaks PII; silent-drop robs the choice - both replace an explicit per-field pick with a default.
 
 ## Error handling & resilience
 
 - [Instruction] Always validate input at trust boundaries (user input, external APIs, queue payloads); trust internals.
-  - [Why] Validating internals wastes effort; only the trust boundary takes untrusted data — the one place a check catches it.
+  - [Why] Validating internals wastes effort; only the trust boundary takes untrusted data - the one place a check catches it.
 
-- [Instruction] **CRITICAL: Fail loudly, not silently — errors propagate or get logged explicitly; when an internal invariant breaks, fail fast and never coerce, swallow, or default it away.**
+- [Instruction] **CRITICAL: Fail loudly, not silently - errors propagate or get logged explicitly; when an internal invariant breaks, fail fast and never coerce, swallow, or default it away.**
   - [Why] A crash stops the program at the bug; a swallowed error runs on, corrupting data downstream with no trail back.
 
 - [Instruction] Include the affected entity's identifying key (SKU, order id, user id) in the error message itself, not only in surrounding logs.
-  - [Why] Whoever triages reads the message first — a generic one forces hunting for which entity failed.
+  - [Why] Whoever triages reads the message first - a generic one forces hunting for which entity failed.
 
 - [Instruction] Phrase an error message as the rule that must hold, not as a judgment word about the violation.
   - [Why] A judgment word makes the reader infer which rule broke; the rule stated outright hands it to them.
   - [Example] Bad: "professor marca disagrees with student marca". Good: "professor and student lines must share one marca; got X and Y".
 
-- [Instruction] Never retry indefinitely — always cap consecutive retries.
+- [Instruction] Never retry indefinitely - always cap consecutive retries.
   - [Why] Uncapped retries during an outage become a self-inflicted DDoS on the upstream.
 
 - [Instruction] Make batch operations idempotent and resumable, so a crash mid-flight can safely re-run from where it stopped.
@@ -289,15 +289,15 @@ logger.debug({
 
 ## Data handling
 
-- [Instruction] **Normalize data at the entry point — convert string dates and numbers-as-strings to proper types right after validation.**
+- [Instruction] **Normalize data at the entry point - convert string dates and numbers-as-strings to proper types right after validation.**
   - [Why] Defer normalization and you scatter `parseInt`/`new Date` across the codebase.
 
-- [Instruction] Never recover a value by parsing a string the same codebase composed — carry the original value alongside the composed one instead.
+- [Instruction] Never recover a value by parsing a string the same codebase composed - carry the original value alongside the composed one instead.
   - [Why] The parse re-derives what the code already held, and it breaks silently the moment the composition format changes.
   - [Example] Bad: `parseBimestreFromBimester(bimester, anoVigencia)` slicing `${bimestre}${anoVigencia}` back apart. Good: pass `bimestre` through beside the composed field.
 
 - [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values; a named constant for a standalone one.**
-  - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change — a constant is grep-able, changed once.
+  - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change - a constant is grep-able, changed once.
 
 - [Example]
 ```ts
@@ -317,12 +317,12 @@ if (type === ProductType.KIT || type === ProductType.AVULSO) {
 }
 ```
 
-- [Instruction] Distinguish missing from intentional zero/empty — check null/undefined, not falsiness.
-  - [Why] `if (count)` treats `0` and `undefined` identically — falsiness checks paper over the distinction and ship bugs.
+- [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness.
+  - [Why] `if (count)` treats `0` and `undefined` identically - falsiness checks paper over the distinction and ship bugs.
 
-- [Instruction] Treat every `as` / `as unknown as` cast as a defect to remove — fix the declared type at its source so the compiler and linter prove the shape.
+- [Instruction] Treat every `as` / `as unknown as` cast as a defect to remove - fix the declared type at its source so the compiler and linter prove the shape.
   - [Why] A cast suppresses the only tool that checks you, so the error it hides surfaces at runtime instead of at build.
-  - [Example] Bad: `kit.bimestre as Bimestre` — a webhook `number` asserted into `1|2|3|4`. Good: type that field `Bimestre` where the payload is parsed, or validate and throw.
+  - [Example] Bad: `kit.bimestre as Bimestre` - a webhook `number` asserted into `1|2|3|4`. Good: type that field `Bimestre` where the payload is parsed, or validate and throw.
 
 - [Instruction] Validate runtime-derived enum membership at the boundary and throw a domain error on mismatch.
   - [Why] Validation catches out-of-range values loudly at the boundary, not silently failing downstream as a wrong-typed enum.
@@ -341,14 +341,14 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 ### Scripts: human-friendly
 
 - [Instruction] Give every script a `--help` and a comment header with usage + examples.
-  - [Why] The next user (often future-you) won't read the source — `--help` is the contract surface.
+  - [Why] The next user (often future-you) won't read the source - `--help` is the contract surface.
 
-- [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1, unless the script's exit 1 reports a result — then bad input exits 2.
+- [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1, unless the script's exit 1 reports a result - then bad input exits 2.
   - [Why] Callers tell success from misuse by exit code, and must also tell "found something" from "could not look".
 
   - [Example] grep and diff: 0 is clean, 1 is a match or difference, 2 is trouble.
 
-- [Instruction] Keep the header to exactly four things — the script's name, its one-line purpose, its invocation forms, and its stdin/stdout/exit-code I/O contract.
+- [Instruction] Keep the header to exactly four things - the script's name, its one-line purpose, its invocation forms, and its stdin/stdout/exit-code I/O contract.
   - [Why] Rationale and examples belong in the owning skill's `SKILL.md`; a header padded with them stops being brief to scan.
 
 - [Example]
@@ -367,19 +367,19 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 
 ### Scripts: language, conversion & naming
 
-- [Instruction] Default every script's target language to Python; pick `.js` only when its header carries a `# Requires-npm: <package> — <stdlib gap>` line naming an npm package Python's stdlib cannot substitute.
+- [Instruction] Default every script's target language to Python; pick `.js` only when its header carries a `# Requires-npm: <package> - <stdlib gap>` line naming an npm package Python's stdlib cannot substitute.
   - [Why] Python's stdlib covers this, so unstated npm reach forks the toolchain for nothing; the header names the exception.
 
 - [Instruction] Convert a `.sh` script to its target language when it embeds `awk`, `jq`, `sed -E`, or a here-doc, or when it exceeds 128 lines with none of those four.
-  - [Why] Either signal marks a script unreadable end-to-end by a junior — flagging 54 of 82 repo scripts for conversion.
+  - [Why] Either signal marks a script unreadable end-to-end by a junior - flagging 54 of 82 repo scripts for conversion.
 
-- [Instruction] Exempt a script from that verdict when a per-invocation cold start is measurable — a per-tool-call hook, or a ccstatusline widget command; exclude `install.sh` from the bar entirely.
+- [Instruction] Exempt a script from that verdict when a per-invocation cold start is measurable - a per-tool-call hook, or a ccstatusline widget command; exclude `install.sh` from the bar entirely.
   - [Why] A script re-entered per call pays that cold start each time; `install.sh` bootstraps interpreters a conversion needs.
 
-- [Instruction] Name every script `<verb>-<object>[-<qualifier>]` in kebab-case, sourcing the verb list, category denylist, and abbreviation allowlist from `scripts/naming-rule-lexicon.json` — never restate them here.
+- [Instruction] Name every script `<verb>-<object>[-<qualifier>]` in kebab-case, sourcing the verb list, category denylist, and abbreviation allowlist from `scripts/naming-rule-lexicon.json` - never restate them here.
   - [Why] A lexicon file keeps the verb list, denylist, allowlist one edit, not a prose rewrite scattered across every change.
 
-- [Instruction] **CRITICAL: Follow the Unix philosophy — make each script do one thing well and compose via stdin/stdout pipes.**
+- [Instruction] **CRITICAL: Follow the Unix philosophy - make each script do one thing well and compose via stdin/stdout pipes.**
   - [Why] A small, pipeable tool composes into pipelines; a monolithic script becomes a private API nobody reuses.
 
 - [Instruction] Accept behavior as parameters rather than hardcoding it.

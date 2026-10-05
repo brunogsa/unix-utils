@@ -10,7 +10,7 @@
 # Usage:
 #   bash test-statusline-tier.sh
 
-# No bats dependency by design — same precedent as these
+# No bats dependency by design - same precedent as these
 # sibling suites under configs/ai-docs/claude/:
 #
 # - hooks/tests/test-claude-git-guard.sh
@@ -381,7 +381,7 @@ EOF
 # For each configured widget it either execs the real
 # commandPath or extracts a fixed jq path.
 #
-# The exec branch covers custom-command widgets — that is
+# The exec branch covers custom-command widgets - that is
 # what actually proves our config wires statusline-tier.sh
 # correctly.
 #
@@ -897,7 +897,7 @@ JSON
   # A digit followed by 2+ spaces then "h" at end of line
   # is the merge:"no-padding" flag sitting on the wrong
   # widget (duration-unit, a no-op there, instead of
-  # duration) — the reported "6  h".
+  # duration) - the reported "6  h".
   #
   # Anchored to end-of-line so this doesn't false-positive
   # on unrelated "<digit>  h..." text elsewhere on the line
@@ -1296,7 +1296,7 @@ it_should_invalidate_the_cached_tier_against_the_keychain_mdat_attribute_on_maco
   # code path.
   #
   # Branching on the file's existence (not `uname`) means
-  # absence alone forces this path on any host — a `uname`
+  # absence alone forces this path on any host - a `uname`
   # guard would need the host OS faked too.
   write_fake_security "$sandbox" "20260730082118Z" '{"claudeAiOauth":{"subscriptionType":"max"}}'
   printf '100 stale-tier\n' >"$sandbox/tier-cache"
@@ -1319,8 +1319,8 @@ it_should_invalidate_the_cached_tier_against_the_credentials_file_mtime_on_linux
   sandbox="$(fresh_sandbox)"
 
   # This exercises the credentials-file/mtime branch via a
-  # faked file, not a live Linux run (this dev host is macOS)
-  # — the branch is existence-based, not `uname`-based, so
+  # faked file, not a live Linux run (this dev host is macOS) -
+  # the branch is existence-based, not `uname`-based, so
   # faking file presence is enough to force it on any host.
   printf '{"claudeAiOauth":{"subscriptionType":"pro"}}' >"$sandbox/credentials.json"
   printf '100 stale-tier\n' >"$sandbox/tier-cache"

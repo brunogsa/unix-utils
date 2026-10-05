@@ -3,14 +3,14 @@
 # file (D5, A4).
 #
 # Reads the claimed quote from stdin and checks whether it is
-# present in <file> as a literal substring — no regex
-# interpretation — with trailing whitespace normalized per line.
+# present in <file> as a literal substring - no regex
+# interpretation - with trailing whitespace normalized per line.
 #
 # A multi-line quote must match a contiguous block of lines in
 # the file, in that order.
 #
 # <file> is read fresh at verify time, never a cached snapshot
-# from earlier in the run — this is the gate every BLOCKING
+# from earlier in the run - this is the gate every BLOCKING
 # #1-contradiction finding's two quoted sides pass through
 # before the finding ships (D5).
 #
@@ -54,14 +54,14 @@ if [ ! -f "$TARGET_FILE" ]; then
     exit 1
 fi
 
-# Strip trailing whitespace per line only — leading whitespace
+# Strip trailing whitespace per line only - leading whitespace
 # is part of the quoted content and is compared as-is.
 #
 # Join each side back into one newline-joined blob rather than
 # comparing per-line: `grep -F` semantics (the spec's own
 # words, D5/A4) match a fixed string anywhere *inside* a line.
 #
-# Not only a whole-line match — doc-standards keeps this repo's
+# Not only a whole-line match - doc-standards keeps this repo's
 # own prose one paragraph per physical line, so a real quote is
 # routinely a fragment of a longer bullet, never the full line.
 quote_blob="$(sed 's/[[:space:]]*$//')"

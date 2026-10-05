@@ -48,7 +48,7 @@ assert_contains() {
 
 # run_script - invokes check-tasks-dag.sh against a plan-file
 # fixture, capturing stderr/exit code into
-# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded - these tests
 # assert on exit code and diagnostic presence only).
 run_script() {
   local plan_file="$1"

@@ -89,7 +89,7 @@ Export completes for batches up to 10k rows.
 
 ## Context Diagram
 
-N/A — no new external integration.
+N/A - no new external integration.
 
 ## User Stories
 
@@ -139,7 +139,7 @@ N/A — no new external integration.
 
 ## Open Questions
 
-N/A — no open question; the row cap is fixed at 10k.
+N/A - no open question; the row cap is fixed at 10k.
 
 # Appendix
 
@@ -178,7 +178,7 @@ Stream a CSV from the widgets table.
 
 - [x] permissions change (who can see/do what)
 
-N/A — export is read-only, reuses the existing export permission.
+N/A - export is read-only, reuses the existing export permission.
 
 ## General Flow
 
@@ -207,7 +207,7 @@ describe("WidgetExportUseCase", () => {
 **Brief Description**: Add the streaming CSV writer and wire the happy/corner paths.
 
 **Commits (sketch, minimum)**:
-  1. `~/repo` — `feat(widget-export): stream CSV for a batch`
+  1. `~/repo` - `feat(widget-export): stream CSV for a batch`
 
 ### 2. Reject over-cap batches
 
@@ -217,7 +217,7 @@ describe("WidgetExportUseCase", () => {
 **Brief Description**: Add the row-cap check and 413 response.
 
 **Commits (sketch, minimum)**:
-  1. `~/repo` — `feat(widget-export): reject batches over the row cap`
+  1. `~/repo` - `feat(widget-export): reject batches over the row cap`
 
 ## PR Breakdown
 
@@ -231,14 +231,14 @@ describe("WidgetExportUseCase", () => {
 
 ## Open Questions
 
-N/A — no open question; streaming covers the full range without pagination.
+N/A - no open question; streaming covers the full range without pagination.
 
 # Appendix
 
 ## Task Details
 
 <details>
-<summary>Task 1 — Stream the CSV writer</summary>
+<summary>Task 1 - Stream the CSV writer</summary>
 
 **Testable Acceptance criteria**:
 - AC-1
@@ -253,7 +253,7 @@ N/A — no open question; streaming covers the full range without pagination.
 </details>
 
 <details>
-<summary>Task 2 — Reject over-cap batches</summary>
+<summary>Task 2 - Reject over-cap batches</summary>
 
 **Testable Acceptance criteria**:
 - AC-3

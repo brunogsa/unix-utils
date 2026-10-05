@@ -13,13 +13,13 @@ It runs no interview, writes no findings of its own, and appends nothing to any 
 
 Why: the skill that produced a finding owns persisting it, so a `to-spec` that had to append would be repairing an upstream skill's omission.
 
-The document conventions — naming, template, self-review gates — live in the `spec-driven-development` library.
+The document conventions - naming, template, self-review gates - live in the `spec-driven-development` library.
 
 Read it by path (`~/.claude/skills/spec-driven-development/SKILL.md`), never via the Skill tool; its `disable-model-invocation: true` keeps it out of the skill listing.
 
 ## Usage
 
-`/to-spec` — no arguments. It is model-invoked too, so a session that just finished `brainstorm-why` can reach it without the user typing the command.
+`/to-spec` - no arguments. It is model-invoked too, so a session that just finished `brainstorm-why` can reach it without the user typing the command.
 
 ## Process
 
@@ -43,7 +43,7 @@ Why: `sdd-grill` is opt-in at `brainstorm-why`, so a scratchpad without its outp
 
 One `AskUserQuestion` call, recommended answer first, before anything is dispatched:
 
-- **"Qualitative pass?"** — `qualitative_pass`, default yes.
+- **"Qualitative pass?"** - `qualitative_pass`, default yes.
 
 Persist the answer to `/tmp/sdd_<session_id>.json` as a boolean under exactly that field name, keeping any other field already in the file.
 
@@ -77,11 +77,11 @@ Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md`
 
 Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh --spec-only <spec>`, and fix each miss through `spec-editor`.
 
-A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** — report it to the user, never route it to `spec-editor`, and never count the spec as gated.
+A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `spec-editor`, and never count the spec as gated.
 
 Then dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
 
-- **Always — "How would this break?"**: every boundary and failure-category row instantiated or opted out, and every AC carrying a surfaced failure mode.
+- **Always - "How would this break?"**: every boundary and failure-category row instantiated or opted out, and every AC carrying a surfaced failure mode.
 - **Only when `qualitative_pass` is true**, read back from `/tmp/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
 
 Decide each finding yourself and dispatch `spec-editor` with the ones you accept.
@@ -98,4 +98,4 @@ Give the user the spec's path and offer `brainstorm-how`. Do not run it in this 
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

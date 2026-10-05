@@ -1,5 +1,5 @@
 <!--
-Authoring notes for this HLD — read, then delete this comment block before publishing.
+Authoring notes for this HLD - read, then delete this comment block before publishing.
 
 Purpose:
 - Achieve consensus from 1~3 alternatives (decision document)
@@ -29,7 +29,7 @@ About the Alternatives:
 - A Decision-matrix can be useful here to be explicit about your criteria
 -->
 
-# HLD — TODO (título)
+# HLD - TODO (título)
 
 Owner: TODO
 Status: TODO
@@ -86,32 +86,32 @@ TODO
 
 > Tratadas como verdade pelo design; se alguma cair, o doc precisa ser revisitado.
 
-#### PR-01 — <resumo escaneável da premissa>
+#### PR-01 - <resumo escaneável da premissa>
 
 TODO
 
 ### 5.3. [TO-BE] Decisões (ADRs / DRs)
 
-#### D-01 — <resumo escaneável da decisão>
+#### D-01 - <resumo escaneável da decisão>
 
 TODO
 
-#### D-02 — <resumo escaneável da decisão>
+#### D-02 - <resumo escaneável da decisão>
 
 TODO
 
 ### 5.4. [TO-BE] Pontos de Atenção e Riscos
 
-#### R-01 — <resumo escaneável do risco>
+#### R-01 - <resumo escaneável do risco>
 
 TODO
 
 ### 5.5. [TO-BE] Perguntas em aberto
 
-> Registro único do doc — inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
+> Registro único do doc - inclui perguntas sobre o AS-IS. Meta: chegar a "Nenhuma".
 > Cada pergunta é uma sub-seção com título-resumo; ao fechar, vira premissa/decisão/risco ou é embutida na solução, e sai daqui.
 
-#### OQ-01 — <resumo escaneável da pergunta>
+#### OQ-01 - <resumo escaneável da pergunta>
 
 TODO
 

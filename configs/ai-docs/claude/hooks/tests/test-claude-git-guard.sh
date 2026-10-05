@@ -5,7 +5,7 @@
 #   bash test-claude-git-guard.sh
 #
 # Exits 0 when every assertion passes, non-zero
-# otherwise. No bats dependency by design — three
+# otherwise. No bats dependency by design - three
 # small scripts don't justify a new cross-platform
 # test-runner dependency in install.sh.
 

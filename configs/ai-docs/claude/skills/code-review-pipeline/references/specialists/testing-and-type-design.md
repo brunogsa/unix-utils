@@ -44,7 +44,7 @@ Type design:
 - Overly permissive types: `string` where a union of known values fits;
   `number` where a branded type would prevent mixing IDs.
 - Missing `readonly` on a field that should never mutate after construction.
-- Optional fields that are always present in practice — the optionality forces
+- Optional fields that are always present in practice - the optionality forces
   unnecessary null checks at every call site.
 - Types without enforced invariants (non-empty arrays typed as regular arrays;
   positive integers typed as `number`).
@@ -69,15 +69,15 @@ Testing:
 ## Coverage check (when available)
 
 Coverage is a forcing function for catching corner-case gaps that title-only
-review misses. Wave 1 already ran it — read `$work_dir/coverage.txt`.
+review misses. Wave 1 already ran it - read `$work_dir/coverage.txt`.
 
 Never run a coverage command or a test runner yourself. You consume only Wave
 1's pre-built context, which is what keeps the review reproducible and
 idempotent; a suite you launch here is neither.
 
 **Skip this section silently** when either holds:
-- `coverage.txt` is absent — Wave 1 collects it in local mode only.
-- It reads `not-available: <reason>` — the repo emits no coverage.
+- `coverage.txt` is absent - Wave 1 collects it in local mode only.
+- It reads `not-available: <reason>` - the repo emits no coverage.
 
 Never fail the review for missing coverage.
 
@@ -86,7 +86,7 @@ For each uncovered **branch or condition** in code added/changed by this diff:
 - Body: name the uncovered branch and the scenario that would trigger it;
   suggest a concrete test case.
 
-**Don't flag uncovered straight-line code** — module-loaded-but-not-executed
+**Don't flag uncovered straight-line code** - module-loaded-but-not-executed
 is too noisy in this format. Branches and conditions are the load-bearing
 signal: they're where corner cases live.
 

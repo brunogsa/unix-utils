@@ -1,6 +1,6 @@
 # Specialist: Correctness
 
-Source: the **Correctness** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order — most critical first` — logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
+Source: the **Correctness** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order - most critical first` - logic, bugs, race conditions, ordering, off-by-one, wrong branches, missing returns.
 
 ---
 
@@ -11,7 +11,7 @@ Your scope: clearly-incorrect behavior in the diff's new code.
 Trace the happy path through each changed function. At each step, ask: does this
 do what the PR description says it should? Where it diverges, flag.
 
-You're looking for things that are demonstrably wrong — not things that could be
+You're looking for things that are demonstrably wrong - not things that could be
 wrong under some input. "This might fail if X" is not a correctness finding;
 the corner-cases-and-side-effects lens covers that.
 

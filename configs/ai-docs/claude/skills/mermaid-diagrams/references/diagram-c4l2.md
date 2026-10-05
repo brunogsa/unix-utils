@@ -2,11 +2,11 @@
 
 The right level for a plan / tech-design architecture flowchart.
 
-Don't redraw the C4L1 from scratch — **build on it**:
+Don't redraw the C4L1 from scratch - **build on it**:
 
 - Copy the actor + system-under-design boxes + external systems from the spec's L1.
 - Then expand each system-under-design box with a `subgraph` exposing its internal containers (services, caches, modules, queues).
-- External systems stay opaque — their internals belong in *their* L2.
+- External systems stay opaque - their internals belong in *their* L2.
 
 A reader who already saw the L1 should see the same outline (same actors, same external systems, same names) and just zoom into the boxes they care about. Redrawing breaks that continuity.
 

@@ -130,7 +130,7 @@ function create-jira-issue() {
   local issue_type="$2"
   local summary="$3"
 
-  # Avoid ${4:-{}} — zsh misparses the closing brace in the
+  # Avoid ${4:-{}} - zsh misparses the closing brace in the
   # default word, appending a stray '}' to the value when $4 is
   # set.
   # Use explicit conditional.

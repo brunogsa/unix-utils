@@ -591,7 +591,7 @@ function resolveLanguage(file, text, override) {
   const lang = tryResolveLanguage(file, text, override);
   if (lang !== null) return lang;
 
-  console.error(`check-comment-format.js: cannot tell what language ${file} is — pass --lang`);
+  console.error(`check-comment-format.js: cannot tell what language ${file} is - pass --lang`);
   process.exit(2);
 }
 
@@ -625,7 +625,7 @@ function loadTypescriptFor(file) {
   }
 
   console.error(
-    `check-comment-format.js: no TypeScript with a JS scanner API found for ${file} — ` +
+    `check-comment-format.js: no TypeScript with a JS scanner API found for ${file} - ` +
       "run install.sh, or 'npm install' in this script's own directory",
   );
   process.exit(2);
@@ -1290,7 +1290,7 @@ function findParagraphViolations(fullCommentLines, lines, maxLines, lang) {
       flush();
     }
 
-    // 'delimiter' — structural noise, preserving the current
+    // 'delimiter' - structural noise, preserving the current
     // run state across it.
   }
   flush();
@@ -1434,7 +1434,7 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       listBaseIndent = null;
     }
 
-    // 'delimiter' — structural noise, preserving the
+    // 'delimiter' - structural noise, preserving the
     // run/list/item state across it.
   }
   flushRun(false);

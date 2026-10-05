@@ -1,6 +1,6 @@
 """Blackbox CLI tests for check-pr-task-projection.py.
 
-Fixtures: none on disk except what each test writes to tmp_path — every
+Fixtures: none on disk except what each test writes to tmp_path - every
 plan is a minimal, hand-built Task Breakdown + PR Breakdown pair, small
 enough that the expected FAIL/OK verdict is verifiable by eye.
 
@@ -56,9 +56,9 @@ HAPPY_TASK_BODY = """\
 """
 
 HAPPY_PR_BODY = """\
-1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.
+1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.
 
-2. **PR-2** — Second slice. Tasks: 3. Depends on: PR-1.
+2. **PR-2** - Second slice. Tasks: 3. Depends on: PR-1.
 """
 
 HAPPY_HEADING_PR_BODY = """\
@@ -112,7 +112,7 @@ def test_should_report_a_cross_level_task_dependency_when_each_pr_is_its_own_hea
 
 def test_should_ignore_a_bolded_pr_label_and_a_second_depends_on_written_in_an_entrys_prose(tmp_path):
     # The prose below a PR's fields may discuss another PR
-    # without claiming a dependency on it — only the first
+    # without claiming a dependency on it - only the first
     # Depends on field of the entry counts, and a bolded label
     # opens no new entry.
     pr_body = (
@@ -153,9 +153,9 @@ def test_should_exit_0_when_the_pr_breakdown_reads_the_literal_single_pr_escape(
 
 def test_should_report_a_task_claimed_by_no_pr(tmp_path):
     # Task 3 is defined in the Task Breakdown but no PR's Tasks
-    # list names it — the orphan-task defect (Task 27 belonging
+    # list names it - the orphan-task defect (Task 27 belonging
     # to no PR).
-    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    pr_body = "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 1
@@ -165,8 +165,8 @@ def test_should_report_a_task_claimed_by_no_pr(tmp_path):
 
 def test_should_report_a_task_claimed_by_more_than_one_pr(tmp_path):
     pr_body = (
-        "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n\n"
-        "2. **PR-2** — Second slice. Tasks: 2, 3. Depends on: PR-1.\n"
+        "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n\n"
+        "2. **PR-2** - Second slice. Tasks: 2, 3. Depends on: PR-1.\n"
     )
     plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=pr_body)
     result = _run(plan)
@@ -177,8 +177,8 @@ def test_should_report_a_task_claimed_by_more_than_one_pr(tmp_path):
 
 def test_should_report_a_pr_entry_naming_a_task_id_the_task_breakdown_does_not_define(tmp_path):
     pr_body = (
-        "1. **PR-1** — First slice. Tasks: 1, 2, 4. Depends on: none.\n\n"
-        "2. **PR-2** — Second slice. Tasks: 3. Depends on: PR-1.\n"
+        "1. **PR-1** - First slice. Tasks: 1, 2, 4. Depends on: none.\n\n"
+        "2. **PR-2** - Second slice. Tasks: 3. Depends on: PR-1.\n"
     )
     plan = _write_plan(tmp_path, task_body=HAPPY_TASK_BODY, pr_body=pr_body)
     result = _run(plan)
@@ -189,7 +189,7 @@ def test_should_report_a_pr_entry_naming_a_task_id_the_task_breakdown_does_not_d
 
 def test_should_report_a_cross_level_task_dependency_landing_in_a_non_ancestor_pr(tmp_path):
     # Task 9 (in PR-1) depends on Task 10 (in PR-2); PR-1 has no
-    # deps, so PR-2 is neither PR-1 nor its ancestor — the
+    # deps, so PR-2 is neither PR-1 nor its ancestor - the
     # cross-level violation subsuming both the cross-level cycle
     # and the silent-dispatch defects.
     #
@@ -204,10 +204,10 @@ def test_should_report_a_cross_level_task_dependency_landing_in_a_non_ancestor_p
         "**Depends on**: none\n"
     )
     pr_body = (
-        "1. **PR-1** — First slice, given a long enough description that this "
+        "1. **PR-1** - First slice, given a long enough description that this "
         "entry wraps onto\na second physical line before its Tasks and "
         "Depends-on clause appears. Tasks: 9. Depends on: none.\n\n"
-        "2. **PR-2** — Second slice. Tasks: 10. Depends on: none.\n"
+        "2. **PR-2** - Second slice. Tasks: 10. Depends on: none.\n"
     )
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
@@ -219,7 +219,7 @@ def test_should_report_a_cross_level_task_dependency_landing_in_a_non_ancestor_p
 
 def test_should_report_a_finding_when_a_task_names_its_dependencies_inline_instead_of_as_task_bullets(tmp_path):
     # The inline form parses as dependency-free, so every
-    # projection check below it passes vacuously — the fail-open
+    # projection check below it passes vacuously - the fail-open
     # the grammar guard closes, as a finding (exit 1).
     task_body = (
         "### 1. First task\n\n"
@@ -227,7 +227,7 @@ def test_should_report_a_finding_when_a_task_names_its_dependencies_inline_inste
         "### 2. Second task\n\n"
         "**Depends on**: Task 1\n"
     )
-    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    pr_body = "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 1
@@ -242,7 +242,7 @@ def test_should_report_a_finding_when_a_task_depends_on_opens_with_a_bare_colon_
         "### 2. Second task\n\n"
         "**Depends on**: none\n"
     )
-    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    pr_body = "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 1
@@ -258,7 +258,7 @@ def test_should_exit_0_when_a_bare_depends_on_is_followed_by_a_lone_none_bullet(
         "**Depends on**:\n"
         "- Task 1\n"
     )
-    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    pr_body = "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 0, result.stderr
@@ -276,7 +276,7 @@ def test_should_report_a_finding_when_a_none_bullet_is_mixed_with_a_task_bullet_
         "### 2. Second task\n\n"
         f"**Depends on**:\n{bullets}"
     )
-    pr_body = "1. **PR-1** — First slice. Tasks: 1, 2. Depends on: none.\n"
+    pr_body = "1. **PR-1** - First slice. Tasks: 1, 2. Depends on: none.\n"
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 1

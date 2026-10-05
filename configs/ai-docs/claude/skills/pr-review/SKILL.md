@@ -1,13 +1,13 @@
 ---
 name: pr-review
-description: "USE for code review on a GitHub PR URL (no URL — use /auto-review on your local branch). Posts a PENDING review you filter and submit."
+description: "USE for code review on a GitHub PR URL (no URL - use /auto-review on your local branch). Posts a PENDING review you filter and submit."
 ---
 
 # PR Review
 
 Orchestrate a GitHub PR review by running the `code-review-pipeline` pipeline end-to-end inside one background `code-reviewer` orchestrator. Wave 2 reviews inline in that agent by default and fans its eight rubrics out, one agent each, only past the pipeline's diff-size gate. The output is a PENDING review on GitHub; you filter and submit manually.
 
-The dispatch is the same for both review callers — see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
+The dispatch is the same for both review callers - see "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md`.
 
 ## Usage
 
@@ -15,7 +15,7 @@ The dispatch is the same for both review callers — see "How callers dispatch" 
 
 Examples:
 - `/pr-review https://github.com/owner/repo/pull/1597`
-- `/pr-review https://github.com/owner/repo/pull/1597 --issue https://linear.app/acme/issue/ABC-123` — when the PR title and body carry no issue link; a Jira URL or a bare key such as `PROJ-123` works too.
+- `/pr-review https://github.com/owner/repo/pull/1597 --issue https://linear.app/acme/issue/ABC-123` - when the PR title and body carry no issue link; a Jira URL or a bare key such as `PROJ-123` works too.
 
 Without `--issue`, Wave 1 extracts every Jira and Linear reference from the PR title and body and fetches each one, so a PR that already links its issue needs no flag.
 
@@ -27,7 +27,7 @@ The code-review-pipeline expects these inputs:
 - **PR URL:** `<PR_URL>` (from the command argument)
 - **Issue ref:** `<ISSUE_REF>` (only if `--issue` was passed; it replaces the automatic extraction)
 - **Language:** Portuguese (Brazil)
-- **Design sections:** `on` — the Review Guide carries the Arquitetura, Fluxo and Design de testes sections (specified in `code-review-pipeline/references/guide-writer.md`), the parts of a spec or plan a reviewer reads first.
+- **Design sections:** `on` - the Review Guide carries the Arquitetura, Fluxo and Design de testes sections (specified in `code-review-pipeline/references/guide-writer.md`), the parts of a spec or plan a reviewer reads first.
 
 With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the inputs in its prompt body and the instruction to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there. Wait for its completion notification. The base branch is discovered inside Wave 1 from `baseRefName`.
 
@@ -35,4 +35,4 @@ After the orchestrator reports back, the review is PENDING on GitHub. Open `<pr-
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

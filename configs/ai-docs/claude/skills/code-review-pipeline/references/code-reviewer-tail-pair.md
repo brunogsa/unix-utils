@@ -2,16 +2,16 @@
 
 Shared dispatch for a two-lens, report-only review over a commit range: one `code-reviewer` subagent with a simplification lens, one with a correctness lens.
 
-Consumed directly by path — `code-review-pipeline/references/code-reviewer-tail-pair.md` — by `address-pr-comments` (optional post-apply tails), `address-ai-comments` (optional post-sweep tails), and `test-sdd` (its report-only preamble only).
+Consumed directly by path - `code-review-pipeline/references/code-reviewer-tail-pair.md` - by `address-pr-comments` (optional post-apply tails), `address-ai-comments` (optional post-sweep tails), and `test-sdd` (its report-only preamble only).
 
 `loop-auto-review` also uses it for per-round dispatch inside its own loop.
 
-It is not part of the 7-wave pipeline those callers' sibling skills (`/auto-review`, `/pr-review`) run — it's a separate, smaller mechanic that happens to share `code-review-pipeline`'s reviewer-tooling home.
+It is not part of the 7-wave pipeline those callers' sibling skills (`/auto-review`, `/pr-review`) run - it's a separate, smaller mechanic that happens to share `code-review-pipeline`'s reviewer-tooling home.
 
 ## Inputs the caller supplies
 
-- `<BASE_REF>` — the commit range base; the tails diff `<BASE_REF>..HEAD` (or the working tree, for a caller like `address-ai-comments` whose batch may be uncommitted).
-- `<SPEC_PLAN_PATHS>` — optional; pass the caller's resolved spec/plan paths when they exist, so the correctness-lens tail can check spec conformance.
+- `<BASE_REF>` - the commit range base; the tails diff `<BASE_REF>..HEAD` (or the working tree, for a caller like `address-ai-comments` whose batch may be uncommitted).
+- `<SPEC_PLAN_PATHS>` - optional; pass the caller's resolved spec/plan paths when they exist, so the correctness-lens tail can check spec conformance.
 - Omit when the caller has none (e.g. `address-ai-comments`).
 
 ## The two tails
@@ -28,14 +28,14 @@ They're independent report-only passes with no ordering dependency between them.
 Each prompt leads with this preamble verbatim, substituting `<VERDICT_PATH>`:
 
 ```
-REPORT-ONLY MODE — STRICT CONTRACT
+REPORT-ONLY MODE - STRICT CONTRACT
 
-You produce NO side effects — your complete findings ARE your final message.
+You produce NO side effects - your complete findings ARE your final message.
 
 YOU MUST NOT:
 - Run `git commit`, `git push`, or any state-mutating git command.
 - Use the Edit, Write, or MultiEdit tools on ANY file EXCEPT the single
-  report file whose path is given to you below — never touch the reviewed
+  report file whose path is given to you below - never touch the reviewed
   source or any other file.
 - Apply, fix, or suggest-and-then-apply any finding.
 - Spawn nested subagents.
@@ -43,8 +43,8 @@ YOU MUST NOT:
 YOU MUST:
 - Analyze the diff `<BASE_REF>..HEAD` (or working tree, if told to) through
   your assigned lens only.
-- Write your COMPLETE findings — every finding with file:line evidence, no
-  summarizing or truncation — to your assigned verdict file: <VERDICT_PATH>.
+- Write your COMPLETE findings - every finding with file:line evidence, no
+  summarizing or truncation - to your assigned verdict file: <VERDICT_PATH>.
 - Return a short final message: the report path, the finding count, and the
   single highest-priority finding, so the caller can triage from the file.
 
@@ -55,7 +55,7 @@ A `PreToolUse` hook (`~/.claude/hooks/check-reviewer-writes.sh`) backs this at t
 
 It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.html`, and any write under `/tmp`; everything else is denied (exit 2).
 
-Tell each lens about the `/tmp` half — a lens that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
+Tell each lens about the `/tmp` half - a lens that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
 The subagent cannot physically touch repo source even if it tried.
 
@@ -67,19 +67,19 @@ The subagent cannot physically touch repo source even if it tried.
 
 - **A tail errors, or returns nothing usable** → log it, let the other tail's report stand alone, and flag the missing one in the caller's own summary.
 
-- Never retry inline — a missing report is for the human to notice, not a retry loop.
+- Never retry inline - a missing report is for the human to notice, not a retry loop.
 
 ## Overwrite policy
 
 Each run's filenames carry their own timestamp, so repeated runs in the same CWD accumulate as separate files rather than colliding.
 
-Leave reports untracked but not gitignored — same convention as the spec and the plan — so they show in `git status` and never get auto-committed.
+Leave reports untracked but not gitignored - same convention as the spec and the plan - so they show in `git status` and never get auto-committed.
 
-## Triage — report-only, no autonomous apply
+## Triage - report-only, no autonomous apply
 
 Once both reports exist: read both in full, synthesize one prioritized summary grouped by theme/severity, and close with an apply-offer ("tell me which to apply and I'll do it").
 
-**Nothing gets applied here on the caller's own initiative** — the auto-apply loop is opt-in, and that opt-in can only come from the user asking directly.
+**Nothing gets applied here on the caller's own initiative** - the auto-apply loop is opt-in, and that opt-in can only come from the user asking directly.
 
 Never from a calling skill's own priors about what looks "trivial" or "low-risk."
 
@@ -94,17 +94,17 @@ Never do this as an unprompted default, and never as a repeating loop:
 - Dispatch a fresh `agent(subAgent=general-purpose, title=Apply review finding, model=sonnet, effort=medium)`.
   - It writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
 
-- A fix whose test was never shown RED first isn't trusted — re-dispatch.
+- A fix whose test was never shown RED first isn't trusted - re-dispatch.
 - Verify the diff before trusting `done`.
 - Annotate the finding in its verdict file as `APPLIED` (with the fix commit SHA) or `SKIPPED` (with why).
 
-**Callers may override this generic routing.** The `address-verdicts` skill routes by lens instead — refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
+**Callers may override this generic routing.** The `address-verdicts` skill routes by lens instead - refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
 
 Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
 
 `implement`'s batch end reaches this same routing indirectly. Its quality-gate tail (`implement/references/batch-end-review.md`) invokes `/quality-gate` with `--auto-solve`, whose triage step names the findings and hands them to `address-verdicts`.
 
-Under `--report-only` that tail still reaches the same routing, carrying only the planned-test findings — `/quality-gate` applies those on every run, so `address-verdicts` gets a `tdd-coder` dispatch either way.
+Under `--report-only` that tail still reaches the same routing, carrying only the planned-test findings - `/quality-gate` applies those on every run, so `address-verdicts` gets a `tdd-coder` dispatch either way.
 
 One difference: the orchestrator names them in-run.
 It does not wait for a human to name them after seeing the package.

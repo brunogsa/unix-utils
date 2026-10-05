@@ -1,4 +1,4 @@
-# Mode A — Session sweep (default)
+# Mode A - Session sweep (default)
 
 Load this only when Step 1 detected Mode A: the arg is empty, `this session`, `current session`, or anything semantically equivalent.
 
@@ -14,7 +14,7 @@ They survive in each session's JSONL transcript, which compaction only appends t
 python3 ~/.claude/skills/improve-from-user/scripts/extract-session-feedback.py
 ```
 
-With no flags, this sweeps the last 7 days — wide enough to catch a correction that's still relevant days later, narrow enough to stay one context on a routine run.
+With no flags, this sweeps the last 7 days - wide enough to catch a correction that's still relevant days later, narrow enough to stay one context on a routine run.
 
 Pass `--since <days>` to widen or narrow the window, e.g. a deliberate quarterly sweep:
 
@@ -46,22 +46,22 @@ Each agent runs the extractor over its own slice and returns its unified-format 
 
 A slice whose agent fails is retried once.
 
-If it fails again, report it as unmined together with its file list — a missing slice must never look identical to a slice that genuinely found nothing.
+If it fails again, report it as unmined together with its file list - a missing slice must never look identical to a slice that genuinely found nothing.
 
-Below the ~80k threshold, nothing is dispatched — read every qualifying transcript's extractor output inline, the common case for the 7-day default.
+Below the ~80k threshold, nothing is dispatched - read every qualifying transcript's extractor output inline, the common case for the 7-day default.
 
 ## What the extractor's output contains
 
 It emits, grouped per session in session order:
-- **Verbatim user turns + next action** — raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections — your raw input is itself feedback.
+- **Verbatim user turns + next action** - raw feedback, recovered losslessly across compaction boundaries. Mine these for corrections - your raw input is itself feedback.
 
-- **Compaction boundaries** — marked inline, so you see where memory was thinned within that session.
+- **Compaction boundaries** - marked inline, so you see where memory was thinned within that session.
 
 Prefer the extractor's verbatim text over your memory wherever they disagree.
 
-Supplement it with the last turn or two still in context — the transcript can lag the live tail of the running session, which this sweep excludes.
+Supplement it with the last turn or two still in context - the transcript can lag the live tail of the running session, which this sweep excludes.
 
-Clustering findings that recur across multiple sessions, and ranking them by how many sessions raised each one, happens after this read stage — in SKILL.md's steps 2-4, not here.
+Clustering findings that recur across multiple sessions, and ranking them by how many sessions raised each one, happens after this read stage - in SKILL.md's steps 2-4, not here.
 
 That step lives there instead of here because the ranking spans all qualifying sessions rather than any single file.
 
@@ -78,9 +78,9 @@ Then list moments covering:
 - Any user correction of the AI's approach or assumptions
 
 Per-item field hints (the unified format is documented in SKILL.md):
-- **Source** — the extractor's session header and `[line N]`. If the moment was Claude-initiated with no user prompt, note that here.
+- **Source** - the extractor's session header and `[line N]`. If the moment was Claude-initiated with no user prompt, note that here.
 
-- **Verbatim** — exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated — no user quote)`.
-- **Context** — what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.
-- **Outcome** — what actually changed (code edits, decisions, discoveries), not what was discussed.
-- **Lesson drawn** — one sentence, generalizable. Not "we fixed X"; rather "Y pattern leads to Z bug."
+- **Verbatim** - exact user words. Do NOT paraphrase; preserve typos, casing, and emphasis. If Claude-initiated, write `(Claude-initiated - no user quote)`.
+- **Context** - what Claude was doing, what misunderstanding or gap existed, relevant file paths or commands.
+- **Outcome** - what actually changed (code edits, decisions, discoveries), not what was discussed.
+- **Lesson drawn** - one sentence, generalizable. Not "we fixed X"; rather "Y pattern leads to Z bug."

@@ -1,19 +1,19 @@
-# English Lesson — <YYYY-MM-DD HH:MM>
+# English Lesson - <YYYY-MM-DD HH:MM>
 
 Source: `<path-to-session-jsonl>`
 Messages analyzed: <N>
 
 ## Top patterns (by frequency × idiomatic impact)
 
-### 1. <category> — <count> instances, impact <1-3>
+### 1. <category> - <count> instances, impact <1-3>
 
 **Pattern:** ~~<typical-error>~~ → **<corrected>**
 
 **Examples from your messages:**
-- "<verbatim-snippet>" — <one-line explanation of what's off>
-- "<verbatim-snippet>" — <one-line explanation>
+- "<verbatim-snippet>" - <one-line explanation of what's off>
+- "<verbatim-snippet>" - <one-line explanation>
 
-**Drill — read aloud or reuse next session:**
+**Drill - read aloud or reuse next session:**
 - "<corrected example sentence 1>"
 - "<corrected example sentence 2>"
 - "<corrected example sentence 3>"
@@ -48,4 +48,4 @@ Messages analyzed: <N>
 Diff the categories: which top patterns from the prior lesson dropped in
 frequency this round.)
 
-- <pattern from previous lesson> — <delta>
+- <pattern from previous lesson> - <delta>

@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: "USE for an end-of-branch refactoring sweep over unpushed/uncommitted changes — dispatches the code-reviewer agent to write a report the user applies later. Triggers: 'refactor this', 'clean up', /refactor, or another skill's dispatch."
+description: "USE for an end-of-branch refactoring sweep over unpushed/uncommitted changes - dispatches the code-reviewer agent to write a report the user applies later. Triggers: 'refactor this', 'clean up', /refactor, or another skill's dispatch."
 disable-model-invocation: false
 ---
 
@@ -8,11 +8,11 @@ disable-model-invocation: false
 
 Detect refactoring opportunities in unpushed/uncommitted code and write them to a report the user applies later.
 
-**Report only** — this skill analyzes and reports; it never edits code. Applying selected findings is a separate step the user initiates.
+**Report only** - this skill analyzes and reports; it never edits code. Applying selected findings is a separate step the user initiates.
 
-`refactor` names two things with opposite write contracts — this skill, and the `refactor` **agent** (`~/.claude/agents/refactor.md`), which applies one already-accepted finding under a test gate.
+`refactor` names two things with opposite write contracts - this skill, and the `refactor` **agent** (`~/.claude/agents/refactor.md`), which applies one already-accepted finding under a test gate.
 
-A caller wanting this skill's report dispatches `subAgent=code-reviewer`, never `subAgent=refactor` — the latter silently turns a report-only leg into an editing one.
+A caller wanting this skill's report dispatches `subAgent=code-reviewer`, never `subAgent=refactor` - the latter silently turns a report-only leg into an editing one.
 
 ## When to invoke
 
@@ -55,19 +55,19 @@ If the script reports nothing to refactor, inform the user and stop.
 
 ### 2. Dispatch code-reviewer to detect opportunities
 
-**Before dispatch, mint the report path.** Run `date "+verdict_refactor_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` — the
+**Before dispatch, mint the report path.** Run `date "+verdict_refactor_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` - the
 user reviews it alongside the diff in their editor).
 
 - The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance.
 Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
 
-- The `verdict_` prefix is mandatory, not cosmetic — `~/.claude/hooks/check-reviewer-writes.sh` denies every other basename at exit 2.
+- The `verdict_` prefix is mandatory, not cosmetic - `~/.claude/hooks/check-reviewer-writes.sh` denies every other basename at exit 2.
 
 - It reads `verdict_` and not `report_`/`findings_` because the Claude Code harness intercepts those two before any hook runs; the guard's own header records that.
 
 - Use that exact filename in every reference below. One file per `/refactor` invocation; never reuse a prior run's path.
 
-**Dispatch** `agent(subAgent=code-reviewer, title=Refactor-lens review)` — report-only by construction. In the prompt:
+**Dispatch** `agent(subAgent=code-reviewer, title=Refactor-lens review)` - report-only by construction. In the prompt:
 
 - Run in the **background** (the default) -- the UI still surfaces progress, and the harness delivers the findings report on completion.
 
@@ -76,21 +76,21 @@ Slashes are swapped for hyphens since a raw `/` in the branch name would create 
   - State why: reading a file from disk costs ~12.5x less than admitting a fresh tool result into context, so re-running step 1's probes is the expensive path to avoid.
 
 - Include the analysis constraints below verbatim.
-- Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits — the guard enforces this; stating it stops a wasted blocked-write attempt.
+- Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits - the guard enforces this; stating it stops a wasted blocked-write attempt.
 
 #### Analysis constraints (passed to code-reviewer)
 
 - Load and apply principles from `~/.claude/CLAUDE.md` and the `code-standards`, `test-standards`, `doc-standards` skills.
 
-- Focus only on code touched by unpushed commits or uncommitted changes — the recently-modified surface, nothing beyond it.
+- Focus only on code touched by unpushed commits or uncommitted changes - the recently-modified surface, nothing beyond it.
 
 - Preserve behavior exactly: propose changes to *how* the code reads, never *what* it does. No behavior changes, no formatting-only churn, no new features, no refactors outside the changed files.
 
 - Simplify for clarity, not brevity: reduce needless complexity and nesting, eliminate redundant code and dead abstractions, consolidate related logic, and drop comments that only restate the code.
 
-- Prefer explicit, readable code over compact code — avoid nested ternaries in favor of `if`/`else` or `switch` for multi-way branches.
+- Prefer explicit, readable code over compact code - avoid nested ternaries in favor of `if`/`else` or `switch` for multi-way branches.
 
-- Keep the balance — do NOT over-simplify: no clever one-liners, no merging unrelated concerns into one function, no stripping helpful abstractions, no trading readability for fewer lines.
+- Keep the balance - do NOT over-simplify: no clever one-liners, no merging unrelated concerns into one function, no stripping helpful abstractions, no trading readability for fewer lines.
 
 - Classify each finding as **subjective** or **mechanical**:
   - **Subjective**: naming, decomposition, architecture, layered-architecture violations, guideline alignment -- things only a context-aware reviewer can judge
@@ -105,7 +105,7 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 
 - The report file at `$VERDICT_PATH` is the source of truth (overwrite if exists).
 - The subagent's return must contain only: total count, file path, and one title line per finding.
-  - Format: `1. <file>:<lines> — <one-line title>`. No code blocks, no Before/After in the return.
+  - Format: `1. <file>:<lines> - <one-line title>`. No code blocks, no Before/After in the return.
 
 - If the file is missing or empty after the agent returns, treat the run as failed and re-invoke (do not proceed from the truncated return alone).
 
@@ -144,24 +144,24 @@ Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allo
 
 - **After** (fenced code block): the **full** proposed code with the same surrounding context, so a side-by-side compare is trivial.
 - **Impact**: 1-2 sentences -- callers affected, tests that may need updating, blast radius. If isolated, say `isolated`.
-- **Risk**: `low` / `medium` / `high` plus a 1-sentence reason (e.g. `medium — touches a public export; downstream callers in 3 packages`).
+- **Risk**: `low` / `medium` / `high` plus a 1-sentence reason (e.g. `medium - touches a public export; downstream callers in 3 packages`).
 - **Effort**: rough size -- `trivial` (one-liner), `small` (single file, < 20 lines), `medium` (multi-file, < 100 lines), `large` (cross-cutting). If `large`, suggest splitting into sub-findings.
 
 A finding that cannot fill every field above is not ready to surface -- the agent should either gather more context or drop it.
 
-### 3. Present the report — report only, stop here
+### 3. Present the report - report only, stop here
 
 After the agent returns:
 
-1. `Read` `$VERDICT_PATH` end-to-end — do **not** rely on the return summary, it is truncated by design.
+1. `Read` `$VERDICT_PATH` end-to-end - do **not** rely on the return summary, it is truncated by design.
 2. Present a **compact index** in chat: numbered list, one line per finding.
-   - Format: `<file>:<lines> — <one-line title> [classification, risk, effort]`.
+   - Format: `<file>:<lines> - <one-line title> [classification, risk, effort]`.
 
    - Do not inline Before/After -- the user has the full file open.
 
 3. Tell the user the full report is at `$VERDICT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
 
-**Stop here — this skill does not apply findings.** The user decides later which to act on.
+**Stop here - this skill does not apply findings.** The user decides later which to act on.
 
 Applying is `/address-verdicts`' job: it globs `verdict_refactor_*.md` and routes each finding to the `refactor` agent, which applies it under a test gate.
 
@@ -171,4 +171,4 @@ Do not create apply-tasks or edit code as part of `/refactor`.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

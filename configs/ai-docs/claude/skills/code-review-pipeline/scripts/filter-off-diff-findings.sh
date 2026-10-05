@@ -9,7 +9,7 @@
 # `line` appears in the commentable-lines set. Surviving
 # findings go to stdout as a JSON array;
 #
-# dropped ones go to stderr as `path:start-end — <first 80
+# dropped ones go to stderr as `path:start-end - <first 80
 # chars of body>`, the shape Wave 6's drop log prints.
 #
 # Examples:
@@ -41,7 +41,7 @@ done
 # addable lines), but it is indistinguishable from a Wave 1
 # extraction failure, so say which one the caller is looking at.
 if [[ ! -s "$lines_file" ]]; then
-  echo "filter-off-diff-findings: $lines_file is empty — every finding will drop" >&2
+  echo "filter-off-diff-findings: $lines_file is empty - every finding will drop" >&2
 fi
 
 partitioned=$(jq -n \
@@ -58,7 +58,7 @@ partitioned=$(jq -n \
       dropped: map(select(.__keep | not) | del(.__keep)) }
 ')
 
-jq -r '.dropped[] | "\(.path):\(.start_line)-\(.line) — \((.body // "")[0:80])"' \
+jq -r '.dropped[] | "\(.path):\(.start_line)-\(.line) - \((.body // "")[0:80])"' \
   <<<"$partitioned" >&2
 
 jq '.kept' <<<"$partitioned"

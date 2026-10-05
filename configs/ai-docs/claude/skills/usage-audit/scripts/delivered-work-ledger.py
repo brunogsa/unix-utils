@@ -17,8 +17,8 @@
 #   emits machine-readable output without writing.
 #
 # WHY THIS EXISTS: every other normalized metric in
-# this skill divides cost by a proxy for INPUT effort
-# — user messages, sessions, wall-clock hours.
+# this skill divides cost by a proxy for INPUT effort -
+# user messages, sessions, wall-clock hours.
 #
 # That makes "cheaper per message" indistinguishable
 # from "I asked smaller questions". 2026-08-02 is the
@@ -170,7 +170,7 @@ def last_fetch_day(path):
 def shipped_commits(path, branch, since_day, until_day):
     """This author's non-merge commits on `branch`, as (day, subject) pairs.
 
-    Merge commits are excluded because a merge authors no work — counting it
+    Merge commits are excluded because a merge authors no work - counting it
     would credit the act of landing a branch as a second unit of delivery on top
     of the commits it brings.
 
@@ -197,7 +197,7 @@ def shipped_commits(path, branch, since_day, until_day):
 def merged_pull_requests(since_day, until_day):
     """Merged PRs authored by this user, as (day, repo, title) triples.
 
-    `gh search prs` exposes no mergedAt field, so this reads closedAt — for a PR
+    `gh search prs` exposes no mergedAt field, so this reads closedAt - for a PR
     whose state is merged the two are the same instant.
 
     Returns (rows, warning): a missing or unauthenticated gh yields no rows and a
@@ -339,8 +339,8 @@ def active_seconds(epochs, cap=IDLE_CAP_SECONDS):
     several sittings across days: its span would count the nights between them.
 
     The cap is what makes the sum mean attention rather than elapsed time. It
-    barely moves the total — the same series reads 51.6h at a 5-minute cap and
-    67.8h at 60 minutes — so the metric is not an artifact of where it is set.
+    barely moves the total - the same series reads 51.6h at a 5-minute cap and
+    67.8h at 60 minutes - so the metric is not an artifact of where it is set.
     """
     ordered = sorted(epochs)
     total = 0.0
@@ -359,7 +359,7 @@ def attribute_work_time(prs, activity):
     merged PR, so crediting one branch's hours twice would inflate the KPI by
     exactly the amount of the double-count.
 
-    Lead time is not split, because elapsed calendar time is not additive —
+    Lead time is not split, because elapsed calendar time is not additive -
     both PRs really did wait that long.
     """
     sharers = Counter(pr["branch"] for pr in prs)
@@ -399,14 +399,14 @@ def attribute_work_time(prs, activity):
         rows.append(row)
 
     for branch in sorted(ambiguous):
-        warnings.append(f"branch {branch} was merged in more than one repo — "
+        warnings.append(f"branch {branch} was merged in more than one repo - "
                         f"its work time is unattributable")
     missing = [row for row in rows
                if not row["records"] and row["branch"] not in ambiguous]
     if missing:
         warnings.append(
             f"{len(missing)} of {len(rows)} merged PR(s) have no transcript "
-            f"records on their branch — transcripts aged out, so they are "
+            f"records on their branch - transcripts aged out, so they are "
             f"excluded from work time rather than read as zero")
     return rows, warnings
 
@@ -459,7 +459,7 @@ def build(since_day, until_day, root=HOME):
         where = (f"last fetched {seen or 'never'}" if seen is not None
                  else "no local checkout found")
         warnings.append(
-            f"{full}: {count} merged PR(s) but no shipped commits — {where}")
+            f"{full}: {count} merged PR(s) but no shipped commits - {where}")
 
     branch_rows, branch_warning = pull_request_branches(
         sorted(pr_repos), since_day, until_day)

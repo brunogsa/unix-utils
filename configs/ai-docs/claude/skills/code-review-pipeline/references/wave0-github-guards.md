@@ -1,6 +1,6 @@
-# Wave 0 — github-mode guards
+# Wave 0 - github-mode guards
 
-Both guards below are github-only; `Mode: local` never reads this file (Wave 0 is a no-op there — see SKILL.md).
+Both guards below are github-only; `Mode: local` never reads this file (Wave 0 is a no-op there - see SKILL.md).
 
 - **Closed/merged guard**: `state=$(gh pr view "$pr_number" --repo "$repo" --json state --jq .state)`. If `state` is `CLOSED` or `MERGED`, print `abort: PR <state>` and stop.
 

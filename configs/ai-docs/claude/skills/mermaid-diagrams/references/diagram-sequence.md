@@ -2,7 +2,7 @@
 
 Shows the execution path at module/function level. Actors must be actual code components.
 
-- Always enable `autonumber` — it makes referencing steps in discussion and review much easier.
+- Always enable `autonumber` - it makes referencing steps in discussion and review much easier.
 - If the diagram needs more than 5 participants (lanes), split it into smaller sub-diagrams, each covering one logical phase or interaction boundary.
 
 ~~~mermaid
@@ -26,7 +26,7 @@ sequenceDiagram
 
 [Instruction] **External-system hops are explicit.** Draw `BFF -> External` per call (or per batch with a note); don't hide the trust boundary.
 
-[Why] Sequence diagrams are implementation contracts. Lumped nodes hide fan-out, filter shapes, and trust-boundary crossings — decisions reviewers need.
+[Why] Sequence diagrams are implementation contracts. Lumped nodes hide fan-out, filter shapes, and trust-boundary crossings - decisions reviewers need.
 
 ~~~mermaid
 sequenceDiagram

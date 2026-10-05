@@ -92,7 +92,7 @@ why_line_of_em_dashes() {
     local prefix="  - [Why] "
     local pad=$((chars - ${#prefix}))
     printf '%s' "$prefix"
-    printf '—%.0s' $(seq "$pad")
+    printf '\xe2\x80\x94%.0s' $(seq "$pad")
     printf '\n'
 }
 

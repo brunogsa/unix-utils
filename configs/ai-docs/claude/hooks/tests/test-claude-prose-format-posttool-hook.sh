@@ -359,7 +359,7 @@ it_should_carry_the_rule_block_verbatim_in_every_report() {
   local dir long_line rule1 rule2 rule3 rule4 rule5
   rule1='Prose: small paragraphs of 1-4 sentences, blank line between each.'
   rule2='Bullets + sub-bullets: 1-2 sentences each.'
-  rule3='One paragraph = one physical line — never hard-wrap. Never drop information.'
+  rule3='One paragraph = one physical line - never hard-wrap. Never drop information.'
   rule4='Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.'
   rule5='Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.'
 
@@ -433,7 +433,7 @@ it_should_keep_the_basename_in_the_header_for_a_nested_file() {
   done
   run_hook "Write" "$dir/subdir/big.md"
   assert_contains "header should show the basename for a nested file" "prose-format: big.md" "$HOOK_OUT"
-  assert_not_contains "header should not show the full nested path" "subdir/big.md —" "$HOOK_OUT"
+  assert_not_contains "header should not show the full nested path" "subdir/big.md - " "$HOOK_OUT"
 }
 
 it_should_align_the_flag_column_across_printed_commands() {
@@ -542,10 +542,9 @@ EOF
 it_should_tell_the_author_how_to_fix_a_dangling_dash_row() {
   local dir
   dir=$(new_repo_fixture)
-  cat > "$dir/dash.md" << 'EOF'
-- Either flag marks a run with nobody standing by —
-- the same premise the other step uses, so a prompt here stalls the run.
-EOF
+  printf '%s\n' \
+    "- Either flag marks a run with nobody standing by $(printf '\xe2\x80\x94')" \
+    "- the same premise the other step uses, so a prompt here stalls the run." > "$dir/dash.md"
   run_hook "Write" "$dir/dash.md"
   assert_line_number_row_matches "should report the dangling dash on its own row" "L1" "$HOOK_OUT"
   assert_contains "should tell the author to rewrite a dash-split pair as two full sentences" \
@@ -562,10 +561,9 @@ it_should_describe_the_dangling_dash_row_over_the_threshold() {
   for ((i = 0; i < 15; i++)); do
     printf '%s\n\n' "$long_line" >> "$dir/dash.md"
   done
-  cat >> "$dir/dash.md" << 'EOF'
-- Either flag marks a run with nobody standing by —
-- the same premise the other step uses, so a prompt here stalls the run.
-EOF
+  printf '%s\n' \
+    "- Either flag marks a run with nobody standing by $(printf '\xe2\x80\x94')" \
+    "- the same premise the other step uses, so a prompt here stalls the run." >> "$dir/dash.md"
   run_hook "Write" "$dir/dash.md"
   assert_contains "should label the dangling-dash row" "dangling-dash" "$HOOK_OUT"
   assert_contains "should describe the dangling-dash row" \

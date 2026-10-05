@@ -35,9 +35,9 @@
 # a non-executing sink (cat, python3) are dropped, and
 # quoted-string contents are blanked to a placeholder.
 #
-# Otherwise text that only ever appears as *data* — a scratchpad
+# Otherwise text that only ever appears as *data* - a scratchpad
 # doc line mentioning "git commit", a test string containing
-# "aigitcommit" — reads as a real invocation.
+# "aigitcommit" - reads as a real invocation.
 #
 # Heredocs fed to a shell (bash, sh, ssh) are left unstripped,
 # since those genuinely execute an embedded git command.
@@ -48,7 +48,7 @@
 #
 # The main/master push check below is its own exception too: it
 # parses the RAW command (sink-stripped only, quotes intact),
-# never CMD_STRUCT — CMD_STRUCT blanks a quoted refspec like
+# never CMD_STRUCT - CMD_STRUCT blanks a quoted refspec like
 # "main" into "xxxx", which would let it slip through unnoticed.
 #
 # Examples:
@@ -124,8 +124,8 @@ PYEOF
 ) || CMD_STRUCT="$CMD"
 
 # Cheap short-circuit: skip the heavier push-target parse
-# entirely unless the raw command names both "git" and "push"
-# — this hook runs on every Bash call, most of which are
+# entirely unless the raw command names both "git" and "push" -
+# this hook runs on every Bash call, most of which are
 # neither.
 if printf '%s' "$CMD" | grep -qw git && printf '%s' "$CMD" | grep -qw push; then
   export CLAUDE_GIT_PUSH_CWD="$CWD_INPUT"
@@ -255,7 +255,7 @@ def check_push(rest, git_dir):
             dest = refspec_destination(ref)
             if dest == 'HEAD':
                 if git_dir is None:
-                    blocked_reasons.append('git push ... HEAD with an unresolvable working directory — use an explicit non-main/master refspec instead')
+                    blocked_reasons.append('git push ... HEAD with an unresolvable working directory - use an explicit non-main/master refspec instead')
                     continue
                 branch = current_branch(git_dir)
                 if branch and is_blocked_branch(branch):
@@ -268,7 +268,7 @@ def check_push(rest, git_dir):
     # Implicit push: no explicit refspec given, so the destination
     # comes from the repo's own current branch / tracked upstream.
     if git_dir is None:
-        blocked_reasons.append('an implicit git push (no refspec) whose working directory could not be resolved — use an explicit non-main/master refspec instead')
+        blocked_reasons.append('an implicit git push (no refspec) whose working directory could not be resolved - use an explicit non-main/master refspec instead')
         return
     branch = current_branch(git_dir)
     if branch and is_blocked_branch(branch):
@@ -311,7 +311,7 @@ def process_command(text, base_cwd):
             toks = shlex.split(seg, comments=True)
         except ValueError:
             if re.search(r'\bgit\b', seg) and re.search(r'\bpush\b', seg):
-                blocked_reasons.append('could not safely parse a segment naming git and push (quoting?) — refusing to allow')
+                blocked_reasons.append('could not safely parse a segment naming git and push (quoting?) - refusing to allow')
             continue
         toks = strip_prefixes(toks)
         if not toks:
@@ -356,7 +356,7 @@ PYEOF
   fi
 fi
 
-# Block aigitcommit — human-only commit tool
+# Block aigitcommit - human-only commit tool
 if echo "$CMD_STRUCT" | grep -qE '\baigitcommit\b'; then
   echo 'aigitcommit is a human-only tool. Use git commit with Co-Authored-By: Claude attribution instead.' >&2
   exit 2

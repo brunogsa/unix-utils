@@ -6,21 +6,21 @@
 words-budget: 1024
 ---
 
-# sdd-to-linear — flow overview
+# sdd-to-linear - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 ```mermaid
 flowchart TD
   n1(["1. /sdd-to-linear [path]<br/>no path: the plan to-plan just wrote, else ask"]):::start
   n2["2. Step 1 · Run get-enabled-modules.py<br/>and read the linear= line"]
   n3{"3. linear=true?"}
-  n3a(["3a. STOP — say the Linear module is absent.<br/>Zero Linear calls"])
+  n3a(["3a. STOP - say the Linear module is absent.<br/>Zero Linear calls"])
   n3b{"3b. AskUserQuestion, recommended first:<br/>export the plan to Linear?"}
-  n3c(["3c. STOP — declined means no Linear call anywhere"])
+  n3c(["3c. STOP - declined means no Linear call anywhere"])
   n4["4. Step 2 · Parse the plan's PR-N headings with their<br/>Tasks, Branch and Linear fields"]
   n5{"5. Any PRs in the PR Breakdown?"}
-  n5a(["5a. STOP — zero PRs, zero Linear writes.<br/>Never invent a catch-all issue"])
+  n5a(["5a. STOP - zero PRs, zero Linear writes.<br/>Never invent a catch-all issue"])
   n6["6. Step 3 · Read-only taxonomy calls: list_teams, list_initiatives,<br/>list_projects, list_issue_labels, list_milestones.<br/>Never hardcode a label value"]
   n7["7. ONE AskUserQuestion for initiative, project and team,<br/>unless the plan's document-level Linear line names them"]:::gate
   n8["8. Step 4 · Per PR: derive the single Application<br/>and Issue Type labels. Never set Issue Origin.<br/>Milestone only where the PR is a feature"]

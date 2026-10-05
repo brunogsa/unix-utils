@@ -25,7 +25,7 @@
 # line and never for a PASS, so a green run stays short.
 #
 # With no <spec-file> every gate that reads the spec is
-# reported SKIP — never PASS — since `light` mode has no
+# reported SKIP - never PASS - since `light` mode has no
 # spec and a skip that reads as a pass is the defect.
 #
 # --spec-only is the mirror, for a spec gated before any plan
@@ -160,7 +160,7 @@ run_plan_gate gate plan check-tasks-dag.sh bash "$script_dir/check-tasks-dag.sh"
 run_plan_gate gate plan check-files-union.sh bash "$script_dir/check-files-union.sh" "$plan"
 run_plan_gate gate plan check-ac-task-consistency.py "$script_dir/check-ac-task-consistency.py" "$plan"
 
-# Plan first, spec second — the reverse of the intuitive order.
+# Plan first, spec second - the reverse of the intuitive order.
 # Needs both documents, so it skips when either is absent.
 if [ -z "$plan" ]; then
   skip_gate plan+spec check-ac-coverage.sh

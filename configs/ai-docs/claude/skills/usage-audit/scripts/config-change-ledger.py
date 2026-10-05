@@ -28,7 +28,7 @@
 # tried yet").
 # A commit either exists or it does not.
 #
-# Scope is configs/ai-docs/claude/ — CLAUDE.md, skills, agents,
+# Scope is configs/ai-docs/claude/ - CLAUDE.md, skills, agents,
 # settings.json and hooks are the only tracked paths that can
 # change token spend.
 #
@@ -39,8 +39,8 @@
 # surface classification and the --json shape are reasons
 # enough, but rtk adds one more.
 #
-# `rtk git log` injects a default -n cap — 10 commits, 50 with
-# --pretty — and announces it on neither stdout nor stderr.
+# `rtk git log` injects a default -n cap - 10 commits, 50 with
+# --pretty - and announces it on neither stdout nor stderr.
 #
 # The truncated head then reads as the complete answer for
 # whatever range was asked for, and since git orders newest
@@ -109,7 +109,7 @@ def classify(path):
 def read_commits(root, since_day, until_day):
     """Commits touching the config tree in [since_day, until_day], newest first.
 
-    Both bounds are committer-date, matching git's own --since/--until filter —
+    Both bounds are committer-date, matching git's own --since/--until filter -
     %ad (author date) can differ, and mixing the two makes the printed dates
     disagree with the range that selected them.
     """

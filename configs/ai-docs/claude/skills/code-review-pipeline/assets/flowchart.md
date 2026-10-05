@@ -1,6 +1,6 @@
 ---
 # performance-check budget overrides, not part of the diagram itself.
-# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# This file renders one flow twice - once as pseudo-code, once as a diagram - so
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
@@ -8,9 +8,9 @@ words-budget: 4096
 lines-budget: 512
 ---
 
-# code-review-pipeline — flow overview
+# code-review-pipeline - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 

@@ -27,7 +27,7 @@
 #
 #   A file that is staged but never committed still differs
 #   from HEAD, so it falls into the second case. Its whole
-#   content comes back as changed — same result as the
+#   content comes back as changed - same result as the
 #   untracked case, with no separate branch needed.
 #
 # This is the one hunk-parser every doc-standards script and

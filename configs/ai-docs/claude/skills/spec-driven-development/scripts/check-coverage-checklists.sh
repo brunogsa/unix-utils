@@ -208,7 +208,7 @@ check_category() {
       value=$(printf '%s\n' "$scan" | awk -F'\t' -v l="$label" \
         '$1 == "MATCH" && $2 == l { print $3 }')
       if ! printf '%s' "$value" \
-          | grep -qE '^covered \(.+\)$|^N/A — [^[:space:]]+$'; then
+          | grep -qE '^covered \(.+\)$|^N/A - [^[:space:]]+$'; then
         echo "  - malformed: $label -> \"$value\"" >&2
         any_bad=1
       fi

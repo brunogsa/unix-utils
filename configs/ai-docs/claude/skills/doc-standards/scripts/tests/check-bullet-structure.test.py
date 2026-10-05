@@ -249,7 +249,7 @@ def test_items_ending_in_a_slack_emoji_shortcode_are_not_reported(tmp_path):
 def test_flags_a_bullet_ending_in_an_em_dash_whose_next_sibling_continues_the_sentence_in_lowercase(tmp_path):
     result = run(
         tmp_path,
-        "- Either flag marks a run with nobody standing by —\n"
+        "- Either flag marks a run with nobody standing by \u2014\n"
         "- the same premise the other step uses, so a prompt here stalls the run.\n",
     )
 
@@ -271,7 +271,7 @@ def test_flags_a_dash_ended_bullet_whose_lowercase_continuation_sits_at_a_shallo
     result = run(
         tmp_path,
         "- **Under `--auto-solve`, never prompt on a multi-match** and say so.\n"
-        "  - Either flag marks a run dispatched by a skill with nobody standing by —\n"
+        "  - Either flag marks a run dispatched by a skill with nobody standing by \u2014\n"
         "\n"
         "- the same premise the other step uses, so a prompt here stalls the run.\n",
     )
@@ -285,7 +285,7 @@ def test_flags_a_dash_ended_bullet_whose_lowercase_continuation_sits_at_a_shallo
 def test_leaves_a_dash_ended_bullet_alone_when_its_continuation_is_nested_beneath_it(tmp_path):
     result = run(
         tmp_path,
-        "- Either flag marks a run with nobody standing by —\n"
+        "- Either flag marks a run with nobody standing by \u2014\n"
         "  - the same premise the other step uses, so a prompt here stalls the run.\n",
     )
 
@@ -295,7 +295,7 @@ def test_leaves_a_dash_ended_bullet_alone_when_its_continuation_is_nested_beneat
 def test_leaves_a_dash_used_as_an_empty_value_placeholder_alone_when_the_next_bullet_opens_uppercase(tmp_path):
     result = run(
         tmp_path,
-        "- Corpo da requisição: —\n"
+        "- Corpo da requisição: \u2014\n"
         "- Comportamento interno: grava a escola e publica o evento.\n",
     )
 
@@ -422,7 +422,7 @@ def test_changed_only_reports_a_dangling_colon_whose_only_changed_line_is_the_ne
 
 
 def test_changed_only_keeps_a_dangling_dash_hit_when_only_the_continuation_line_changed(tmp_path):
-    repo = new_repo(tmp_path, "- Either flag marks a run with nobody standing by —\n")
+    repo = new_repo(tmp_path, "- Either flag marks a run with nobody standing by \u2014\n")
     with open(repo / "doc.md", "a", encoding="utf-8") as fh:
         fh.write("- the same premise the other step uses, so a prompt here stalls the run.\n")
 

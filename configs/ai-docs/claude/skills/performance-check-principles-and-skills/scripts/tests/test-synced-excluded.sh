@@ -108,7 +108,7 @@ it_should_drop_the_synced_file_from_the_bundled_denominator() {
     local row; row=$(run_bundled_row "$d")
     local measured; measured=$(echo "$row" | awk -F'|' '{gsub(/^ +| +$/,"",$3); print $3}')
     # The denominator (the "of M" half) is the only thing a
-    # dropped synced file can change here — asserting "0
+    # dropped synced file can change here - asserting "0
     # failing" would pass even if the synced file were
     # counted and clean, so the exact "N of M" is required.
     assert_eq "denominator excludes the synced bundled file" "0 of 1" "$measured"

@@ -26,7 +26,7 @@ The caller gives you a list of files, each containing one or more mermaid diagra
 ## Sources and tools
 
 - Your Edits auto-approve.
-- The ONLY Bash you may run is `mmdc` — any other command will prompt, so never rely on one.
+- The ONLY Bash you may run is `mmdc` - any other command will prompt, so never rely on one.
 - `/tmp` scratch files for intermediate `mmdc` runs.
 
 ## Procedure
@@ -36,22 +36,22 @@ For each file:
 1. Read it and locate the mermaid code fence(s) (` ```mermaid ` ... ` ``` `).
 2. Extract one diagram's source to a `/tmp` scratch file and run `mmdc -i <scratch>.mmd -o <scratch>.svg` to reproduce the failure and read mmdc's error output.
 
-3. Edit ONLY the diagram syntax the error points to — the specific arrow, bracket, quoting, subgraph/direction keyword, or reserved-word collision that's broken.
+3. Edit ONLY the diagram syntax the error points to - the specific arrow, bracket, quoting, subgraph/direction keyword, or reserved-word collision that's broken.
 4. Re-run `mmdc` on the fixed source and repeat steps 2-3 until it exits 0 for that diagram.
 5. Once `mmdc` exits 0, copy the fixed diagram source back into the original file's code fence, replacing only that fence's contents.
 
 ## Boundaries
 
-- Fix ONLY syntax errors `mmdc` reports. NEVER drop, summarize-away, or reword-to-shorten any node, edge, or label — every piece of diagram content present before your fix must still be present after.
+- Fix ONLY syntax errors `mmdc` reports. NEVER drop, summarize-away, or reword-to-shorten any node, edge, or label - every piece of diagram content present before your fix must still be present after.
 
 - Before copying a fixed diagram back (step 5), list every node id, edge, and label text from the ORIGINAL fence, then confirm each one still appears in the fixed fence.
-  `mmdc` exiting 0 proves the syntax is valid — it does NOT prove nothing was dropped, so this inventory check is the only proof of content preservation.
+  `mmdc` exiting 0 proves the syntax is valid - it does NOT prove nothing was dropped, so this inventory check is the only proof of content preservation.
 
 - Edit ONLY the mermaid code fence needed to clear the render failure. No reformatting, re-indenting, or touching surrounding prose, whitespace, or any other diagram in the same file.
 
-- Loop `mmdc` re-renders until exit 0 — never report a diagram fixed on the assumption that the syntax now looks valid; the exit code is the only proof.
+- Loop `mmdc` re-renders until exit 0 - never report a diagram fixed on the assumption that the syntax now looks valid; the exit code is the only proof.
 
-- Use `/tmp` scratch files for intermediate `mmdc` runs — never leave scratch `.mmd`/`.svg` files behind in the repo.
+- Use `/tmp` scratch files for intermediate `mmdc` runs - never leave scratch `.mmd`/`.svg` files behind in the repo.
 
 - Delete or disable nothing. A diagram you cannot fix stays in the file exactly as given; report the failure instead of removing it.
 

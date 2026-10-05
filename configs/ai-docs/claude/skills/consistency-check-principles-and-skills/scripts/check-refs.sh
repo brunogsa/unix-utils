@@ -33,7 +33,7 @@
 #   0 - every ref resolves (or no refs found)
 #
 #   1 - one or more refs broken, or a usage error:
-#       no files given, or a given file does not exist —
+#       no files given, or a given file does not exist -
 #       every broken ref gets listed, never just the first
 
 set -eo pipefail
@@ -69,7 +69,7 @@ found_broken=0
 #
 # GitHub replaces spaces one at a time, not as a collapsed run:
 # a stripped em-dash between two spaces leaves them adjacent,
-# and each becomes its own hyphen — producing a double hyphen,
+# and each becomes its own hyphen - producing a double hyphen,
 # not one.
 slugify_heading() {
     local heading=$1
@@ -104,12 +104,12 @@ is_fence_delimiter() {
 # so a raw slug match alone would miss those suffixed anchors.
 #
 # Tracks occurrences with a plain indexed array, not an
-# associative array (`declare -A`) — macOS ships bash 3.2,
+# associative array (`declare -A`) - macOS ships bash 3.2,
 # which lacks it, and this repo must run on that stock bash.
 #
 # Reads $target_file as a line loop (not a single grep) so it
 # can track fence state and skip a `#`-prefixed line
-# inside a fence — a shell comment like `# Usage: ...` is not a
+# inside a fence - a shell comment like `# Usage: ...` is not a
 # real heading.
 #
 # scripts/gen-shard-manifest.sh has no counterpart function:
@@ -154,7 +154,7 @@ heading_exists() {
 # A slash-command mention like `/implement` also starts with
 # `/` but resolves to no real top-level entry, so
 # without this check it gets treated as a filesystem-absolute
-# ref and reported broken — it is prose, not a path.
+# ref and reported broken - it is prose, not a path.
 #
 # scripts/gen-shard-manifest.sh's resolve_candidate() has no
 # equivalent check: its own $CLAUDE_ROOT containment check
@@ -170,7 +170,7 @@ is_real_absolute_path_candidate() {
 # Resolve $path relative to $referencing_file's own directory
 # (or as an absolute/home path).
 #
-# Existence is NOT checked here — that's the caller's job, since
+# Existence is NOT checked here - that's the caller's job, since
 # an unresolved path is exactly the broken-ref case this script
 # exists to report, not a case to filter out.
 #
@@ -197,8 +197,8 @@ report_broken() {
 # Validate, resolve, and verify one candidate ref found at
 # $file:$line.
 #
-# Reports it as broken when the target file is missing, or —
-# given an anchor — when no heading in the target slugifies to
+# Reports it as broken when the target file is missing, or -
+# given an anchor - when no heading in the target slugifies to
 # it.
 #
 # Silently does nothing for a candidate that isn't a real

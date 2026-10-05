@@ -11,7 +11,7 @@
 # Usage:
 #   bash test-run-tests-pytest-integration.sh
 
-# No bats dependency by design — same precedent as these sibling
+# No bats dependency by design - same precedent as these sibling
 # suites under configs/ai-docs/claude/:
 #
 # - scripts/tests/test-statusline-tier.sh

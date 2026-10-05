@@ -13,7 +13,7 @@
 # script in a temp dir beside stub children.
 #
 # That keeps the orchestrator's own sequencing under test (the
-# thing that broke) while making "did it notify?" observable —
+# thing that broke) while making "did it notify?" observable -
 # the real notification script only touches tmux and would be
 # invisible here.
 #
@@ -150,7 +150,7 @@ it_should_block_without_notifying_when_the_agent_contract_gate_blocks() {
 }
 
 # The agent-contract gate runs first, so its block must
-# short-circuit before any later gate is ever consulted —
+# short-circuit before any later gate is ever consulted -
 # otherwise two gates could each emit a decision and the
 # orchestrator would print both, which is not valid hook output.
 it_should_pass_through_only_the_first_blocking_gates_decision() {
@@ -187,7 +187,7 @@ it_should_block_without_notifying_when_an_implement_run_is_mid_batch() {
 # The reported bug: /implement pinged success once per task.
 #
 # Its task loop ends a turn, the gate blocks it, Claude does one
-# more thing and ends the turn again — and that second stop
+# more thing and ends the turn again - and that second stop
 # arrives with stop_hook_active=true, which disarms the gate's
 # loop guard.
 #
@@ -219,7 +219,7 @@ it_should_notify_done_when_an_implement_run_halted_for_the_human() {
 # wakes the session back up (that's the whole point of
 # backgrounding it).
 #
-# A "done" ping fired while one is still running is premature —
+# A "done" ping fired while one is still running is premature -
 # the session looks finished when it isn't.
 it_should_stay_silent_when_a_background_subagent_is_still_running() {
   run_orchestrator '{"session_id": "sess-orch-bg-subagent", "stop_hook_active": false, "background_tasks": [{"type": "subagent", "status": "running"}]}'
@@ -237,7 +237,7 @@ it_should_stay_silent_when_a_background_workflow_is_still_running() {
 # sits in background_tasks with status "running" indefinitely.
 #
 # Only subagent/workflow guarantee a later Stop wakes the
-# session — a shell task does not, so it must NOT suppress the
+# session - a shell task does not, so it must NOT suppress the
 # ping.
 #
 # This is what stops a future edit from widening the filter back

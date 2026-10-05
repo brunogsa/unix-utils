@@ -15,7 +15,7 @@ decide whether the tmux title's subagent half is ever right:
 
 Every test drives a COPY of the hook under tmp_path, beside a stub
 tmux-window-title.sh that records its argv instead of driving tmux,
-and with HOME pointed at a throwaway directory — so no assertion
+and with HOME pointed at a throwaway directory - so no assertion
 can reach the developer's real tmux window or real ~/.claude state.
 
 Usage:
@@ -105,7 +105,7 @@ def _decoy_entry(agent_id):
     """An ordinary assistant turn whose TEXT mentions compact_boundary.
 
     This is the entry a `grep -c compact_boundary` counts and a JSON
-    parse does not — the exact miscount that made the counter wrong
+    parse does not - the exact miscount that made the counter wrong
     while it was being diagnosed."""
     return {
         "parentUuid": "1d4e8a02-77c4-4b91-9b0a-2c6f31f0a7e2",
@@ -155,7 +155,7 @@ def _transcript_with(tmp_path, boundary_count, agent_id=AGENT_ID, with_decoy=Tru
 def _payload(transcript_path, agent_id=AGENT_ID, session_id=SESSION_ID):
     """The captured real SubagentStop shape, trimmed to the fields the
     hook reads. agent_type is an EMPTY STRING in production, so it is
-    kept empty here — branching on it is what made the previous hook
+    kept empty here - branching on it is what made the previous hook
     dead code."""
     return {
         "session_id": session_id,

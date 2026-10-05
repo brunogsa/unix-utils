@@ -1,24 +1,24 @@
 ---
 name: code-review-pipeline
-description: "Shared 7-wave reviewer pipeline behind /auto-review (local) and /pr-review (GitHub). Each caller spawns one code-reviewer orchestrator to run it; Wave 2 fans out per lens only past the size gate. USE only via those callers — not directly."
+description: "Shared 7-wave reviewer pipeline behind /auto-review (local) and /pr-review (GitHub). Each caller spawns one code-reviewer orchestrator to run it; Wave 2 fans out per lens only past the size gate. USE only via those callers - not directly."
 user-invocable: false
 ---
 
 # Reviewer Agent
 
-You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both modes — only Waves 1 and 5 differ fully.
+You orchestrate a 7-wave code review pipeline (Waves 0-6) shared by both modes - only Waves 1 and 5 differ fully.
 
 **Architecture.** Every caller spawns one `code-reviewer` orchestrator (per "How callers dispatch" below), and every wave runs inside that one agent.
 
-Wave 2 reviews inline by default and fans out into eight `code-reviewer` lens agents, one rubric each, only when Wave 1's `large_pr` flag is set or an earlier attempt already failed to finish — see Wave 2's path selection.
+Wave 2 reviews inline by default and fans out into eight `code-reviewer` lens agents, one rubric each, only when Wave 1's `large_pr` flag is set or an earlier attempt already failed to finish - see Wave 2's path selection.
 
 Measured on a 155 KB diff: the orchestrator's post-compaction base is ~100k tokens, the diff another ~45k, the rubrics and standards ~23k, so one inline pass sat at the ~184k compaction trigger and looped four times without writing a single lens file.
 
 The 60 KB gate is the largest diff that leaves ~30k tokens for reasoning under that base; below it, one inline pass stays cheaper than eight separate base contexts.
 
-**Compaction resilience.** Waves 2–4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes). After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
+**Compaction resilience.** Waves 2-4 persist their output to `$work_dir` as they complete (see each wave's "Resume check" / "Persist" notes). After a mid-pipeline compaction, re-read this SKILL.md, then load `$work_dir`'s furthest-along wave/step output instead of redoing that work.
 
-Never Read a `tool-results/*.txt` file the post-compaction reminder names as too large to include — it is the output that overflowed, and everything a wave needs is re-derivable from `$work_dir`.
+Never Read a `tool-results/*.txt` file the post-compaction reminder names as too large to include - it is the output that overflowed, and everything a wave needs is re-derivable from `$work_dir`.
 
 Rubric prompts and validator rubric live in `references/`; bash glue in `scripts/`.
 
@@ -30,9 +30,9 @@ Tell it to read this SKILL.md and orchestrate every wave (0 → 6) from there, t
 
 One path for both modes, on purpose: `/auto-review` runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule requires the isolation.
 
-Both callers also need the pipeline's reads — diff, rubrics, standards — kept out of their own window, which is where the compaction loop on a large PR started.
+Both callers also need the pipeline's reads - diff, rubrics, standards - kept out of their own window, which is where the compaction loop on a large PR started.
 
-`code-reviewer` pins `model: opus` / `effort: high` in its frontmatter, so no dispatch names a model — review judgment is the product here.
+`code-reviewer` pins `model: opus` / `effort: high` in its frontmatter, so no dispatch names a model - review judgment is the product here.
 
 ## Before you start
 
@@ -41,41 +41,41 @@ Both callers also need the pipeline's reads — diff, rubrics, standards — kep
 - `Mode`: `github` or `local`
 - `PR URL` (github only)
 - `Issue ref` (github, optional): a Jira or Linear URL or key; replaces automatic extraction.
-- `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` — defaults to the repo's detected default branch)
+- `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` - defaults to the repo's detected default branch)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
-- `Design sections` (github only, optional): `on` or `off`; absent reads as `off`. `on` adds the Arquitetura, Fluxo and Design de testes sections to the Review Guide — `/pr-review` passes `on`.
+- `Design sections` (github only, optional): `on` or `off`; absent reads as `off`. `on` adds the Arquitetura, Fluxo and Design de testes sections to the Review Guide - `/pr-review` passes `on`.
 
-**Load lazily, by wave; keep afterward** — they ground your validation and decisions:
+**Load lazily, by wave; keep afterward** - they ground your validation and decisions:
 
 1. Read `~/.claude/skills/code-review-pipeline/references/review-principles.md` + `review-checklists.md` (Wave 0+)
 
-You no longer load `code-standards`, `test-standards`, the rubric files, or the changed files' `CLAUDE.md` here — Wave 2 loads them itself, once, when it runs.
+You no longer load `code-standards`, `test-standards`, the rubric files, or the changed files' `CLAUDE.md` here - Wave 2 loads them itself, once, when it runs.
 
 Carrying all of them here meant every later wave re-read all of them on every turn, for material only Wave 2 ever used.
 
-Wave 2 never hits GitHub or any external system — pre-built Wave 1 context only, keeping review reproducible and idempotent.
+Wave 2 never hits GitHub or any external system - pre-built Wave 1 context only, keeping review reproducible and idempotent.
 
 ---
 
-## Wave 0 — Early-exit guard
+## Wave 0 - Early-exit guard
 
 Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
-- **github**: run the closed/merged guard and the prior-review guard from [`references/wave0-github-guards.md`](./references/wave0-github-guards.md) — abort per its stop conditions.
+- **github**: run the closed/merged guard and the prior-review guard from [`references/wave0-github-guards.md`](./references/wave0-github-guards.md) - abort per its stop conditions.
 
-- **local**: always proceed — Wave 0 is a no-op here (both guards are github-only). Empty diffs surface naturally — Wave 5 writes "auto-review: no findings".
+- **local**: always proceed - Wave 0 is a no-op here (both guards are github-only). Empty diffs surface naturally - Wave 5 writes "auto-review: no findings".
 
 ---
 
-## Wave 1 — Context prep
+## Wave 1 - Context prep
 
-Assemble everything Wave 2 needs on disk from GitHub PR or local repo. Implementation: github & local modes, tiny-PR flag — see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
+Assemble everything Wave 2 needs on disk from GitHub PR or local repo. Implementation: github & local modes, tiny-PR flag - see [`references/wave1-context-prep.md`](./references/wave1-context-prep.md).
 
 This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (`diff_bytes > 60000`) get set; Wave 2 reads both from disk.
 
 ---
 
-## Wave 2 — Review + guide writer
+## Wave 2 - Review + guide writer
 
 - **Resume check** (before anything else):
 
@@ -90,7 +90,7 @@ This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (
   - List `$work_dir/wave2-lens-*.json`; the lenses with no file there are the remaining ones.
   - A finished lens's array is already on disk. Reviewing it again spends tokens to reproduce a file you can just read.
 
-**Path selection** — decide once per entry, from those three values:
+**Path selection** - decide once per entry, from those three values:
 
 - `large_pr=true` → fan-out path.
 - attempts ≥ 2 and fewer than 8 lens files → fan-out path, whatever the size.
@@ -98,7 +98,7 @@ This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (
 
 - otherwise → inline path.
 
-**The eight rubric lenses** — apply in this order, `review-principles.md`'s priority order, most critical first:
+**The eight rubric lenses** - apply in this order, `review-principles.md`'s priority order, most critical first:
 
 1. `correctness`
 2. `corner-cases-and-side-effects`
@@ -129,15 +129,15 @@ Read [`references/wave2-fan-out.md`](./references/wave2-fan-out.md) and follow i
 
 Never merge with fewer than eight lens files, and never read the diff in this window on this path.
 
-Dedup is **not** done at the merge — Wave 3 resolves overlaps with the full merged list in hand.
+Dedup is **not** done at the merge - Wave 3 resolves overlaps with the full merged list in hand.
 
 **Guide writer:**
 
-- **Skip entirely when `Mode: local`** — go straight to Wave 3; local reports drop the guide (rationale in `references/local-review-template.md`).
+- **Skip entirely when `Mode: local`** - go straight to Wave 3; local reports drop the guide (rationale in `references/local-review-template.md`).
 
 - **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - **If `tiny_pr=true`**: skip `references/guide-writer.md`; emit a 2-sentence change summary instead. At <100 added lines the change speaks for itself.
-- **Else, on the inline path**: after the merge, read `references/guide-writer.md` and produce the guide it specifies — it owns the sections and budget, and reads `Design sections` from the header.
+- **Else, on the inline path**: after the merge, read `references/guide-writer.md` and produce the guide it specifies - it owns the sections and budget, and reads `Design sections` from the header.
 
 - **Else, on the fan-out path**: never write the guide inline, since `guide-writer.md` re-reads the whole diff; dispatch the guide agent per "Guide writer on the fan-out path" in `references/wave2-fan-out.md`.
 
@@ -149,29 +149,29 @@ Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or
 
 ---
 
-## Wave 3 — Batched validation pass (self-check)
+## Wave 3 - Batched validation pass (self-check)
 
 Before emitting, re-read each finding against its actual file. One pass catches hallucinations **and** tightens line anchors, so you re-load each file at most once.
 
-**Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 — this wave already completed.
+**Resume check**: if `$work_dir/wave3-findings.json` already exists, load it (and `$work_dir/wave3-drop-log.txt`) and skip straight to Wave 4 - this wave already completed.
 
-**If `tiny_pr=true`**: copy `$work_dir/wave2-findings.json` to `$work_dir/wave3-findings.json` verbatim, write an empty `$work_dir/wave3-drop-log.txt`, and go to Wave 4 — skip everything below. At <100 added lines the change is in context; hallucinations are rare, and the per-finding validator adds more cost than it saves.
+**If `tiny_pr=true`**: copy `$work_dir/wave2-findings.json` to `$work_dir/wave3-findings.json` verbatim, write an empty `$work_dir/wave3-drop-log.txt`, and go to Wave 4 - skip everything below. At <100 added lines the change is in context; hallucinations are rare, and the per-finding validator adds more cost than it saves.
 
 **Read `references/validator.md` once, then apply it to the flat list.**
 
-On the fan-out path, check each finding by reading only its anchored range (`sed -n '<start>,<end>p'` with a few lines around it), never the whole diff or the whole file — that path exists to keep the diff out of this window.
+On the fan-out path, check each finding by reading only its anchored range (`sed -n '<start>,<end>p'` with a few lines around it), never the whole diff or the whole file - that path exists to keep the diff out of this window.
 
-It authors the cross-lens dedup pre-pass, both per-finding checks — false positive, then line range — the conservative-keep threshold, and the hard rules, so nothing restates them here.
+It authors the cross-lens dedup pre-pass, both per-finding checks - false positive, then line range - the conservative-keep threshold, and the hard rules, so nothing restates them here.
 
 Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 
 ---
 
-## Wave 4 — Drop off-diff findings
+## Wave 4 - Drop off-diff findings
 
-**Resume check**: if `$work_dir/wave4-findings.json` already exists, load it and skip straight to Wave 5 — this wave already completed.
+**Resume check**: if `$work_dir/wave4-findings.json` already exists, load it and skip straight to Wave 5 - this wave already completed.
 
-Run the filter — it keeps a finding only when every line from `start_line` through `line` appears in `commentable-lines.txt`:
+Run the filter - it keeps a finding only when every line from `start_line` through `line` appears in `commentable-lines.txt`:
 
 ```bash
 bash ~/.claude/skills/code-review-pipeline/scripts/filter-off-diff-findings.sh \
@@ -179,23 +179,23 @@ bash ~/.claude/skills/code-review-pipeline/scripts/filter-off-diff-findings.sh \
   > "$work_dir/wave4-findings.json" 2> "$work_dir/wave4-drop-log.txt"
 ```
 
-We don't comment on code outside the diff — noise the author didn't ask for and can't act on in this PR.
+We don't comment on code outside the diff - noise the author didn't ask for and can't act on in this PR.
 
-The script settles set membership; judging it by eye invites the partial-overlap miss — a finding spanning both a commentable and an off-diff line reads as in-diff.
+The script settles set membership; judging it by eye invites the partial-overlap miss - a finding spanning both a commentable and an off-diff line reads as in-diff.
 
-The redirects above are the persistence — Wave 5 reads the kept findings, Wave 6 reads `wave4-drop-log.txt`.
+The redirects above are the persistence - Wave 5 reads the kept findings, Wave 6 reads `wave4-drop-log.txt`.
 
-Zero surviving findings is normal — see Error handling for what Wave 5 emits.
-
----
-
-## Wave 5 — Emit
-
-Post the review to GitHub (pending) or write local review artifact. Implementation details — read only the file matching this run's mode: [`wave5-emit-github.md`](./references/wave5-emit-github.md) or [`wave5-emit-local.md`](./references/wave5-emit-local.md).
+Zero surviving findings is normal - see Error handling for what Wave 5 emits.
 
 ---
 
-## Wave 6 — Summary
+## Wave 5 - Emit
+
+Post the review to GitHub (pending) or write local review artifact. Implementation details - read only the file matching this run's mode: [`wave5-emit-github.md`](./references/wave5-emit-github.md) or [`wave5-emit-local.md`](./references/wave5-emit-local.md).
+
+---
+
+## Wave 6 - Summary
 
 Print a terminal summary using `references/wave6-summary-template.md`. Both modes share the structure; only the output path / review URL differ.
 
@@ -206,14 +206,14 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 - **gh api POST 422 (Wave 5 emit)**: retry once per `wave5-emit-github.md`'s step 5 (same batch shape, undeliverable findings drop instead of falling back to a non-batch endpoint).
   - If the retry also fails, stop and report the error.
 
-- **Post-emit verification fails**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop — don't proceed to Wave 6's summary.
+- **Post-emit verification fails**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop - don't proceed to Wave 6's summary.
   - Report the mismatch verbatim (actual state, actual vs. expected comments) so the user can decide whether to clean up live GitHub artifacts.
-  - Don't delete or edit anything on GitHub without their go-ahead — submitted reviews and comments are visible to every collaborator.
+  - Don't delete or edit anything on GitHub without their go-ahead - submitted reviews and comments are visible to every collaborator.
 
-- **Clone fails (Wave 1, github-only — `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path — review can't proceed without the code on disk.
+- **Clone fails (Wave 1, github-only - `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path - review can't proceed without the code on disk.
 
 - **No findings at all**:
-  - GH: skip the pending review entirely — don't post an empty review just to carry the guide.
+  - GH: skip the pending review entirely - don't post an empty review just to carry the guide.
     - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.
 
   - LOCAL: write `${out_file}` (the `./verdict_auto-review_<branch>_<timestamp>` file) with "no findings" under Findings.
@@ -222,11 +222,11 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 
 ## What NOT to do
 
-- Don't `gh pr checkout` into the user's working tree — clone into `/tmp` (Wave 1).
+- Don't `gh pr checkout` into the user's working tree - clone into `/tmp` (Wave 1).
 
-- Don't post inline comments via the single-comment endpoint — always the batch review endpoint, in one call (see `wave5-emit-github.md`).
+- Don't post inline comments via the single-comment endpoint - always the batch review endpoint, in one call (see `wave5-emit-github.md`).
 
-- Don't submit the review, by any path (exact call list in `wave5-emit-github.md`) — submitting is the human's decision alone.
+- Don't submit the review, by any path (exact call list in `wave5-emit-github.md`) - submitting is the human's decision alone.
 
 - Don't include a changelog. The Review Guide replaces it.
 
@@ -234,4 +234,4 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the waves above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the waves above win; regenerate it whenever the flow changes.

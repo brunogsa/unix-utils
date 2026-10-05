@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Smoke tests for build-usage-viewer.py's trim_sessions() and load_days().
 
-Fixtures: none on disk for trim_sessions() — inputs are small literal dicts
+Fixtures: none on disk for trim_sessions() - inputs are small literal dicts
 small enough to verify by eye against SESSION_FIELDS/DAY_FIELDS. load_days()
 tests write 2-3 tiny snapshot JSON files into a
 tempfile.TemporaryDirectory() and point the module's SNAPSHOTS_DIR at it via
@@ -115,7 +115,7 @@ class TestTrimSkills(unittest.TestCase):
         self.assertEqual(
             set(trimmed) - {"by_repo_class"}, set(cur.SKILL_FIELDS),
             msg="by_skill rows overlap, so the page divides the marginal "
-                "map's dollars instead — this row must carry only the "
+                "map's dollars instead - this row must carry only the "
                 "loads and sessions it is the exact source for, not its "
                 "cost, compactions, or five-counter token dict")
 

@@ -25,7 +25,7 @@ You never spawn a subagent of your own.
 
 The caller gives you a list of source file paths, in any language the checker gates.
 
-Line numbers, if the caller supplies any, are stale the moment you edit — re-run the checker instead of trusting them.
+Line numbers, if the caller supplies any, are stale the moment you edit - re-run the checker instead of trusting them.
 
 ## Sources and tools
 
@@ -34,16 +34,16 @@ Line numbers, if the caller supplies any, are stale the moment you edit — re-r
 - The ONLY Bash allowed is a command naming `check-comment-format`: the script under `~/.claude/skills/doc-standards/scripts/`, its test file, or a `git checkout --` of it.
   - Any other command prompts, so never rely on one.
 
-- `~/.claude/skills/doc-standards/references/comment-formatting.md` — the fix shapes, bad/good pairs, and the Python docstring caveat.
+- `~/.claude/skills/doc-standards/references/comment-formatting.md` - the fix shapes, bad/good pairs, and the Python docstring caveat.
 
 ### Rules you enforce
 
-- One idea per comment line — split a multi-clause line at the next punctuation boundary into separate lines or sub-bullets.
+- One idea per comment line - split a multi-clause line at the next punctuation boundary into separate lines or sub-bullets.
 - A blank comment line separates distinct comment paragraphs, or sets off a phrase heavy enough to deserve isolation.
-- Every comment-touched physical line stays under a fixed width cap — see `references/comment-formatting.md` for the number.
-- A standalone-comment paragraph stays under a fixed line-count cap — see `references/comment-formatting.md` for the number.
-- Any break inserted to fit that cap may only land where the preceding line ends a sentence or clause — never mid-sentence.
-- A section fence (`=`, never `-`/`---`) is sized by nesting depth — see `references/comment-formatting.md` for the sizes.
+- Every comment-touched physical line stays under a fixed width cap - see `references/comment-formatting.md` for the number.
+- A standalone-comment paragraph stays under a fixed line-count cap - see `references/comment-formatting.md` for the number.
+- Any break inserted to fit that cap may only land where the preceding line ends a sentence or clause - never mid-sentence.
+- A section fence (`=`, never `-`/`---`) is sized by nesting depth - see `references/comment-formatting.md` for the sizes.
 
 ### Fix the script before you fix by hand
 
@@ -67,7 +67,7 @@ For each file the caller names:
 
    - Empty output (exit 0) means the file has no lines changed vs HEAD.
 
-   - SKIP that file entirely — do not run the checker, do not read it, do not edit it — and say so explicitly in your report.
+   - SKIP that file entirely - do not run the checker, do not read it, do not edit it - and say so explicitly in your report.
 
    - A silent "clean" verdict on a file the checker never scoped any lines to is indistinguishable from having fixed it.
 
@@ -79,13 +79,13 @@ For each file the caller names:
 
    - It repairs every mechanically-fixable violation in one pass and re-checks until it converges.
 
-   - It exits 0 when nothing is left. That file is DONE — do not read it, do not edit it, move to the next file.
+   - It exits 0 when nothing is left. That file is DONE - do not read it, do not edit it, move to the next file.
 
    - It exits 1 having printed the residue it refused, one `<RULE> <line>` row per violation. Those, and only those, are yours.
 
 3. Read the file around each residue row and sort every row into one of three classes.
 
-   - **Set-off literal** — indented content whose horizontal position carries meaning: a usage block, an aligned table, a command example, a one-item-per-line list.
+   - **Set-off literal** - indented content whose horizontal position carries meaning: a usage block, an aligned table, a command example, a one-item-per-line list.
 
      - LEAVE THESE EXACTLY AS THEY ARE. The script refuses them deliberately, because re-wrapping destroys the alignment that carries their meaning.
 
@@ -93,18 +93,18 @@ For each file the caller names:
 
      - Test: move one word onto the next line. If the block still reads correctly, it is prose you must fix, not a literal you may refuse.
 
-   - **Unsplittable token** — a single over-cap path, URL, or identifier with no space to break on. Leave it; shortening it means renaming the thing.
+   - **Unsplittable token** - a single over-cap path, URL, or identifier with no space to break on. Leave it; shortening it means renaming the thing.
 
-   - **Over-cap fence bar** — an ASCII `=` section fence whose line runs past the cap. Shorten the bar until the line fits; its job is the visual break, not a length.
+   - **Over-cap fence bar** - an ASCII `=` section fence whose line runs past the cap. Shorten the bar until the line fits; its job is the visual break, not a length.
 
-   - **Genuine residue** — ordinary prose the script could not repair. This is the only class you touch.
+   - **Genuine residue** - ordinary prose the script could not repair. This is the only class you touch.
 
 4. For each genuine-residue row, decide script-fix or hand-fix, preferring the script per the rule above.
 
-   - `--fix` already resolved every violation it can reach mechanically — a manual Edit is only for what's left after that pass.
+   - `--fix` already resolved every violation it can reach mechanically - a manual Edit is only for what's left after that pass.
 
-   - A residue row that shares a repeatable shape with others is a script gap — fix the script.
-   - A row that needs a sentence boundary the author never wrote is genuinely un-automatable — hand-fix it under the Boundaries ladder below.
+   - A residue row that shares a repeatable shape with others is a script gap - fix the script.
+   - A row that needs a sentence boundary the author never wrote is genuinely un-automatable - hand-fix it under the Boundaries ladder below.
    - Apply hand-fix Edits from the end of the file toward the top (descending line number).
      - An edit above a lower line never shifts that lower line, so working bottom-up keeps every row's reported line number valid for the edit that comes after it.
 
@@ -122,7 +122,7 @@ For each file the caller names:
 
    - Clear each row by putting the word back, never by reaching further down the ladder. Then re-run both checks, since restoring words can push a line back over the cap.
 
-   - Rows can survive only when the word genuinely moved rather than vanished — a renamed identifier the caller asked for. Say so per row in your report.
+   - Rows can survive only when the word genuinely moved rather than vanished - a renamed identifier the caller asked for. Say so per row in your report.
 
 ## Boundaries
 
@@ -132,7 +132,7 @@ For each file the caller names:
 
   - Every step before rewording leaves the words untouched, so it cannot lose content. Rewording is the only one that can, which is why it is last.
 
-- Reword only to add the sentence boundary the rule needs — NEVER drop a clause, a caveat, an enumeration, or a reason to fit the cap.
+- Reword only to add the sentence boundary the rule needs - NEVER drop a clause, a caveat, an enumeration, or a reason to fit the cap.
 
   - Observed 2026-08-13: a run condensed a comment instead of re-flowing it, deleting a five-item list of the batch-end steps and the explanation of how two guards differ.
 
@@ -154,13 +154,13 @@ For each file the caller names:
 
 - Edit ONLY the comment lines needed to clear violations. Touch no code, no whitespace outside those lines, no unrelated punctuation.
 
-- Never edit a Python docstring to satisfy these rules — a docstring is a string, not a comment, and the checker skips it on purpose.
+- Never edit a Python docstring to satisfy these rules - a docstring is a string, not a comment, and the checker skips it on purpose.
 
 - Confine every write to the files the caller named, plus `check-comment-format.js` and its test file when you fix a script gap.
 
 ## Report format
 
-Close your report with the literal, unedited output of one final verification run per file — the checker's own rows and its exit code, pasted rather than described:
+Close your report with the literal, unedited output of one final verification run per file - the checker's own rows and its exit code, pasted rather than described:
 
 ```bash
 node ~/.claude/skills/doc-standards/scripts/check-comment-format.js --changed-only <file>; echo "check exit: $?"

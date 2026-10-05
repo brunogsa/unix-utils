@@ -58,9 +58,9 @@ write_plan() {
 
 it_should_resolve_a_pr_n_label_to_its_listed_task_id_list() {
   local fixture
-  fixture=$(write_plan "happy" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
-2. **PR-2** — Worktree hygiene. Tasks: 4. Depends on: none.
-3. **PR-3** — Core loop. Tasks: 5, 6, 7. Depends on: PR-1, PR-2.')
+  fixture=$(write_plan "happy" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+2. **PR-2** - Worktree hygiene. Tasks: 4. Depends on: none.
+3. **PR-3** - Core loop. Tasks: 5, 6, 7. Depends on: PR-1, PR-2.')
   run_script "$fixture" "PR-3"
   assert_eq "should resolve a PR-N label to its listed task-id list (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should resolve a PR-N label to its listed task-id list (task list)" "5, 6, 7" "$VERDICT_OUT"
@@ -68,8 +68,8 @@ it_should_resolve_a_pr_n_label_to_its_listed_task_id_list() {
 
 it_should_resolve_a_pr_n_label_that_lists_a_single_task() {
   local fixture
-  fixture=$(write_plan "corner-single-task" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
-2. **PR-2** — Second slice. Tasks: 4. Depends on: none.')
+  fixture=$(write_plan "corner-single-task" '1. **PR-1** - First slice. Tasks: 1. Depends on: none.
+2. **PR-2** - Second slice. Tasks: 4. Depends on: none.')
   run_script "$fixture" "PR-2"
   assert_eq "should resolve a PR-N label that lists a single task (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should resolve a PR-N label that lists a single task (task list)" "4" "$VERDICT_OUT"
@@ -77,8 +77,8 @@ it_should_resolve_a_pr_n_label_that_lists_a_single_task() {
 
 it_should_error_when_the_requested_pr_n_label_is_absent_from_the_pr_breakdown() {
   local fixture
-  fixture=$(write_plan "absent-label" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
-2. **PR-2** — Second slice. Tasks: 2. Depends on: PR-1.')
+  fixture=$(write_plan "absent-label" '1. **PR-1** - First slice. Tasks: 1. Depends on: none.
+2. **PR-2** - Second slice. Tasks: 2. Depends on: PR-1.')
   run_script "$fixture" "PR-9"
   assert_eq "should error when the requested PR-N label is absent from the PR Breakdown (exit code)" "1" "$VERDICT_EXIT"
   if [ -n "$VERDICT_ERR" ]; then

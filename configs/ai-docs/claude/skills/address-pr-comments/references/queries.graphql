@@ -1,10 +1,10 @@
-# Used by references/fetch-cluster-propose.md step 3a — inline review comments via GraphQL (need isResolved).
+# Used by references/fetch-cluster-propose.md step 3a - inline review comments via GraphQL (need isResolved).
 query($owner: String!, $repo: String!, $n: Int!) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $n) {
       reviewThreads(first: 100) {
         nodes {
-          # PRRT_... node id — the reply unit for addPullRequestReviewThreadReply.
+          # PRRT_... node id - the reply unit for addPullRequestReviewThreadReply.
           id
           isResolved
           comments(first: 50) {

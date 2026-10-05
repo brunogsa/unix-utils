@@ -39,7 +39,7 @@
 #
 #   1 - hard failure (missing skills directory, missing
 #       CLAUDE.md, or a skills directory with zero skill
-#       subdirectories) — never an empty manifest.
+#       subdirectories) - never an empty manifest.
 
 set -eo pipefail
 
@@ -52,7 +52,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
-# Resolve targets — mirrors check.sh's nested-then-sibling
+# Resolve targets - mirrors check.sh's nested-then-sibling
 # resolution exactly, so a path arg behaves identically for both
 # scripts.
 if [ -z "${1:-}" ]; then
@@ -85,7 +85,7 @@ if [ ! -d "$SKILLS_DIR" ]; then
 fi
 
 # Unlike check.sh (where CLAUDE.md is optional), D13 requires
-# CLAUDE.md in every shard — a run with no CLAUDE.md can never
+# CLAUDE.md in every shard - a run with no CLAUDE.md can never
 # honor that, so it hard-fails here too rather than silently
 # omitting it everywhere.
 if [ ! -f "$CLAUDE_MD" ]; then
@@ -94,7 +94,7 @@ if [ ! -f "$CLAUDE_MD" ]; then
 fi
 
 # A skills dir that exists but has zero skill subdirectories
-# must also hard-fail — otherwise it would silently produce a
+# must also hard-fail - otherwise it would silently produce a
 # manifest holding only the dedicated claude-md shard.
 #
 # This is an empty manifest for every purpose that matters
@@ -102,7 +102,7 @@ fi
 #
 # `! -name synced` excludes Anthropic's skill-sync bucket
 # (see the line-321 comment for why), so a skills dir
-# holding only synced/ now hard-fails too — zero auditable
+# holding only synced/ now hard-fails too - zero auditable
 # skills, same as truly empty.
 skill_dir_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -name synced | wc -l | tr -d ' ')
 if [ "$skill_dir_count" -eq 0 ]; then
@@ -110,7 +110,7 @@ if [ "$skill_dir_count" -eq 0 ]; then
     exit 1
 fi
 
-# Fully physicalize a file path, including a symlinked leaf —
+# Fully physicalize a file path, including a symlinked leaf -
 # `cd dirname && pwd -P` alone only resolves symlinked
 # *directories* along the way.
 #
@@ -119,7 +119,7 @@ fi
 # CLAUDE.md inside it is the symlink) passes through untouched
 # and yields two spellings of one file.
 #
-# No `readlink -f` (GNU-only, absent on BSD/macOS readlink) —
+# No `readlink -f` (GNU-only, absent on BSD/macOS readlink) -
 # walk plain `readlink` instead, which both ship.
 #
 # scripts/check-refs.sh has no counterpart: it only ever
@@ -162,7 +162,7 @@ fi
 #
 # Prints the resolved path and returns 0 on success; returns 1
 # for anything that isn't a real file (prose captured by an
-# over-eager backtick/link match included) — that failure is the
+# over-eager backtick/link match included) - that failure is the
 # filter, not an error condition.
 #
 # scripts/check-refs.sh's check_candidate() takes the
@@ -207,7 +207,7 @@ resolve_candidate() {
     [ -f "$base" ] || return 1
     resolved="$(physical_file "$base")"
 
-    # The header's contract is "in-repo" only — a `~/` or
+    # The header's contract is "in-repo" only - a `~/` or
     # `/`-absolute candidate resolves against the real
     # filesystem, not the root argument.
     #
@@ -221,7 +221,7 @@ resolve_candidate() {
 }
 
 # Every file under a skill dir, skipping any node_modules or
-# __pycache__ directory — both are gitignored build artifacts,
+# __pycache__ directory - both are gitignored build artifacts,
 # never skill content.
 #
 # Walking into node_modules risks exactly the multi-minute
@@ -258,7 +258,7 @@ list_dispatched_agents() {
 # markdown-link targets and backtick-quoted spans.
 #
 # A span whose line falls inside a fenced code block
-# is skipped — skills quote example paths constantly,
+# is skipped - skills quote example paths constantly,
 # and those aren't genuine cross-references.
 #
 # Resolving each candidate to a real file stays the
@@ -303,7 +303,7 @@ list_file_ref_candidates() {
 }
 
 # Every in-repo path a skill's own files reference outside their
-# own directory — markdown links `](path)` and backtick
+# own directory - markdown links `](path)` and backtick
 # spans `` `path` `` that
 # resolve to a real file.
 #

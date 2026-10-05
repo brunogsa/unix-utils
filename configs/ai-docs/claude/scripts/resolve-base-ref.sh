@@ -27,7 +27,7 @@
 #
 # That one-liner resolves to nothing after a --single-branch
 # clone, or in any repo where `git remote set-head origin -a`
-# was never run — both far more common than "no main and no
+# was never run - both far more common than "no main and no
 # master either".
 #
 # Extracted from resolve_base() in
@@ -41,7 +41,7 @@
 # fallback order again, independently, in Lua, for the
 # editor's own <leader>tD diff.
 #
-# Both remaining copies are deliberate, not oversight — a
+# Both remaining copies are deliberate, not oversight - a
 # caller stuck on tmux/git glue or on pure Lua can't shell
 # out to this script.
 

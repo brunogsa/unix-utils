@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 ## Usage
 
-`/create-pr [<parent>]` — no flags; the optional `<parent>` (PR number or branch) stacks this PR on it (resolved in step 1).
+`/create-pr [<parent>]` - no flags; the optional `<parent>` (PR number or branch) stacks this PR on it (resolved in step 1).
 
 ## PR body budget rules
 
@@ -26,7 +26,7 @@ Read it before drafting or reviewing a PR body; `pr-writer` and `pr-finalizer` l
 
 **CRITICAL: This step's interview is the only point in steps 1-4 where the user is asked anything** -- the rest run to completion without pausing on a blocking chat question.
 
-A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an unchecked box or a caveat — take the most conservative reading and keep going.
+A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an unchecked box or a caveat - take the most conservative reading and keep going.
 
 **CRITICAL: Dispatch `changes-gatherer` the moment the base ref is final, then resolve everything else below while it runs.**
 
@@ -34,7 +34,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
   - Never the default base on a stacked run, whose digest would then carry the parent's commits too.
 
-- It diffs the branch against that base and reads nothing else — not the spec/plan choice, not the `PR-N` answer.
+- It diffs the branch against that base and reads nothing else - not the spec/plan choice, not the `PR-N` answer.
 
   - Holding it until the interview answers arrive serializes its whole run behind a human who is not blocking it.
 
@@ -75,7 +75,7 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
   - It is this skill's durable record, not a separate scratchpad -- it survives a mid-flow compaction that would drop the answers.
 
-- **Derive the appendix's section list — never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
+- **Derive the appendix's section list - never ask the user for it** -- it is the resolved spec/plan minus every section the body already renders.
   - Which sections are excluded, which are included, and the altitude rule behind the split: [`references/pr-page-budget.md`](references/pr-page-budget.md), a mandatory read already.
   - `### References` joins them there as authored content, so the appendix survives even when no spec/plan resolved.
 
@@ -85,16 +85,16 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 - **Collect the `changes-gatherer` digest as this step's last act** -- step 2 cannot start without it, so wait here if it is still running.
 
-### 2. Compose the ideal description — density, page fit, and evidence
+### 2. Compose the ideal description - density, page fit, and evidence
 
 **CRITICAL: The main session orchestrates and never composes the prose itself** -- dispatch the agent and let it hand back a finished file.
 
-- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it — step 3 reads the file it writes.
+- `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it - step 3 reads the file it writes.
   - Give it the changes digest, the resolved spec/plan paths, the manual-evidence path and ticket ID (each "none" when unresolved), the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
 
-  - It loads this skill and `doc-standards` itself, runs the extractors, and runs all three gates before returning — none of that belongs in the dispatch prompt.
+  - It loads this skill and `doc-standards` itself, runs the extractors, and runs all three gates before returning - none of that belongs in the dispatch prompt.
 
-**All three gates belong to the agent — never re-run them here, and never hand-fix its prose.**
+**All three gates belong to the agent - never re-run them here, and never hand-fix its prose.**
 
 - It loops `check-pr-page-fit.sh` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
@@ -120,38 +120,38 @@ A full worked example, including the derived appendix from step 1: [`references/
 
 #### Writing Style
 
-**Meta-principle: reader has no context — provide it.**
+**Meta-principle: reader has no context - provide it.**
 
-The reviewer hasn't read your spec, plan, ticket, or commits — anything referenced must be self-contained or linked. Be concise but didactic.
+The reviewer hasn't read your spec, plan, ticket, or commits - anything referenced must be self-contained or linked. Be concise but didactic.
 
-**Second meta-principle: a small PR earns a small description** — a guideline, not a hard cap.
+**Second meta-principle: a small PR earns a small description** - a guideline, not a hard cap.
 
-What to write, how to evidence it, and how to format it: [`references/writing-style.md`](references/writing-style.md) — read it before drafting any section's prose; `pr-writer` loads it every dispatch.
+What to write, how to evidence it, and how to format it: [`references/writing-style.md`](references/writing-style.md) - read it before drafting any section's prose; `pr-writer` loads it every dispatch.
 
-### 3. Compose the repo description — density and body size
+### 3. Compose the repo description - density and body size
 
 **Never pause for user review** -- the agent returns a gated file, so continue straight on.
 
 **Check `.github/` for a PR template** (`pull_request_template.md`, `PULL_REQUEST_TEMPLATE.md`).
 
-**Dispatch the merge either way** -- `agent(subAgent=pr-finalizer, title=Compose repo PR description)` in the background, waiting for it — step 4 pushes its output.
+**Dispatch the merge either way** -- `agent(subAgent=pr-finalizer, title=Compose repo PR description)` in the background, waiting for it - step 4 pushes its output.
 
 - **A different agent from step 2's, deliberately** -- this step re-derives nothing, so it runs a tier below the author that produced its input.
   - Effort is frontmatter-only, so the cheaper stage needs its own file; the two cannot be one agent taking a mode argument.
 
-- Give it three paths — the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template, and the output `./pr_<slug>_pr<N>.final.md` — plus the ticket ID.
+- Give it three paths - the `pr_<slug>_pr<N>.ideal.md` from step 2, the repo's template, and the output `./pr_<slug>_pr<N>.final.md` - plus the ticket ID.
 
 - No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.
 
 - **Never copy the file here instead** -- the body-size gate runs only inside the agent.
   - A `cp` in the main session would push a `.final.md` no gate ever measured, on the path most repos take.
 
-- It re-reads the merge rules itself, and owns the density and body-size gates end to end — same as step 2, they are never re-run.
+- It re-reads the merge rules itself, and owns the density and body-size gates end to end - same as step 2, they are never re-run.
 
 - **It also returns the PR title**, `[<ID>] `-prefixed when a ticket resolved.
   - Carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
 
-**The merge contract — keep the template as the base, fill it from the ideal description, and where content with no slot goes — is [`references/template-merge.md`](references/template-merge.md)'s.**
+**The merge contract - keep the template as the base, fill it from the ideal description, and where content with no slot goes - is [`references/template-merge.md`](references/template-merge.md)'s.**
 
 - Main never merges a template, so those rules stay out of this file's always-on load.
 
@@ -168,7 +168,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream.
 
-  - The push is the run's first outward-facing act — it fires CI and makes the branch visible, while every step above only writes local files.
+  - The push is the run's first outward-facing act - it fires CI and makes the branch visible, while every step above only writes local files.
 
   - Pushing in step 1 would leave a remote branch behind whenever a compose or gate failed.
 
@@ -195,4 +195,4 @@ Rules, the editing target, and the GitHub-body-update hazard: [`references/post-
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

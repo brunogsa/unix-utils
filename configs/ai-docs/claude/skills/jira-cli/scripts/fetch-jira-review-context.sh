@@ -88,7 +88,7 @@ function fetch-jira-review-context() {
     sed '/^$/N;/^\n$/D')
 
   # Output markdown. printf (not echo) for anything carrying
-  # Jira-sourced text — same zsh-echo backslash-reinterpretation
+  # Jira-sourced text - same zsh-echo backslash-reinterpretation
   # hazard as the JSON above.
   printf '## Jira Card: %s - %s\n' "$issue_key" "$summary"
   echo ""

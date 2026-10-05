@@ -1,6 +1,6 @@
 ---
 name: usage-audit
-description: Audit Claude Code cost/health KPIs from local transcripts and run the improvement loop — snapshot, compare history, settle experiments, raise hypotheses. Use when the user asks why usage/cost is high, hits a usage limit, or wants a usage audit.
+description: Audit Claude Code cost/health KPIs from local transcripts and run the improvement loop - snapshot, compare history, settle experiments, raise hypotheses. Use when the user asks why usage/cost is high, hits a usage limit, or wants a usage audit.
 ---
 
 # Usage Audit
@@ -9,7 +9,7 @@ Deterministic KPI measurement over `~/.claude/projects` transcripts, plus a dura
 
 The three KPIs (defined in `./usage-history/README.md`): **session time up** (longer autonomous stretches per human touch), **money down** (`kpis.cost_per_day`), **user messages/corrections down** (`user_messages`, `interruptions`).
 
-## The run order — Steps 0-7, every invocation, in order
+## The run order - Steps 0-7, every invocation, in order
 
 - **This skill takes no arguments.** Step 1 derives the day range; if the user passes one anyway, say you are ignoring it and run the standard flow.
 
@@ -17,9 +17,9 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 - **Never reorder or drop a step**, even when a step looks like it has nothing to do.
 
-  - A long run silently skips the late steps — interview, close, viewer, new experiments — leaving a report with no loop.
+  - A long run silently skips the late steps - interview, close, viewer, new experiments - leaving a report with no loop.
 
-### Step 0 — Seed the TaskList before running anything
+### Step 0 - Seed the TaskList before running anything
 
 - **Seed steps 1 through 7 before the first script runs**, per CLAUDE.md's `[Reminder]` category.
 
@@ -27,9 +27,9 @@ The three KPIs (defined in `./usage-history/README.md`): **session time up** (lo
 
 - **Never collapse the seven into one "run the audit" entry.**
 
-  - An umbrella entry cannot show which step was skipped — the exact failure seeding exists to catch.
+  - An umbrella entry cannot show which step was skipped - the exact failure seeding exists to catch.
 
-### Step 1 — Find the last committed snapshot day
+### Step 1 - Find the last committed snapshot day
 
 ```bash
 S=~/.claude/skills/usage-audit/scripts
@@ -49,7 +49,7 @@ git ls-files configs/ai-docs/claude/skills/usage-audit/usage-history/snapshots/ 
 
   - No new closed day means no new snapshot evidence, but the ledger can still show a config commit that no experiment covers.
 
-### Step 2 — Backfill the missing days
+### Step 2 - Backfill the missing days
 
 ```bash
 $S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&1; echo "exit: $?"; tail -40 /tmp/usage-report.txt
@@ -59,13 +59,13 @@ $S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&
 
 - **Never snapshot the current day**, and never work around the script's refusal to.
 
-  - A day is only immutable once it ends — a mid-day sample counts only sessions that already ran, reading low and poisoning any comparison against a closed day.
+  - A day is only immutable once it ends - a mid-day sample counts only sessions that already ran, reading low and poisoning any comparison against a closed day.
 
 - **Re-run with `--backfill --rebuild` after any change to pricing or aggregation**, then say in the audit which days were rebuilt.
 
   - Plain `--backfill` skips days with an existing file, so a fix silently reaches only the uncaptured tail, splitting the series into two incomparable halves.
 
-### Step 3 — Read what changed, from the config-change ledger
+### Step 3 - Read what changed, from the config-change ledger
 
 ```bash
 $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
@@ -73,17 +73,17 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
 - **Read git history through `config-change-ledger.py`**, never an ad-hoc `git log` typed into chat.
 
-  - The script gets day grouping and surface classification for free, and runs git as a subprocess — sidestepping the `rtk` output cap.
+  - The script gets day grouping and surface classification for free, and runs git as a subprocess - sidestepping the `rtk` output cap.
 
 - **Draft one candidate intent per commit or commit cluster**: the tweak, the surface it touched, and the KPI it could plausibly move.
 
   - A snapshot says what usage did; only commits say what caused it, and an edit landing on day D shows in the KPIs from D+1 onward.
 
-- **Record by hand the day and value of any lever `settings.json` does not commit** — `model`, `advisorModel`, `effortLevel`.
+- **Record by hand the day and value of any lever `settings.json` does not commit** - `model`, `advisorModel`, `effortLevel`.
 
   - The repo deliberately leaves those three uncommitted, so the ledger cannot see them and an experiment on one has no evidence.
 
-### Step 4 — Interview the user to confirm each inferred intent
+### Step 4 - Interview the user to confirm each inferred intent
 
 - **Ask every inferred intent in ONE batched round**, one question per candidate, each carrying your reading and how confident you are.
 
@@ -101,13 +101,13 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
   - An unrecorded change still moves the KPIs, so naming it a confounder keeps the next delta honest without opening a pointless window.
 
-### Step 5 — Settle the running experiments and recommend what to close
+### Step 5 - Settle the running experiments and recommend what to close
 
 Live entries sit in `experiments.md`, split into `## Enacted` (change is in git, window open) and `## Proposed` (nothing enacted yet).
 
 - **Present every `## Enacted` entry** with before→after numbers, both source day filenames, and a recommendation: `kept`, `reverted`, or keep watching.
 
-  - "Worked" without numbers can't be audited later — the figures plus source days make the verdict checkable from the snapshots alone.
+  - "Worked" without numbers can't be audited later - the figures plus source days make the verdict checkable from the snapshots alone.
 
 - **Wait for the user's yes before archiving anything.**
 
@@ -121,11 +121,11 @@ Live entries sit in `experiments.md`, split into `## Enacted` (change is in git,
 
   - Three entries sat `running` for a week describing tweaks nobody had made, so their flat signals measured the status quo.
 
-- **Catalogue any Step 3 config commit no entry covers** — as a new `## Enacted` entry, or a note on why it can't move a KPI.
+- **Catalogue any Step 3 config commit no entry covers** - as a new `## Enacted` entry, or a note on why it can't move a KPI.
 
-  - An unrecorded change confounds every later delta — the model-pin deny hook shipped 2026-07-24, yet stayed logged as an open question.
+  - An unrecorded change confounds every later delta - the model-pin deny hook shipped 2026-07-24, yet stayed logged as an open question.
 
-### Step 6 — Build and open the viewer
+### Step 6 - Build and open the viewer
 
 ```bash
 $S/delivered-work-ledger.py --refresh
@@ -134,7 +134,7 @@ $S/build-usage-viewer.py --open
 
 - **Refresh the delivered-work ledger before building**, and repeat any warning it prints.
 
-  - Unlike config-commit markers, this half can't be re-derived later — it needs the work repos still cloned and network access for the PR side.
+  - Unlike config-commit markers, this half can't be re-derived later - it needs the work repos still cloned and network access for the PR side.
 
 - **Rebuild the viewer, open it, and walk the user through it under "Reading the numbers"**, rather than pasting long tables into chat.
 
@@ -144,29 +144,29 @@ $S/build-usage-viewer.py --open
 
   - It is 330 KB inlined from `snapshots/` and fully reproducible, so committing it would churn the diff on every audit.
 
-### Step 7 — Ask for new experiments, then offer to commit
+### Step 7 - Ask for new experiments, then offer to commit
 
 - **Ask the user outright for new experiments to note**, before offering any of your own.
 
-  - The user runs tweaks the ledger can't see and the interview didn't reach — this question is their only entry point.
+  - The user runs tweaks the ledger can't see and the interview didn't reach - this question is their only entry point.
 
 - **Raise 1-3 new hypotheses of your own** and append them under `## Proposed`, each with the tweak, its rationale, and the signal to watch.
 
   - The loop compounds only if every audit feeds the next; an audit that just reports numbers is a dead end.
 
-- **Back each new hypothesis with web search** against current official sources (Anthropic docs/engineering blog, recent papers) — not training-data recall.
+- **Back each new hypothesis with web search** against current official sources (Anthropic docs/engineering blog, recent papers) - not training-data recall.
 
   - Pricing, model behavior, and best practices drift fast; a hypothesis built on stale recall wastes an observation window on a dead lever.
 
-- **Keep a hypothesis under `## Proposed` until its change is committed** — never file an idea as enacted.
+- **Keep a hypothesis under `## Proposed` until its change is committed** - never file an idea as enacted.
 
   - Filing an unmade change as enacted opens a window over a null period, so the flat reading looks like a settled negative result.
 
-- **Advance one `Open questions backlog` item** — settle it with cited evidence, or promote it into an entry with a watch signal.
+- **Advance one `Open questions backlog` item** - settle it with cited evidence, or promote it into an entry with a watch signal.
 
   - The backlog holds the user's standing questions; without a per-audit pull, fresh hypotheses crowd them out indefinitely.
 
-- **End by offering to commit** the new snapshots plus the experiments edits — never commit without the user's ask.
+- **End by offering to commit** the new snapshots plus the experiments edits - never commit without the user's ask.
 
   - Uncommitted history dies with the working tree, but this repertoire is the user's record, so the commit is theirs.
 
@@ -176,7 +176,7 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
 - **Read a run of consecutive days** from `./usage-history/snapshots/`, not two isolated files.
 
-  - Daily spend swings hard on workload alone — $49.20 vs $291.57 within the same week — so a two-point delta measures which days you picked, not the trend.
+  - Daily spend swings hard on workload alone - $49.20 vs $291.57 within the same week - so a two-point delta measures which days you picked, not the trend.
 
 - **Name both days explicitly** in every comparison you state.
 
@@ -194,11 +194,11 @@ Steps 2, 5, and 6 quote figures; these rules bind every one.
 
   - It cross-checks the day's four token buckets against ccusage, an independent reader of the same transcripts, and `drift` means the counting disagrees.
 
-- **Ignore `ccusage_cost_untrusted`** — never quote it, never reconcile dollars against it.
+- **Ignore `ccusage_cost_untrusted`** - never quote it, never reconcile dollars against it.
 
   - ccusage's bundled LiteLLM snapshot missed 4 of 5 models in use on 2026-07-27, so `--offline` priced a ~$130 day at $0.92.
 
-- **Lead with the main-vs-subagent split** — do not assume subagents dominate.
+- **Lead with the main-vs-subagent split** - do not assume subagents dominate.
 
   - The 2026-07 audit reversed that hypothesis: main loop was 83% of spend. `/usage`'s "subagent-heavy" label counts sessions that USE subagents, not subagent cost.
 
@@ -216,22 +216,22 @@ Everything durable lives in `./usage-history/`: the per-day series in `snapshots
 
 Per-skill-invocation cost ceilings live in `targets.md`, in the same directory.
 
-- **Compare `by_skill`/`by_skill_marginal` cost-per-load against `targets.md` during Step 5** — a skill meaningfully over target is grounds for a new `## Proposed` entry, like any other cost signal.
+- **Compare `by_skill`/`by_skill_marginal` cost-per-load against `targets.md` during Step 5** - a skill meaningfully over target is grounds for a new `## Proposed` entry, like any other cost signal.
 
-  - `audit-session` reads the same `targets.md` for its own per-session comparison — edit the targets there, never duplicate a number into this skill.
+  - `audit-session` reads the same `targets.md` for its own per-session comparison - edit the targets there, never duplicate a number into this skill.
 
 There is no single baseline file: the day series is the baseline, and any two closed days compare directly.
 
-For scale: the 2026-07 days run roughly $20–$455 each with a median near $116, and the main loop is 54–98% of spend with a median of 81%.
+For scale: the 2026-07 days run roughly $20-$455 each with a median near $116, and the main loop is 54-98% of spend with a median of 81%.
 
 - **Read `./usage-history/README.md` before comparing snapshots.**
 
   - It carries the caveats deciding whether a delta is real: list prices, local-day bucketing, wall-clock hours, thinking share, and the retention floor.
 
-- **Treat every dollar/token figure logged before 2026-07-27 as VOID** — not directional, not re-citable, not usable as one end of a new delta.
+- **Treat every dollar/token figure logged before 2026-07-27 as VOID** - not directional, not re-citable, not usable as one end of a new delta.
 
-  - The aggregator billed each response once per content block, inflating 2026-07-20's true $130.16 to $441.44 — the multiplier rose with thinking/tool-call density, manufacturing deltas, not cancelling them.
+  - The aggregator billed each response once per content block, inflating 2026-07-20's true $130.16 to $441.44 - the multiplier rose with thinking/tool-call density, manufacturing deltas, not cancelling them.
 
   - Non-cost counters from that era stay citable: `compactions`, `user_messages`, `interruptions`, `session_hours`, `thinking_blocks`.
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

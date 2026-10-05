@@ -1,15 +1,15 @@
 ---
 # performance-check budget override, not part of the diagram itself.
-# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# This file renders one flow twice - once as pseudo-code, once as a diagram - so
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
 words-budget: 2048
 ---
 
-# quality-gate — flow overview
+# quality-gate - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
@@ -23,7 +23,7 @@ Python-shaped for readability only; nothing here runs, and the function names st
 #     another skill's batch-end dispatch.
 def quality_gate(arg):
     if arg.auto_solve and arg.report_only:                  # 2 · both flags passed?
-        halt("--auto-solve and --report-only are a contradiction")  # 2a · STOP — not a precedence puzzle
+        halt("--auto-solve and --report-only are a contradiction")  # 2a · STOP - not a precedence puzzle
         return
 
     # A flag on the command line means this run was dispatched by another
@@ -33,13 +33,13 @@ def quality_gate(arg):
     if flag_passed:                                          # 3 · either flag passed?
         mode = "auto-solve" if arg.auto_solve else "report-only"
     else:
-        # 3a · Step 1 — ONE question, before anything else, so nobody is
+        # 3a · Step 1 - ONE question, before anything else, so nobody is
         #      surprised by commits. Covers the refactor and auto-review
-        #      lenses ONLY — test-sdd is outside it, applied on every run
+        #      lenses ONLY - test-sdd is outside it, applied on every run
         #      that dispatches that leg regardless of the answer (§5.1).
         mode = ask("report only (default), or auto-solve?")
 
-    # 4 · Step 2 — arg paths by their spec_/plan_ prefix, else glob the CWD.
+    # 4 · Step 2 - arg paths by their spec_/plan_ prefix, else glob the CWD.
     specs, plans = resolve_spec_and_plan(arg)
     if len(specs) > 1 or len(plans) > 1:                     # 5 · multi-match?
         if flag_passed:                                      # 5x · nobody standing by?
@@ -50,7 +50,7 @@ def quality_gate(arg):
         else:
             specs, plans = ask_numbered_list(specs, plans)   # 5b · §1 already asked, so a human stands by
 
-    # 6 · Step 2 — from --base-ref when the caller passed one
+    # 6 · Step 2 - from --base-ref when the caller passed one
     #     (/implement's batch-end tail passes BATCH_BASE_SHA that
     #     way), else resolve-base-ref.sh: origin/HEAD, then local
     #     main, then local master.
@@ -61,7 +61,7 @@ def quality_gate(arg):
             return
         BASE_REF = ask("which branch to diff against?")      # 7b · ask which branch
 
-    # ---- 8 · Step 3 — dispatch every leg in the SAME turn. Independent
+    # ---- 8 · Step 3 - dispatch every leg in the SAME turn. Independent
     #      report-only passes, no ordering between them. Each leg IS the
     #      fresh-context reviewer, so none of them spawns a nested one. ----
     legs = dispatch_parallel(background=True, legs=[
@@ -70,7 +70,7 @@ def quality_gate(arg):
         # 8c · scoped by --tasks, and dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
     ] if plans else [...])
-    # 8d · hook: check-reviewer-writes — approves verdict_*.md and
+    # 8d · hook: check-reviewer-writes - approves verdict_*.md and
     #      verdict_*.html, AND any write under /tmp; everything else denied.
     #      Each leg is told the /tmp half too: a leg believing only
     #      verdict_* is writable skips the $work_dir persistence its
@@ -81,14 +81,14 @@ def quality_gate(arg):
             redispatch_once(leg)                             # 9a
             if still_missing(leg):
                 flag(leg)   # 9a · the other legs still stand
-        # 9a · never report from a capped return message — always from the file
+        # 9a · never report from a capped return message - always from the file
 
-    # ---- 10 · Step 5 — assemble the apply list. Compose the whole list
+    # ---- 10 · Step 5 - assemble the apply list. Compose the whole list
     #      before invoking or printing anything; the two groups below enter
     #      on different terms. ----
     apply_list = []
     if plans and present_and_non_empty(test_sdd_leg.verdict_path):
-        # 10a · Step 5.1 — every test-sdd finding enters unconditionally,
+        # 10a · Step 5.1 - every test-sdd finding enters unconditionally,
         #       on a report-only run exactly as on an auto-solve one. No
         #       triage runs: the plan already declared the test, and the
         #       human already approved the plan.
@@ -105,19 +105,19 @@ def quality_gate(arg):
         print(addressable, not_addressable)
         apply_list += addressable
     else:
-        # 10b1 · Report-only — neither lens contributes anything, including
+        # 10b1 · Report-only - neither lens contributes anything, including
         #        findings that look trivially safe. The opt-in came from
         #        §1, and its absence is an answer.
         pass
 
     if not apply_list:                                       # 11 · apply list empty?
-        # a report-only run that resolved no plan has nothing to apply —
+        # a report-only run that resolved no plan has nothing to apply -
         # skip §6 entirely and close straight from what this run resolved.
         return report(ledger=None)
 
-    # ---- 12 · Step 6 — hand the WHOLE apply list to /address-verdicts in
+    # ---- 12 · Step 6 - hand the WHOLE apply list to /address-verdicts in
     #      ONE invocation, never one call per lens. APPLYING IS NOT THIS
-    #      SKILL'S JOB — that skill is the one apply step for every
+    #      SKILL'S JOB - that skill is the one apply step for every
     #      verdict_*.md on disk; this skill only decides WHICH findings
     #      deserve a fix. Runs IN THIS SESSION rather than in a subagent:
     #      it commits the refactor agent's work (permission prompts only
@@ -132,10 +132,10 @@ def quality_gate(arg):
     # 12f · it owns the TaskList seeding, the lens routing, the per-finding
     #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
 
-    # 13 · Step 7 — close with a report: every verdict path (+ any leg that
+    # 13 · Step 7 - close with a report: every verdict path (+ any leg that
     #      failed to produce one), applied findings with SHAs, §5.2's
     #      not-addressable findings, /address-verdicts' skipped/failed
-    #      findings, and — on a report-only run — every refactor and
+    #      findings, and - on a report-only run - every refactor and
     #      auto-review finding listed under a heading naming them as NEVER
     #      TRIAGED, closing with the two ways to work them: /address-verdicts,
     #      or a re-run as /quality-gate --auto-solve.
@@ -148,9 +148,9 @@ def quality_gate(arg):
 flowchart TD
   n1(["1. /quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt;<br/>--auto-solve | --report-only<br/><br/>or another skill's batch-end dispatch"]):::start
   n2{"2. Both --auto-solve and<br/>--report-only passed?"}
-  n2a(["2a. STOP — contradiction, not a<br/>precedence puzzle. Print and halt."])
+  n2a(["2a. STOP - contradiction, not a<br/>precedence puzzle. Print and halt."])
   n3{"3. Either --auto-solve or<br/>--report-only passed?"}
-  n3a["3a. Step 1 · ONE question, before anything else:<br/>report only (default) or auto-solve?<br/>Covers the refactor and auto-review lenses ONLY —<br/>test-sdd is outside it, applied on every run that<br/>dispatches that leg regardless of the answer (§5.1)"]:::gate
+  n3a["3a. Step 1 · ONE question, before anything else:<br/>report only (default) or auto-solve?<br/>Covers the refactor and auto-review lenses ONLY -<br/>test-sdd is outside it, applied on every run that<br/>dispatches that leg regardless of the answer (§5.1)"]:::gate
   n4["4. Step 2 · Resolve spec + plan: arg paths by<br/>spec_/plan_ prefix, else glob CWD"]
   n5{"5. More than one spec, or more than one plan?"}
   n5x{"5x. Either flag passed on the<br/>command line? (nobody standing by)"}
@@ -159,26 +159,26 @@ flowchart TD
   n6["6. Step 2 · Resolve BASE_REF from --base-ref when the<br/>caller passed one (/implement's batch-end tail passes<br/>BATCH_BASE_SHA that way), else resolve-base-ref.sh:<br/>origin/HEAD, then local main, then local master"]
   n7{"7. Base ref detection failed<br/>(none of the three found)?"}
   n7x{"7x. Either flag passed on the<br/>command line? (nobody standing by)"}
-  n7a(["7a. STOP the run and print what failed —<br/>no safe default the way a missing spec has"])
+  n7a(["7a. STOP the run and print what failed -<br/>no safe default the way a missing spec has"])
   n7b["7b. Ask which branch to diff against"]:::gate
 
-  subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn — independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
+  subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
     n8a["8a. code-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
     n8b["8b. code-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
     n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
   end
 
-  n8d["8d. Hook: check-reviewer-writes — approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
+  n8d["8d. Hook: check-reviewer-writes - approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
   n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
-  subgraph applylist["10. Step 5 · Assemble the apply list — compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
+  subgraph applylist["10. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
     direction TB
-    n10a["10a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty —<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan"]
+    n10a["10a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty -<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan"]
     n10b{"10b. Step 5.2 · Mode == auto-solve?"}
-    n10b1["10b1. Report-only — neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
-    n10b2["10b2. Auto-solve — read BOTH verdict files IN FULL, never<br/>the legs' return summaries; sort every finding addressable<br/>vs not; print both lists with reasons BEFORE applying"]
+    n10b1["10b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
+    n10b2["10b2. Auto-solve - read BOTH verdict files IN FULL, never<br/>the legs' return summaries; sort every finding addressable<br/>vs not; print both lists with reasons BEFORE applying"]
     n10a --> n10b
     n10b -->|"report-only"| n10b1
     n10b -->|"auto-solve"| n10b2
@@ -186,18 +186,18 @@ flowchart TD
 
   n11{"11. Step 6 · Apply list empty?"}
 
-  subgraph delegate["12. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation — never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
+  subgraph delegate["12. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
     direction TB
     n12a["12a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
     n12b["12b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>three nesting levels on nothing"]:::skill
-    n12c["12c. Pass the apply list as EXPLICIT ids,<br/>never a severity floor — nothing re-derives<br/>the triage and quietly widens the scope"]
+    n12c["12c. Pass the apply list as EXPLICIT ids,<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
     n12d["12d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
     n12e["12e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
     n12f["12f. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
     n12a --> n12b --> n12c --> n12d --> n12e --> n12f
   end
 
-  n13(["13. Step 7 · Close with a report: every verdict path<br/>(+ any leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, and — on a report-only run —<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n13(["13. Step 7 · Close with a report: every verdict path<br/>(+ any leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a

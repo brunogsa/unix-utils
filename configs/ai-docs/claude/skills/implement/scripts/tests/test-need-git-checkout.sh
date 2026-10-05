@@ -71,8 +71,8 @@ write_plan() {
 
 it_should_say_no_checkout_needed_on_the_first_invocation_targeting_a_dag_root_pr() {
   local plan_file
-  plan_file=$(write_plan "happy-root" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
-2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: PR-1.')
+  plan_file=$(write_plan "happy-root" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+2. **PR-2** - Core loop. Tasks: 4, 5. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-1"
   assert_eq "should say no checkout needed on the first /implement invocation in a worktree targeting a DAG-root PR (exit code)" "0" "$VERDICT_EXIT"
@@ -81,8 +81,8 @@ it_should_say_no_checkout_needed_on_the_first_invocation_targeting_a_dag_root_pr
 
 it_should_say_checkout_needed_when_an_earlier_pr_already_recorded_its_branch() {
   local plan_file
-  plan_file=$(write_plan "happy-completed-batch" '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: none.')
+  plan_file=$(write_plan "happy-completed-batch" '1. **[Done] PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 4, 5. Depends on: none.')
 
   run_script "$plan_file" "PR-2"
   assert_eq "should say checkout needed when an earlier PR already recorded its branch on the plan (exit code)" "0" "$VERDICT_EXIT"
@@ -91,8 +91,8 @@ it_should_say_checkout_needed_when_an_earlier_pr_already_recorded_its_branch() {
 
 it_should_say_checkout_needed_on_first_invocation_when_the_targeted_pr_has_a_dependency() {
   local plan_file
-  plan_file=$(write_plan "corner-dependent-first-run" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
-2. **PR-2** — Core loop. Tasks: 4, 5. Depends on: PR-1.')
+  plan_file=$(write_plan "corner-dependent-first-run" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+2. **PR-2** - Core loop. Tasks: 4, 5. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2"
   assert_eq "should say checkout needed on the first invocation when the targeted PR has a dependency, even though it's the first run (exit code)" "0" "$VERDICT_EXIT"
@@ -101,8 +101,8 @@ it_should_say_checkout_needed_on_first_invocation_when_the_targeted_pr_has_a_dep
 
 it_should_error_when_the_requested_pr_n_label_is_absent_from_the_pr_breakdown() {
   local plan_file
-  plan_file=$(write_plan "failure-absent-label" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
-2. **PR-2** — Second slice. Tasks: 2. Depends on: PR-1.')
+  plan_file=$(write_plan "failure-absent-label" '1. **PR-1** - First slice. Tasks: 1. Depends on: none.
+2. **PR-2** - Second slice. Tasks: 2. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-9"
   assert_eq "should error when given a PR-N label absent from the plan's PR Breakdown (exit code)" "1" "$VERDICT_EXIT"

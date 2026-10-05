@@ -6,7 +6,7 @@
 # Usage:
 #   diffview-in-tmux.sh [<ref>]
 #
-# <ref> Any git commit-ish to diff the working tree against —
+# <ref> Any git commit-ish to diff the working tree against -
 # branch, tag, SHA, HEAD~5, a `git merge-base` output, etc.
 # Optional.
 #

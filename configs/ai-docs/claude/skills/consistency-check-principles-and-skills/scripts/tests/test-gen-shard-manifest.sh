@@ -37,7 +37,7 @@ assert_status() {
 
 # Build a fixture repo laid out like this repo:
 # <root>/configs/ai-docs/claude with CLAUDE.md, skills/, and
-# agents/ siblings — the "sibling" branch of check.sh's
+# agents/ siblings - the "sibling" branch of check.sh's
 # nested-then-sibling resolution.
 new_fixture() {
     local d
@@ -49,7 +49,7 @@ new_fixture() {
 }
 
 # Physical claude-root for a fixture (mktemp -d can itself sit
-# behind a symlink, e.g. macOS's /tmp -> /private/tmp — resolve
+# behind a symlink, e.g. macOS's /tmp -> /private/tmp - resolve
 # it the same way the script under test must, so path assertions
 # compare like with like).
 claude_root() {
@@ -154,7 +154,7 @@ EOF
 }
 
 # A path shown purely as an illustrative example inside a fenced
-# code block is not a genuine cross-reference — skills quote
+# code block is not a genuine cross-reference - skills quote
 # example paths constantly, and resolving those would silently
 # widen exactly what sharding exists to narrow (Scout #48).
 it_should_not_pull_in_a_cross_reference_shown_only_inside_a_fenced_code_block() {
@@ -182,7 +182,7 @@ EOF
 
 # Companion to the fenced-block exclusion above: a genuine
 # reference outside the fence, in the same file that also
-# contains a fenced example, must still resolve — proving the
+# contains a fenced example, must still resolve - proving the
 # fix narrows detection instead of disabling it.
 it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file() {
     echo "it_should_still_pull_in_a_cross_reference_that_appears_outside_a_fenced_code_block_in_the_same_file"
@@ -217,7 +217,7 @@ EOF
 # must not be walked into the shard's own-file list.
 #
 # Before the fix, `find -L` descended into it
-# unconditionally — harmless for a tiny fixture.
+# unconditionally - harmless for a tiny fixture.
 #
 # But this repo's doc-standards/scripts/node_modules/typescript
 # ships multi-megabyte minified bundles that turned this same
@@ -275,7 +275,7 @@ EOF
 
 # Regression: a skill's own `__pycache__/` (Python bytecode
 # cache, gitignored and never skill content) must not be walked
-# into the shard's own-file list — same defect class
+# into the shard's own-file list - same defect class
 # node_modules already has a prune for (Scout #47).
 it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list() {
     echo "it_should_exclude_files_under_a_pycache_directory_from_a_skills_own_file_list"
@@ -443,7 +443,7 @@ EOF
 
 # Regression: a symlinked CLAUDE.md (this repo's own
 # ~/.claude/CLAUDE.md layout) must resolve to one physical path
-# everywhere it appears — as the shard root AND via a
+# everywhere it appears - as the shard root AND via a
 # cross-reference.
 #
 # Never two spellings of the same file in one shard's list.

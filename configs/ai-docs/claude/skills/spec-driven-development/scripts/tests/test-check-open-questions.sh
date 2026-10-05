@@ -35,7 +35,7 @@ assert_eq() {
 
 # run_script - invokes check-open-questions.sh against one or
 # two fixtures, capturing stderr/exit code into
-# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded - these tests
 # assert on exit code and diagnostic presence only).
 run_script() {
   local err_file="$work_dir/stderr.txt"

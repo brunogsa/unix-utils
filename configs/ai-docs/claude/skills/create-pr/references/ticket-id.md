@@ -1,6 +1,6 @@
-# Ticket ID — resolving the Jira/Linear prefix
+# Ticket ID - resolving the Jira/Linear prefix
 
-Read this on every `create-pr` run (step 1), and from any skill that dispatches `pr-creator` — the one rule for which ticket names the PR.
+Read this on every `create-pr` run (step 1), and from any skill that dispatches `pr-creator` - the one rule for which ticket names the PR.
 
 The resolved ID prefixes the PR title as `[<ID>] <Title>` (`pr-finalizer`) and fills the body's `## Jira link` bullet (`pr-writer`), so both come from one answer and never disagree.
 

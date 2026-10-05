@@ -1,10 +1,10 @@
-# Coverage Taxonomy — corner cases and failure modes
+# Coverage Taxonomy - corner cases and failure modes
 
 Canonical checklists of the corner-case and failure-mode categories any coverage exercise probes.
 
 Single source of truth: the `brainstorm-why` interview probes, the `spec-driven-development` spec-template checklists, and test-standards test design all point here.
 
-Edit this file, never their inline recaps — parallel copies drift and ship coverage gaps between what's asked and what's checked.
+Edit this file, never their inline recaps - parallel copies drift and ship coverage gaps between what's asked and what's checked.
 
 ## Corner cases (data-shape boundaries)
 
@@ -15,7 +15,7 @@ For each input field or collection the change touches:
 - unicode / whitespace-only / leading-trailing spaces
 - duplicate / out-of-order entries
 - boundary numbers (0, -1, MAX_INT, off-by-one)
-- caps and limits — a cap of N owes an explicit N+1 case proving the cap engages
+- caps and limits - a cap of N owes an explicit N+1 case proving the cap engages
 - numeric precision (float rounding, division remainders, shares that must reconcile to a total, currency as cents vs float)
 - clock / timezone / DST boundaries (midnight, month-end, leap day)
 - timestamp format / offset (ISO-8601 vs epoch, `Z` vs `+00:00`, fractional seconds, naive vs zoned)
@@ -23,7 +23,7 @@ For each input field or collection the change touches:
 
 ## Failure modes (adverse interactions and dependencies)
 
-For each dependency call and state-changing operation — every call owes at minimum its success, error-response, and timeout/never-responds branches:
+For each dependency call and state-changing operation - every call owes at minimum its success, error-response, and timeout/never-responds branches:
 
 - validation error (4xx)
 - downstream timeout / never-responds
@@ -36,7 +36,7 @@ For each dependency call and state-changing operation — every call owes at min
 - network drop mid-operation
 - datastore unavailable / deadlock / constraint violation
 - crash mid-transaction (what state does the retry see?)
-- cache in both directions — populate and read back, then clear or invalidate (value gone, refetch reloads)
+- cache in both directions - populate and read back, then clear or invalidate (value gone, refetch reloads)
 - stale cache (serving pre-change data after the change lands)
 - resource exhaustion (disk / memory / connection pool / queue backpressure)
 
@@ -51,7 +51,7 @@ For each event or message the change consumes or emits:
 
 ## Classification and probing notes
 
-Concurrency and idempotency file under failure modes (adverse interaction with state), not corner cases (data shape) — probe and checklist them there.
+Concurrency and idempotency file under failure modes (adverse interaction with state), not corner cases (data shape) - probe and checklist them there.
 
 Both take concrete forms per layer: on a UI, the control stays disabled during fetch; on an API, idempotency keys and retry-resistant operations.
 

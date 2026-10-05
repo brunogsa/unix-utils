@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Smoke tests for config-change-ledger.py's classify() — the pure function
+"""Smoke tests for config-change-ledger.py's classify() - the pure function
 that maps a changed file path to the config surface an audit reasons about.
 
-Fixtures: none on disk — every input is a literal path string small enough
+Fixtures: none on disk - every input is a literal path string small enough
 to verify the expected surface by eye against CONFIG_PATH's own layout
 rules (skills/agents/hooks/scripts are directories; settings.json etc. are
 single files).

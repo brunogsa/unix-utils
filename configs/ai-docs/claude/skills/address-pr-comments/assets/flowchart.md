@@ -1,6 +1,6 @@
 ---
 # performance-check budget overrides, not part of the diagram itself.
-# This file renders one flow twice — once as pseudo-code, once as a diagram — so
+# This file renders one flow twice - once as pseudo-code, once as a diagram - so
 # its size is fixed by the skill's step count, and trimming to the bundled defaults
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
@@ -8,9 +8,9 @@ words-budget: 4096
 lines-budget: 512
 ---
 
-# address-pr-comments — flow overview
+# address-pr-comments - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
@@ -23,7 +23,7 @@ Python-shaped for readability only; nothing here runs, and the function names st
 def address_pr_comments(pr, filters):
     state = create(f"/tmp/address-pr-comments_{session_id}_{ts}.json")   # 2
 
-    # 3 · Seed the TaskList ONCE, before Step 0 runs — one [Reminder] per
+    # 3 · Seed the TaskList ONCE, before Step 0 runs - one [Reminder] per
     #     remaining step (global CLAUDE.md rule). Each is updated as it
     #     completes; the TaskList survives compaction, so nothing is re-seeded.
     TaskCreate("[Reminder] Step 0: Pre-flight interview")                # 3a
@@ -36,23 +36,23 @@ def address_pr_comments(pr, filters):
     TaskCreate("[Reminder] Step 7: Post replies (7a-7d)")                # 3h
     TaskCreate("[Reminder] Step 8: Final report")                       # 3i
 
-    # 4 · Step 0 — read-only probing: is the tree dirty, and which runners exist?
+    # 4 · Step 0 - read-only probing: is the tree dirty, and which runners exist?
     dirty = git("status", "--porcelain")
     runners = probe_lint_and_test_markers()
 
-    # 5 · Step 0 — ONE message, asking only the conditions that actually hold.
+    # 5 · Step 0 - ONE message, asking only the conditions that actually hold.
     answers = ask_together(
-        "Dirty tree — commit now?" if dirty else None,
-        "Green baseline check?",              # default no — 1c precondition
+        "Dirty tree - commit now?" if dirty else None,
+        "Green baseline check?",              # default no - 1c precondition
         "Which runner?" if ambiguous(runners) else None,
-        "Repo-green gate after changes?",     # default no — step 5 baseline+gate
+        "Repo-green gate after changes?",     # default no - step 5 baseline+gate
         "Tails after this batch?",            # default no
     )
     state.write(answers)   # 6 · persisted, so the answers survive compaction
 
     # ---- Step 1 · 1a-1d run sequentially, fail-fast on the first failure ----
     if not on_pr_branch(pr):                               # 7 · Step 1a
-        return abort("not on the PR branch — run gh pr checkout")        # 7a
+        return abort("not on the PR branch - run gh pr checkout")        # 7a
 
     if state.answers.tree_is_dirty:                        # 8 · Step 1b
         load_skill("commit-standards")                     # 8a
@@ -67,7 +67,7 @@ def address_pr_comments(pr, filters):
 
     owner_repo, my_login = resolve_repo_and_login()        # 10 · Step 2
 
-    # 11 · Step 3 — ONE subagent, general-purpose · sonnet · medium, background,
+    # 11 · Step 3 - ONE subagent, general-purpose · sonnet · medium, background,
     #      serial. It reads fetch-cluster-propose.md + review-principles.md and
     #      does the fetch, filter, cluster, rank, and propose.
     clusters = dispatch("general-purpose · sonnet · medium", background=True)
@@ -79,7 +79,7 @@ def address_pr_comments(pr, filters):
 
     while True:
         # 14 · ONE round: the user flips actions, edits reasons, deletes
-        #      clusters — per-cluster action approval.
+        #      clusters - per-cluster action approval.
         edited = user_edits(proposal)
         parsed = parse(edited)                             # 15 · Step 4
         if parsed.ok:                                      # 16
@@ -89,7 +89,7 @@ def address_pr_comments(pr, filters):
     for c in parsed.applied_clusters:                      # 17
         TaskCreate(f"[Task] {c.title}")
 
-    # 18 · Step 5 — repo-green BASELINE, opt-in, before any cluster edit.
+    # 18 · Step 5 - repo-green BASELINE, opt-in, before any cluster edit.
     if state.answers.repo_green_gate:                      # 18
         # 18a · mode=baseline: fixes nothing, just records evidence to diff
         #       against later. Log path/failures/inventory -> state.repo_green.baseline.
@@ -112,7 +112,7 @@ def address_pr_comments(pr, filters):
             # 19f1 · the answer resumes the CURRENT cluster, then moves on.
             ask("a separate Drift commit, or bundle it?")  # 19f1
 
-    # 20 · Step 5 — repo-green GATE, opt-in, after all clusters committed,
+    # 20 · Step 5 - repo-green GATE, opt-in, after all clusters committed,
     #      before the push. Fixes only batch-caused red; never touches
     #      pre-existing red; own 3-cycle-per-signature budget.
     if state.answers.repo_green_gate:                      # 20
@@ -121,20 +121,20 @@ def address_pr_comments(pr, filters):
         if verdict == "HALT":                               # 20b
             # 20b1 · never push broken commits; never hand-fix what the
             #        runner already handed back.
-            return abort("repo-green gate HALT — surface surviving red")  # 20b1
+            return abort("repo-green gate HALT - surface surviving red")  # 20b1
 
-    confirm_with_user("git push")   # 21 · Step 6 — the batch push gate
+    confirm_with_user("git push")   # 21 · Step 6 - the batch push gate
     while True:
         git("push")                                        # 22 · single batch push
         if not push_rejected_remote_moved():               # 23
             break
         # 23a · stop and surface it. The per-cluster commits stand, and the user
-        #       resolves the divergence manually — never auto-rebase. Retrying
+        #       resolves the divergence manually - never auto-rebase. Retrying
         #       re-enters the push ONLY, never step 5's commit logic.
         return abort("remote moved")                       # 23a
 
     # ---- Step 7 · one reply per surviving reply target ----
-    # A target is one thread_id, one top-level comment, or one review-summary —
+    # A target is one thread_id, one top-level comment, or one review-summary -
     # never a single comment inside a thread, which would post duplicates.
     while targets_remaining_in_surviving_clusters():       # 24
         # 24a · per templates 7a-7c (apply / answer / drop) and the signature
@@ -151,7 +151,7 @@ def address_pr_comments(pr, filters):
                 skip_and_list_in_final_report()             # 24b2b1
 
     if state.answers.tails:                                # 25 · Step 7d
-        # 25a · Step 7d — 2x code-reviewer · agent-pinned, parallel (∥),
+        # 25a · Step 7d - 2x code-reviewer · agent-pinned, parallel (∥),
         #       background, reading code-reviewer-tail-pair.md.
         #       Lens A simplification → verdict_refactor_*.md
         #       Lens B correctness   → verdict_auto-review_*.md
@@ -160,7 +160,7 @@ def address_pr_comments(pr, filters):
         #       writes to verdict_*.md or /tmp, and denies everything else.
 
         # 25c · read BOTH reports, synthesize a prioritized summary,
-        #       and offer to apply — report-only by default.
+        #       and offer to apply - report-only by default.
         summary = synthesize(read_all(tails))
         if user_names_specific_findings():                 # 25d
             for f in named_findings():
@@ -168,7 +168,7 @@ def address_pr_comments(pr, filters):
                 #        medium, serial. Test-first: confirm RED, apply, confirm GREEN.
                 dispatch("general-purpose · sonnet · medium", finding=f)
 
-    # 26 · Step 8 — applied / answered / dropped / skipped counts, plus the
+    # 26 · Step 8 - applied / answered / dropped / skipped counts, plus the
     #      repo-green gate verdict (when it ran) and the tails findings.
     return print(final_summary())
 ```
@@ -180,7 +180,7 @@ flowchart TD
   n1(["1. /address-pr-comments PR# [filters]"]):::start
   n2["2. Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
 
-  subgraph seedReminders["3. Seed the TaskList once, before Step 0 runs — one [Reminder] per remaining step (global CLAUDE.md rule).<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
+  subgraph seedReminders["3. Seed the TaskList once, before Step 0 runs - one [Reminder] per remaining step (global CLAUDE.md rule).<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
     direction TB
     n3a["3a. Add to TaskList a [Reminder] for Step 0:<br/>Pre-flight interview"]:::state
     n3b["3b. Add to TaskList a [Reminder] for Step 1:<br/>Validate preconditions (1a-1d)"]:::state

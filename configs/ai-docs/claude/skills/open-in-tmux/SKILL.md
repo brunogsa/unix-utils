@@ -5,7 +5,7 @@ description: Run a command in a new tmux pane, or open a git diff in neovim's Di
 
 # open-in-tmux
 
-Open any command in the user's tmux session — file review in nvim, live output streaming with `tail -f`, or any other shell command.
+Open any command in the user's tmux session - file review in nvim, live output streaming with `tail -f`, or any other shell command.
 Composable for multi-pane layouts.
 The user observes the pane; I keep going.
 
@@ -30,7 +30,7 @@ The user observes the pane; I keep going.
 |---|---|
 | `vertical` | Side-by-side split of the caller's own pane (this session's pane, not the pane the user is currently viewing). |
 | `horizontal` | Stacked split of the caller's own pane (same targeting as `vertical`). |
-| `window` | New tmux window — leaves the current layout untouched. |
+| `window` | New tmux window - leaves the current layout untouched. |
 | `pane:<N>` | Send the command to pane N (types it into the existing shell via send-keys; preserves pane history and state). |
 
 ## Picking the mode
@@ -46,7 +46,7 @@ For multi-pane layouts in one exchange, invoke once per command with the matchin
 
 ## Reviewing a git diff (branch, or since a commit)
 
-For the common "let me review what you did" case — the whole-branch diff, or the diff since some commit — use the sibling helper instead of hand-writing the nvim command:
+For the common "let me review what you did" case - the whole-branch diff, or the diff since some commit - use the sibling helper instead of hand-writing the nvim command:
 
 ```
 ~/.claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh [<ref>]
@@ -63,7 +63,7 @@ It opens a `vertical` pane running `nvim -c 'DiffviewOpen <ref>'` in the repo ro
 
 ## After every successful invocation
 
-Two modes — behavior differs:
+Two modes - behavior differs:
 
 **File review** (nvim, diffview): wait for the user's next message.
 
@@ -74,7 +74,7 @@ Two modes — behavior differs:
 **Streaming output** (`tail -f`, long-running command): the pane is for the user to observe IN PARALLEL.
 
 - Do NOT pause or wait.
-- Continue executing the next steps immediately — check the output file yourself.
+- Continue executing the next steps immediately - check the output file yourself.
 - Never ask the user to signal when the command finishes.
 
 The script prints a reminder on stdout after every dispatch. For streaming invocations, override it: keep working.
@@ -87,11 +87,11 @@ Tell the user: "I can't open a tmux pane from here, but you can run the printed 
 
 ## What NOT to use this for
 
-**Unsolicited streaming.** The pane is a viewer for the user — open it only when they ask.
+**Unsolicited streaming.** The pane is a viewer for the user - open it only when they ask.
 
 - For streaming, always `tail -f /tmp/file.txt` in the pane.
 - Never re-run the original command (it exits when done, closing the pane immediately).
 
-**Interactive bulk diff-walking.** `vimreview` and the neovim diffview keymaps (`<leader>td/tD/th`) are the user's own interactive TTY tools for stepping through many changes — Claude can't drive them (they need a hands-on terminal).
+**Interactive bulk diff-walking.** `vimreview` and the neovim diffview keymaps (`<leader>td/tD/th`) are the user's own interactive TTY tools for stepping through many changes - Claude can't drive them (they need a hands-on terminal).
 
-For a git branch/commit diff Claude CAN open on request, use the `diffview-in-tmux.sh` helper above — that leaves `vimreview` for the human's own review, no overlap.
+For a git branch/commit diff Claude CAN open on request, use the `diffview-in-tmux.sh` helper above - that leaves `vimreview` for the human's own review, no overlap.

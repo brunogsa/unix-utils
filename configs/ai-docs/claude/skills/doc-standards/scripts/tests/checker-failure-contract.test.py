@@ -50,7 +50,7 @@ def build_fixture_bytes(accented_e):
             "- The wording follows writing-style.md's \"Hard wrap budget\".\n"
             "- Each nightly export writes one compressed archive per region to the "
             "shared bucket, keeping thirty days of history for the finance team to "
-            "audit — the cleanup job deletes anything older and logs every removed "
+            "audit - the cleanup job deletes anything older and logs every removed "
             "archive name so a missing file can be traced back to its deletion\n"
             '"""\n'
         ).encode("utf-8")

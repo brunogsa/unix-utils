@@ -13,12 +13,12 @@
 #   <describe> > <it>
 #     for a flat helper block (no class comment)
 #
-# --pairs: prints `<bare-it><TAB><breadcrumb>` per line — each
+# --pairs: prints `<bare-it><TAB><breadcrumb>` per line - each
 # bare it() title next to its reconstructed breadcrumb.
 #
 # --annotations: prints
 # `<bare-it><TAB><breadcrumb><TAB><AC tokens><TAB><T tokens>`
-# per line — the AC/T tokens parsed from a trailing
+# per line - the AC/T tokens parsed from a trailing
 # `// AC-<n>... T<n>... [on-demand]` comment on the it() line.
 #
 # (the single-source annotation grammar; see
@@ -54,10 +54,10 @@
 #
 # Plans write the two-arg form for failure-branch titles,
 # e.g. `{ expectFailure: true }`; the old `it\("[^"]*"\)`
-# invariant skipped such a line entirely — no title, no
-# breadcrumb, no annotation — silently under-extracting.
+# invariant skipped such a line entirely - no title, no
+# breadcrumb, no annotation - silently under-extracting.
 #
-# The breadcrumb is DERIVED from Test Design's own structure —
+# The breadcrumb is DERIVED from Test Design's own structure -
 # the `describe("X")` name and the nearest `// Happy cases` /
 # `// Corner cases` / `// Failure scenarios` comment above the
 # it().

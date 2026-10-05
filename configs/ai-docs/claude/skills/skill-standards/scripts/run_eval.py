@@ -25,8 +25,8 @@ def resolve_sandbox_auth() -> str | None:
     """Resolve authentication for the isolated sandbox config dirs.
 
     With CLAUDE_CONFIG_DIR set, claude reads credentials from a
-    .credentials.json INSIDE that dir — never from the default store
-    (macOS Keychain / ~/.claude/.credentials.json) — so a fresh sandbox
+    .credentials.json INSIDE that dir - never from the default store
+    (macOS Keychain / ~/.claude/.credentials.json) - so a fresh sandbox
     is "Not logged in" unless a credential is materialized into it.
 
     Returns the subscription OAuth credential JSON to write into each
@@ -256,8 +256,8 @@ def run_single_query(
                 process.kill()
                 process.wait()
 
-        # A run with zero JSON events did not evaluate anything
-        # — plain-text output like "Not logged in" would
+        # A run with zero JSON events did not evaluate anything.
+        # Plain-text output like "Not logged in" would
         # otherwise score as a silent non-trigger and mask an
         # auth failure as a description failure.
         if not saw_json_event:

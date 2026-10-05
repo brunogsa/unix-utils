@@ -305,7 +305,7 @@ for segment in split_segments(cmd):
 if not blocked:
     sys.exit(0)
 
-message = ['bash write guard blocked this command — these paths must be written through the Edit or Write tool:']
+message = ['bash write guard blocked this command - these paths must be written through the Edit or Write tool:']
 for path in blocked:
     message.append('  - ' + path)
 message.append('A Bash write skips the PostToolUse prose-format checker, so its violations surface later as a red suite.')

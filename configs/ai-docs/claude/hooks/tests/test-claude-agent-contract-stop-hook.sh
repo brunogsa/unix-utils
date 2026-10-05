@@ -13,7 +13,7 @@
 # paths it finds there, so each case writes a real fixture dir
 # plus a minimal transcript naming a subset of it.
 #
-# That makes the two filters observable — which is the whole
+# That makes the two filters observable - which is the whole
 # point, since the orchestrator's own test stubs this gate out
 # entirely.
 #
@@ -49,7 +49,7 @@ assert_eq() {
 # Passing "valid" gives it all six headings;
 #
 # anything else stops after Objective, which the checker reports
-# as five missing headings — deliberately more than one, so the
+# as five missing headings - deliberately more than one, so the
 # grouping assertion has something to group.
 write_agent() {
   local dir="$1" name="$2" shape="$3"
@@ -138,7 +138,7 @@ it_should_stay_silent_when_the_edited_agent_file_satisfies_the_contract() {
 }
 
 # Loop guard: the hook cannot re-verify its own fix, so it must
-# bow out on the stop its own block caused — otherwise an
+# bow out on the stop its own block caused - otherwise an
 # always-on gate spins forever.
 it_should_stay_silent_when_its_own_block_caused_this_stop() {
   local d="$work_dir/case-loop"

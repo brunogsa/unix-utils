@@ -2,9 +2,9 @@
 """Parity tests: both parsers must produce identical output for the 2026-W16 fixtures.
 
 Fixtures:
-  scripts/tests/fixtures/gcal_mcp_2026w16.json  — raw MCP JSON for Apr 13-17 2026
-  scripts/tests/fixtures/expected_2026w16.json   — golden output both parsers must match
-  ~/brag/calendar-example.ical.zip               — full calendar export (private repo, not
+  scripts/tests/fixtures/gcal_mcp_2026w16.json  - raw MCP JSON for Apr 13-17 2026
+  scripts/tests/fixtures/expected_2026w16.json   - golden output both parsers must match
+  ~/brag/calendar-example.ical.zip               - full calendar export (private repo, not
                                                    in unix-utils); ICS tests skipped if absent
 
 Usage:
@@ -53,13 +53,13 @@ class TestParserParity(unittest.TestCase):
         result = parse_gcal_events(str(MCP_FIXTURE), START, END)
         self.assertEqual(result, self.expected)
 
-    @unittest.skipUnless(BRAG_ZIP.exists(), "~/brag/calendar-example.ical.zip not found — skipped")
+    @unittest.skipUnless(BRAG_ZIP.exists(), "~/brag/calendar-example.ical.zip not found - skipped")
     def test_ics_parser_matches_golden(self):
         ics = _extract_ics(BRAG_ZIP)
         result = parse_ics_events(str(ics), START, END)
         self.assertEqual(result, self.expected)
 
-    @unittest.skipUnless(BRAG_ZIP.exists(), "~/brag/calendar-example.ical.zip not found — skipped")
+    @unittest.skipUnless(BRAG_ZIP.exists(), "~/brag/calendar-example.ical.zip not found - skipped")
     def test_both_parsers_match_each_other(self):
         mcp = parse_gcal_events(str(MCP_FIXTURE), START, END)
         ics = _extract_ics(BRAG_ZIP)

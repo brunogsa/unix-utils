@@ -10,7 +10,7 @@
 # an `// AC-<n>` or `T<n>` token puts the WHOLE plan in
 # annotated form).
 #
-# ANNOTATED form (single source — the distribution lives ONLY as
+# ANNOTATED form (single source - the distribution lives ONLY as
 # inline `T<n>` comments on Test Design's it() lines; see
 # plan-template.md).
 #
@@ -22,7 +22,7 @@
 #       actually defines (catches a distribution to an
 #       invented/typo'd task number).
 #
-# LIST form (old — still required so plans listing tests
+# LIST form (old - still required so plans listing tests
 # under each task's `**Tests (planned)**:` bullets keep
 # passing unchanged; a transition path this comment already
 # marks for removal once no plan uses it).
@@ -57,7 +57,7 @@
 # place.
 # N/A tasks contribute nothing (correct).
 #
-# A Test Design section whose body reads "N/A — <reason>"
+# A Test Design section whose body reads "N/A - <reason>"
 # designs no test at all, so it has nothing to distribute.
 # plan-template.md sanctions that escape for a pure
 # refactor, config edit, or similar no-behavior-change work.
@@ -162,7 +162,7 @@ fi
 # check-ac-coverage.sh does: any it() row with a non-empty T
 # column puts the whole plan in annotated form.
 #
-# Skipped when the design is N/A (no it() lines at all — form
+# Skipped when the design is N/A (no it() lines at all - form
 # doesn't apply; the list-form N/A handling below covers it).
 is_annotated=false
 
@@ -211,13 +211,13 @@ if [ "$is_annotated" = true ]; then
   exit 1
 fi
 
-# LIST form (below): unchanged from before this dispatch — see
+# LIST form (below): unchanged from before this dispatch - see
 # header comment.
 
 set_b=""
 for n in $task_nums; do
   # extract exits 1 if a task lacks its
-  # `**Tests (planned)**:` bullet — surface that as a plan
+  # `**Tests (planned)**:` bullet - surface that as a plan
   # defect.
   if ! titles=$("$extract" "$plan" "$n"); then
     echo "error: task $n is malformed (missing '**Tests (planned)**:' bullet); see extractor output above" >&2
@@ -253,7 +253,7 @@ if [ "$is_design_na" = true ]; then
     exit 1
   fi
 
-  echo "OK: Test Design has nothing to distribute (reads 'N/A — ...'), and no task plans a test."
+  echo "OK: Test Design has nothing to distribute (reads 'N/A - ...'), and no task plans a test."
   exit 0
 fi
 

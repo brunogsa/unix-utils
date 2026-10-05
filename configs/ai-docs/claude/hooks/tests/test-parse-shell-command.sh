@@ -5,7 +5,7 @@
 #   bash test-parse-shell-command.sh
 #
 # Exits 0 when every assertion passes, non-zero
-# otherwise. No bats dependency by design — matches
+# otherwise. No bats dependency by design - matches
 # the sibling hook suites in this directory.
 #
 # The parsing logic itself lives in a Python module

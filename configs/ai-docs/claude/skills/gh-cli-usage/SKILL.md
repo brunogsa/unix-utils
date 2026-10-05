@@ -11,7 +11,7 @@ Use the `gh` CLI for all GitHub operations. Do NOT suggest installing the GitHub
 ## Why gh CLI over GitHub MCP
 
 - Zero context tokens at startup (MCP costs ~7-14k tokens loaded always)
-- Stateless — works identically across multiple Claude Code processes
+- Stateless - works identically across multiple Claude Code processes
 - Claude already knows the gh API deeply from training data
 
 ## Common Operations
@@ -67,7 +67,7 @@ gh api repos/{owner}/{repo}/... [--method GET|POST|PATCH]
 
 ## Fallback: REST `gh api` when high-level subcommands fail
 
-If a high-level `gh` subcommand fails with a GraphQL deprecation warning, don't fight it — drop to the REST API directly via `gh api`.
+If a high-level `gh` subcommand fails with a GraphQL deprecation warning, don't fight it - drop to the REST API directly via `gh api`.
 
 - Examples: GitHub deprecates a field used by `gh pr view --json X`, `gh issue list ...`, etc.
 - REST endpoints are versioned independently and rarely break.
@@ -85,7 +85,7 @@ gh api repos/{owner}/{repo}/pulls/<num>
 
 # Instead of:  gh pr edit <num> --body-file ./body.md
 #   gh pr edit eagerly queries repository.pullRequest.projectCards (Projects classic).
-#   Where that is sunset it errors and silently fails the write, sometimes still exiting 0 —
+#   Where that is sunset it errors and silently fails the write, sometimes still exiting 0 -
 #   which is why the read-back below is mandatory, not optional. REST touches no Projects data.
 gh api -X PATCH "repos/{owner}/{repo}/pulls/<num>" -F body=@./body.md
 gh pr view <num> --json body   # read-back: confirm the new body matches the file

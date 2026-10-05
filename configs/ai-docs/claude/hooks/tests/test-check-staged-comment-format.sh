@@ -6,7 +6,7 @@
 #   bash test-check-staged-comment-format.sh
 #
 # Exits 0 when every assertion passes, non-zero
-# otherwise. No bats dependency by design — matches
+# otherwise. No bats dependency by design - matches
 # the sibling hook suites in this directory.
 #
 # Every fixture repo gets a real initial commit: the
@@ -162,7 +162,7 @@ it_should_block_a_violation_in_a_file_the_command_stages() {
 }
 
 # A `git add` appearing only inside a commit message is
-# data, not structure — the shared parser drops heredoc
+# data, not structure - the shared parser drops heredoc
 # bodies precisely so it is never read as a real one.
 it_should_ignore_a_git_add_quoted_inside_a_commit_message() {
   local repo command
@@ -367,7 +367,7 @@ it_should_allow_the_commit_when_the_checker_reports_trouble() {
 
 # `git commit -a` stages every tracked modified file at
 # commit time, and the gate parses only `git add`
-# pathspecs — so a `-a` commit left it with no file set at
+# pathspecs - so a `-a` commit left it with no file set at
 # all, and the still-empty index then passed it in silence.
 it_should_block_a_violation_git_commit_dash_a_would_stage() {
   local repo

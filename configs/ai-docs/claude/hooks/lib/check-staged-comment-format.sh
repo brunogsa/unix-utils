@@ -96,7 +96,7 @@ import sys
 
 # strip_heredoc_bodies() and the quote-aware pipeline
 # splitter live in parse-shell-command.py, shared with the
-# rm and scan-hang guards — see that module's header for why
+# rm and scan-hang guards - see that module's header for why
 # they load it this way rather than with a bare `import`.
 _lib_path = os.path.join(os.environ['CLAUDE_HOOKS_LIB_DIR'], 'parse-shell-command.py')
 _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
@@ -335,7 +335,7 @@ def command_scope(command, start_directory):
 
     None is the whole-command verdict, not a per-pathspec one: a single unresolvable member means the caller's real file set is unknown, and the other members are no longer a set anyone can trust.
 
-    A pathspec is relative to whatever directory its own `git add` runs in, so the walk tracks a `cd` the same way claude-rm-guard.sh does — every dispatched agent emits `cd <repo> && git add ...`, its working directory having reset.
+    A pathspec is relative to whatever directory its own `git add` runs in, so the walk tracks a `cd` the same way claude-rm-guard.sh does - every dispatched agent emits `cd <repo> && git add ...`, its working directory having reset.
     """
     paths = []
     added_paths = []

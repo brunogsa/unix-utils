@@ -58,7 +58,7 @@ fi
 MAX_DESC_CHARS=250
 
 # Names exempt from MAX_DESC_CHARS, space-separated.
-# Each needs a reason the budget's own rationale never covered —
+# Each needs a reason the budget's own rationale never covered -
 # a longer description alone is never one.
 #
 #   markdown-standards-fixer - carries an ask-the-user-first

@@ -15,7 +15,7 @@ Usage:
     # 1. Discover the transaction id for a contract version
     extract-payloads.py --csv core.csv --list-transactions --grep 766128
 
-    # 2. Pull that transaction's payloads (pretty JSON, one ###section### per payload —
+    # 2. Pull that transaction's payloads (pretty JSON, one ###section### per payload -
     #    paste each body into a fenced ```json block in the notes file)
     extract-payloads.py --csv core.csv --middleware-csv middleware.csv \\
         --transaction-id 525e14b8-a0ba-4ef0-9bac-b22aad5c674b \\
@@ -70,7 +70,7 @@ def load_rows(path):
 def parse_log_line(row):
     """Return the parsed `@message` JSON, or None when the line is not JSON.
 
-    Not every log line is structured — plain-text lines exist and must not abort the run.
+    Not every log line is structured - plain-text lines exist and must not abort the run.
     """
     raw = row.get("@message")
     if not raw:
@@ -83,7 +83,7 @@ def parse_log_line(row):
 
 
 def row_transaction_id(row, parsed):
-    """Prefer the CSV column, fall back to the log line — the query may not have selected it."""
+    """Prefer the CSV column, fall back to the log line - the query may not have selected it."""
     return row.get("transactionId") or (parsed or {}).get("transactionId")
 
 
@@ -113,7 +113,7 @@ def trim_fields(node, field_names):
         result = {}
         for key, value in node.items():
             if key.lower() in wanted and isinstance(value, list):
-                result[key] = f"[omitido: {len(value)} itens — preservado no CSV bruto]"
+                result[key] = f"[omitido: {len(value)} itens - preservado no CSV bruto]"
             else:
                 result[key] = trim_fields(value, field_names)
         return result
@@ -205,7 +205,7 @@ def build_evidence(args):
 
 def emit(evidence, minified):
     # One section per header.
-    # Pretty by default — paste each body straight into a fenced
+    # Pretty by default - paste each body straight into a fenced
     # ```json block in the notes file. --minified
     # collapses it to one line instead.
     for section in SECTIONS:

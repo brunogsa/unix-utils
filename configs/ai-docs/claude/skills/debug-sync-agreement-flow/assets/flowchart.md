@@ -1,6 +1,6 @@
-# debug-sync-agreement-flow — flow overview
+# debug-sync-agreement-flow - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 ```mermaid
 flowchart TD
@@ -13,7 +13,7 @@ flowchart TD
   n7["7. Step 6 · Write the notes file to the repo root:<br/>contractId-sync-notes.md, or ticket-log-evidence.md"]
   n8["8. Step 7 · Re-verify every load-bearing field against the raw CSV<br/>and report the list and its outcome"]
   n9{"9. Step 8 · Ask once: post the notes as a Jira comment, and to which ticket?"}:::gate
-  n9a(["9a. STOP — default is no post. The file alone is a complete outcome.<br/>No post without an explicit yes, and a yes covers one ticket only"]):::done
+  n9a(["9a. STOP - default is no post. The file alone is a complete outcome.<br/>No post without an explicit yes, and a yes covers one ticket only"]):::done
   n10["10. Check JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN are exported.<br/>Run post-jira-comment.sh with --dry-run"]
   n11{"11. Dry run warns of lost formatting?"}
   n11a["11a. Fix the notes file to the supported markdown set, then dry-run again"]

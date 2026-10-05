@@ -1,6 +1,6 @@
 ---
 name: auto-review
-description: "USE for code review on a local branch (no PR URL — use /pr-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review."
+description: "USE for code review on a local branch (no PR URL - use /pr-review). Triggers: 'review this branch' / 'audit my changes' / /auto-review."
 disable-model-invocation: false
 ---
 
@@ -8,9 +8,9 @@ disable-model-invocation: false
 
 Orchestrate a local code review by running the `code-review-pipeline` pipeline end-to-end inside one background `code-reviewer` orchestrator. Wave 2 reviews inline in that agent by default and fans its eight rubrics out, one agent each, only past the pipeline's diff-size gate.
 
-The invoking session usually authored the code under review, and a same-session author reviewing its own output carries "already convinced myself" bias — the orchestrator gives the review fresh context instead. Keeping the pipeline's read load out of main context is a secondary benefit.
+The invoking session usually authored the code under review, and a same-session author reviewing its own output carries "already convinced myself" bias - the orchestrator gives the review fresh context instead. Keeping the pipeline's read load out of main context is a secondary benefit.
 
-See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` for the dispatch mechanics (prompt body, reading that SKILL.md, orchestrating from there). The `code-reviewer` agent pins `model: opus` / `effort: high` and carries the write-guard hook, so the dispatch names no model — review judgment is the product here.
+See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` for the dispatch mechanics (prompt body, reading that SKILL.md, orchestrating from there). The `code-reviewer` agent pins `model: opus` / `effort: high` and carries the write-guard hook, so the dispatch names no model - review judgment is the product here.
 
 ## Usage
 
@@ -19,13 +19,13 @@ See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` f
 - `base-ref` defaults to the repo's default branch (auto-detected; works
   for `main`, `master`, or anything else).
 
-Every invocation runs isolated — there is no in-session mode left to opt
+Every invocation runs isolated - there is no in-session mode left to opt
 into or out of.
 
 Examples:
-- `/auto-review` — current branch vs. the repo's default (auto-detected).
-- `/auto-review develop` — current branch vs. `develop`.
-- `/auto-review HEAD~2` — review only the last 2 commits.
+- `/auto-review` - current branch vs. the repo's default (auto-detected).
+- `/auto-review develop` - current branch vs. `develop`.
+- `/auto-review HEAD~2` - review only the last 2 commits.
 
 ## When to invoke
 
@@ -50,7 +50,7 @@ Resolve `<BASE_REF>`:
 The code-review-pipeline's local-mode `{pr_context}` is "spec + plan" content
 (see `code-review-pipeline/references/common-preamble.md`). In CWDs that hold
 multiple session-scoped specs/plans, the orchestrator must pick which
-files feed the review — guessing would silently drop intent.
+files feed the review - guessing would silently drop intent.
 
 Discover candidates in CWD (top-level only, not recursive):
 
@@ -58,7 +58,7 @@ Discover candidates in CWD (top-level only, not recursive):
 ls -1 spec_*.md plan_*.md 2>/dev/null
 ```
 
-Apply this decision tree **per kind** — the spec and the plan resolve independently of each other:
+Apply this decision tree **per kind** - the spec and the plan resolve independently of each other:
 
 - **Exactly one of a kind** → use it. Print the resolved paths; no prompt needed.
 
@@ -66,16 +66,16 @@ Apply this decision tree **per kind** — the spec and the plan resolve independ
   - Zero of both kinds sets `<SPEC_PLAN_PATHS>=<none>`, and the review runs on commit messages plus the diff.
 
 - **More than one of a kind** → prompt with a numbered list and these options; never guess which spec or plan was meant.
-  - `all` — use every discovered file
-  - one or more numbers (comma-separated, e.g. `1,3,5`) — use just those
-  - `none` — skip spec/plan context entirely
-  - `cancel` — abort the review
+  - `all` - use every discovered file
+  - one or more numbers (comma-separated, e.g. `1,3,5`) - use just those
+  - `none` - skip spec/plan context entirely
+  - `cancel` - abort the review
 
 A prompt is only worth its friction when the human has something to choose between. One candidate or none leaves nothing to pick, so the run proceeds and reports what it used.
 
-`/quality-gate` §2 resolves the same two files itself, then pushes the resolved paths into its `auto-review` leg — so a leg never reaches this step.
+`/quality-gate` §2 resolves the same two files itself, then pushes the resolved paths into its `auto-review` leg - so a leg never reaches this step.
 
-That tree splits the same zero/one/many way but answers a multi-match differently — a single pick, and under either `--auto-solve` or `--report-only` neither file rather than a prompt.
+That tree splits the same zero/one/many way but answers a multi-match differently - a single pick, and under either `--auto-solve` or `--report-only` neither file rather than a prompt.
 
 So one CWD can yield different spec/plan context depending on the entry point. Read `/quality-gate` §2 before assuming an edit here covers both.
 
@@ -104,21 +104,21 @@ The code-review-pipeline expects these inputs:
 - **Base ref:** `<BASE_REF>` (resolved above)
 - **Language:** English
 - **Spec/plan files for `{pr_context}`:** `<SPEC_PLAN_PATHS>` (resolved above)
-  - If `<none>`, no spec/plan is available — proceed with commit messages +
+  - If `<none>`, no spec/plan is available - proceed with commit messages +
     diff only.
   - Otherwise, the listed absolute paths must be read verbatim and their
     concatenated content used as `{pr_context}` for every specialist
     (replacing the default lookup of the spec and the plan).
 
-With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background. Put the resolved inputs in its prompt body, tell it to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there — per that file's "How callers dispatch" — and wait for its completion notification.
+With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background. Put the resolved inputs in its prompt body, tell it to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there - per that file's "How callers dispatch" - and wait for its completion notification.
 
 After the pipeline finishes, the review is at
 `./verdict_auto-review_<branch>_<timestamp>.md` (Wave 6 summary contains the
-exact resolved path). It is always Markdown — `address-verdicts` re-reads and
+exact resolved path). It is always Markdown - `address-verdicts` re-reads and
 annotates it, which is exactly what the html-artifacts router's Gate 1 excludes
 from an interactive page.
 Print the file path, per-severity counts, skipped files, and the
-Wave 6 summary. Multiple runs accumulate as separate files — the branch
+Wave 6 summary. Multiple runs accumulate as separate files - the branch
 segment keeps runs from different branches distinguishable, and the timestamp
 preserves order when the user runs several reviews on the same branch in one
 CWD.
@@ -127,7 +127,7 @@ File one `[Scout]` TaskList entry per file listed in that summary's
 doc-standards-flags block, naming the file and what is off standard.
 
 The pipeline always runs isolated here, so its own TaskList write never
-reaches the user — this session is the first that can raise those flags, and
+reaches the user - this session is the first that can raise those flags, and
 repairing a flagged line stays the user's call.
 
 ### Severity in the verdict headings
@@ -146,14 +146,14 @@ A `QUESTION` finding heads `### N. [QUESTION] …` instead, carrying no ordinal 
 
 Emitting a priority tag where the ordinal belongs is what silently drops this lens out of every floored selection, since a floor has nothing to compare it against.
 
-**Report only — the skill stops here.** `/auto-review` produces the report and applies nothing.
+**Report only - the skill stops here.** `/auto-review` produces the report and applies nothing.
 
 Applying is `/address-verdicts`' job: it globs `verdict_auto-review_*.md` and routes each finding to the `tdd-coder` agent, which applies it RED-before-GREEN and commits under `commit-standards`.
 
 That is a test gate a reader sent to a generic "ask the AI to apply a subset" flow would have to reproduce by hand.
 
-Acting on findings is a separate, explicit step the user initiates — it is not part of this flow.
+Acting on findings is a separate, explicit step the user initiates - it is not part of this flow.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

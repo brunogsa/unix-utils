@@ -408,7 +408,7 @@ run_unreadable() {
 # and 2-byte accented letters - 240 chars but 270 bytes, 27
 # words. Under the 256 bullet cap in characters, over it in
 # bytes, so a byte-counting checker flags it wrongly.
-MULTIBYTE_BULLET_LINE='- Após a migração—concluída na sexta—a equipe revisou cada contrato publicado—sem exceção—e confirmou a conciliação dos pedidos—inclusive devoluções, cobranças, reembolsos—conforme a política vigente—já validada pela coordenação pedagógica.'
+MULTIBYTE_BULLET_LINE=$'- Após a migração\xe2\x80\x94concluída na sexta\xe2\x80\x94a equipe revisou cada contrato publicado\xe2\x80\x94sem exceção\xe2\x80\x94e confirmou a conciliação dos pedidos\xe2\x80\x94inclusive devoluções, cobranças, reembolsos\xe2\x80\x94conforme a política vigente\xe2\x80\x94já validada pela coordenação pedagógica.'
 
 # run_check_c_locale - like run_check but with LC_ALL=C, the
 # locale where awk counts bytes; the checker must measure

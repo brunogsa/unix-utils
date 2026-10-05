@@ -19,14 +19,14 @@
 
 set -eo pipefail
 
-# Budgets — keep in sync with SKILL.md.
+# Budgets - keep in sync with SKILL.md.
 #
 # 260, not 200: the marker convention pairs a [Why] line
 # under every [Instruction], so ~100 instructions cost ~200
 # lines of pairs before any header/example/meta.
 #
 # The old 200 assumed "1 line ≈ 1 instruction" (pre-markers)
-# and now binds before the real gate — the [Instruction]
+# and now binds before the real gate - the [Instruction]
 # count (CLAUDE_INSTRUCTIONS_BUDGET).
 #
 # See references/research-claudemd-budgets.md#claudemd-length
@@ -74,7 +74,7 @@ readonly BUNDLED_HEADINGS_THRESHOLD=512
 # independent and self-explanatory.
 #
 # Both sit well under IFScale's 500-instruction adherence
-# ceiling — deliberately tight to preserve adherence
+# ceiling - deliberately tight to preserve adherence
 # headroom rather than burn it.
 #
 # 100 + 200 = 300, leaving ~200 instructions of slack
@@ -94,7 +94,7 @@ readonly CRITICAL_RATIO_BUDGET=16
 #
 # Every budget above counts markers or words, never bytes,
 # so a file can sit exactly on its [Instruction] cap while
-# rationale eats 42.7% of it — 15,488 of CLAUDE.md's 37.1 KB
+# rationale eats 42.7% of it - 15,488 of CLAUDE.md's 37.1 KB
 # at the measurement that motivated this cap.
 #
 # 128 is the user's own pick against the distribution of
@@ -109,11 +109,11 @@ readonly WHY_BYTES_BUDGET=128
 # STANDARDS_INSTRUCTIONS_BUDGET (space-separated).
 #
 # That subtotal caps what ONE source change can pull in at
-# once — touching code, its comments, and its tests fires
+# once - touching code, its comments, and its tests fires
 # code/doc/test-standards together, so they share a budget.
 #
 # skill-standards and agent-standards fire on a disjoint
-# trigger — authoring the harness itself — and never ride
+# trigger - authoring the harness itself - and never ride
 # along with that set, so charging them to the shared pool
 # would cap unrelated budgets against each other.
 #
@@ -167,8 +167,8 @@ fi
 # synced/<bucket-id>/<skill>/, one level deeper than a normal
 # skill.
 #
-# The user cannot edit those files — the next sync reverts
-# any change — so every budget below excludes this subtree
+# The user cannot edit those files - the next sync reverts
+# any change - so every budget below excludes this subtree
 # entirely.
 #
 # Derived from the resolved $SKILLS_DIR, not $HOME, so repo
@@ -177,7 +177,7 @@ SYNCED_DIR="$SKILLS_DIR/synced"
 
 # The agent-contract row always targets the canonical
 # installed agents dir, never $1 or the no-arg default
-# above — the contract is about this config repo, not
+# above - the contract is about this config repo, not
 # whatever tree the caller pointed check.sh at.
 #
 # readlink -f (not a literal repo path) tracks wherever
@@ -187,7 +187,7 @@ AGENT_CONTRACT_SCRIPT="$HOME/.claude/skills/agent-standards/scripts/check-agent-
 CANONICAL_AGENTS_DIR=$(readlink -f "$HOME/.claude/agents" 2>/dev/null || true)
 
 # A missing/broken symlink hard-fails here, mirroring the
-# missing-skills-dir check above — never a silent skip of
+# missing-skills-dir check above - never a silent skip of
 # the agent-contract row in the report below.
 if [ -z "$CANONICAL_AGENTS_DIR" ] || [ ! -d "$CANONICAL_AGENTS_DIR" ]; then
     echo "ERROR: cannot resolve ~/.claude/agents (readlink -f)" >&2
@@ -204,7 +204,7 @@ fi
 # call them.
 #
 # Bash resolves function names at call time, not at parse
-# time — definitions must precede their first call site in
+# time - definitions must precede their first call site in
 # source order.
 
 # Extract single-line YAML frontmatter description.
@@ -244,8 +244,8 @@ extract_frontmatter_budget() {
 # Count [Instruction] markers (one per line).
 # Always returns an integer.
 #
-# Anchored to a leading tag — optional list marker
-# (-, *, N.) then the bracket — so prose mentions of the
+# Anchored to a leading tag - optional list marker
+# (-, *, N.) then the bracket - so prose mentions of the
 # marker name and the glossary definition in CLAUDE.md's
 # Counting Conventions section are excluded, not counted.
 count_instructions() {
@@ -300,7 +300,7 @@ missing_why_after_critical() {
 # Silent when the file is clean.
 #
 # A [Why] adds no constraint by convention, so its bytes buy
-# the reader rationale and nothing else — the one marker
+# the reader rationale and nothing else - the one marker
 # whose length is worth capping on its own.
 #
 # An [Instruction] earns its length by adding a rule; a
@@ -313,7 +313,7 @@ missing_why_after_critical() {
 # count them.
 #
 # Anchored on the same leading-tag pattern as the counters
-# above, fenced blocks included — a fenced [Why] costs the
+# above, fenced blocks included - a fenced [Why] costs the
 # same bytes on load and still models the convention for
 # the next author.
 #
@@ -353,7 +353,7 @@ status_of() {
 # ==============================================================
 
 # CRITICAL [Instruction] sites missing their [Why], across
-# CLAUDE.md + the *-standards skills — the same population
+# CLAUDE.md + the *-standards skills - the same population
 # the CRITICAL-ratio check measures, since the marker
 # convention binds only there.
 missing_why_rows=""
@@ -390,16 +390,16 @@ fi
 # Skill measurements
 
 # ! -path (no trailing slash, no glob) excludes the synced/
-# directory itself at maxdepth 1 — a "/*" glob here would
+# directory itself at maxdepth 1 - a "/*" glob here would
 # no-op, since synced/ is the entry being listed, not a
 # descendant of one.
 skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -path "$SYNCED_DIR" | wc -l | tr -d ' ')
 
 skill_overages=""
 max_desc=0
-max_desc_skill="—"
+max_desc_skill="-"
 max_name=0
-max_name_skill="—"
+max_name_skill="-"
 
 # Instruction-density accumulators.
 # Only *-standards skills participate.
@@ -472,8 +472,8 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     # the gate without joining the *-standards subtotal or
     # CRITICAL-ratio report below.
     #
-    # No key declared means no cap for a non-*-standards skill
-    # — the check is silent, never a default. For a *-standards
+    # No key declared means no cap for a non-*-standards skill -
+    # the check is silent, never a default. For a *-standards
     # skill, no key declared fails the gate below instead.
     skill_instructions=$(count_instructions "$f")
 
@@ -486,7 +486,7 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
         skill_instr_over=1
     fi
 
-    # Instruction density — only *-standards skills participate
+    # Instruction density - only *-standards skills participate
     case "$name" in
         *-standards)
             # `instructions-budget` is opt-in for any other
@@ -513,7 +513,7 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
             # frontmatter declares.
             #
             # No key means no cap at all, which the row has
-            # to say out loud — a blank budget cell would
+            # to say out loud - a blank budget cell would
             # read as "measured against something" and hide
             # that the count is ungated.
             if [ -n "$instr_budget_override" ]; then
@@ -521,7 +521,7 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
                 excluded_instr_status=$(status_of "$skill_instructions" "$instr_budget_override")
             else
                 excluded_instr_budget="none declared"
-                excluded_instr_status="—"
+                excluded_instr_status="-"
             fi
 
             if [ "$skill_instructions" -eq 0 ]; then
@@ -545,12 +545,12 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     esac
 done
 
-# Bundled resources (references/ + assets/) — same fixed
+# Bundled resources (references/ + assets/) - same fixed
 # pair of budgets per file.
 #
 # Without this, the trim hierarchy's "extract to
 # references/" step could clear a SKILL.md overage by
-# relocating words into a file nothing measured — budget
+# relocating words into a file nothing measured - budget
 # cosmetics rather than a real lazy load.
 bundled_overages=""
 bundled_over=0
@@ -601,14 +601,14 @@ while IFS= read -r bf; do
     fi
 done < <(find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 
-# Agent-contract measurement — always the canonical dir
+# Agent-contract measurement - always the canonical dir
 # resolved above, never $SKILLS_DIR or $1.
 agent_contract_out=$("$AGENT_CONTRACT_SCRIPT" "$CANONICAL_AGENTS_DIR" 2>&1 || true)
 agent_contract_offending=$(printf '%s\n' "$agent_contract_out" | grep -c '^== ' || true)
 agent_contract_total=$(find "$CANONICAL_AGENTS_DIR" -maxdepth 1 -name '*.md' | wc -l | tr -d ' ')
 
 # Report
-echo "# Performance Check — $TARGET_LABEL"
+echo "# Performance Check - $TARGET_LABEL"
 echo
 echo "| Target | Measured | Budget | Status |"
 echo "|---|---|---|---|"
@@ -634,7 +634,7 @@ if [ "$has_claude_md" -eq 1 ]; then
         [ "$claude_ratio_int" -gt "$CRITICAL_RATIO_BUDGET" ] && overages=1
     fi
 else
-    echo "| CLAUDE.md | — | — | NOT FOUND at $CLAUDE_MD |"
+    echo "| CLAUDE.md | - | - | NOT FOUND at $CLAUDE_MD |"
 fi
 
 echo "| Skill count (excl. synced/) | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
@@ -643,12 +643,12 @@ echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET 
 [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
 [ -n "$skill_overages" ] && overages=1
 
-# Bundled resources — one row for the whole
+# Bundled resources - one row for the whole
 # references/ + assets/ population.
 echo "| Bundled files failing size or heading checks (references/ + assets/, excl. synced/) | $bundled_over of $bundled_count | 0 | $(status_of "$bundled_over" 0) |"
 [ "$bundled_over" -gt 0 ] && overages=1
 
-# Agent-authoring contract — always $CANONICAL_AGENTS_DIR,
+# Agent-authoring contract - always $CANONICAL_AGENTS_DIR,
 # so this row is identical in user mode and repo mode.
 echo "| Agent-authoring contract failures ($CANONICAL_AGENTS_DIR) | $agent_contract_offending of $agent_contract_total | 0 | $(status_of "$agent_contract_offending" 0) |"
 [ "$agent_contract_offending" -gt 0 ] && overages=1
@@ -710,7 +710,7 @@ if [ -n "$bundled_overages" ]; then
     echo
     echo "Remedy in order: drop redundancy, tighten wording, then split the file by topic."
     echo "A missing-headings flag is fixed by adding \`## \` landmarks, never by trimming under the threshold."
-    echo "A \`words-budget:\`/\`lines-budget:\` YAML frontmatter override on the file is the user's call only — never AI's."
+    echo "A \`words-budget:\`/\`lines-budget:\` YAML frontmatter override on the file is the user's call only - never AI's."
     echo "$bundled_overages"
     echo
 fi
@@ -730,7 +730,7 @@ fi
 if [ -n "$missing_why_rows" ]; then
     echo "## CRITICAL [Instruction] lines with no [Why] in the next 3 non-blank lines"
     echo
-    echo "Fix each by adding the missing \`[Why]\`, or by dropping the \`CRITICAL\` prefix — an unexplained tiebreaker cannot be weighed against the rule it overrides."
+    echo "Fix each by adding the missing \`[Why]\`, or by dropping the \`CRITICAL\` prefix - an unexplained tiebreaker cannot be weighed against the rule it overrides."
     printf '%s\n' "$missing_why_rows" | sed '/^$/d'
     echo
 fi
@@ -740,7 +740,7 @@ fi
 if [ -n "$why_over_rows" ]; then
     echo "## [Why] lines over $WHY_BYTES_BUDGET bytes"
     echo
-    echo "A \`[Why]\` adds no constraint, so every byte past the cap is always-on context buying no rule — trim each to one decision-shaping sentence."
+    echo "A \`[Why]\` adds no constraint, so every byte past the cap is always-on context buying no rule - trim each to one decision-shaping sentence."
     echo "An over-cap \`[Why]\` fails this check."
     echo
     printf '%s\n' "$why_over_rows" | sed '/^$/d'
@@ -756,7 +756,7 @@ if [ -n "$skill_instr_overages" ]; then
     echo
 fi
 
-# *-standards skills with no instructions-budget — error
+# *-standards skills with no instructions-budget - error
 # condition
 if [ -n "$standards_missing_instr_budget" ]; then
     echo "## *-standards skills with no \`instructions-budget\` declared (FAIL)"
@@ -766,7 +766,7 @@ if [ -n "$standards_missing_instr_budget" ]; then
     echo
 fi
 
-# Unmigrated *-standards skills — error condition
+# Unmigrated *-standards skills - error condition
 if [ -n "$standards_unmigrated" ]; then
     echo "## Unmigrated *-standards skills (FAIL)"
     echo

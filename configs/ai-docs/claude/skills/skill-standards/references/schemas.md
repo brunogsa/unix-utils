@@ -8,16 +8,16 @@ lines-budget: 512
 
 # JSON Schemas
 
-This document defines the JSON schemas used by skill-creator. Jump to the one you need — each section is self-contained.
+This document defines the JSON schemas used by skill-creator. Jump to the one you need - each section is self-contained.
 
-- [`evals.json`](#evalsjson) — the evals for a skill, at `evals/evals.json` inside the skill directory.
-- [`history.json`](#historyjson) — version progression in Improve mode, at workspace root.
-- [`grading.json`](#gradingjson) — the grader agent's output.
-- [`metrics.json`](#metricsjson) — the executor agent's output.
-- [`timing.json`](#timingjson) — wall-clock timing for one run.
-- [`benchmark.json`](#benchmarkjson) — Benchmark mode's output.
-- [`comparison.json`](#comparisonjson) — the blind comparator's output.
-- [`analysis.json`](#analysisjson) — the post-hoc analyzer's output.
+- [`evals.json`](#evalsjson) - the evals for a skill, at `evals/evals.json` inside the skill directory.
+- [`history.json`](#historyjson) - version progression in Improve mode, at workspace root.
+- [`grading.json`](#gradingjson) - the grader agent's output.
+- [`metrics.json`](#metricsjson) - the executor agent's output.
+- [`timing.json`](#timingjson) - wall-clock timing for one run.
+- [`benchmark.json`](#benchmarkjson) - Benchmark mode's output.
+- [`comparison.json`](#comparisonjson) - the blind comparator's output.
+- [`analysis.json`](#analysisjson) - the post-hoc analyzer's output.
 
 ---
 
@@ -215,7 +215,7 @@ Output from the executor agent. Located at `<run-dir>/outputs/metrics.json`.
 
 Wall clock timing for a run. Located at `<run-dir>/timing.json`.
 
-**How to capture:** When a subagent task completes, the task notification includes `total_tokens` and `duration_ms`. Save these immediately — they are not persisted anywhere else and cannot be recovered after the fact.
+**How to capture:** When a subagent task completes, the task notification includes `total_tokens` and `duration_ms`. Save these immediately - they are not persisted anywhere else and cannot be recovered after the fact.
 
 ```json
 {

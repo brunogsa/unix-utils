@@ -1,6 +1,6 @@
 ---
 name: Explore
-description: Read-only search agent for broad fan-out searches — when answering means sweeping many files, directories, or naming conventions and you only need the conclusion, not the file dumps. Specify search breadth ("medium" or "very thorough").
+description: Read-only search agent for broad fan-out searches - when answering means sweeping many files, directories, or naming conventions and you only need the conclusion, not the file dumps. Specify search breadth ("medium" or "very thorough").
 model: opus
 allowedModelOverrides: sonnet
 maxTurns: 64

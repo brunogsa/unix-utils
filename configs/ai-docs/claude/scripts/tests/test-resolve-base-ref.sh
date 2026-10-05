@@ -8,7 +8,7 @@
 # Usage:
 #   bash test-resolve-base-ref.sh
 
-# No bats dependency by design — same precedent as these
+# No bats dependency by design - same precedent as these
 # sibling suites under configs/ai-docs/claude/:
 #
 # - scripts/tests/test-statusline-tier.sh
@@ -64,7 +64,7 @@ commit_on() {
 # set_fake_origin_head - points $repo/.git/refs/remotes/
 # origin/HEAD at $branch, mimicking what `git remote set-head
 # origin -a` (or a non-single-branch clone) would leave
-# behind — without needing a real second remote repo.
+# behind - without needing a real second remote repo.
 set_fake_origin_head() {
   local repo="$1" branch="$2"
   git -C "$repo" symbolic-ref "refs/remotes/origin/HEAD" \
@@ -139,7 +139,7 @@ it_should_exit_one_with_no_stdout_when_none_of_the_three_exist() {
   repo="$(fresh_repo)"
 
   # A repo with no commits at all has neither origin/HEAD nor
-  # a resolvable main/master — the genuine "all three miss"
+  # a resolvable main/master - the genuine "all three miss"
   # case the contract carves out for the caller to handle.
   assert_eq \
     "ResolveBaseRef > failure > should exit 1 with empty stdout when origin/HEAD, main, and master all miss" \

@@ -29,14 +29,14 @@
 #
 #   Stop is the right event, and the cheaper one. PostToolUse
 #   would re-validate the whole directory on every Edit/Write
-#   in every session — a tax on the hottest tool pair to catch
+#   in every session - a tax on the hottest tool pair to catch
 #   a rare defect.
 #
 #   No PostToolUse hook exists today, so it is also a new
 #   registration rather than one more leg on the orchestrator
 #   that already chains three change-gated checkers.
 #
-# Scope — "agent files THIS SESSION wrote", narrowed twice:
+# Scope - "agent files THIS SESSION wrote", narrowed twice:
 #
 # - Session filter: which files this session's own
 #   Edit/Write/NotebookEdit tool calls touched (read from
@@ -52,7 +52,7 @@
 #
 #   Without this, one pre-existing broken agent file would
 #   block every stop in every session until someone fixed a
-#   file they never touched — the same churn the markdown
+#   file they never touched - the same churn the markdown
 #   gate's diff filter exists to prevent.
 #
 #   The directory is derived per touched file rather than
@@ -65,7 +65,7 @@
 #   spin an infinite stop-block loop.
 #
 #   Because the guard bails on the post-fix stop, the hook
-#   cannot re-verify its own fix — so the block tells the main
+#   cannot re-verify its own fix - so the block tells the main
 #   session to re-run the checker itself.
 #
 #   That is cheap and deterministic here (one script, exit code
@@ -73,7 +73,7 @@
 #   rather than delegating to a subagent the way the markdown
 #   gate does.
 #
-# Safeguards (all silent no-ops — never break Claude on a
+# Safeguards (all silent no-ops - never break Claude on a
 # tooling/context gap):
 # - jq missing, or the checker missing/non-executable → exit 0.
 #
@@ -86,7 +86,7 @@
 # - Checker clean, or violations only in files this session
 #   never touched → exit 0.
 #
-# NO env-var opt-out by design — a kill switch would let Claude
+# NO env-var opt-out by design - a kill switch would let Claude
 # silence its own contract gate via a Bash call.
 # To disable, remove this leg from the orchestrator.
 
@@ -106,7 +106,7 @@ transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/de
 [ -n "$transcript_path" ] && [ -f "$transcript_path" ] || exit 0
 
 # Absolute paths this session's own write tools touched.
-# Same extraction as the markdown gate — one jq pass over the
+# Same extraction as the markdown gate - one jq pass over the
 # transcript, deduped.
 session_files=$(jq -r '
     select(.message.content != null) | .message.content[]?
@@ -125,7 +125,7 @@ session_files=$(jq -r '
 agent_files=$(printf '%s\n' "$session_files" | grep -E '/agents/[^/]+\.md$' || true)
 [ -n "$agent_files" ] || exit 0
 
-# One checker run per distinct agents directory — a session may
+# One checker run per distinct agents directory - a session may
 # touch the repo source and a project-local copy in the same
 # turn.
 agent_dirs=$(printf '%s\n' "$agent_files" | sed 's|/[^/]*$||' | sort -u)
@@ -152,7 +152,7 @@ done <<< "$agent_dirs"
 violations=$(printf '%s' "$violations" | sed '/^$/d')
 [ -z "$violations" ] && exit 0
 
-# Drop violations in agent files this session never opened —
+# Drop violations in agent files this session never opened -
 # another session's WIP, or drift that predates this turn.
 # Blocking on those would make the gate unclearable by the
 # session that hit it.
@@ -161,7 +161,7 @@ violations=$(printf '%s\n' "$violations" | while IFS= read -r v; do
   printf '%s\n' "$agent_files" | grep -qxF "${v%%: *}" && printf '%s\n' "$v"
 
 # A final non-match leaves grep's 1 as the loop's status, which
-# set -e would turn into a non-zero hook exit — an "error"
+# set -e would turn into a non-zero hook exit - an "error"
 # reading of the ordinary nothing-to-block case.
 done || true)
 [ -z "$violations" ] && exit 0
@@ -171,8 +171,8 @@ done || true)
 # them: there is no fixer subagent here, so the main session
 # would have to re-run the checker just to learn what broke.
 #
-# They are short and bounded — one line per
-# missing/duplicate/empty heading — so naming them costs less
+# They are short and bounded - one line per
+# missing/duplicate/empty heading - so naming them costs less
 # than the extra round-trip.
 #
 # Grouped one path per file, reasons joined, because a file
@@ -180,7 +180,7 @@ done || true)
 # absolute path on each would inject the same long string six
 # times into the main context on every block.
 #
-# Split on the FIRST ": " only — the reasons contain their own
+# Split on the FIRST ": " only - the reasons contain their own
 # (`missing required heading: ## Inputs`), so a field-separator
 # split would truncate them.
 list=$(printf '%s\n' "$violations" | awk '
@@ -198,7 +198,7 @@ list=$(printf '%s\n' "$violations" | awk '
   }
 ')
 
-reason="Agent files you edited this session are off the agent-standards contract — ${list}. \
+reason="Agent files you edited this session are off the agent-standards contract - ${list}. \
 Fix them, then confirm with: check-agent-contract.sh <agents-directory> (exit 0 = clean)."
 
 jq -n --arg r "$reason" '{decision: "block", reason: $r}'

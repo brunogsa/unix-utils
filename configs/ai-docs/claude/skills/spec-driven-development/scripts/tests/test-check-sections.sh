@@ -53,7 +53,7 @@ assert_contains() {
 # doc/template fixture pair, capturing stderr/exit
 # code into VERDICT_ERR/VERDICT_EXIT.
 #
-# stdout is discarded — these tests assert on exit
+# stdout is discarded - these tests assert on exit
 # code and diagnostic presence only.
 run_script() {
   bash "$SCRIPT" "$@" >/dev/null 2>"$work_dir/stderr.txt"
@@ -146,7 +146,7 @@ it_should_pass_when_a_section_body_is_only_an_na_line() {
 
 ## Threat Model
 
-N/A — no new attack surface; the change is local to the planner.
+N/A - no new attack surface; the change is local to the planner.
 
 ## Task Breakdown')
   run_script "$doc" "$template"

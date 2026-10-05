@@ -29,7 +29,7 @@
   "status": "Contrato Assinado",
 
   // string ISO 8601 UTC | required | última alteração na
-  // origem; tiebreaker do dedup dentro do mesmo versaoId — NÃO
+  // origem; tiebreaker do dedup dentro do mesmo versaoId - NÃO
   // confundir com receipt timestamp do consumidor
   "dataAlteracao": "2027-02-14T18:22:05.123Z",
 

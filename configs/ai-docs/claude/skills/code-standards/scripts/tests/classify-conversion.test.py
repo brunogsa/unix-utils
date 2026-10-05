@@ -1,7 +1,7 @@
 """Blackbox CLI tests for classify-conversion.py.
 
 Every fixture is a throwaway script this file writes under
-tmp_path — never a real repo file — so a case stays green
+tmp_path - never a real repo file - so a case stays green
 independent of anything else in the repo.
 
 Usage:
@@ -72,7 +72,7 @@ class TestClassifyConversionHappy(_TempDirTestCase):
     def test_should_return_py_as_the_target_language_when_the_script_carries_no_requires_npm_header(self):
         tmp_path = self._tmp()
 
-        # Also embeds awk so this row's verdict is convert —
+        # Also embeds awk so this row's verdict is convert -
         # only a convert row keeps its target_language (a
         # stays-sh row gets None regardless of what
         # get_target_language would have returned).
@@ -88,11 +88,11 @@ class TestClassifyConversionHappy(_TempDirTestCase):
     def test_should_return_js_as_the_target_language_when_the_scripts_requires_npm_header_names_an_npm_package_pythons_stdlib_cannot_replace(self):
         tmp_path = self._tmp()
 
-        # Also embeds awk so this row's verdict is convert — see
+        # Also embeds awk so this row's verdict is convert - see
         # the sibling py-target test above for why that matters.
         script = _write_script(tmp_path, "needs-lexer.sh", [
             "#!/usr/bin/env bash",
-            "# Requires-npm: typescript — needs a real TS lexer to tell",
+            "# Requires-npm: typescript - needs a real TS lexer to tell",
             "# a comment from // inside a string literal",
             "awk '{print}' x",
             "echo hello",
@@ -166,7 +166,7 @@ class TestClassifyConversionHappy(_TempDirTestCase):
         tmp_path = self._tmp()
 
         # Body deliberately carries a risky construct and
-        # exceeds the cap — proving the exclusion overrides the
+        # exceeds the cap - proving the exclusion overrides the
         # ordinary triggers rather than happening to agree with
         # them.
         body = ["awk '{print}' x"] + [f"echo {i}" for i in range(LINE_CAP)]
@@ -268,8 +268,8 @@ class TestClassifyConversionCorner(_TempDirTestCase):
     def test_should_return_py_when_the_script_carries_no_requires_npm_header_regardless_of_workload_shape(self):
         tmp_path = self._tmp()
 
-        # Heavy workload — over the cap AND carrying a risky
-        # construct — but still no Requires-npm header.
+        # Heavy workload - over the cap AND carrying a risky
+        # construct - but still no Requires-npm header.
         body = ["awk '{print}' x"] + [f"echo {i}" for i in range(LINE_CAP)]
         script = _write_script(tmp_path, "heavy-no-header.sh", ["#!/usr/bin/env bash", *body])
         payload = _single_result(_run(script))
@@ -303,12 +303,12 @@ class TestClassifyConversionFailure(_TempDirTestCase):
         tmp_path = self._tmp()
         no_package = _write_script(tmp_path, "no-package.sh", [
             "#!/usr/bin/env bash",
-            "# Requires-npm:  — needs something Python cannot do",
+            "# Requires-npm:  - needs something Python cannot do",
             "echo hello",
         ])
         no_gap = _write_script(tmp_path, "no-gap.sh", [
             "#!/usr/bin/env bash",
-            "# Requires-npm: typescript —",
+            "# Requires-npm: typescript - ",
             "echo hello",
         ])
 
@@ -330,7 +330,7 @@ class TestClassifyConversionFailure(_TempDirTestCase):
         script = _write_script(tmp_path, "leaks-into-next-line.sh", [
             "#!/usr/bin/env bash",
             "# Requires-npm:",
-            "# see docs — this script has no npm need at all",
+            "# see docs - this script has no npm need at all",
             "echo hi",
         ])
 
@@ -357,7 +357,7 @@ class TestClassifyConversionFailure(_TempDirTestCase):
 
         result = _run("--tree", tmp_path)
 
-        # The malformed header must still fail the run — losing
+        # The malformed header must still fail the run - losing
         # this signal would trade one silent failure for
         # another.
         self.assertNotEqual(

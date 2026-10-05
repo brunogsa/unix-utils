@@ -162,7 +162,7 @@ it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
   local worktree_dir="$work_dir/unclosed-backtick-worktree"
   mkdir -p "$worktree_dir"
   local plan_file="$work_dir/plan_unclosed-backtick.md"
-  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$plan_file"
+  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** - Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$plan_file"
   run_script "$plan_file" "PR-1" "$worktree_dir"
   assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
 }
@@ -171,7 +171,7 @@ it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
   local worktree_dir="$work_dir/unclosed-tilde-worktree"
   mkdir -p "$worktree_dir"
   local plan_file="$work_dir/plan_unclosed-tilde.md"
-  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$plan_file"
+  printf '## Task Breakdown\n\n### 1. [Done] Naming and validators\n\n## PR Breakdown\n\n1. **PR-1** - Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$plan_file"
   run_script "$plan_file" "PR-1" "$worktree_dir"
   assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
 }
@@ -184,8 +184,8 @@ it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_
   plan_file=$(write_plan "$slug" \
     '### 1. [Done] Naming and validators
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 3. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should pass when every parent PR's tasks are Done and the worktree HEAD descends from each parent's branch tip (exit code)" "0" "$VERDICT_EXIT"
@@ -198,7 +198,7 @@ it_should_pass_immediately_for_a_pr_with_no_declared_dependencies() {
 
   plan_file=$(write_plan "$slug" \
     '### 1. [Done] Naming and validators' \
-    '1. **PR-1** — Naming and validators. Tasks: 1. Depends on: none.')
+    '1. **PR-1** - Naming and validators. Tasks: 1. Depends on: none.')
 
   run_script "$plan_file" "PR-1" "$worktree_dir"
   assert_eq "should pass immediately for a PR with no declared dependencies (exit code)" "0" "$VERDICT_EXIT"
@@ -212,8 +212,8 @@ it_should_block_and_name_the_outstanding_tasks_when_a_parent_pr_has_any_non_done
   plan_file=$(write_plan "$slug" \
     '### 1. [Done] Naming and validators
 ### 2. Core loop still in progress' \
-    '1. **PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+    '1. **PR-1** - Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 3. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should block and name the outstanding tasks when a parent PR has any non-Done task (exit code)" "1" "$VERDICT_EXIT"
@@ -228,8 +228,8 @@ it_should_block_when_head_does_not_descend_from_a_parent_prs_branch_tip_even_if_
   plan_file=$(write_plan "$slug" \
     '### 1. [Done] Naming and validators
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 2. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 2. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should block when the worktree HEAD does not descend from a parent PR's branch tip, even if that parent's tasks are all Done (exit code)" "1" "$VERDICT_EXIT"
@@ -237,7 +237,7 @@ it_should_block_when_head_does_not_descend_from_a_parent_prs_branch_tip_even_if_
 }
 
 # [on-demand] multi-parent: a diamond-dependency PR must check
-# EVERY listed parent, not just the first — pulled in
+# EVERY listed parent, not just the first - pulled in
 # mid-task per the plan's explicit "Multi-parent parsing"
 # requirement.
 #
@@ -271,9 +271,9 @@ it_should_block_naming_the_second_parents_outstanding_task_when_a_pr_has_two_par
     '### 1. [Done] First slice
 ### 2. Second slice still in progress
 ### 3. [Done] Third slice' \
-    '1. **[Done] PR-1** — First slice. Tasks: 1. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Second slice. Tasks: 2. Depends on: none. Branch: `feat-foo/pr2`.
-3. **PR-3** — Diamond merge. Tasks: 3. Depends on: PR-1, PR-2.')
+    '1. **[Done] PR-1** - First slice. Tasks: 1. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Second slice. Tasks: 2. Depends on: none. Branch: `feat-foo/pr2`.
+3. **PR-3** - Diamond merge. Tasks: 3. Depends on: PR-1, PR-2.')
 
   run_script "$plan_file" "PR-3" "$worktree_dir"
   assert_eq "should block naming the second parent's outstanding task when a PR has two parents [on-demand] (exit code)" "1" "$VERDICT_EXIT"
@@ -288,8 +288,8 @@ it_should_block_when_a_parent_pr_has_no_branch_clause_because_it_never_pushed() 
   plan_file=$(write_plan "$slug" \
     '### 1. [Done] Naming and validators
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1. Depends on: none.
-2. **PR-2** — Core loop. Tasks: 2. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1. Depends on: none.
+2. **PR-2** - Core loop. Tasks: 2. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should block when a parent PR carries no Branch: clause because its batch never pushed, even with every task Done (exit code)" "1" "$VERDICT_EXIT"
@@ -310,8 +310,8 @@ Example shown as sample markup:
 ```
 
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 3. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should read Task 2's heading even though a fenced line before it starts with a '## ' marker (exit code)" "0" "$VERDICT_EXIT"
@@ -332,8 +332,8 @@ it_should_read_a_task_heading_that_follows_a_longer_fence_wrapping_a_shorter_fen
 `````
 
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 3. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should read Task 2's heading after a five-backtick fence wrapping a four-backtick sample that quotes a '## ' line (exit code)" "0" "$VERDICT_EXIT"
@@ -354,8 +354,8 @@ it_should_ignore_a_task_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_
 `````
 
 ### 2. [Done] Core loop' \
-    '1. **[Done] PR-1** — Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
-2. **PR-2** — Core loop. Tasks: 3. Depends on: PR-1.')
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1, 2. Depends on: none. Branch: `feat-foo/pr1`.
+2. **PR-2** - Core loop. Tasks: 3. Depends on: PR-1.')
 
   run_script "$plan_file" "PR-2" "$worktree_dir"
   assert_eq "should ignore a phantom Task 2 heading quoted inside a nested four-backtick sample within a five-backtick fence (exit code)" "0" "$VERDICT_EXIT"

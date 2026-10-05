@@ -6,7 +6,7 @@
 # Exits 0 when every assertion passes, non-zero
 # otherwise.
 #
-# No bats dependency by design — a handful of small
+# No bats dependency by design - a handful of small
 # scripts don't justify a new cross-platform
 # test-runner dependency in install.sh.
 #
@@ -118,7 +118,7 @@ it_should_index_the_pin_under_both_frontmatter_name_and_filename_stem() {
   fixture_home=$(mktemp -d)
   mkdir -p "$fixture_home/.claude/agents"
 
-  # Deliberately differing name/stem — never lands
+  # Deliberately differing name/stem - never lands
   # under configs/ai-docs/claude/agents/, so it can
   # never register as a real agent type in the live
   # harness.
@@ -145,7 +145,7 @@ it_should_accept_every_entry_of_a_multi_entry_override_declaration() {
   fixture_home=$(mktemp -d)
   mkdir -p "$fixture_home/.claude/agents"
 
-  # Inline-flow-list spelling with two entries — the
+  # Inline-flow-list spelling with two entries - the
   # live agents dir has only the single-entry scalar
   # form, so a fixture is the only place both the list
   # syntax and a second entry get exercised.
@@ -216,7 +216,7 @@ it_should_accept_every_entry_of_a_multi_entry_denial_declaration() {
   fixture_home=$(mktemp -d)
   mkdir -p "$fixture_home/.claude/agents"
 
-  # Inline-flow-list spelling with two entries — the live
+  # Inline-flow-list spelling with two entries - the live
   # general-purpose.md has only the single-line comma-separated
   # scalar form, so a fixture is the only place the bracket-list
   # syntax gets exercised for deniedModels specifically.

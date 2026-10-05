@@ -10,7 +10,7 @@
 # Its write affordances are exactly two:
 #   1. persisting a verdict to a verdict file, and
 #
-#   2. scratch under /tmp — the review pipeline (auto-review)
+#   2. scratch under /tmp - the review pipeline (auto-review)
 #      persists wave artifacts to a mktemp dir there; /tmp is
 #      never repo source.
 #
@@ -45,7 +45,7 @@
 #
 # The full trigger (all four stems, the `.md`-only
 # scope, case-insensitivity, start-anchoring) is documented
-# once, in agent-standards' "Subagent dispatch" section — see
+# once, in agent-standards' "Subagent dispatch" section - see
 # that skill rather than re-deriving it here.
 
 INPUT=$(cat)
@@ -71,7 +71,7 @@ if [[ "$FILE_PATH" != *..* && ( "$FILE_PATH" == /tmp/* || "$FILE_PATH" == /priva
   exit 0
 fi
 
-# Any other write target is a repo-source/artifact mutation —
+# Any other write target is a repo-source/artifact mutation -
 # deny it outright.
 echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2

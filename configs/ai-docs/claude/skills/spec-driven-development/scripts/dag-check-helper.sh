@@ -6,7 +6,7 @@
 #   <label>\t<dep1,dep2,...> lines on stdin |
 #     dag-check-helper.sh <kind>
 #
-# Input: one TSV line per node —
+# Input: one TSV line per node -
 # `<label><TAB><comma-separated deps, empty when
 # none>`.
 #
@@ -31,7 +31,7 @@
 #                the whole graph).
 #
 # All three checks run independently and every failure is
-# reported together — not fail-fast on the first one found — so
+# reported together - not fail-fast on the first one found - so
 # one bad edit doesn't hide a second.
 #
 # Exit codes:
@@ -98,7 +98,7 @@ fi
 
 # CYCLE: white/gray/black DFS over the whole graph.
 # A dangling dependency (not a key in `deps`) is skipped
-# here — it's already reported above, and walking into it would
+# here - it's already reported above, and walking into it would
 # need a fabricated node the diagnostic would misname.
 cycle=$(printf '%s\n' "$input" | awk -F'\t' '
   function dfs(node,   n, arr, i, d, res) {

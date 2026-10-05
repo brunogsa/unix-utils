@@ -8,7 +8,7 @@ file and silently detaches it from the repo (see the repo CLAUDE.md's
 failure mode.
 
 Every test drives the script against a temp fixture directory via
---settings-path/--source-path, never the real ~/.claude/settings.json — that
+--settings-path/--source-path, never the real ~/.claude/settings.json - that
 is a live user file whose symlink status is exactly what this script exists
 to detect, so a test reading it would be non-deterministic depending on
 whichever machine and session runs it.

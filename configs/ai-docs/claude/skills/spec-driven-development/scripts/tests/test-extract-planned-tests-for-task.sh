@@ -13,7 +13,7 @@
 # - annotated form (new): filters Test Design by the task's T<n>
 #   tokens.
 #
-#     These cases genuinely force the new behavior — RED before
+#     These cases genuinely force the new behavior - RED before
 #     it lands.
 #
 # - list form (old): parses the task's own `**Tests
@@ -89,11 +89,11 @@ it_should_filter_test_design_by_t_n_and_print_bare_titles_in_annotated_form() {
   fixture=$(write_plan "annotated-filter" "$ANNOTATED_DESIGN" \
     '### 1. Wire the gate
 
-No Tests (planned) bullet needed — the T1 annotations on the it() lines above already name this task.
+No Tests (planned) bullet needed - the T1 annotations on the it() lines above already name this task.
 
 ### 2. Add validation
 
-No Tests (planned) bullet needed — the T2 annotations on the it() lines above already name this task.')
+No Tests (planned) bullet needed - the T2 annotations on the it() lines above already name this task.')
   run_script "$fixture" "1"
   assert_eq "should filter Test Design by T1 and print bare titles in annotated form" \
     "$(printf 'should accept a valid path\nshould reject an empty path')" \
@@ -106,11 +106,11 @@ it_should_filter_test_design_by_a_different_t_n_and_print_only_that_tasks_titles
   fixture=$(write_plan "annotated-filter-other-task" "$ANNOTATED_DESIGN" \
     '### 1. Wire the gate
 
-No Tests (planned) bullet needed — the T1 annotations on the it() lines above already name this task.
+No Tests (planned) bullet needed - the T1 annotations on the it() lines above already name this task.
 
 ### 2. Add validation
 
-No Tests (planned) bullet needed — the T2 annotations on the it() lines above already name this task.')
+No Tests (planned) bullet needed - the T2 annotations on the it() lines above already name this task.')
   run_script "$fixture" "2"
   assert_eq "should filter Test Design by T2 and print only that task's titles in annotated form" \
     "$(printf 'should reject a missing path\nshould reject an empty path')" \
@@ -122,15 +122,15 @@ it_should_print_nothing_when_no_it_in_test_design_carries_the_tasks_t_n_token_in
   fixture=$(write_plan "annotated-no-match" "$ANNOTATED_DESIGN" \
     '### 1. Wire the gate
 
-No Tests (planned) bullet needed — the T1 annotations on the it() lines above already name this task.
+No Tests (planned) bullet needed - the T1 annotations on the it() lines above already name this task.
 
 ### 2. Add validation
 
-No Tests (planned) bullet needed — the T2 annotations on the it() lines above already name this task.
+No Tests (planned) bullet needed - the T2 annotations on the it() lines above already name this task.
 
 ### 3. Update the changelog
 
-No Tests (planned) bullet needed — this task has no annotated it() at all.')
+No Tests (planned) bullet needed - this task has no annotated it() at all.')
   run_script "$fixture" "3"
   assert_eq "should print nothing when no it() in Test Design carries the task's T<n> token in annotated form" "" "$VERDICT_OUT"
   assert_eq "should print nothing when no it() in Test Design carries the task's T<n> token in annotated form (exit code)" "0" "$VERDICT_EXIT"
@@ -162,7 +162,7 @@ it_should_print_nothing_when_a_tasks_tests_planned_is_explicit_n_a_in_list_form(
   fixture=$(write_plan "list-form-n-a" "$LIST_FORM_DESIGN" \
     '### 1. Wire the gate
 
-**Tests (planned)**: N/A — documentation-only edit.')
+**Tests (planned)**: N/A - documentation-only edit.')
   run_script "$fixture" "1"
   assert_eq "should print nothing when a task's Tests (planned) is explicit N/A in list form" "" "$VERDICT_OUT"
   assert_eq "should print nothing when a task's Tests (planned) is explicit N/A in list form (exit code)" "0" "$VERDICT_EXIT"

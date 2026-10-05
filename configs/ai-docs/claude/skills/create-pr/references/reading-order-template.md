@@ -4,7 +4,7 @@ Used by `create-pr`, in PR descriptions as the review guide. Portuguese is the d
 
 Both templates are the *contents* of that block, never the block itself: `references/pr-template.md` owns the collapsed `<details>` wrapper, its `Review guide` label, and the estimated-time line inside its `<summary>`.
 
-That split is what keeps the guide costing 1 rendered line — a variant carrying its own heading or its own wrapper either renders expanded or nests a second `<details>`.
+That split is what keeps the guide costing 1 rendered line - a variant carrying its own heading or its own wrapper either renders expanded or nests a second `<details>`.
 
 Generate a **specific** reading order from the diff -- list real file paths, not generic placeholders.
 
@@ -30,15 +30,15 @@ Path heuristics: `controller/`, `consumer/` → orchestration. `use-case/`, `sha
 
 The roles above rank the files; they never become the entry text.
 
-Each entry says what the reviewer *learns* there, per `SKILL.md`'s qualitative-not-taxonomic rule — the placeholders below are prompts to fill, not labels to paste.
+Each entry says what the reviewer *learns* there, per `SKILL.md`'s qualitative-not-taxonomic rule - the placeholders below are prompts to fill, not labels to paste.
 
 ### English -- when the team's PR language is English
 
 ```markdown
 **Essential** (~{min}min):
 1. PR description (business context + decisions)
-2. `{controller_file}` — {what the reviewer learns here}
-3. `{use_case_file}` — {what the reviewer learns here}
+2. `{controller_file}` - {what the reviewer learns here}
+3. `{use_case_file}` - {what the reviewer learns here}
 4. Test titles in `{unit_test_file}` ({N} tests)
 5. Test titles in `{integration_test_file}` ({N} tests)
 
@@ -53,8 +53,8 @@ Each entry says what the reviewer *learns* there, per `SKILL.md`'s qualitative-n
 ```markdown
 **Essencial** (~{min}min):
 1. Descrição do PR (contexto de negócio + decisões)
-2. `{controller_file}` — {o que o revisor aprende aqui}
-3. `{use_case_file}` — {o que o revisor aprende aqui}
+2. `{controller_file}` - {o que o revisor aprende aqui}
+3. `{use_case_file}` - {o que o revisor aprende aqui}
 4. Títulos dos testes em `{unit_test_file}` ({N} testes)
 5. Títulos dos testes em `{integration_test_file}` ({N} testes)
 

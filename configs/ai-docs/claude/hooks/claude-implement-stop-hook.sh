@@ -3,14 +3,14 @@
 # /implement run is mid-batch in THIS session; allow the stop
 # once every unit has left tasks|gates|tails.
 #
-# Usage (Claude Code Stop hook — "gate mode", the default):
+# Usage (Claude Code Stop hook - "gate mode", the default):
 #   stdin:  hook event JSON ({ session_id,
 #           stop_hook_active, ... })
 #
 #   stdout: optional JSON ({ decision: "block", reason: "..." })
 #           to keep Claude going
 #
-# Usage (--check, "query mode" — for
+# Usage (--check, "query mode" - for
 # claude-stop-orchestrator.sh only, never wired to a hook
 # event):
 #   stdin:  the same hook event JSON
@@ -20,7 +20,7 @@
 #   exit 1: nothing is mid-flight (also the fail-open answer on
 #           any tooling gap)
 #
-#   exit 2: usage error — an argument other than --check.
+#   exit 2: usage error - an argument other than --check.
 #
 # Why query mode exists.
 #
@@ -29,8 +29,8 @@
 #   The stop_hook_active guard below makes gate mode stay silent
 #   on every stop that a previous block caused.
 #
-#   So the orchestrator — which suppresses its "done" ping only
-#   when a gate blocks — pinged success once per task,
+#   So the orchestrator - which suppresses its "done" ping only
+#   when a gate blocks - pinged success once per task,
 #   mid-batch.
 #
 #   Query mode answers the plain mid-flight question with no
@@ -44,7 +44,7 @@
 #   own convention reads right at the call site (`if hook
 #   --check; then skip the ping; fi`).
 #
-#   Which leaves exit 2 for a usage error — conflating that with
+#   Which leaves exit 2 for a usage error - conflating that with
 #   a real answer would silently notify or silently mute on a
 #   typo'd flag.
 #
@@ -60,11 +60,11 @@
 #   would leave the batch abandoned mid-way with no re-prompt.
 #
 #   This hook globs every state file for the session and blocks
-#   the stop while ANY unit's phase is still tasks|gates|tails —
+#   the stop while ANY unit's phase is still tasks|gates|tails -
 #   session-scoped, so it never affects any session without an
 #   active /implement run.
 #
-# Session scoping — the entire mechanism is one existence check:
+# Session scoping - the entire mechanism is one existence check:
 #   State file paths are keyed by session_id.
 #   No file matching this session id → silent exit 0
 #   immediately, before any other check.
@@ -77,7 +77,7 @@
 # un-scopes the session (the next Stop attempt finds no files
 # and allows the stop).
 #
-# §2.3-skip guard — telling the two empty-glob cases apart:
+# §2.3-skip guard - telling the two empty-glob cases apart:
 #   An empty glob used to mean one thing here, and it silently
 #   covered two.
 #
@@ -87,7 +87,7 @@
 #   by hand at batch close.
 #
 #   The session-scoping silence above is CORRECT and stays
-#   exactly as it was — it is what keeps unrelated sessions
+#   exactly as it was - it is what keeps unrelated sessions
 #   free.
 #
 #   What was missing is the bit that separates the cases, and it
@@ -111,7 +111,7 @@
 #   because §2.3 writes two:
 #
 # - Any /tmp/implement_<session_id>*.json state file.
-# - /tmp/implement_<session_id>.md, the scratchpad — NEWER than
+# - /tmp/implement_<session_id>.md, the scratchpad - NEWER than
 #   the marker.
 #
 #     §8.4 trashes the state file but nothing disposes of the
@@ -146,7 +146,7 @@
 #   (claude-stop-orchestrator.sh:129) and a block short-circuits
 #   the chain before the --check call ever runs.
 #
-# Safeguards (all silent no-ops — never break Claude on a
+# Safeguards (all silent no-ops - never break Claude on a
 # tooling/state gap; each answers "nothing is mid-flight", which
 # is exit 0 in gate mode and exit 1 under --check):
 #
@@ -154,7 +154,7 @@
 # - No session_id.
 #
 # - No state files match it AND no marker is armed (an armed
-#   marker is the one case that is NOT a no-op — see the
+#   marker is the one case that is NOT a no-op - see the
 #   §2.3-skip guard above).
 #
 # - A marker path that is not a regular file (a directory left
@@ -168,19 +168,19 @@
 #
 # - stop_hook_active=true → exit 0, GATE MODE ONLY (the same
 #   guard every always-on Stop hook needs: it must never spin an
-#   infinite stop-block loop). --check skips it on purpose — see
+#   infinite stop-block loop). --check skips it on purpose - see
 #   "Why query mode exists" above.
 #
 # - A state file that is corrupt JSON is skipped (fail-open
 #   per-file), not treated as blocking.
 #
-# - A unit's phase other than tasks|gates|tails — including
-#   presented, halted, and blocked — releases that unit; the
+# - A unit's phase other than tasks|gates|tails - including
+#   presented, halted, and blocked - releases that unit; the
 #   stop is allowed once no unit is left mid-flight.
 #
 # - A Stop payload carrying a background_tasks entry of type
 #   subagent or workflow releases the BLOCK only, GATE MODE
-#   ONLY — see the comment at that check for why, and note that
+#   ONLY - see the comment at that check for why, and note that
 #   --check still answers "mid-flight" there.
 #
 # - halted and blocked deliberately release the stop: a run that
@@ -189,13 +189,13 @@
 #   against a wall only the human can clear.
 #
 # This hook supersedes claude-tasklist-stop-hook.sh (deleted as
-# dormant — it was never wired into settings.json).
+# dormant - it was never wired into settings.json).
 #
 # Its safeguard style (stdin parse, stop_hook_active guard, jq
 # guard, fail-open) is the template this hook follows, adapted
 # to read per-unit state files instead of a tasks dir.
 #
-# NO env-var opt-out by design — a kill switch would let Claude
+# NO env-var opt-out by design - a kill switch would let Claude
 # silence its own accountability mechanism via a Bash call.
 #
 # To disable, remove this hook's chaining from
@@ -273,7 +273,7 @@ session, but no state file exists at /tmp/implement_${session_id}.json (nor any 
 /tmp/implement_${session_id}_pr<N>.json). The implement skill's §2.3 was \
 skipped, so implement-loop-state.py, this Stop gate and the compact reminder \
 are all blind and the batch can run to the end unrecorded. Write the §2.3 state \
-file now — its version-4 shape is in the implement skill — before doing anything \
+file now - its version-4 shape is in the implement skill - before doing anything \
 else. If /implement is NOT running here (pre-flight aborted at §1.1 or §1.3, or \
 the invocation never started the skill), clear the guard instead with: trash \
 /tmp/implement_${session_id}.expected"
@@ -285,7 +285,7 @@ fi
 # for this run, and every later Stop is driven by the phase
 # logic below.
 #
-# Gate mode only — query mode is a read-only question the
+# Gate mode only - query mode is a read-only question the
 # orchestrator asks after the gate has already decided, so it
 # must not mutate what that decision was based on.
 if [ "$mode" = "gate" ] && [ -f "$marker" ]; then
@@ -320,7 +320,7 @@ done
 
 [ "$mid_flight_count" -eq 0 ] && leave_not_mid_flight
 
-# Query mode answers with the exit code alone — naming the unit
+# Query mode answers with the exit code alone - naming the unit
 # and its phase is the block reason's job, and the orchestrator
 # has nothing to print it into.
 [ "$mode" = "check" ] && exit 0
@@ -343,7 +343,7 @@ done
 # because this one had no copy at all.
 #
 # Fails open on missing jq or unparseable JSON, like every other
-# safeguard here — the block is what's skipped, never the truth
+# safeguard here - the block is what's skipped, never the truth
 # --check reports.
 bg_count=$(printf '%s' "$input" | jq -r \
   '[(.background_tasks // [])[] | select(.type == "subagent" or .type == "workflow")] | length' \
@@ -358,7 +358,7 @@ remaining_note=""
 [ "$remaining" -gt 0 ] && remaining_note=" ($remaining more unit(s) still mid-flight)"
 
 reason="Implement run (session $session_id): $first_unit_desc is still in phase \
-'$first_phase'$remaining_note — the batch isn't done yet. Keep working the task \
+'$first_phase'$remaining_note - the batch isn't done yet. Keep working the task \
 loop (see the implement skill and implement-loop-state.py) instead of stopping; \
 each unit finishes on its own once its phase reaches presented, or halts for the \
 human (halted/blocked)."

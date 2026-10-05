@@ -9,7 +9,7 @@
 #
 # A PR whose body needs three screens gets skimmed.
 #
-# What counts as one rendered line — the measurement model:
+# What counts as one rendered line - the measurement model:
 # - A collapsed <details> block -> 1 line (only its summary
 #   shows).
 #
@@ -50,10 +50,10 @@
 #                authority on how those 64 lines are divided.
 #
 #   wrap-width   Optional. Chars per rendered line before
-#                wrapping. Default: 95 — GitHub's ~860px
+#                wrapping. Default: 95 - GitHub's ~860px
 #                description column at 14px/1.5 body type.
 #
-# Output: a verdict line, then a breakdown per heading —
+# Output: a verdict line, then a breakdown per heading -
 # top-level sections worst-first, each subsection indented under
 # its parent and included in its total.
 #
@@ -65,7 +65,7 @@
 #   0  fits on one page.
 #   1  bad usage / file not found (message on stderr).
 #
-#   2  within 20% of the budget (close — trim soon).
+#   2  within 20% of the budget (close - trim soon).
 #   3  over the budget (does not fit one page).
 #
 # Examples:
@@ -156,7 +156,7 @@ FNR == NR { arr[FNR] = $0; nlines = FNR; next }
 
 END {
     i = 1
-    # Skip YAML frontmatter — bundled reference files carry budget overrides
+    # Skip YAML frontmatter - bundled reference files carry budget overrides
     # that are not part of the PR body they reproduce.
     if (nlines > 0 && arr[1] ~ /^---[ \t]*$/) {
         i = 2
@@ -189,7 +189,7 @@ END {
                 i++                                    # fall through to inner lines
                 continue
             }
-            # Charge the summary the reader sees, at its true wrapped width — a
+            # Charge the summary the reader sees, at its true wrapped width - a
             # long summary line costs the same two lines collapsed or expanded.
             j = i + 1
             while (j <= nlines && arr[j] !~ /<summary/ && arr[j] !~ /<\/details>/) j++
@@ -268,7 +268,7 @@ print_breakdown() {
 }
 
 if ((total > page_lines)); then
-    echo "OVER: ~$total rendered lines — a one-page body is $page_lines. Cut ~$((total - page_lines))."
+    echo "OVER: ~$total rendered lines - a one-page body is $page_lines. Cut ~$((total - page_lines))."
     print_breakdown
     exit 3
 elif ((total > warn_threshold)); then
@@ -276,7 +276,7 @@ elif ((total > warn_threshold)); then
     print_breakdown
     exit 2
 else
-    echo "OK: ~$total rendered lines — fits one page ($page_lines), $((page_lines - total)) to spare."
+    echo "OK: ~$total rendered lines - fits one page ($page_lines), $((page_lines - total)) to spare."
 
     # Printed even on success: the total passing does not mean
     # every section stayed within its own budget, and only the

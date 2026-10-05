@@ -7,7 +7,7 @@ A plan's `## Test Design` annotates each it() row with the ACs it proves
 and the tasks that write it (`// AC-17 T14`). Each task under
 `## Task Breakdown` gets a `### N.` heading with no AC field of its own;
 its `**Testable Acceptance criteria**` field lives instead in the
-`## Task Details` appendix, in a `<details><summary>Task N — ...`
+`## Task Details` appendix, in a `<details><summary>Task N - ...`
 entry. Nothing else joins the three, so a row can cite an AC its task's
 entry never claims, or a task can be missing its entry entirely (or vice
 versa). check-ac-coverage.sh does not cover this: in annotated form it
@@ -15,8 +15,8 @@ runs completeness against the spec only, and never reads the task-side
 field at all.
 
 This checker runs only at authoring time, from to-plan self-review
-against a freshly written plan — never against an old in-flight plan
-the way /implement's parsers do — so it reads the Task Details appendix
+against a freshly written plan - never against an old in-flight plan
+the way /implement's parsers do - so it reads the Task Details appendix
 only; a task's old-location body-side AC field (if any survives from
 before the doc reshape) is not read.
 

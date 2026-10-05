@@ -11,17 +11,17 @@
 #
 # Any it() row with a non-empty AC or T column puts the WHOLE
 # plan in annotated form; a plan whose Test Design has no it()
-# at all — e.g. the "N/A" escape — falls back to LIST form
+# at all - e.g. the "N/A" escape - falls back to LIST form
 # below, since there is nothing to annotate.
 #
 # ANNOTATED form (new): filters Test Design's it() titles by the
 # task's own `T<task-N>` token, printing each matching bare
 # title verbatim, in Test Design order.
 #
-# No `**Tests (planned)**:` bullet list exists in this form —
+# No `**Tests (planned)**:` bullet list exists in this form -
 # the distribution lives only in the annotation.
 #
-# LIST form (old — unchanged; a transition path for
+# LIST form (old - unchanged; a transition path for
 # plans listing tests under each task's `**Tests (planned)**:`
 # bullets, kept until no plan uses it): parses the task's own
 # `**Tests (planned)**:` bullet list.
@@ -29,7 +29,7 @@
 # Stripped of leading bullet marker, surrounding quotes, and
 # trailing `[on-demand]` / `[skip]` tags.
 #
-# Both forms print one bare test title per line on stdout — this
+# Both forms print one bare test title per line on stdout - this
 # contract is pinned by /implement's post-commit planned-test
 # step (test-sdd/SKILL.md), so it must not change.
 #
@@ -87,7 +87,7 @@ fi
 # Detect the plan's Test Design form.
 #
 # A design_extract failure (e.g. the "N/A" escape, no it() lines
-# at all) means there is nothing to annotate — fall back to LIST
+# at all) means there is nothing to annotate - fall back to LIST
 # form below, which already handles that case correctly via the
 # task's own **Tests (planned)** bullet.
 design_extract="$script_dir/extract-design-tests.sh"
@@ -99,8 +99,8 @@ fi
 
 if [ "$is_annotated" = "yes" ]; then
   # ANNOTATED form: print every it() title whose T column
-  # carries this task's exact "T<N>" token, in Test Design order
-  # — see header comment.
+  # carries this task's exact "T<N>" token in Test Design order.
+  # See header comment.
   printf '%s\n' "$annotation_rows" | awk -F'\t' -v want="T${task_n}" '
     {
       n = split($4, toks, " ")
@@ -112,7 +112,7 @@ if [ "$is_annotated" = "yes" ]; then
   exit 0
 fi
 
-# LIST form (below): unchanged from before this dispatch — see
+# LIST form (below): unchanged from before this dispatch - see
 # header comment.
 
 # Within the section, capture content under
@@ -124,7 +124,7 @@ tests_block=$(printf '%s\n' "$section" | awk '
     rest = $0
     sub(/^\*\*Tests \(planned\)\*\*:[[:space:]]*/, "", rest)
     if (length(rest) > 0) {
-      # Inline "N/A — reason" form short-circuits to empty output (exit 0).
+      # Inline "N/A - reason" form short-circuits to empty output (exit 0).
       if (tolower(rest) ~ /^n\/a([^a-z]|$)/) exit
       print rest
     }

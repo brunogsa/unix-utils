@@ -2,8 +2,8 @@
 # extract-md-sections - Print selected level-2 (##) sections
 # from a Markdown file.
 #
-# Pulls each named "## <section>" heading plus its body —
-# everything up to the next "## " heading or EOF — and prints
+# Pulls each named "## <section>" heading plus its body -
+# everything up to the next "## " heading or EOF - and prints
 # the kept sections in file order.
 #
 # Built for embedding chosen slices of spec_<slug>.md /
@@ -23,11 +23,11 @@
 # it) into a body section's output.
 #
 # A generic "^# " line, such as a "# comment" inside a ``` or
-# ~~~ fenced code block, is never treated as this boundary —
+# ~~~ fenced code block, is never treated as this boundary -
 # only the exact "# Appendix" text is.
 #
 # A "## " line inside a ``` or ~~~ fenced code block is sample
-# content, not a real heading — it never opens, closes, or
+# content, not a real heading - it never opens, closes, or
 # ends a kept section. A fence closes only on a line of the same
 # marker, at least as long as the opener, with no info string.
 #

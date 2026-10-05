@@ -63,7 +63,7 @@ Whatever the surface, the rule is unchanged: paste the exact invocation and its 
 
     <a id="scenario-1"></a>
     <details>
-    <summary>Scenario 1 — short description</summary>
+    <summary>Scenario 1 - short description</summary>
 
     2026-09-18T14:32:07-03:00, stage.erp.example.com
 

@@ -1,4 +1,4 @@
-# Wave 1 — Context Prep
+# Wave 1 - Context Prep
 
 Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built context (no network calls).
 
@@ -10,14 +10,14 @@ Purpose: assemble everything Wave 2 will need on disk, so it runs from pre-built
   - `out_base` is set below; always `.md`, per the html-artifacts Gate 1 note in `auto-review/SKILL.md`.
   - The branch segment lets several PRs run in series, each on its own branch, keeping distinguishable verdict files.
 
-**Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** — ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
+**Wave 2 reads the context listed in `references/common-preamble.md#Context you have`** - ensure Wave 1 produces all of it on disk. Commit messages are fetched in both modes; only `{pr_context}` differs:
 
 - github: PR title + body + optional issue-tracker snippet (Jira or Linear, extracted from the title and body or from the explicit Issue ref).
 - local: the resolved spec and plan (if present).
 
 ## github mode
 
-Always clone into the work dir in `/tmp` — never touches the user's CWD.
+Always clone into the work dir in `/tmp` - never touches the user's CWD.
 
 ```bash
 pr_number=...
@@ -72,7 +72,7 @@ Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, pri
 
 Repo root for Wave 2 is the user's CWD; the work dir is scratch for diff/context files.
 
-`base_ref` is supplied by the caller — `auto-review`'s resolved `<BASE_REF>`, or `/implement`'s `BATCH_BASE_SHA` — and may be a branch name, a commit SHA, or `HEAD~N`.
+`base_ref` is supplied by the caller - `auto-review`'s resolved `<BASE_REF>`, or `/implement`'s `BATCH_BASE_SHA` - and may be a branch name, a commit SHA, or `HEAD~N`.
 
 `base_ref` resolution: a branch on origin diffs against the freshly fetched remote copy, so a stale local branch never silently narrows the diff. Anything else must already resolve locally (SHA, `HEAD~N`, tag).
 
@@ -123,6 +123,6 @@ If `diff_bytes > 60000`, `large_pr=true`: Wave 2 fans its eight lenses out to on
 
 The byte count is what Wave 2 reads, and 60 KB (~15k tokens) is the most the inline pass can hold beside its measured ~100k-token post-compaction base plus ~25k of rubric and standards text, leaving ~30k for reasoning.
 
-Local diffs carry `-U20` context while github's carry `-U3`, so the same byte gate fans out on a smaller local change on purpose — the context lines get read too.
+Local diffs carry `-U20` context while github's carry `-U3`, so the same byte gate fans out on a smaller local change on purpose - the context lines get read too.
 
 **Persist it to `$work_dir/large-pr.txt`** for the same reason as `tiny-pr.txt`: a resumed run must take the Wave 2 path it started on, or an inline retry reproduces the compaction loop the flag exists to prevent.

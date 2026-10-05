@@ -85,12 +85,12 @@ class TestRunnerConfigHappy(unittest.TestCase):
             )
 
             # No path argument: node --test discovers
-            # files by name — **/*.test.js by default —
+            # files by name - **/*.test.js by default -
             # not by directory, wherever they sit under cwd.
             #
             # Passing "tests/" makes node require() it as
             # a single module path, failing with
-            # MODULE_NOT_FOUND — the opposite of "no added
+            # MODULE_NOT_FOUND - the opposite of "no added
             # configuration" this test is proving.
             result = subprocess.run(
                 ["node", "--test"],
@@ -107,7 +107,7 @@ class TestRunnerConfigHappy(unittest.TestCase):
             self.assertTrue(
                 (REPO_ROOT / suite).is_file(),
                 msg=f"{suite} does not resolve to a real file under "
-                    f"{REPO_ROOT} — PRE_EXISTING_SUITES entries must be "
+                    f"{REPO_ROOT} - PRE_EXISTING_SUITES entries must be "
                     f"repo-root-relative paths, not substrings")
 
     def test_should_still_list_all_five_pre_existing_test_prefixed_suites_after_the_config_change(self):
@@ -123,7 +123,7 @@ class TestRunnerConfigHappy(unittest.TestCase):
         for suite in PRE_EXISTING_SUITES:
             self.assertIn(
                 f"{suite}::", result.stdout,
-                msg=f"{suite} collected no tests — the "
+                msg=f"{suite} collected no tests - the "
                     f"python_files config de-collected a pre-existing suite")
 
 

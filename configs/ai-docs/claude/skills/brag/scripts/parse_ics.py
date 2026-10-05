@@ -232,7 +232,7 @@ def parse_ics_events(ics_path, start_range, end_range):
         created_iso = created_dt.isoformat() if created_dt else None
 
         if rrule_str and not has_recurrence_id:
-            # Series definition — expand RRULE to find
+            # Series definition - expand RRULE to find
             # occurrences in range.
             #
             # Use None for _created: series CREATED date is

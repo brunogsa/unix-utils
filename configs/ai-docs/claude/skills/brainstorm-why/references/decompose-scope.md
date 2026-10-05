@@ -3,8 +3,8 @@
 Fires only when the request looks decomposable into independent sub-projects during the interview, and the user agrees to split it.
 
 - Name the candidate sub-projects, ask the user how they relate and which one ships first.
-- Brainstorm only the first sub-project here — each remaining piece ideally gets its own spec→plan cycle.
-- If the user declines, brainstorm the whole original idea instead — no implicit narrowing to a first sub-project.
+- Brainstorm only the first sub-project here - each remaining piece ideally gets its own spec→plan cycle.
+- If the user declines, brainstorm the whole original idea instead - no implicit narrowing to a first sub-project.
 
 **If the user agrees to decompose**: record every sub-project as a `[Side]` TaskList entry, including the one being brainstormed now.
 

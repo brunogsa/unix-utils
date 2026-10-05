@@ -46,7 +46,7 @@ These are hints to help you find the right tool -- not exhaustive documentation.
 
 A `PreToolUse` hook rewrites every Bash call to run through `rtk`, so you write the plain command and never type the prefix yourself.
 
-rtk's own meta commands are the one exception — the hook only rewrites *other* tools' commands, so these have no unprefixed form and must be typed with `rtk`:
+rtk's own meta commands are the one exception - the hook only rewrites *other* tools' commands, so these have no unprefixed form and must be typed with `rtk`:
 
 ```bash
 rtk gain              # token savings analytics

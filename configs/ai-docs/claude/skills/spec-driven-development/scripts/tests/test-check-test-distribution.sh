@@ -48,7 +48,7 @@ assert_contains() {
 
 # run_script - invokes check-test-distribution.sh against a
 # plan-file fixture, capturing stderr/exit code into
-# VERDICT_ERR/VERDICT_EXIT (stdout is discarded — these tests
+# VERDICT_ERR/VERDICT_EXIT (stdout is discarded - these tests
 # assert on exit code and diagnostic presence only).
 run_script() {
   local plan_file="$1"
@@ -85,10 +85,10 @@ describe("checkTestDistribution", () => {
 it_should_pass_when_the_test_design_section_is_the_n_a_escape_with_a_reason() {
   local fixture
   fixture=$(write_plan "n-a-escape" \
-    'N/A — no spec, and no executable behavior.' \
+    'N/A - no spec, and no executable behavior.' \
     '### 1. Rewrite the note-taking rules
 
-**Tests (planned)**: N/A — documentation-only edit.')
+**Tests (planned)**: N/A - documentation-only edit.')
   run_script "$fixture"
   assert_eq "should pass when the Test Design section is the N/A escape with a reason" "0" "$VERDICT_EXIT"
 }
@@ -99,10 +99,10 @@ it_should_pass_when_the_test_design_section_is_the_n_a_escape_with_a_reason() {
 it_should_fail_when_the_test_design_body_starts_with_n_a_x_rather_than_the_escape() {
   local fixture
   fixture=$(write_plan "n-a-x" \
-    'N/Ax — a typo, not the template escape.' \
+    'N/Ax - a typo, not the template escape.' \
     '### 1. Rewrite the note-taking rules
 
-**Tests (planned)**: N/A — documentation-only edit.')
+**Tests (planned)**: N/A - documentation-only edit.')
   run_script "$fixture"
   assert_eq "should fail when the Test Design section body starts with N/Ax rather than the N/A escape" "1" "$VERDICT_EXIT"
 }
@@ -112,15 +112,15 @@ it_should_fail_when_the_test_design_body_starts_with_n_a_x_rather_than_the_escap
 #
 # A plan asserting "no executable behavior" in Test Design while
 # a task still plans a real test is genuine drift between the
-# two regions — exactly the case a one-sided escape would wave
+# two regions - exactly the case a one-sided escape would wave
 # through.
 it_should_fail_when_the_test_design_is_the_n_a_escape_but_a_task_still_plans_a_real_test() {
   local fixture
   fixture=$(write_plan "n-a-design-real-task-test" \
-    'N/A — no spec, and no executable behavior.' \
+    'N/A - no spec, and no executable behavior.' \
     '### 1. Rewrite the note-taking rules
 
-**Tests (planned)**: N/A — documentation-only edit.
+**Tests (planned)**: N/A - documentation-only edit.
 
 ### 2. Add the deduplication helper
 
@@ -130,7 +130,7 @@ it_should_fail_when_the_test_design_is_the_n_a_escape_but_a_task_still_plans_a_r
   assert_eq "should fail when the Test Design section is the N/A escape but a task still plans a real test (exit code)" \
     "1" "$VERDICT_EXIT"
 
-  # The offending title is the whole payload of this verdict —
+  # The offending title is the whole payload of this verdict -
   # without it the author cannot tell which task contradicts the
   # N/A claim.
   case "$VERDICT_ERR" in
@@ -154,11 +154,11 @@ it_should_fail_when_the_test_design_lists_real_titles_but_every_task_is_n_a() {
   fixture=$(write_plan "real-design-all-n-a-tasks" "$MATCHING_DESIGN" \
     '### 1. Wire the gate
 
-**Tests (planned)**: N/A — documentation-only edit.
+**Tests (planned)**: N/A - documentation-only edit.
 
 ### 2. Report the diffs
 
-**Tests (planned)**: N/A — documentation-only edit.')
+**Tests (planned)**: N/A - documentation-only edit.')
   run_script "$fixture"
   assert_eq "should fail when the Test Design section lists real titles but every task is N/A (exit code)" \
     "1" "$VERDICT_EXIT"
@@ -182,7 +182,7 @@ it_should_fail_when_the_test_design_lists_real_titles_but_every_task_is_n_a() {
 
 it_should_fail_when_the_plan_has_no_test_design_section_at_all() {
   local path="$work_dir/no-design-section.md"
-  printf '# Plan: no design section\n\n## Task Breakdown\n\n### 1. Ship the thing\n\n**Tests (planned)**: N/A — documentation-only edit.\n' > "$path"
+  printf '# Plan: no design section\n\n## Task Breakdown\n\n### 1. Ship the thing\n\n**Tests (planned)**: N/A - documentation-only edit.\n' > "$path"
   run_script "$path"
   assert_eq "should fail when the plan has no Test Design section at all" "1" "$VERDICT_EXIT"
 }
@@ -193,7 +193,7 @@ it_should_fail_when_the_test_design_body_is_prose_with_no_titles_and_no_escape()
     'We will figure out the test list once the refactor settles.' \
     '### 1. Ship the thing
 
-**Tests (planned)**: N/A — documentation-only edit.')
+**Tests (planned)**: N/A - documentation-only edit.')
   run_script "$fixture"
   assert_eq "should fail when the Test Design section has prose but no it() titles and no N/A escape" "1" "$VERDICT_EXIT"
 }
@@ -255,11 +255,11 @@ it_should_pass_in_annotated_form_when_every_it_carries_a_t_token_naming_a_real_t
   fixture=$(write_plan "annotated-matching" "$ANNOTATED_DESIGN" \
     '### 1. Wire the gate
 
-No Tests (planned) bullet needed — the T1 annotation on the it() above already names this task.
+No Tests (planned) bullet needed - the T1 annotation on the it() above already names this task.
 
 ### 2. Report the diffs
 
-No Tests (planned) bullet needed — the T2 annotation on the it() above already names this task.')
+No Tests (planned) bullet needed - the T2 annotation on the it() above already names this task.')
   run_script "$fixture"
   assert_eq "should pass in annotated form when every it() carries a T<n> token naming a real task" "0" "$VERDICT_EXIT"
 }

@@ -1,6 +1,6 @@
-# test-sdd — flow overview
+# test-sdd - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
@@ -17,21 +17,21 @@ def test_sdd(arg):
         return stop("no plan to check against")            # 3a
     plan = plans[0] if len(plans) == 1 else ask_user_to_pick(numbered(plans))   # 3b
 
-    # 4 · Step 2 — every "### N." heading by default, else exact-match the arg's ids.
+    # 4 · Step 2 - every "### N." heading by default, else exact-match the arg's ids.
     tasks = resolve_task_ids(plan, arg.task_ids)
     for t in tasks:
         t.status_marker = plan.status_of(t)
     if not each_id_matched_exactly_one(tasks):             # 5
         return stop(the_id_that_missed_or_the_collision)   # 5a · a collision = malformed plan
 
-    # 6 · Step 3 — minted in CWD, one per run, never reused.
+    # 6 · Step 3 - minted in CWD, one per run, never reused.
     verdict_path = f"verdict_test-sdd_{now('%Y-%m-%d_%H:%M')}.md"
 
-    # 7 · Step 4 — ONE test-reviewer, agent-pinned, background, fresh context.
+    # 7 · Step 4 - ONE test-reviewer, agent-pinned, background, fresh context.
     dispatch("test-reviewer", plan, tasks, verdict_path)
     # 7a · hook: check-reviewer-writes (only verdict_*.md writes are approved)
 
-    # ---- 8–13 · Step 5 · inside the reviewer, once per resolved task-id ----
+    # ---- 8-13 · Step 5 · inside the reviewer, once per resolved task-id ----
     for task in tasks:
         if task.carries_decision_skip:                     # 8
             report_opted_out(task, quoting=task.stated_reason)   # 8a
@@ -48,12 +48,12 @@ def test_sdd(arg):
         for title in titles:             # 11 · exit 0 with titles
             hit = git_grep("-nF", "--untracked", title)     # over the working tree
             if not hit:                                    # 12
-                # 12a · AI semantic pass — reworded, wrapped or templated titles
+                # 12a · AI semantic pass - reworded, wrapped or templated titles
                 #       count as present ONLY with a path:line citation.
                 hit = semantic_pass(title, require="path:line")
             classify(title, found_at=hit)                  # 13 · found (path:line) or missing
 
-    # 14 · Step 6 — the reviewer writes the COMPLETE report to VERDICT_PATH:
+    # 14 · Step 6 - the reviewer writes the COMPLETE report to VERDICT_PATH:
     #      summary table, N/A list, opt-out list, one "### N. [HIGH]" per missing title.
     reviewer.write(verdict_path)
 
@@ -63,7 +63,7 @@ def test_sdd(arg):
     read_end_to_end(verdict_path)                          # 16 · Step 7
     print(plan, checked_ids, found_and_missing_counts, one_line_per_finding)
 
-    return  # 17 · Stop — report only. Writing the missing tests is
+    return  # 17 · Stop - report only. Writing the missing tests is
             #      /quality-gate, or a direct ask.
 ```
 
@@ -93,7 +93,7 @@ flowchart TD
     n10b["10b. Exit 0, empty · task declared N/A;<br/>report it, never a finding"]
     n11["11. Exit 0, titles · per title run<br/>git grep -nF --untracked over the working tree"]:::hook
     n12{"12. Grep matched the title?"}
-    n12a["12a. AI semantic pass — reworded, wrapped,<br/>or templated titles count as present<br/>ONLY with a path:line citation"]
+    n12a["12a. AI semantic pass - reworded, wrapped,<br/>or templated titles count as present<br/>ONLY with a path:line citation"]
     n13["13. Classify each title found (path:line)<br/>or missing"]
   end
 
@@ -101,7 +101,7 @@ flowchart TD
   n15{"15. Step 7 · VERDICT_PATH present and non-empty?"}
   n15a["15a. Re-dispatch the reviewer once;<br/>never report from the truncated return"]:::dispatch
   n16["16. Step 7 · Read VERDICT_PATH end-to-end,<br/>then print the plan, the checked ids,<br/>found/missing counts, one line per finding"]
-  n17(["17. Stop — report only.<br/>Writing the missing tests is<br/>/quality-gate, or a direct ask"])
+  n17(["17. Stop - report only.<br/>Writing the missing tests is<br/>/quality-gate, or a direct ask"])
 
   n1 --> n2 --> n3
   n3 -->|"zero"| n3a

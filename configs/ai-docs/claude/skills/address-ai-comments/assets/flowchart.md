@@ -1,6 +1,6 @@
-# address-ai-comments — flow overview
+# address-ai-comments - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
@@ -12,7 +12,7 @@ Python-shaped for readability only; nothing here runs, and the function names st
 # 1 · Entry: /address-ai-comments <path(s)>, or natural phrasing
 #     ("raise/gather/check/find/see the AI?/AI! comments I left on <path>").
 def address_ai_comments(arg):
-    # 2 · Step 1 — both questions in ONE message, never two round-trips.
+    # 2 · Step 1 - both questions in ONE message, never two round-trips.
     targets, run_tails = ask_together(
         "Which file(s)/folder(s) to sweep?",
         "Run refactor/auto-review tails after?",   # default: no
@@ -34,43 +34,43 @@ def address_ai_comments(arg):
             match marker_of(hit):                          # 5c
                 case "AI!": hit.kind = "action"            # 5c1
                 case "AI?": hit.kind = "question"          # 5c2
-    else:  # 5 · no — many files or a large tree
+    else:  # 5 · no - many files or a large tree
         # 5d · optional, NOT the default. One subagent per subdirectory,
-        #      mechanical locate+classify only — no fixing, no answering.
+        #      mechanical locate+classify only - no fixing, no answering.
         hits = dispatch_parallel("general-purpose · haiku · low", per=subdirs(targets))
 
     # 6 · themes appended to the run-state file as they are produced, not at the end
     clusters = cluster_into_themes(hits)
     state.append(clusters)
 
-    # 7 · Step 3 — the FULL list is populated before any cluster executes.
+    # 7 · Step 3 - the FULL list is populated before any cluster executes.
     for c in clusters:
         TaskCreate(description=c.theme, metadata={"refs": c.file_lines, "text": c.markers})
 
-    # 8 · sequential by design — inline in main, nothing here parallelizes
+    # 8 · sequential by design - inline in main, nothing here parallelizes
     while clusters_remaining():                            # 8
         cluster = next_cluster()
         for marker in cluster.markers:   # 8a · a mixed cluster runs in file order
             match marker.kind:                             # 8a
                 case "action":   perform_the_change(marker)      # 8a1 · Step 4a
-                case "question": answer_in_chat(marker)          # 8a2 · Step 4b — never in the file
+                case "question": answer_in_chat(marker)          # 8a2 · Step 4b - never in the file
             delete_marker_from_source(marker)              # 8b · only once resolved
 
     tails = None
     if run_tails:                                          # 9
-        # 9a · Step 5 — code-reviewer x2, agent-pinned, dispatched in the SAME turn (∥):
+        # 9a · Step 5 - code-reviewer x2, agent-pinned, dispatched in the SAME turn (∥):
         #      simplification + correctness lenses, over BATCH_BASE_SHA..working tree.
         #      ref: code-review-pipeline/references/code-reviewer-tail-pair.md
         tails = dispatch_parallel("code-reviewer", lenses=["simplification", "correctness"])
-        # 9b · hook: check-reviewer-writes.sh — writes allowed only to
+        # 9b · hook: check-reviewer-writes.sh - writes allowed only to
         #      verdict_*.md or under /tmp; anything else is denied and aborts the run.
 
         # 9c · read BOTH verdict reports, synthesize a prioritized summary,
-        #      and close with an apply-offer — opt-in only, never auto-applied.
+        #      and close with an apply-offer - opt-in only, never auto-applied.
         tails = triage(read_all(tails))
         report.append(tails.paths, tails.top_findings, tails.apply_offer)   # 9d
 
-    # 10 · Step 6 — ONE final report. No per-cluster reports along the way.
+    # 10 · Step 6 - ONE final report. No per-cluster reports along the way.
     print(tasks_created, tasks_executed, file_line_refs, tails)
     return  # 11 · Done
 ```
@@ -92,18 +92,18 @@ flowchart TD
   n5c2["5c2. AI? -&gt; question item"]
   n6["6. Cluster markers into themes;<br/>append classification + theme to run-state file as produced"]:::state
   n5d[["5d. (optional, not default) Dispatch subagents in parallel (∥)<br/>pin: general-purpose · haiku · low<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
-  n7["7. Step 3 · Create one TaskList task per cluster —<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
-  n8{"8. Clusters remaining?<br/>(loop runs sequentially — inline in main<br/>session by design, nothing to parallelize)"}
+  n7["7. Step 3 · Create one TaskList task per cluster -<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
+  n8{"8. Clusters remaining?<br/>(loop runs sequentially - inline in main<br/>session by design, nothing to parallelize)"}
   n8a{"8a. Cluster's marker type?<br/>(mixed clusters: markers process in file order)"}
   n8a1["8a1. Step 4a · AI!: perform the action/change first"]
   n8a2["8a2. Step 4b · AI?: answer in chat first, never in the file"]
   n8b["8b. Delete the marker from source once resolved"]
   n9{"9. Step 1 toggle was on?"}
-  n9a[["9a. Step 5 · Dispatch code-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) — simplification + correctness lenses<br/>(ref: code-review-pipeline/references/code-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
+  n9a[["9a. Step 5 · Dispatch code-reviewer x2 · agent-pinned,<br/>in parallel (∥, same turn) - simplification + correctness lenses<br/>(ref: code-review-pipeline/references/code-reviewer-tail-pair.md);<br/>diff BATCH_BASE_SHA..working tree"]]:::dispatch
   n9b["9b. PreToolUse hook: check-reviewer-writes.sh<br/>allows writes only to verdict_*.md or under /tmp;<br/>denies + aborts run otherwise"]:::hook
-  n9c["9c. Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only — never auto-applied)"]:::gate
+  n9c["9c. Triage: read both verdict reports, synthesize<br/>prioritized summary, close with apply-offer<br/>(opt-in only - never auto-applied)"]:::gate
   n9d["9d. Append tails' two report paths + top findings<br/>+ apply-offer to final report"]
-  n10["10. Step 6 · Report tasks created/executed + file:line refs<br/>(single final report — no per-cluster reports)"]
+  n10["10. Step 6 · Report tasks created/executed + file:line refs<br/>(single final report - no per-cluster reports)"]
   n11(["11. Done"])
 
   n1 --> n2

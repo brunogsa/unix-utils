@@ -8,11 +8,11 @@
 #   classify-conversion.py --tree <dir> [--tree <dir> ...]
 #
 # stdin: none
-# stdout: one JSON object per classified file — {"path",
+# stdout: one JSON object per classified file - {"path",
 #   "verdict", "target_language"}; tree mode also carries
 #   "tree_root"
 #
-# exit: 0 on success, 1 on bad input — missing path, a path
+# exit: 0 on success, 1 on bad input - missing path, a path
 #   that is neither a file nor reachable via --tree, or a
 #   Requires-npm header naming no package or an empty gap
 
@@ -61,7 +61,7 @@ COLD_START_SENSITIVE_BASENAMES = frozenset({
 # stale duplicate worktree.
 #
 # install.sh is excluded narrowly, from this conversion bar
-# only — it is what bootstraps the interpreters a conversion
+# only - it is what bootstraps the interpreters a conversion
 # would make it depend on.
 VENDORED_DIR_MARKER = "skill-standards/scripts/"
 VENDORED_FILE_SUFFIX = "eval-viewer/generate_review.py"
@@ -70,12 +70,12 @@ STALE_WORKTREE_MARKER = "worktrees/stacked-prs-pr2"
 # The header line a script uses to opt into .js instead of
 # the default .py.
 #
-# The gap after the colon is [ \t]*, not \s* — \s matches
+# The gap after the colon is [ \t]*, not \s* - \s matches
 # newline too, so under re.MULTILINE it would let an empty
 # header's capture group cross into the following line and
 # read an unrelated comment as the header's own content.
 REQUIRES_NPM_HEADER = re.compile(r"^#\s*Requires-npm:[ \t]*(.*)$", re.MULTILINE)
-REQUIRES_NPM_SEPARATOR = "—"
+REQUIRES_NPM_SEPARATOR = " - "
 
 
 def is_excluded(path: Path) -> bool:
@@ -122,7 +122,7 @@ def get_target_language(text: str) -> str:
     """Return "py", the default target language, unless a
     Requires-npm header opts the script into "js". Raises
     ValueError when that header is present but names no package
-    or carries an empty stdlib gap — the header is the only
+    or carries an empty stdlib gap - the header is the only
     accepted justification for choosing .js."""
     match = REQUIRES_NPM_HEADER.search(text)
     if match is None:
@@ -132,7 +132,7 @@ def get_target_language(text: str) -> str:
     if REQUIRES_NPM_SEPARATOR not in content:
         raise ValueError(
             "Requires-npm header must separate the npm package "
-            f"from the stdlib gap with an em dash ({REQUIRES_NPM_SEPARATOR}): "
+            f"from the stdlib gap with a spaced hyphen ({REQUIRES_NPM_SEPARATOR!r}): "
             f"{content!r}"
         )
 
@@ -150,7 +150,7 @@ def get_target_language(text: str) -> str:
 def classify_file(path: Path, tree_root: Path | None = None) -> dict:
     """Classify a single script and return its verdict + target
     language as one JSON-ready dict. Excluded and stays-sh scripts
-    get no target language — neither is ever converted, so the
+    get no target language - neither is ever converted, so the
     question is moot for both, the same way it already is for
     excluded scripts.
 
@@ -171,7 +171,7 @@ def classify_file(path: Path, tree_root: Path | None = None) -> dict:
     result["verdict"] = verdict
 
     # Still parsed unconditionally so a malformed Requires-npm
-    # header fails the run even on a script that stays shell —
+    # header fails the run even on a script that stays shell -
     # only the reported value is withheld for a non-convert
     # verdict.
     target_language = get_target_language(text)

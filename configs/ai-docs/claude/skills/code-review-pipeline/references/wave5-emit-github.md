@@ -1,4 +1,4 @@
-# Wave 5 — Emit (github mode)
+# Wave 5 - Emit (github mode)
 
 Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5-emit-local.md).
 
@@ -14,10 +14,10 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 ## Build and POST the pending review
 
 3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` verbatim from its `$work_dir/wave5-comment-<n>.md`.
-   - **Leave the top-level `body` empty** — the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
+   - **Leave the top-level `body` empty** - the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: a guide in the body gets buried behind GitHub's review filter.
 
-   - Every inline comment body gets the signature footer appended: two newlines + `— gerado por IA, revisado pelo usuário`.
+   - Every inline comment body gets the signature footer appended: two newlines + `gerado por IA, revisado pelo usuário`.
      - Rationale: `gh api` authenticates as the human operator, so comments need an explicit AI disclaimer.
 
    - Include `start_line`/`start_side` only on multi-line ranges (`line > start_line`).
@@ -34,13 +34,13 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
          "side": "RIGHT",
          "start_line": 40,
          "start_side": "RIGHT",
-         "body": "<finding body>\n\n— gerado por IA, revisado pelo usuário"
+         "body": "<finding body>\n\ngerado por IA, revisado pelo usuário"
        }
      ]
    }
    ```
 
-4. POST as a **pending** review (no `event` field), in exactly one call — the whole `comments[]` array goes in this single request, never one comment at a time:
+4. POST as a **pending** review (no `event` field), in exactly one call - the whole `comments[]` array goes in this single request, never one comment at a time:
 
    ```bash
    gh api repos/"$repo"/pulls/"$pr_number"/reviews \
@@ -49,7 +49,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
      > "$work_dir/review-response.json"
 
    review_id=$(jq -r '.id' "$work_dir/review-response.json")
-   review_url=$(jq -r '.html_url // "(pending — open PR and filter reviews)"' "$work_dir/review-response.json")
+   review_url=$(jq -r '.html_url // "(pending - open PR and filter reviews)"' "$work_dir/review-response.json")
    ```
 
 5. If the POST fails (422), re-read line numbers from `commentable-lines.txt` and drop findings whose anchors are unresolvable, then retry once **with the same single-batch-POST shape**.
@@ -61,7 +61,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
 ## Confirm nothing submitted the review
 
-6. **Verify the review actually stayed pending** — a POST response of `"state": "PENDING"` is not proof by itself.
+6. **Verify the review actually stayed pending** - a POST response of `"state": "PENDING"` is not proof by itself.
    - Re-fetch the same review a moment later and check again.
    - Something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
 
@@ -70,13 +70,13 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    ```
 
    - Expect `{"state": "PENDING", "submitted_at": null}`.
-   - Anything else — `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` — means the review already went live.
+   - Anything else - `COMMENTED`, `APPROVED`, `CHANGES_REQUESTED`, or a non-null `submitted_at` - means the review already went live.
 
    - A submitted review can't be put back to pending via the API (only its individual comments can be deleted, one by one, via `DELETE /repos/{owner}/{repo}/pulls/comments/{comment_id}`).
 
-   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly — an unexpected extra comment or mismatched count is the same signal as an unexpected state.
+   - Also re-fetch `.../reviews/"$review_id"/comments` and confirm the comment count and line numbers match `review-payload.json` exactly - an unexpected extra comment or mismatched count is the same signal as an unexpected state.
 
-   - **If either check comes back wrong, stop: don't declare success** — report the actual state (or the mismatch) to the user.
+   - **If either check comes back wrong, stop: don't declare success** - report the actual state (or the mismatch) to the user.
      - Never call anything that submits a review (no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`).
      - Submitting is the human's action alone.
 
@@ -101,19 +101,19 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
    ```markdown
    <details>
-   <summary><strong>Code review — guia de leitura</strong> (clique para expandir)</summary>
+   <summary><strong>Code review - guia de leitura</strong> (clique para expandir)</summary>
 
-   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>), gerada a partir do commit [`<short_sha>`](<commit_url>) — commits posteriores podem deixar este guia desatualizado. Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
+   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>), gerada a partir do commit [`<short_sha>`](<commit_url>) - commits posteriores podem deixar este guia desatualizado. Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
 
-   <the full content of $work_dir/wave2-guide.md — every section `references/guide-writer.md` emitted, since that file owns the section list; on tiny_pr=true this is Wave 2's 2-sentence summary in place of the full guide>
+   <the full content of $work_dir/wave2-guide.md - every section `references/guide-writer.md` emitted, since that file owns the section list; on tiny_pr=true this is Wave 2's 2-sentence summary in place of the full guide>
 
    </details>
 
-   — gerado por IA, revisado pelo usuário
+   gerado por IA, revisado pelo usuário
    ```
 
    - The commit stamp lets a reader tell a stale guide from a current one: it describes one head commit, and a later push changes the diff without touching the comment.
 
-   - Keep the blank lines around the guide content — GitHub renders Markdown (the guide's ```mermaid fences included) inside `<details>` only when a blank line separates it from the HTML tags.
+   - Keep the blank lines around the guide content - GitHub renders Markdown (the guide's ```mermaid fences included) inside `<details>` only when a blank line separates it from the HTML tags.
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.

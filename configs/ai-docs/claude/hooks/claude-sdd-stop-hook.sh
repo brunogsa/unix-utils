@@ -124,8 +124,8 @@ for plan in plan_*.md; do
 
   # test-distribution: needs only the plan.
   #
-  # Capture stdout+stderr — the FAIL diff prints the offending
-  # titles to stderr — so the main session gets the itemized
+  # Capture stdout+stderr - the FAIL diff prints the offending
+  # titles to stderr - so the main session gets the itemized
   # drift, not a bare "mismatch" label. `|| dist_rc=$?` keeps
   # the exit code reliable under set -e.
   dist_rc=0
@@ -153,22 +153,22 @@ drift=$(printf '%s' "$drift" | sed '/^$/d')
 
 # The itemized drift (captured from the gates' stderr above)
 # plus the standing reconcile rules go straight to the MAIN
-# session — no subagent.
+# session - no subagent.
 #
 # It is the stronger model and the only one that can interview
 # the user on a genuine gap, so it reconciles here.
-reason="Spec-driven coverage drift in CWD spec/plan docs — reconcile it, then re-run the gates to confirm:
+reason="Spec-driven coverage drift in CWD spec/plan docs - reconcile it, then re-run the gates to confirm:
 
 ${drift}
 
 How to reconcile (Test Design is the source of truth for test titles):
-- Twin — a FAIL line that is a clear rename/typo/whitespace variant of a real title on the \
+- Twin - a FAIL line that is a clear rename/typo/whitespace variant of a real title on the \
 other side: align the CITATION (a per-task Tests-planned entry or an AC citation) to the \
 Test Design title. Only if Test Design is itself the lone dissenter is the typo there.
-- Genuine gap — a cited/planned test that exists nowhere, a missing AC header, a designed \
+- Genuine gap - a cited/planned test that exists nowhere, a missing AC header, a designed \
 test in no task: INTERVIEW the user before editing; it needs the plan author's intent.
 - NEVER delete a planned test, invent a Test Design line, or fabricate an AC header/citation \
-to force the gates green. Residual drift is fine — one honest pass, no looping (this handoff \
+to force the gates green. Residual drift is fine - one honest pass, no looping (this handoff \
 won't re-block).
 
 Re-run to confirm: check-test-distribution.sh <plan> and check-ac-coverage.sh <plan> <spec> \

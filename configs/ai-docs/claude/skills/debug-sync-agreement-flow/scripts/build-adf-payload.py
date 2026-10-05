@@ -10,7 +10,7 @@ markdown. This does the minimal conversion sufficient for an evidence comment:
   - Fenced code blocks (``` or ~~~), with the info-string language carried into ADF `codeBlock.attrs`
   - Inline: **bold**, `code`, [text](url)
 
-Anything else — tables, blockquotes, nested lists, images — degrades to paragraphs of plain text: the
+Anything else - tables, blockquotes, nested lists, images - degrades to paragraphs of plain text: the
 words survive, the formatting does not. That degradation is silent in the resulting comment, and a
 comment is public the moment it posts, so unsupported constructs are reported on stderr.
 
@@ -44,13 +44,13 @@ def warn_unsupported(md):
     findings = []
     for number, line in enumerate(md.split("\n"), start=1):
         if TABLE_RE.match(line):
-            findings.append((number, "table — becomes a plain paragraph"))
+            findings.append((number, "table - becomes a plain paragraph"))
         elif QUOTE_RE.match(line):
-            findings.append((number, "blockquote — becomes a plain paragraph"))
+            findings.append((number, "blockquote - becomes a plain paragraph"))
         elif NESTED_ITEM_RE.match(line):
-            findings.append((number, "nested list item — flattens"))
+            findings.append((number, "nested list item - flattens"))
         if IMAGE_RE.search(line):
-            findings.append((number, "image — becomes a link or plain text"))
+            findings.append((number, "image - becomes a link or plain text"))
     for number, reason in findings:
         print(f"warning: line {number}: {reason}", file=sys.stderr)
     return findings

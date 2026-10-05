@@ -196,7 +196,7 @@ def embed_file(path: Path) -> dict:
             "data_b64": b64,
         }
     else:
-        # Binary / unknown — base64 download link
+        # Binary / unknown - base64 download link
         try:
             raw = path.read_bytes()
             b64 = base64.b64encode(raw).decode("ascii")
@@ -364,7 +364,7 @@ class ReviewHandler(BaseHTTPRequestHandler):
     def is_request_from_own_page(self) -> bool:
         """True when a POST did not come from some other site's page.
 
-        This server binds 127.0.0.1, but that only stops other machines — any
+        This server binds 127.0.0.1, but that only stops other machines - any
         page the user has open can still POST to localhost and overwrite
         feedback.json. Browsers attach Origin to every cross-site POST, so
         checking it is what closes that hole.
@@ -476,7 +476,7 @@ def main() -> None:
     try:
         server = HTTPServer(("127.0.0.1", port), handler)
     except OSError:
-        # Port still in use after kill attempt — find a free one
+        # Port still in use after kill attempt - find a free one
         server = HTTPServer(("127.0.0.1", 0), handler)
         port = server.server_address[1]
 

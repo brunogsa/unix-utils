@@ -13,7 +13,7 @@
 
 # Exits 0 when every assertion passes, non-zero otherwise.
 #
-# No bats dependency by design — a handful of small checks
+# No bats dependency by design - a handful of small checks
 # don't justify a new cross-platform test-runner dependency
 # in install.sh (same precedent as
 # configs/ai-docs/claude/hooks/tests/test-claude-git-guard.sh).

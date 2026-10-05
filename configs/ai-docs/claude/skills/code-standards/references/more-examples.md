@@ -6,7 +6,7 @@ Worked bad/good contrasts moved out of `SKILL.md`, grouped by the section whose 
 
 - [Example]
 ```ts
-// Bad — Promise.all + .map + async + try/catch + conditional, all stacked
+// Bad - Promise.all + .map + async + try/catch + conditional, all stacked
 const perSchoolResults = await Promise.all(
   cnpjs.map(async (cnpj) => {
     const source = resolveDataSource(cnpj);
@@ -21,7 +21,7 @@ const perSchoolResults = await Promise.all(
   })
 );
 
-// Good — extract per-school helper with single concern
+// Good - extract per-school helper with single concern
 async function fetchSchoolData(cnpj: string) {
   const source = resolveDataSource(cnpj);
   return tryFetchAgreementsAndSkus({ cnpj, source });
@@ -46,7 +46,7 @@ for (let i = 1; i <= count; i++) {
 
 - [Example]
 ```tsx
-// Bad — flat return; parent has no scannable outline:
+// Bad - flat return; parent has no scannable outline:
 return (
   <div>
     <h1>{title}</h1>
@@ -68,7 +68,7 @@ return (
   </div>
 );
 
-// Good — parent reads as outline; each branch is one line:
+// Good - parent reads as outline; each branch is one line:
 return (
   <div>
     <h1>{title}</h1>
@@ -95,24 +95,24 @@ function extractUniqueEmails(rows) { /* ... */ }
 
 - [Example]
 ```ts
-// Bad — `hasApplied` implies an event tracker, but is actually a URL-state derivative.
+// Bad - `hasApplied` implies an event tracker, but is actually a URL-state derivative.
 const hasApplied = appliedCNPJs.length > 0;
 // A reader debugging "why are we in slow mode after clearing?" gets misled twice:
 // once by the name (implies sticky), once by the derivation (it isn't).
 
-// Good — rename to match the question it answers:
+// Good - rename to match the question it answers:
 const isSlowMode = appliedCNPJs.length > 0;
 // The identifier now reads as the mode gate it actually is.
 ```
 
 - [Example]
 ```ts
-// Bad — numbered phases force readers to recover spec context
+// Bad - numbered phases force readers to recover spec context
 const phaseOneReady = hasApplied && hasSchoolsData && hasAgreements;
 const saSummaryQuery = trpc.errorCallbacks.summary.useQuery(...);  // sa = SalesAgreement? SAP? SAS?
 const sapSummaryQuery = ...;  // SAP collides with the ERP
 
-// Good — describe what each step does
+// Good - describe what each step does
 const schoolsDataReady = hasApplied && hasSchoolsData && hasAgreements;
 const salesAgreementSummaryQuery = trpc.errorCallbacks.summary.useQuery(...);
 const salesAgreementProductSummaryQuery = ...;
@@ -120,11 +120,11 @@ const salesAgreementProductSummaryQuery = ...;
 
 - [Example]
 ```ts
-// Bad — the type needs a comment to say what "entry" means:
+// Bad - the type needs a comment to say what "entry" means:
 /** One sold sourcing collection's contribution to a resolved child SKU. */
 type Entry = { resolvedSku: string; quantidadeVenda: number };
 
-// Good — the name itself says what it holds; the comment becomes unnecessary:
+// Good - the name itself says what it holds; the comment becomes unnecessary:
 type SourcingContribution = { resolvedSku: string; quantidadeVenda: number };
 ```
 
@@ -145,7 +145,7 @@ if (isExpandable) { ... }
 const isExpandableKit = item.type === KIT && !item.isShrinked && item.children.length < 1;
 if (isExpandableKit) { ... }
 
-// Negated quantifier — one clause, same decode cost:
+// Negated quantifier - one clause, same decode cost:
 const hasNoPriceableItem = !items.some((item) => item.precoTotal > 0);
 if (hasNoPriceableItem) { ... }
 ```
@@ -198,12 +198,12 @@ function buildAvulso({ parentKit, childSku, price, discount }) {
 
 - [Example]
 ```ts
-// Bad — name describes the operation; reads naturally only inside `setFailures`.
+// Bad - name describes the operation; reads naturally only inside `setFailures`.
 function withSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
 setFailures((prev) => withSchoolAgreementFetchError(prev, schoolDocNumber, error));
-// Parsed left-to-right: "with-school-agreement-fetch-error-applied-to-prev" — incomplete without setFailures.
+// Parsed left-to-right: "with-school-agreement-fetch-error-applied-to-prev" - incomplete without setFailures.
 
-// Good — name describes the output; reads as a noun on its own.
+// Good - name describes the output; reads as a noun on its own.
 function getPreviousFailuresWithNewSchoolAgreementFetchError(failures, schoolDocNumber, error): Failures { ... }
 setFailures((prev) => getPreviousFailuresWithNewSchoolAgreementFetchError(prev, schoolDocNumber, error));
 // Parsed left-to-right: "set failures to: [the previous failures with a new school-agreement fetch error]".

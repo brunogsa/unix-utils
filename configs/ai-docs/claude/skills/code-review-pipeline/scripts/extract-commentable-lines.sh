@@ -41,7 +41,7 @@ awk '
   /^\+\+\+ / { next }
   /^---/ { next }
   /^\+/ { print path ":" new_line; new_line++; next }
-  /^-/  { next }              # deleted line — do not advance new-file counter
+  /^-/  { next }              # deleted line - do not advance new-file counter
   /^\\/ { next }              # "\ No newline at end of file"
   /^ /  { new_line++; next }  # context line advances new-file counter
 ' "$src"

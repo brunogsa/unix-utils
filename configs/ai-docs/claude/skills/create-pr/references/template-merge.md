@@ -1,6 +1,6 @@
 # Merging into the repo's PR template
 
-Read before writing a final body against a repo template — `pr-finalizer`'s merge contract. The main session never merges a template, so these rules stay out of `SKILL.md`'s always-on load.
+Read before writing a final body against a repo template - `pr-finalizer`'s merge contract. The main session never merges a template, so these rules stay out of `SKILL.md`'s always-on load.
 
 **CRITICAL: The repo's template is the base structure, never the thing being replaced.**
 

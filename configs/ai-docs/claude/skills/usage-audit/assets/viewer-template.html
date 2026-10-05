@@ -19,7 +19,7 @@
   dependencies.
 
   Everything here is vanilla JS and hand-rolled SVG for the
-  same reason — a CDN chart library is a network request
+  same reason - a CDN chart library is a network request
   this page must never need.
 -->
 <style>
@@ -149,7 +149,7 @@
 <div class="chartwrap"><svg id="skillchart" viewBox="0 0 1000 320"></svg></div>
 
 <details>
-<summary>Daily explorer — every metric, one day at a time</summary>
+<summary>Daily explorer - every metric, one day at a time</summary>
 
 <div class="strip" id="totals"></div>
 
@@ -277,10 +277,10 @@ const state = {
   to: ALL_DAYS[ALL_DAYS.length - 1],
   goal: 'total',  // which goal the weekly chart draws
   lens: 'work',   // the lever's ranking half; see SHARE_LENSES
-  selected: [],   // up to 2 days, in click order — drives detail and compare
+  selected: [],   // up to 2 days, in click order - drives detail and compare
   weekly: false,  // one median bar per week, not per day
   fit: true,      // least-squares line; see trendLine()
-  xm: 'compact',  // scatter axes — default pair is the one open question 1 asks about
+  xm: 'compact',  // scatter axes - default pair is the one open question 1 asks about
   ym: 'cost',
 
   // The per-skill trend. `skill` is filled in from
@@ -301,7 +301,7 @@ const visibleDays = () => ALL_DAYS.filter(d => d >= state.from && d <= state.to)
 // The answer zone. Everything below this section
 // exists to explain one number from it.
 //
-// Every ratio is POOLED — one numerator sum over
+// Every ratio is POOLED - one numerator sum over
 // one denominator sum across the whole period.
 //
 // Averaging per-day ratios instead would let a
@@ -483,7 +483,7 @@ function hasReading(g, days) {
 }
 
 function goalCell(g, days) {
-  return hasReading(g, days) ? g.fmt(g.value(days)) : '—';
+  return hasReading(g, days) ? g.fmt(g.value(days)) : '-';
 }
 
 // Two goals have no distinct one-day form: spend
@@ -565,7 +565,7 @@ function goalTip(g, p) {
   t += `\n${sumDays(p.days, d => d.merged_prs)} PR(s) merged`;
   t += `, ${usd(sumDays(p.days, d => d.total))} spent`;
   t += `\n${p.read} of ${p.days.length} day(s) citable`;
-  if (!p.citable) t += `\nno reading this week — left out of the trend`;
+  if (!p.citable) t += `\nno reading this week - left out of the trend`;
   return t.replace(/"/g, '&quot;');
 }
 
@@ -621,7 +621,7 @@ function drawGoalChart() {
 
 // The citable column travels with the row because
 // every ratio in it was pooled over those days
-// alone — 2-of-7 and 7-of-7 are very different
+// alone - 2-of-7 and 7-of-7 are very different
 // claims wearing the same number.
 function goalTable() {
   const head = ['Week', 'Citable'].concat(GOALS.map(g => g.short));
@@ -676,9 +676,9 @@ function shareTerciles(lens) {
 // not to be one end of the comparison.
 function leverMove(g, buckets) {
   const low = buckets[0].days, high = buckets[buckets.length - 1].days;
-  if (!hasReading(g, low) || !hasReading(g, high)) return '—';
+  if (!hasReading(g, low) || !hasReading(g, high)) return '-';
   const before = g.value(low), after = g.value(high);
-  if (!before) return '—';
+  if (!before) return '-';
   const rel = ((after - before) / before) * 100;
   const improved = g.better === 'down' ? after < before : after > before;
   return `<span class="${improved ? 'good' : 'bad'}">` +
@@ -705,7 +705,7 @@ function leverHint(lens, buckets) {
   const fit = pearson(days.map(d => lens.share(DATA.days[d])),
                       days.map(d => lens.spent(DATA.days[d])));
   const spread = buckets.map(b =>
-    `${b.label} ${pct(b.lo)}–${pct(b.hi)} (${b.days.length}d)`).join(', ');
+    `${b.label} ${pct(b.lo)}-${pct(b.hi)} (${b.days.length}d)`).join(', ');
   const dropped = citableDays(GOAL_DAYS).length - days.length;
   const thinnest = Math.min(...buckets.map(b => b.days.length));
   return `Citable days ranked by the subagent share of ${lens.scope} ` +
@@ -714,10 +714,10 @@ function leverHint(lens, buckets) {
                `this reading out. ` : '') +
     `Every cell pools its whole group and counts only those days, ` +
     `unlike the cards above, which count every calendar day. Share ` +
-    `tracks that spend at r=${fit ? fit.r.toFixed(2) : 'n/a'} — the ` +
+    `tracks that spend at r=${fit ? fit.r.toFixed(2) : 'n/a'} - the ` +
     `closer to zero, the more the groups differ by the lever itself ` +
     `rather than by how big the days were. ${thinnest} days in the ` +
-    `smallest group is thin — read it as a shape forming, not a finding.`;
+    `smallest group is thin - read it as a shape forming, not a finding.`;
 }
 
 /* ---------- per-skill economics ---------- */
@@ -799,7 +799,7 @@ state.skill = SKILL_NAMES[0] || '';
 function skillRow(days, name) {
   const cells = REPO_HALVES.flatMap(half => {
     const totals = skillTotals(days, name, half.id);
-    if (!totals.sessions) return [num(0), '—', '—'];
+    if (!totals.sessions) return [num(0), '-', '-'];
     return [num(totals.sessions),
             usd(per(totals.cost, totals.sessions)),
             n2(per(totals.invocations, totals.sessions))];
@@ -821,7 +821,7 @@ function skillHint() {
     `from ${days[0]}, every one of them listed. Sessions and loads are ` +
     `exact counts. The dollars are a split: a session that invoked one ` +
     `skill charges it the whole cost, and one that invoked several ` +
-    `divides it across them by invocation span — so the columns sum back ` +
+    `divides it across them by invocation span - so the columns sum back ` +
     `to the day rather than billing one session to three skills.`;
 }
 
@@ -901,12 +901,12 @@ function drawSkillChart() {
 function skillFitLabel(fit, plotted, metric) {
   if (!state.skill) return 'no skills recorded in this window';
   if (!fit) {
-    return `${plotted} day(s) with a reading — too few, or too flat, to fit`;
+    return `${plotted} day(s) with a reading - too few, or too flat, to fit`;
   }
   const weekly = fit.slope * 7;
   return `${plotted} days · trending ${weekly >= 0 ? 'up' : 'down'} ` +
     `${metric.fmt(Math.abs(weekly))} per 7 readable days · ` +
-    `r = ${fit.r.toFixed(2)} — a shape, not a verdict`;
+    `r = ${fit.r.toFixed(2)} - a shape, not a verdict`;
 }
 
 /* ---------- chart ---------- */
@@ -956,7 +956,7 @@ function weekStart(day) {
 }
 
 // The median rather than the mean, because the
-// workload spread inside one week reaches 72x —
+// workload spread inside one week reaches 72x -
 // a single such day would pull a weekly mean
 // above every other day in that week.
 function median(values) {
@@ -1096,7 +1096,7 @@ function drawChart() {
 // Empty when the day's token counts were confirmed by ccusage, an independent
 // reader of the same transcripts; otherwise the reason it was not. A day drawn
 // with no marking reads as verified, which is exactly how a miscount spreads
-// into every later comparison — so a missing block warns rather than passes.
+// into every later comparison - so a missing block warns rather than passes.
 function recWarn(d) {
   const rec = d.reconciliation;
   if (!rec) return 'unverified: predates the ccusage check';
@@ -1110,23 +1110,23 @@ function tooltipFor(day) {
   const commits = DATA.ledger[day] || [];
   let t = `${day}  ·  ${m.label}: ${m.fmt(m.get(d))}`;
   t += `\n${usd(d.total)}  ·  ${d.kpis.user_messages} msgs  ·  ${d.compactions} compactions`;
-  if (commits.length) t += `\n${commits.length} config commit(s) — click to see them`;
+  if (commits.length) t += `\n${commits.length} config commit(s) - click to see them`;
 
   // Named "shipped" against the "config commit(s)"
-  // line above, which counts this repo's own edits
-  // — two different things that would otherwise
+  // line above, which counts this repo's own edits -
+  // two different things that would otherwise
   // read as one number split in half.
   if (d.shipped_commits || d.merged_prs) {
     t += `\nshipped ${d.shipped_commits} commit(s)`;
     t += `, ${d.merged_prs} PR(s) merged`;
   }
   if (!hasDenominator(m, d)) {
-    t += `\nnothing shipped — no ${m.label.toLowerCase()} to read,`;
+    t += `\nnothing shipped - no ${m.label.toLowerCase()} to read,`;
     t += ` so this day is left out of both trends`;
   }
-  if (d.coverage !== 'complete') t += `\nCOVERAGE: ${d.coverage} — transcripts aged out`;
+  if (d.coverage !== 'complete') t += `\nCOVERAGE: ${d.coverage} - transcripts aged out`;
   const warn = recWarn(d);
-  if (warn) t += `\n${warn.toUpperCase()} — do not cite this day's figures`;
+  if (warn) t += `\n${warn.toUpperCase()} - do not cite this day's figures`;
   return t.replace(/"/g, '&quot;');
 }
 
@@ -1140,7 +1140,7 @@ function tooltipForWeek(p, m) {
   let t = `week of ${p.key}  ·  median ${m.label}: ${m.fmt(p.value)}`;
   t += `\n${usd(spend)} across ${p.days.length} day(s)`;
   t += `\n${p.citableDays.length} of ${p.days.length} day(s) citable`;
-  t += ` — the median and the trend read only those`;
+  t += ` - the median and the trend read only those`;
   if (commits) t += `\n${commits} config commit(s) that week`;
   const shipped = p.days.reduce((t, day) => t + DATA.days[day].shipped_commits, 0);
   const prs = p.days.reduce((t, day) => t + DATA.days[day].merged_prs, 0);
@@ -1240,7 +1240,7 @@ function drawScatter() {
   // the excluded count because a filtered day leaves no trace on the plot.
   const dropped = visibleDays().length - days.length;
   $('rlabel').textContent = fit
-    ? `r = ${fit.r.toFixed(2)} across ${days.length} days${dropped ? `, ${dropped} excluded` : ''} — correlation, not cause`
+    ? `r = ${fit.r.toFixed(2)} across ${days.length} days${dropped ? `, ${dropped} excluded` : ''} - correlation, not cause`
     : `Too few varying days to correlate (${days.length} plotted)`;
 }
 
@@ -1279,7 +1279,7 @@ function commitsBlock(day) {
 
 function escape_(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// `skills` is a {name: invocations} map, not a list — show the busiest three.
+// `skills` is a {name: invocations} map, not a list - show the busiest three.
 function topSkills(skills) {
   return Object.entries(skills || {})
     .sort((a, b) => b[1] - a[1]).slice(0, 3)
@@ -1295,9 +1295,9 @@ function dayDetail(day) {
   const skill = Object.entries(d.by_skill_marginal).sort((a,b)=>b[1].dedicated_cost-a[1].dedicated_cost)
     .map(([k,v]) => [k, num(v.dedicated_sessions), usd(v.dedicated_cost), num(v.mixed_sessions), usd(v.mixed_cost_estimate)]);
   const sess = d.top_sessions
-    .map(s => [escape_(s.title || s.id || '—'), usd(s.cost), n1(s.duration_hours),
+    .map(s => [escape_(s.title || s.id || '-'), usd(s.cost), n1(s.duration_hours),
                num(s.compactions), num(s.user_messages), num(s.interruptions),
-               escape_(topSkills(s.skills)) || '—']);
+               escape_(topSkills(s.skills)) || '-']);
 
   const warn = recWarn(d);
 
@@ -1328,7 +1328,7 @@ function compare(a, b) {
     const cls = Math.abs(rel) < 0.05 ? '' : (delta > 0 ? 'up' : 'down');
     return [m.label, m.fmt(va), m.fmt(vb),
             `<span class="${cls}">${delta > 0 ? '+' : ''}${m.fmt(delta)}</span>`,
-            `<span class="${cls}">${va ? (rel>0?'+':'') + rel.toFixed(1)+'%' : '—'}</span>`];
+            `<span class="${cls}">${va ? (rel>0?'+':'') + rel.toFixed(1)+'%' : '-'}</span>`];
   });
   // Commits BETWEEN the two days are the candidate causes of the delta.
   const between = ALL_DAYS.filter(d => d > a && d <= b && (DATA.ledger[d]||[]).length);
@@ -1336,10 +1336,10 @@ function compare(a, b) {
     ? between.map(d => `<h2>${d}</h2>${commitsBlock(d)}`).join('')
     : '<p class="empty">no config commits landed between these days</p>';
   // A delta IS a citation, so an unverified endpoint has to be visible here and
-  // not only in that day's own panel — the table below reads as fact otherwise.
+  // not only in that day's own panel - the table below reads as fact otherwise.
   const unverified = [a, b].filter(d => recWarn(DATA.days[d]));
   const flag = unverified.length
-    ? `<p class="up">unverified: ${unverified.join(', ')} — this delta is not citable</p>`
+    ? `<p class="up">unverified: ${unverified.join(', ')} - this delta is not citable</p>`
     : '';
   return `<h2>${a} → ${b}</h2>${flag}${tableOf(['Metric', a, b, 'Delta', 'Rel'], rows)}
           <h2>Config changes in between</h2>${causes}`;
@@ -1365,7 +1365,7 @@ function render() {
   // otherwise read these cards as the whole record.
   const [older, recent] = halves();
   $('halves').textContent =
-    `${GOAL_DAYS[0]} onward — ${citableDays(GOAL_DAYS).length} of ` +
+    `${GOAL_DAYS[0]} onward - ${citableDays(GOAL_DAYS).length} of ` +
     `${GOAL_DAYS.length} days readable; earlier ones lost their transcripts. ` +
     `Each card pools that whole span, then compares ` +
     `${older[0]}…${older[older.length-1]} against ` +
@@ -1398,11 +1398,11 @@ function render() {
     kv('Config commits', num(days.reduce((t, d) => t + (DATA.ledger[d]||[]).length, 0)));
 
   $('hint').textContent = state.weekly
-    ? 'Weekly bars are medians — switch back to daily to inspect a day.'
+    ? 'Weekly bars are medians - switch back to daily to inspect a day.'
     : state.selected.length === 0
     ? 'Click a bar to inspect a day; click a second to compare.'
     : state.selected.length === 1
-      ? `Selected ${state.selected[0]} — click another day to compare.`
+      ? `Selected ${state.selected[0]} - click another day to compare.`
       : `Comparing ${state.selected[0]} → ${state.selected[1]}.`;
 
   drawChart();

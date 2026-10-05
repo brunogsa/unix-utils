@@ -8,7 +8,7 @@ user-invocable: false
 
 Canonical TDD/BDD discipline for plan-driven work.
 
-**Load `test-standards` before writing the first test** — it owns test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual).
+**Load `test-standards` before writing the first test** - it owns test patterns (titles, mock data, parametrized suites, anti-patterns) and test-type selection (integration vs unit vs e2e vs manual).
 
 **Bug fixes follow the same discipline**: start with a RED regression test that reproduces the bug.
 
@@ -20,31 +20,31 @@ Confirm it fails for the right reason, then fix until it goes GREEN. Load `debug
 
 Before writing any new test, confirm the existing suite and lint already pass.
 
-Starting on red conflates pre-existing failures with the regressions you're about to introduce — you can't tell whose fault each break is.
+Starting on red conflates pre-existing failures with the regressions you're about to introduce - you can't tell whose fault each break is.
 
-When the baseline is already red, isolate the pre-existing failure first — see `debug-standards` (stash-and-rerun) — before adding your own RED.
+When the baseline is already red, isolate the pre-existing failure first - see `debug-standards` (stash-and-rerun) - before adding your own RED.
 
 ---
 
 ## The cycle: RED → GREEN → REFACTOR, most forcing case first
 
-1. **Design test titles** for the integration layer up front — review with user before coding.
+1. **Design test titles** for the integration layer up front - review with user before coding.
    - Pre-known pure helpers (obvious normalizers, parsers, validators) can also be designed up front.
    - Helpers pulled on demand get their tests at the moment of pull; designing them eagerly forces premature signatures.
 
-2. **Pick the most forcing case** — the one that requires the most real logic. Trivial cases first lock in trivial implementations.
+2. **Pick the most forcing case** - the one that requires the most real logic. Trivial cases first lock in trivial implementations.
 
-3. **RED**: write the test, run it, confirm it fails for the **expected reason** — missing behavior, not a typo, missing import, or setup error.
+3. **RED**: write the test, run it, confirm it fails for the **expected reason** - missing behavior, not a typo, missing import, or setup error.
 
 4. **GREEN**: implement just enough to pass. When a helper is needed, write its test first (RED for helper), then implement (GREEN for helper).
-   - Load `code-standards` before the production edit — catches magic values, premature abstractions, missing constants.
+   - Load `code-standards` before the production edit - catches magic values, premature abstractions, missing constants.
    - Load `doc-standards` if the change adds a comment, docstring, or log line.
 
 5. **Repeat** for the next case, building on what exists.
 
 6. **Backfill** integration test bodies once core logic is solid.
 
-7. **REFACTOR** in its own commit — load `commit-standards` for the message + decomposition rules; pair with `code-standards` for the cleanup itself.
+7. **REFACTOR** in its own commit - load `commit-standards` for the message + decomposition rules; pair with `code-standards` for the cleanup itself.
 
 ---
 
@@ -52,14 +52,14 @@ When the baseline is already red, isolate the pre-existing failure first — see
 
 Across multi-cycle TDD, keep Docker / DBs / LocalStack / browser sessions running between RED → fix → GREEN iterations. Tear down only after the task ships.
 
-- Re-spinning between cycles costs 1–7 minutes per iteration and breaks flow.
+- Re-spinning between cycles costs 1-7 minutes per iteration and breaks flow.
 - The harness's `pretest`/`posttest` hooks often do unnecessary `docker:clean` cycles you don't need mid-loop.
 - When the harness scripts insist on managing fixtures, bypass them: invoke `jest`/`vitest`/etc. directly with the fixture-up state intact.
 - Skip the `pretest:*`/`posttest:*` hooks for the inner loop.
 
 ---
 
-## Rationalizations — catch drift before it commits
+## Rationalizations - catch drift before it commits
 
 Eight phrases bypass TDD while sounding like engineering judgement. Catch yourself thinking one and **stop and write the test**.
 
@@ -78,7 +78,7 @@ The eight triggers are what you need in-flight; the diagnosis is what you need o
 
 ## The one verdict that is not a rationalization
 
-**A change earns TDD when you can name an input for which the pre-change and post-change versions behave differently** — output, exit code, side effect, or control flow.
+**A change earns TDD when you can name an input for which the pre-change and post-change versions behave differently** - output, exit code, side effect, or control flow.
 
 - Name that input and the RED is already written for you. None of the eight phrases above survives it.
 
@@ -90,25 +90,25 @@ Those are finished work with no test owed. Route them to `direct-coder`, which e
 
 **The discriminator against the eight phrases**: each of them concedes a behavior exists and defers testing it.
 
-"Nothing to falsify" denies the behavior exists at all — and is wrong the instant you can name the distinguishing input.
+"Nothing to falsify" denies the behavior exists at all - and is wrong the instant you can name the distinguishing input.
 
-**Exception**: a non-code artifact never earns TDD, even with a nameable distinguishing input — see the global CLAUDE.md's Subagents section.
+**Exception**: a non-code artifact never earns TDD, even with a nameable distinguishing input - see the global CLAUDE.md's Subagents section.
 
 ---
 
-## Manual tests — evidence file
+## Manual tests - evidence file
 
-When manual testing is the right call — `test-standards` owns that call — log it in `./manual-tests-evidences.md` at project root.
+When manual testing is the right call - `test-standards` owns that call - log it in `./manual-tests-evidences.md` at project root.
 
-The file is owed only when the check is multi-step, environment-dependent, or irreversible — the cases a future regression would have to re-run.
+The file is owed only when the check is multi-step, environment-dependent, or irreversible - the cases a future regression would have to re-run.
 
 A single command whose output you read in-session earns no entry. You already verified it, and the entry would cost more to read back than the command costs to re-run.
 
-**Lifecycle:** gitignored, session-scoped — same as the spec and the plan. Delete or archive after PR.
+**Lifecycle:** gitignored, session-scoped - same as the spec and the plan. Delete or archive after PR.
 
 **Format:** see template at [`assets/manual-tests-evidences-template.md`](assets/manual-tests-evidences-template.md).
 
 - Each entry is a bold one-liner (timestamp + what + outcome marker).
 - Plus an indented code block with the smallest verifiable artifact (command output, HTTP response, log line, JSON payload, file diff excerpt).
-- Avoid screenshots — text artifacts are diff-able and grep-able.
+- Avoid screenshots - text artifacts are diff-able and grep-able.
 - Append-only, grouped by task.

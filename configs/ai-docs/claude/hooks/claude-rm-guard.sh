@@ -24,20 +24,20 @@
 # guard only matched `rm -rf` and allowed ALL rm inside a
 # git repo, on the premise "git can restore it".
 #
-# That premise is false for untracked files — a background
+# That premise is false for untracked files - a background
 # agent ran `rm -f <untracked>.md` inside this repo and the
 # file was gone for good.
 #
 # The correct axis is tracked/ignored/untracked, not
 # git/non-git, and it must cover `rm -f`, plain `rm`,
-# `rm -r`, etc. — not just `rm -rf`.
+# `rm -r`, etc. - not just `rm -rf`.
 #
 # The command string is parsed BEFORE the shell runs it
 # (globs are not yet expanded), so the guard expands globs
 # itself, follows leading `cd` into the right directory.
 #
 # It also FAILS CLOSED (blocks) on anything it cannot parse
-# or resolve — a false block just means "rephrase or ask the
+# or resolve - a false block just means "rephrase or ask the
 # user", a false allow means lost work.
 #
 # Examples (pipe JSON, check exit code):
@@ -71,7 +71,7 @@ python3 - <<'PYEOF'
 import os, sys, re, shlex, glob, subprocess, importlib.util
 
 # strip_heredoc_bodies() and the quote-aware pipeline splitter live in
-# lib/parse-shell-command.py, shared with claude-scan-hang-guard.sh — see
+# lib/parse-shell-command.py, shared with claude-scan-hang-guard.sh - see
 # that module's header for why guards import it via spec_from_file_location
 # instead of a bare `import` (its filename is hyphenated, not a valid
 # Python identifier).
@@ -95,16 +95,16 @@ def git(args, cwd):
 def is_repo(cwd):
     return git(['rev-parse', '--is-inside-work-tree'], cwd).returncode == 0
 
-# split_into_pipelines() (shared, imported above) is quote-aware — a search
+# split_into_pipelines() (shared, imported above) is quote-aware - a search
 # pattern like `grep -rn "rm -rf; keep looking" .` used to shatter into
 # fragments mid-string when the old regex-based split couldn't tell a `;`
 # INSIDE a quoted argument from a real shell separator: one fragment lost
 # its closing quote, shlex rejected it as unparseable, and the final
 # fail-closed regex then found "rm" inside what was really inert
-# grep-pattern data — blocking a plain search that never invoked rm.
+# grep-pattern data - blocking a plain search that never invoked rm.
 #
-# This guard doesn't care whether a separator was `;`, `&&`, or a pipe `|`
-# — it wants one flat list of command segments — so it flattens the shared
+# This guard doesn't care whether a separator was `;`, `&&`, or a pipe `|` -
+# it wants one flat list of command segments - so it flattens the shared
 # splitter's statement/stage structure rather than tracking pipelines
 # itself.
 def split_segments(c):
@@ -218,14 +218,14 @@ for seg in split_segments(cmd):
 # or hyphen, so real invocations (`rm -f`, `; rm `, `|rm|`) still match.
 if unparseable and re.search(r'(?<![\w-])rm(?![\w-])', cmd):
     rm_found = True
-    blocks.append('could not parse an rm command safely (quoting?) — refusing to allow')
+    blocks.append('could not parse an rm command safely (quoting?) - refusing to allow')
 
 if not rm_found:
     sys.exit(0)
 if not blocks:
     sys.exit(0)
 
-msg = ['rm guard blocked this command — these targets have no recoverable copy:']
+msg = ['rm guard blocked this command - these targets have no recoverable copy:']
 for b in blocks:
     msg.append('  - ' + b)
 msg.append('Tracked files are allowed (git restore); ignored paths like node_modules are allowed.')

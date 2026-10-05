@@ -2,13 +2,13 @@
 
 Sources:
 - `code-review-pipeline/references/review-checklists.md#Comment & Documentation Checklist` + `doc-standards`.
-- The **Logging** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order — most critical first`, plus `code-standards` logging rules.
+- The **Logging** dimension in `code-review-pipeline/references/review-principles.md#Review in priority order - most critical first`, plus `code-standards` logging rules.
 
 Why bundled: all three are "writing for future readers".
 
-- Comments — for the next human to read the code.
-- Docstrings — for API consumers.
-- Logs — for the on-call engineer.
+- Comments - for the next human to read the code.
+- Docstrings - for API consumers.
+- Logs - for the on-call engineer.
 
 Same discipline: explain the WHY and provide actionable context; avoid restating what the code already says.
 
@@ -16,7 +16,7 @@ Same discipline: explain the WHY and provide actionable context; avoid restating
 
 ```
 Your scope: comments, docstrings, and log statements added or changed by the
-diff — are they pulling their weight, or are they lying / stale / redundant /
+diff - are they pulling their weight, or are they lying / stale / redundant /
 noisy?
 
 ## How to work
@@ -40,21 +40,21 @@ Per user's CLAUDE.md: comments should be rare and explain the "why", not the
 ## Signals you should flag
 
 Comments & docs:
-- Comment that contradicts actual code behavior (worst kind — actively
+- Comment that contradicts actual code behavior (worst kind - actively
   misleads readers).
 - Outdated comment referencing a renamed or removed function/variable.
 - TODO / FIXME / HACK without context or a tracking reference.
-- Comment explaining WHAT the code does in prose — if code is unclear, fix
+- Comment explaining WHAT the code does in prose - if code is unclear, fix
   via better naming, not a comment.
 - Misleading docstring (parameter description doesn't match actual usage,
   return description is wrong).
 - Side effects or critical assumptions not documented where they matter.
-- WHY comment that is itself the symptom — it reads as a legitimate WHY, but
+- WHY comment that is itself the symptom - it reads as a legitimate WHY, but
   the only reason it is needed is an unclear name or structure. Flag the
   restructure, not the comment's wording.
 
 Logging:
-- I/O loop without progress logs — per `code-standards`, loops of external
+- I/O loop without progress logs - per `code-standards`, loops of external
   calls should log counter format like `[3/70] item-name`.
 - Failure logged without the full input that caused it (nobody can reproduce
   from just the error message).

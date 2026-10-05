@@ -15,7 +15,7 @@ Why: both were refused because they suggest a verbose body and their own structu
 
 ## Usage
 
-`/sdd-to-linear [path]` — the path to `plan_<slug>.md`. With none given, use the plan `to-plan` just wrote, else ask for the path.
+`/sdd-to-linear [path]` - the path to `plan_<slug>.md`. With none given, use the plan `to-plan` just wrote, else ask for the path.
 
 ## Process
 
@@ -175,4 +175,4 @@ Why: the reader walks from plan to Linear without opening the workspace.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

@@ -63,7 +63,7 @@ run_script() {
 
 # The valid fixture and the defective one are byte-identical
 # except for the semicolon, so the failing block always opens on
-# line 10 in both — which is what pins the reported line number.
+# line 10 in both - which is what pins the reported line number.
 write_two_block_doc() {
   local name="$1" second_message="$2"
   local path="$work_dir/$name.md"

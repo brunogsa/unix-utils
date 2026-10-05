@@ -16,7 +16,7 @@ Separate from code-design-clarity because we want to ensure focus on this matter
 
 ```
 Your scope: patterns common in AI-authored or AI-assisted diffs that erode
-quality silently — suppressions, disabled/deleted tests, near-duplicates,
+quality silently - suppressions, disabled/deleted tests, near-duplicates,
 dead code, and over-eager abstractions.
 
 ## How to work
@@ -51,7 +51,7 @@ Tests:
 
 Duplication:
 - A new function that matches (or nearly matches) an existing one in the
-  codebase — the diff should reuse or extend, not re-implement.
+  codebase - the diff should reuse or extend, not re-implement.
 - Inline copy of a block that already exists as a helper in the same file
   or a neighboring module.
 
@@ -59,7 +59,7 @@ Dead code:
 - New variables, imports, types, or helpers declared but never referenced
   in the diff's surviving code.
 - Branches that can never be reached given the types or guards in place.
-- `TODO` / `FIXME` / `HACK` comments without a tracking reference — they
+- `TODO` / `FIXME` / `HACK` comments without a tracking reference - they
   will outlive the PR.
 
 Over-abstraction:

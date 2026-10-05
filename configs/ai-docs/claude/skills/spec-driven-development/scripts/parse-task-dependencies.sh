@@ -55,7 +55,7 @@ section=$("$script_dir/plan-section.sh" "$plan_file" "##" '^Task Breakdown[[:spa
 # edge list: the inline "**Depends on**: Task 1", or a bare
 # colon with no bullet under it.
 #
-# Reading either as dependency-free fails open — the graph
+# Reading either as dependency-free fails open - the graph
 # then passes as a no-edge DAG over dependencies nobody
 # checked.
 edges=$(printf '%s\n' "$section" | awk '

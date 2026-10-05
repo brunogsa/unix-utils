@@ -1,6 +1,6 @@
 ---
 name: doc-standards
-description: "USE PROACTIVELY before you write, edit, or review any doc or comment — especially authoring a standalone .md: design docs, ADRs, RFCs, READMEs, CLAUDE.md/SKILL.md, code comments/JSDoc/docstrings. Not for pure reading."
+description: "USE PROACTIVELY before you write, edit, or review any doc or comment - especially authoring a standalone .md: design docs, ADRs, RFCs, READMEs, CLAUDE.md/SKILL.md, code comments/JSDoc/docstrings. Not for pure reading."
 user-invocable: false
 instructions-budget: 30
 ---
@@ -11,15 +11,15 @@ Principles and paired examples for any documentation work; not every principle n
 
 ## What a comment may say
 
-### WHY at most — never history, never mechanics
+### WHY at most - never history, never mechanics
 
-- [Instruction] Default to no comment — prefer tests and logs, and add a comment only when the WHY is genuinely non-obvious to names, types, and error/log messages.
-  - [Why] A comment isn't bound to the code, so it drifts and misleads — tests and logs stay bound to behavior instead.
+- [Instruction] Default to no comment - prefer tests and logs, and add a comment only when the WHY is genuinely non-obvious to names, types, and error/log messages.
+  - [Why] A comment isn't bound to the code, so it drifts and misleads - tests and logs stay bound to behavior instead.
 
-- [Instruction] **CRITICAL: When you must comment, the maximum scope is why this code exists in this shape** — never restate what the code shows (rename/restructure instead) or explain how it works.
-  - [Why] Only the reason code exists like this survives commits, refactors, and restating — history and mechanics don't.
+- [Instruction] **CRITICAL: When you must comment, the maximum scope is why this code exists in this shape** - never restate what the code shows (rename/restructure instead) or explain how it works.
+  - [Why] Only the reason code exists like this survives commits, refactors, and restating - history and mechanics don't.
 
-- [Instruction] Route history to the commit message body, not source — PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
+- [Instruction] Route history to the commit message body, not source - PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
   - [Why] A history note rots as the code changes; the commit preserves it as a point-in-time snapshot that never goes stale.
 
 - [Instruction] A deferred-work TODO/FIXME in source must link to a tracked ticket (Jira/Linear URL), never to a local `.md` doc or a task named only in prose.
@@ -27,13 +27,13 @@ Principles and paired examples for any documentation work; not every principle n
 
 [Example]
 ```ts
-// Bad — history (rots on next commit):
-// excludeFlowCodes overrides flowCode — replicates main's last-spread-wins (PR #2034).
+// Bad - history (rots on next commit):
+// excludeFlowCodes overrides flowCode - replicates main's last-spread-wins (PR #2034).
 
-// Bad — what the code does (the reader can see it):
+// Bad - what the code does (the reader can see it):
 // loop over the conditions and push to the array
 
-// Good — WHY this exact shape is required, and only because the code can't show it:
+// Good - WHY this exact shape is required, and only because the code can't show it:
 // Prisma's typed builder emits `payload #> ARRAY[...]::jsonb`, which the planner
 // cannot match to our partial expression index on `payload->0->>'externalId'`.
 // Switching syntax silently degrades to Seq Scan on 1.2M rows.
@@ -41,21 +41,21 @@ Principles and paired examples for any documentation work; not every principle n
 
 ### Phrasing that survives refactors
 
-- [Instruction] Write about the *purpose* a thing serves or the case a guard prevents, never its *current state* — and drop time-anchored vocabulary ("stays", "now", "currently", "as of today", "we just").
+- [Instruction] Write about the *purpose* a thing serves or the case a guard prevents, never its *current state* - and drop time-anchored vocabulary ("stays", "now", "currently", "as of today", "we just").
   - [Why] Purpose survives refactors while a state note goes stale the moment that state changes.
 
-  - [Example] Bad: `// Value stays '_loadingDeadlineMs' — browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
+  - [Example] Bad: `// Value stays '_loadingDeadlineMs' - browser specs hardcode this URL literal` / Good: `// This constant exists so E2E tests can override the timeout, making tests faster`
 
-- [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL — only when the full rationale is worth the pointer.
+- [Instruction] Link a non-obvious domain rule or field to its durable design doc (LLD/spec/ADR) by file path or URL - only when the full rationale is worth the pointer.
   - [Why] The comment gives the local why in one line; the design doc holds the full rationale the code can't show.
 
 [Example]
 ```ts
-// Bad — restates what the code says
+// Bad - restates what the code says
 // Only fires on landing view
 const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
 
-// Good — names the case the gate prevents
+// Good - names the case the gate prevents
 // Tabs view fires its own scoped summaries (one per entity tab);
 // firing this one there would batch with those and waste a round-trip.
 const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: currentView === 'landing' });
@@ -65,50 +65,50 @@ const summaryQuery = trpc.errorCallbacks.summary.useQuery({}, { enabled: current
 
 ### Comment line formatting
 
-- [Instruction] Delegate every comment-format run — checking and fixing alike — to `agent(subAgent=comment-format-fixer, title=Fix <file> comments)`, never inline in the main session.
+- [Instruction] Delegate every comment-format run - checking and fixing alike - to `agent(subAgent=comment-format-fixer, title=Fix <file> comments)`, never inline in the main session.
   - [Why] It runs check-comment-format.js --fix and rewords only the residue; inline floods main with one row per violation.
 
-- [Instruction] Give `comment-format-fixer`, `markdown-standards-fixer`, and the density scripts only files this session's own `Edit`/`Write` calls created or modified — never a file it merely opened or read.
+- [Instruction] Give `comment-format-fixer`, `markdown-standards-fixer`, and the density scripts only files this session's own `Edit`/`Write` calls created or modified - never a file it merely opened or read.
   - [Why] `--changed-only` scopes lines, but a never-written file turns its violations into noise blamed on this session.
 
-- [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments — use plain ASCII (`=`, `-`, `|`).
+- [Instruction] Never use `─` (U+2500), `━`, `═`, `│`, or any other Unicode box-drawing character in code comments - use plain ASCII (`=`, `-`, `|`).
   - [Why] Humans don't type these by hand, so they read as AI-written and break in terminals, diffs, and grep.
 
-That agent reads `references/comment-formatting.md` for the fix shapes, bad/good pairs, language detection, and Python docstring caveat — the main session never needs them.
+That agent reads `references/comment-formatting.md` for the fix shapes, bad/good pairs, language detection, and Python docstring caveat - the main session never needs them.
 
 ## Self-describing comments
 
-Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles — concretely:
+Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles - concretely:
 
-- [Instruction] Cite sources only by file path, URL, or named anchor — never a bare symbol name or a numbered lookup token; exempt a doc's own step numbers and anchors.
+- [Instruction] Cite sources only by file path, URL, or named anchor - never a bare symbol name or a numbered lookup token; exempt a doc's own step numbers and anchors.
   - [Why] A path, URL, or anchor survives edits; a bare name or lookup number forces a hunt and rots silently on renumber.
 
-  - [Example] Bad (lookup pointers — spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `BR-N` rules, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+  - [Example] Bad (lookup pointers - spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `BR-N` rules, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
   - [Example] Bad (bare symbol name): `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
-  - [Example] OK (step order — exempted): `implement/SKILL.md` citing its own `§3–§8 repeat once per PR` — the numbers encode the loop's bounds.
-  - [Example] OK (registry anchors — exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
+  - [Example] OK (step order - exempted): `implement/SKILL.md` citing its own `§3-§8 repeat once per PR` - the numbers encode the loop's bounds.
+  - [Example] OK (registry anchors - exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
 
-- [Instruction] Cite only a target the reader can open — never an uncommitted scratch file; recap its finding inline instead.
+- [Instruction] Cite only a target the reader can open - never an uncommitted scratch file; recap its finding inline instead.
   - [Why] An untracked evidence file exists only on the author's machine, so the pointer resolves to nothing for everyone else.
 
   - [Example] Bad: `// see evidence_erp-empty-stage.md §9` (untracked). Good: `// Stage proved the ERP rejects an all-bonused, kit-less payload.`
 
-- [Instruction] Keep requirement IDs and source paths out of every runtime string — a test title, an error message, a log message states the rule in plain language alone.
+- [Instruction] Keep requirement IDs and source paths out of every runtime string - a test title, an error message, a log message states the rule in plain language alone.
   - [Why] In runner output, a stack trace, or a log query, a path resolves against nothing and crowds out the rule.
 
-  - [Example] Bad: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual (BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6)')`.
+  - [Example] Bad: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual (BR-002 - docs/designs/sync-agreements-pic1.9_hld.md §5.6)')`.
 
-  - [Example] Good: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual')` — with `// BR-002 — docs/designs/sync-agreements-pic1.9_hld.md §5.6` above it if the source is worth citing.
+  - [Example] Good: `it('rejects entrega.local="M" when tipoContrato is Loja Virtual')` - with `// BR-002 - docs/designs/sync-agreements-pic1.9_hld.md §5.6` above it if the source is worth citing.
 
 - [Instruction] Where a reader would actually need the source, put the pointer in a code comment adjacent to the runtime string.
   - [Why] The comment is read by whoever edits the rule, where the path resolves and the extra line costs nothing.
 
-- [Instruction] Keep environment-specific record identifiers — a contract, order, or ticket number observed in one run — out of every runtime string.
+- [Instruction] Keep environment-specific record identifiers - a contract, order, or ticket number observed in one run - out of every runtime string.
   - [Why] That record gets deleted or refreshed later, so the string sends a future reader hunting data that no longer exists.
 
   - [Example] Bad: `it('accepts a mixed payload (SGE accepted on stage, contract 2026000137)')`. Good: `it('accepts a payload mixing a priced material with an all-bonused, kit-less one')`.
 
-- [Instruction] Write out any shorthand — a project-private acronym, an abstract call shape standing in for a value — instead of leaving the reader to decode it.
+- [Instruction] Write out any shorthand - a project-private acronym, an abstract call shape standing in for a value - instead of leaving the reader to decode it.
   - [Why] Decoding costs the reader a step, and the context it takes can be forgotten or never reach a new team member.
 
   - [Example] `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`; `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
@@ -118,22 +118,22 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles �
 Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`design-docs`** skill for which doc to write, its template, a worked example, and the ownership + altitude rules.
 
 - [Instruction] Locate and update related documentation inline with the change.
-  - [Why] Deferring doc updates to "later" means they don't happen — the reviewer needs them synced with the change.
+  - [Why] Deferring doc updates to "later" means they don't happen - the reviewer needs them synced with the change.
 
 ### What a doc should and shouldn't contain
 
-- [Instruction] Lead with the bottom line — state a doc's and each section's conclusion first, then its support (BLUF).
+- [Instruction] Lead with the bottom line - state a doc's and each section's conclusion first, then its support (BLUF).
   - [Why] NN/g eye-tracking shows readers scan in an F-pattern and bail early, missing a buried conclusion.
 
 - [Instruction] Collapsibility follows one reader-judged test: collapse whatever this doc's reader only consults or already holds; never collapse what they need to form the judgment the doc asks of them.
-  - [Why] A type-based rule misjudges what to collapse — collapsing what the reader needs defeats why the doc exists.
+  - [Why] A type-based rule misjudges what to collapse - collapsing what the reader needs defeats why the doc exists.
 
-- [Instruction] Never inventory facts a tool generates on demand — file paths, callers, deps, file/function listings — in any doc or comment.
+- [Instruction] Never inventory facts a tool generates on demand - file paths, callers, deps, file/function listings - in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free; an inline copy adds nothing and goes stale on the next move.
   - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
 
-- [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it — never the file you read it in.
-  - [Why] A pointer to the wrong file is worse than none — the reader follows it, finds nothing, and re-derives the rule.
+- [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it - never the file you read it in.
+  - [Why] A pointer to the wrong file is worse than none - the reader follows it, finds nothing, and re-derives the rule.
 
 - [Instruction] Delegate verifying and retargeting every such pointer to `agent(subAgent=markdown-standards-fixer, title=Fix <doc> markdown)`, never inline.
   - [Why] It runs check-rule-citations.py and reads both files to settle each row; inline dumps every candidate into context.

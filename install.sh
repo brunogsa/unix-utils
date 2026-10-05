@@ -15,12 +15,12 @@ detect_os() {
 OS=$(detect_os)
 echo "Detected OS: $OS"
 
-# Git configuration — symlink the versioned ~/.gitconfig from
+# Git configuration - symlink the versioned ~/.gitconfig from
 # the repo.
 # Holds user identity, editor, and the gh credential helper
 # (portable `!gh ...`, no hardcoded path).
 #
-# NOTE: never run `git config --global` after this — it rewrites
+# NOTE: never run `git config --global` after this - it rewrites
 # via lock+rename and replaces the symlink with a regular file,
 # detaching it from the repo (same caveat as settings.json).
 ln -sf ~/unix-utils/configs/git/.gitconfig ~/.gitconfig
@@ -143,7 +143,7 @@ elif [[ "$OS" == "linux" ]]; then
     rm -fr awscliv2.zip aws
 fi
 
-# GitHub CLI (gh) — backs the credential helper in
+# GitHub CLI (gh) - backs the credential helper in
 # configs/git/.gitconfig (`!gh auth git-credential`).
 if command -v gh &> /dev/null; then
     echo "gh already installed, skipping"
@@ -158,7 +158,7 @@ elif [[ "$OS" == "linux" ]]; then
     sudo apt install -y gh
 fi
 
-# gh extensions — extra `gh` subcommands, needs gh installed.
+# gh extensions - extra `gh` subcommands, needs gh installed.
 # Re-run safe: install exits 0 if already present.
 gh extension install github/gh-stack
 
@@ -240,11 +240,11 @@ npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
 
-# mmdc — renders mermaid; used by compile-mermaid, the
+# mmdc - renders mermaid; used by compile-mermaid, the
 # mermaid-diagrams skill, and md-to-html
 npm install -g @mermaid-js/mermaid-cli
 
-# ccusage — independent reader of the same ~/.claude
+# ccusage - independent reader of the same ~/.claude
 # transcripts.
 #
 # The usage-audit skill cross-checks every snapshot's TOKEN
@@ -254,7 +254,7 @@ npm install -g @mermaid-js/mermaid-cli
 #
 # Only its tokens are used: its bundled price table lags
 # Anthropic's by whole models, so `ccusage --offline` once
-# priced a ~$130 day at $0.92. npm, not brew — brew is
+# priced a ~$130 day at $0.92. npm, not brew - brew is
 # macOS-only and this repo's cross-platform rule is a MUST.
 npm install -g ccusage
 
@@ -282,7 +282,7 @@ else
     pipx install git-hunk
 fi
 
-# pytest — the test runner for every .py script in
+# pytest - the test runner for every .py script in
 # configs/ai-docs/claude, per pytest.ini's discovery config.
 if pipx list --short 2>/dev/null | grep -q '^pytest '; then
     echo "pytest already installed, skipping"
@@ -290,13 +290,13 @@ else
     pipx install pytest
 fi
 
-# pyrightconfig.json — point the type checker at the pipx
+# pyrightconfig.json - point the type checker at the pipx
 # pytest venv's site-packages.
 #
 # pipx isolates pytest in its own venv, on no interpreter
 # path Pyright resolves against, so every test file that
 # imports pytest reports "Import 'pytest' could not be
-# resolved" — noise that buries real import errors.
+# resolved" - noise that buries real import errors.
 #
 # Generated here, not committed: the path embeds the pipx
 # home and the CPython minor version, both machine- and
@@ -320,14 +320,14 @@ else
     echo "WARNING: no pipx pytest site-packages found; pyrightconfig.json not written" >&2
 fi
 
-# PyYAML — skill-standards's quick_validate.py (the SKILL.md
+# PyYAML - skill-standards's quick_validate.py (the SKILL.md
 # frontmatter validator invoked via `python -m
 # scripts.package_skill`) does `import yaml` and calls
 # yaml.safe_load/yaml.YAMLError for real, not incidentally.
 #
 # Confirmed missing on a bare machine: running package_skill.py
 # raises "ModuleNotFoundError: No module named 'yaml'" before
-# any linter gets a say — this installs the actual runtime
+# any linter gets a say - this installs the actual runtime
 # dependency, not just quiets Pyright.
 #
 # Installed with --user, not pipx: PyYAML is a library
@@ -348,7 +348,7 @@ fi
 # isolated per-app venv).
 #
 # So Pyright resolves it via the default python environment with
-# no extraPaths edit — verified with a whole-repo `pyright` run.
+# no extraPaths edit - verified with a whole-repo `pyright` run.
 if python3 -c 'import yaml' &> /dev/null; then
     echo "PyYAML already importable, skipping"
 elif python3 -m pip install --user pyyaml &> /dev/null \
@@ -358,7 +358,7 @@ else
     echo "WARNING: PyYAML install failed; quick_validate.py will fail to import yaml" >&2
 fi
 
-# RTK (Rust Token Killer) — CLI proxy that compresses Bash
+# RTK (Rust Token Killer) - CLI proxy that compresses Bash
 # output to cut Claude Code token burn.
 #
 # Wired as a second PreToolUse Bash hook (rtk hook claude)
@@ -369,7 +369,7 @@ fi
 # a hook exit-2 (deny) outranks rtk's "allow".
 #
 # If `rtk gain` errors after install, the wrong `rtk` is on
-# PATH — reachingforthejack/rtk (Rust Type Kit) shares the
+# PATH - reachingforthejack/rtk (Rust Type Kit) shares the
 # name. Check with `rtk --version` and `which rtk`.
 if command -v rtk &> /dev/null; then
     echo "rtk already installed, skipping"

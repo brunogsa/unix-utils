@@ -4,7 +4,7 @@
 Why a .docx (and not HTML or paste-from-markdown):
   Google Drive converts an uploaded .docx into a native Google Doc with full fidelity
   AND keeps embedded images, because a .docx carries images as real media parts. Google's
-  HTML import, by contrast, silently strips inline/base64 images — so HTML loses every
+  HTML import, by contrast, silently strips inline/base64 images - so HTML loses every
   diagram. The .docx path is the only one that preserves images through the conversion.
 
 What this does:

@@ -1,10 +1,10 @@
-# Stacked-by-task delivery — one PR per task
+# Stacked-by-task delivery - one PR per task
 
-Read this only once §1.2's stacked question came back `yes` — never on a default run, which never needs a word of it.
+Read this only once §1.2's stacked question came back `yes` - never on a default run, which never needs a word of it.
 
 It owns the two gates that can still overrule that yes, the layer order, and everything the yes branch changes.
 
-The mechanics of a stack once it exists — propagation, bottom-up merge, retarget, the native rulebook — stay in [`stacked-prs.md`](stacked-prs.md). This file only says how a unit becomes one.
+The mechanics of a stack once it exists - propagation, bottom-up merge, retarget, the native rulebook - stay in [`stacked-prs.md`](stacked-prs.md). This file only says how a unit becomes one.
 
 ## The two delivery shapes
 
@@ -13,7 +13,7 @@ The plan never decides this. Its Task Breakdown and PR Breakdown read identicall
 | | What one PR is | What one task is |
 |---|---|---|
 | **Stacked** | one **task** | a layer of the stack |
-| **Not stacked** | one **unit** — a `PR-N` entry, or the whole `<task-ids>` run | a commit inside that PR |
+| **Not stacked** | one **unit** - a `PR-N` entry, or the whole `<task-ids>` run | a commit inside that PR |
 
 A unit is a stack.
 
@@ -23,16 +23,16 @@ A plan with `PR-1` and `PR-2` delivers **two** stacks, each registered separatel
 
 ## §1.2's question, and the two gates that can overrule it
 
-Ask it as an opt-in — **"Deliver each task as its own stacked PR?" (yes/no, default no)**.
+Ask it as an opt-in - **"Deliver each task as its own stacked PR?" (yes/no, default no)**.
 
 It is opt-in because a stacked unit runs strictly sequentially ("Stacked mode is strictly sequential" below), and no run should pay that wall-clock unless the user asked for the stack.
 
-Run both gates the moment the yes arrives, **before** composing the follow-up `AskUserQuestion` call — their outcome is what decides whether that call asks about the layer order at all.
+Run both gates the moment the yes arrives, **before** composing the follow-up `AskUserQuestion` call - their outcome is what decides whether that call asks about the layer order at all.
 
 When either fires the unit is not stacked: report which one fired and confirm the forced downgrade in that follow-up call.
 
-- **`gh stack` is not installed** — `gh stack --help` exits non-zero. Without it a stack can be built but never registered.
-- **A task in scope has two or more in-scope parents** — a true join:
+- **`gh stack` is not installed** - `gh stack --help` exits non-zero. Without it a stack can be built but never registered.
+- **A task in scope has two or more in-scope parents** - a true join:
 
   ```bash
   ~/.claude/skills/implement/scripts/resolve-task-order.sh <plan-file> <task-ids>
@@ -54,9 +54,9 @@ Forks and disconnected tasks are not joins and never block.
 
 ## The layer order is the user's to set
 
-Exit 0 prints a topological order — a task never precedes one it depends on, ties broken lowest-id-first. Show that order in the follow-up call and let the user reorder it.
+Exit 0 prints a topological order - a task never precedes one it depends on, ties broken lowest-id-first. Show that order in the follow-up call and let the user reorder it.
 
-Never judge a reordering by eye — put the user's candidate back through the same script:
+Never judge a reordering by eye - put the user's candidate back through the same script:
 
 ```bash
 ~/.claude/skills/implement/scripts/resolve-task-order.sh --verify <plan-file> <task-ids> <candidate-order>
@@ -78,7 +78,7 @@ A plan that numbered the library change before the contract change still ships c
 
 ## Layer branches
 
-**Layer 1 needs no new branch.** It is whatever branch §3.1 already left checked out — the current branch on a `<task-ids>` run, `<feat_branch>/pr<N>` on a PR-label run.
+**Layer 1 needs no new branch.** It is whatever branch §3.1 already left checked out - the current branch on a `<task-ids>` run, `<feat_branch>/pr<N>` on a PR-label run.
 
 Every rule in [`pr-branch-creation.md`](pr-branch-creation.md) about resolving a unit's starting point still applies unchanged, diamond PR-level dependencies included.
 
@@ -108,6 +108,6 @@ This serialization is why §1.2 asks the question as an opt-in: a unit whose ind
 
 ## Batch end
 
-Not here — [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) owns the push, the one-PR-per-layer loop, the `gh stack link`, and both branch records.
+Not here - [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) owns the push, the one-PR-per-layer loop, the `gh stack link`, and both branch records.
 
-Read it at §8.1, not now: a batch runs its whole §3–§8 pass in between, so anything loaded here is gone by the time it binds.
+Read it at §8.1, not now: a batch runs its whole §3-§8 pass in between, so anything loaded here is gone by the time it binds.

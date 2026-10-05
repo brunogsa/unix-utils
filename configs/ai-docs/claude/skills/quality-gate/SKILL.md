@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-description: "Run the full quality sweep over a branch — refactor, auto-review, planned-test presence — in parallel, writing missing tests, optionally auto-solving the rest. Triggers: /quality-gate, 'run the quality gate', 'full review pass', batch-end dispatch."
+description: "Run the full quality sweep over a branch - refactor, auto-review, planned-test presence - in parallel, writing missing tests, optionally auto-solving the rest. Triggers: /quality-gate, 'run the quality gate', 'full review pass', batch-end dispatch."
 disable-model-invocation: false
 ---
 
@@ -16,7 +16,7 @@ Three legs, each a fresh-context reviewer writing its own timestamped verdict fi
 | `auto-review` | correctness, edge cases, contract and spec conformance | `verdict_auto-review_<branch>_<ts>.md` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `verdict_test-sdd_<branch>_<ts>.md` |
 
-The third leg runs only when a plan resolves — without a plan there are no planned tests to check.
+The third leg runs only when a plan resolves - without a plan there are no planned tests to check.
 
 ## Usage
 
@@ -24,18 +24,18 @@ The third leg runs only when a plan resolves — without a plan there are no pla
 /quality-gate [spec] [plan] [--tasks <ids>] [--base-ref <ref>] [--auto-solve | --report-only]
 ```
 
-- `spec` / `plan` — paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
+- `spec` / `plan` - paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
 
-- `--tasks <ids>` — comma-list of plan task ids (`1,2,5`) forwarded to the `test-sdd` leg to narrow its scope; omitted, it checks every task.
+- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) forwarded to the `test-sdd` leg to narrow its scope; omitted, it checks every task.
 
-- `--base-ref <ref>` — review from this ref instead of `origin/HEAD` (branch, tag, or SHA); a caller that already knows its range passes it here.
+- `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA); a caller that already knows its range passes it here.
 
-- `--auto-solve` — skip the opening interview and apply the `refactor`/`auto-review` findings this run judges safe. Doesn't govern `test-sdd`, whose findings apply on every run that dispatches that leg (§5.1).
+- `--auto-solve` - skip the opening interview and apply the `refactor`/`auto-review` findings this run judges safe. Doesn't govern `test-sdd`, whose findings apply on every run that dispatches that leg (§5.1).
 
-- `--report-only` — skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied.
+- `--report-only` - skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied.
   - A skill caller that already asked its human passes one of the two flags, never neither, so §1 never stalls a batch on a prompt nobody is watching.
 
-  - Both flags at once is a contradiction, not a precedence puzzle — stop and say so.
+  - Both flags at once is a contradiction, not a precedence puzzle - stop and say so.
 
 Inline examples: `/quality-gate` discovers spec/plan in CWD and asks before applying; `/quality-gate --tasks 1,2 --auto-solve` is how `/implement` scopes the `test-sdd` leg to its batch.
 
@@ -46,19 +46,19 @@ See [`references/more-examples.md`](references/more-examples.md) for the explici
 Direct `/quality-gate` invocation, phrases like "run the quality gate" / "full review pass" / "review and fix what's safe", or dispatch from another skill's flow.
 `/implement`'s batch-end tail runs this, passing `--auto-solve` only when its own interview asked for it.
 
-## 1. Ask about auto-solve — first, before anything else
+## 1. Ask about auto-solve - first, before anything else
 
-**The question covers only the `refactor` and `auto-review` lenses** — `test-sdd` is outside it, see this section's closing note.
+**The question covers only the `refactor` and `auto-review` lenses** - `test-sdd` is outside it, see this section's closing note.
 
 **Skip this step entirely when either `--auto-solve` or `--report-only` was passed.** The flag is the answer.
 
 Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anything:
 
-- **Report only** (recommended default) — verdict files land in CWD, no refactor/auto-review finding is touched; the human decides later, by hand or via `/address-verdicts`.
+- **Report only** (recommended default) - verdict files land in CWD, no refactor/auto-review finding is touched; the human decides later, by hand or via `/address-verdicts`.
 
-- **Auto-solve** — after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
+- **Auto-solve** - after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
 
-**The `test-sdd` lens is applied on every run that dispatches it, without triage** (§5.1) — a planned-test miss carries no design call, since the human already approved the plan that declared it.
+**The `test-sdd` lens is applied on every run that dispatches it, without triage** (§5.1) - a planned-test miss carries no design call, since the human already approved the plan that declared it.
 
 ## 2. Resolve the spec and the plan
 
@@ -90,16 +90,16 @@ If detection fails, ask which branch to diff against rather than guessing.
 
 Under either flag, stop and print what failed instead, since a missing base has no safe default and proceeding would review the wrong range.
 
-A caller may pass its own base ref via `--base-ref` instead — `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
+A caller may pass its own base ref via `--base-ref` instead - `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
 
 ## 3. Dispatch the legs in parallel
 
-Spawn each leg as its own agent per role — `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg — all in the **same turn**,
+Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg - all in the **same turn**,
 all in the background. They are independent report-only passes with no ordering dependency.
 
-- `agent(subAgent=code-reviewer, title=Refactor-lens review)` — invokes and executes the `refactor` skill (via the Skill tool).
-- `agent(subAgent=code-reviewer, title=Auto-review pipeline)` — invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
-- `agent(subAgent=test-reviewer, title=Planned-test presence check)` — invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
+- `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool).
+- `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
+- `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** It already *is* the fresh-context reviewer those skills would otherwise dispatch.
 
@@ -107,18 +107,18 @@ Tell each leg this explicitly, since the skills it invokes describe dispatching 
 
 Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
 
-The `check-reviewer-writes.sh` hook backs the report-only contract at the tool layer — its exact terms live in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), the single home for that wording.
+The `check-reviewer-writes.sh` hook backs the report-only contract at the tool layer - its exact terms live in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), the single home for that wording.
 
-Tell each leg the `/tmp` half too — the `auto-review` leg's waves persist there, and a leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
+Tell each leg the `/tmp` half too - the `auto-review` leg's waves persist there, and a leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
 ## 4. Collect the reports
 
 When each leg returns, confirm its verdict file exists in CWD and is non-empty. Record the three resolved paths.
 
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on.
-  - Never retry twice — a twice-failed leg is for the human, not a retry loop.
+  - Never retry twice - a twice-failed leg is for the human, not a retry loop.
 
-- **Never report from a leg's return message** — messages are capped and truncate long finding lists; the file is the source of truth.
+- **Never report from a leg's return message** - messages are capped and truncate long finding lists; the file is the source of truth.
 
 ## 5. Assemble the apply list
 
@@ -126,7 +126,7 @@ The two groups below enter the list on different terms. Compose the whole list b
 
 ### 5.1. Every `test-sdd` finding goes in, without triage
 
-Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list — report-only and auto-solve alike, with no triage.
+Whenever §3 dispatched the `test-sdd` leg and §4 collected a non-empty file for it, every finding enters the apply list - report-only and auto-solve alike, with no triage.
 
 Each names a test the plan declared and the repo lacks, so "is this worth doing" was already answered when the human approved the plan.
 
@@ -138,26 +138,26 @@ When §2 resolved no plan, that leg never dispatched and this sub-step contribut
 
 ### 5.2. `refactor` and `auto-review` findings go in only on an auto-solve run
 
-**Report-only** (§1 resolved to it, or `--report-only`) → neither lens contributes anything, including trivially-safe-looking findings — the opt-in came from §1, and its absence is an answer.
+**Report-only** (§1 resolved to it, or `--report-only`) → neither lens contributes anything, including trivially-safe-looking findings - the opt-in came from §1, and its absence is an answer.
 
 **Auto-solve** (§1 resolved to it, or `--auto-solve`) → read both verdict files **in full**, never the legs' return summaries, sorting each finding into addressable or not.
 
-- **Addressable** — small, well-scoped, clearly evidenced, low blast radius: a local simplification, a correctness fix with an obvious forcing case.
-- **Not addressable** — design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
+- **Addressable** - small, well-scoped, clearly evidenced, low blast radius: a local simplification, a correctness fix with an obvious forcing case.
+- **Not addressable** - design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
 
-Print the accepted list before applying anything, one line per finding: `<lens>#N (<file>:<lines>) — <one-line recap> — accepted because <reason>`.
+Print the accepted list before applying anything, one line per finding: `<lens>#N (<file>:<lines>) - <one-line recap> - accepted because <reason>`.
 Print the rejected list in the same shape, carrying the rejection reason instead.
 The relevance call is judgment, so it gets shown, not just its result.
 
 ## 6. Hand the apply list to `/address-verdicts`
 
-**An empty apply list skips straight to §7** — a report-only run with no plan resolved has nothing to apply.
+**An empty apply list skips straight to §7** - a report-only run with no plan resolved has nothing to apply.
 
-**Applying is not this skill's job** — `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
+**Applying is not this skill's job** - `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
 
 This skill decides *which* findings deserve a fix, that one owns *how* every fix lands, so its loop is never duplicated here.
 
-Resolve the repo's test command first — a `package.json` script, a Makefile target, the repo's own CLAUDE.md — then invoke, **in this session**:
+Resolve the repo's test command first - a `package.json` script, a Makefile target, the repo's own CLAUDE.md - then invoke, **in this session**:
 
 ```
 /address-verdicts <every finding identifier §5 assembled, with their verdict file paths> --no-ask --test-cmd <cmd>
@@ -165,12 +165,12 @@ Resolve the repo's test command first — a `package.json` script, a Makefile ta
 
 **Pass the whole list in one invocation**, never one call per lens. That skill groups the list by lens itself, so a second call would only re-seed a TaskList it already owns.
 
-- **The list is explicit** — naming each finding as its report does, so nothing re-derives §5.2's triage from a severity floor and widens scope.
+- **The list is explicit** - naming each finding as its report does, so nothing re-derives §5.2's triage from a severity floor and widens scope.
 
 - **`--no-ask` is mandatory here**, report-only or auto-solve alike.
   - §1 already asked this run's one question, so a prompt now would either re-ask it or stall a `/implement` tail with nobody standing by.
 
-- **`--test-cmd` is passed** so its inference step has nothing left to guess — the one thing it would otherwise prompt for.
+- **`--test-cmd` is passed** so its inference step has nothing left to guess - the one thing it would otherwise prompt for.
 
 It runs in this session, never wrapped in a subagent, because it commits and a permission prompt only renders in main.
 
@@ -184,23 +184,23 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 
 - Every verdict file path this run produced, plus any leg that failed to produce one, and the `test-sdd` leg when §2 resolved no plan to dispatch it with.
 
-- **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap — never a bare id, count, or SHA alone.**
+- **Every finding below carries its `<lens>#N (<file>:<lines>)` reference plus a one-line recap - never a bare id, count, or SHA alone.**
 
 §5.2 already composed this for the accepted/rejected lines; reuse it.
 
 A human reading the report should never have to open a verdict file to know what was decided.
 
 - Applied findings, with commit SHA.
-- Findings judged not addressable by §5.2, with the reason — they stay unmarked in their verdict files.
+- Findings judged not addressable by §5.2, with the reason - they stay unmarked in their verdict files.
 
 - **On a report-only run, every `refactor` and `auto-review` finding, under a heading naming them as never triaged.**
   - Nothing read them for addressability, so reporting them as "not addressable" would claim a judgment this run never made.
   - Close that section by naming both ways to work them: `/address-verdicts`, or a re-run as `/quality-gate --auto-solve`.
 
-- Findings `/address-verdicts` skipped, with the reason — an ambiguity or a missing test command under `--no-ask`.
+- Findings `/address-verdicts` skipped, with the reason - an ambiguity or a missing test command under `--no-ask`.
 - Findings whose apply failed, with what it needs to retry.
-- The plain statement that unmarked findings are untouched, and that a later `/address-verdicts` run — this time with a human answering — is how they get worked.
+- The plain statement that unmarked findings are untouched, and that a later `/address-verdicts` run - this time with a human answering - is how they get worked.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.

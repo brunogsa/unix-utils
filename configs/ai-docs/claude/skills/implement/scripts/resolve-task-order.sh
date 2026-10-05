@@ -33,7 +33,7 @@
 # and determinism is what makes the order assertable).
 #
 # Second form (--verify) - <task-ids> is the SAME in-scope set
-# the first form was (or would be) called with — the set the
+# the first form was (or would be) called with - the set the
 # user was shown.
 #
 # <candidate-order> is what the user typed back: a reordering of
@@ -259,7 +259,7 @@ offenders=$(printf '%s\n' "$filtered" | awk -F'\t' '
 if [ -n "$offenders" ]; then
   while IFS=$'\t' read -r id cnt deps; do
     parents_display=$(printf '%s' "$deps" | sed 's/,/, /g')
-    echo "error: task $id depends on $cnt in-set tasks ($parents_display) — a stack layer can have only one parent" >&2
+    echo "error: task $id depends on $cnt in-set tasks ($parents_display) - a stack layer can have only one parent" >&2
   done <<<"$offenders"
   exit 1
 fi

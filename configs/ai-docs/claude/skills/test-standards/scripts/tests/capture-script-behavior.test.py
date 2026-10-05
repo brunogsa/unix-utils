@@ -1,6 +1,6 @@
 # capture-script-behavior.test.py - Blackbox CLI tests for
 # capture-script-behavior.py: every test invokes the script's
-# CLI via subprocess (never imports it directly — hyphenated
+# CLI via subprocess (never imports it directly - hyphenated
 # filenames aren't importable via a plain `import` statement).
 #
 # Each test runs inside a fresh tempfile.TemporaryDirectory()
@@ -41,7 +41,7 @@ def _run(*args, cwd=None):
 
 
 def _write_executable(path: Path, content: str) -> Path:
-    """Write `content` to `path` and mark it executable — every toy
+    """Write `content` to `path` and mark it executable - every toy
     script-under-test is invoked directly (its own shebang decides
     the interpreter), matching how a real .sh or converted .py
     script is captured."""
@@ -152,7 +152,7 @@ class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
         text = emitted.read_text()
         self.assertNotIn(str(fake_repo), text)
 
-        # Move the whole fake repo to a new absolute root — same
+        # Move the whole fake repo to a new absolute root - same
         # internal layout, different mount point, like a fresh
         # clone on another machine.
         import shutil
@@ -262,7 +262,7 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
             capture_output=True, text=True,
         ).stdout
 
-        # crash, then a repeat run — both must leave the repo
+        # crash, then a repeat run - both must leave the repo
         # untouched
         for _ in range(2):
             result = _run("capture", "--script", str(script), "--table", str(table),
@@ -365,7 +365,7 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         # (unrelated) fixture directory instead.
         #
         # Found via manual exploration, not one of the 13
-        # planned titles — folded in as a Drift fix with its own
+        # planned titles - folded in as a Drift fix with its own
         # regression test.
         script = _write_executable(self.tmp_path / "toy.sh", "#!/bin/sh\necho hi\nexit 0\n")
         table = _write_table(self.tmp_path / "table.json", [
@@ -422,7 +422,7 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertEqual(first.returncode, 0, msg=first.stderr)
 
         # Same stdout/stderr/exit code, but writes different
-        # fixture content — the old 3-tuple comparison this
+        # fixture content - the old 3-tuple comparison this
         # harness replaces would have missed this entirely.
         rewrite = _write_executable(self.tmp_path / "rewrite.sh", (
             "#!/bin/sh\necho ok\nprintf v2 > state.txt\nexit 0\n"
@@ -530,7 +530,7 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertEqual(capture_result.returncode, 0, msg=capture_result.stderr)
 
         # Delete only the harness, leaving the emitted test
-        # where it was captured — the exact state a relocated or
+        # where it was captured - the exact state a relocated or
         # renamed harness leaves behind.
         harness_copy.unlink()
 

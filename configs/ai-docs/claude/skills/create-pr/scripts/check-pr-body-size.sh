@@ -3,7 +3,7 @@
 # body size limit.
 #
 # GitHub rejects a pull-request (or issue) body longer than
-# 65536 characters — a hard API limit.
+# 65536 characters - a hard API limit.
 #
 # Run this BEFORE pushing pr_<slug>_pr<N>.final.md so the
 # `gh api PATCH .../pulls/<n>` write never bounces on an
@@ -18,7 +18,7 @@
 #   warn-margin   Optional. Chars of headroom below the hard
 #                 limit that still trigger a "close" warning.
 #
-#                 Default: 3500 — covers the small drift
+#                 Default: 3500 - covers the small drift
 #                 between local `wc -m` and GitHub's own
 #                 counting of multibyte content (accents, em
 #                 dashes, arrows).
@@ -29,7 +29,7 @@
 #   0  under the warn threshold (safe to push).
 #   1  bad usage / file not found (message on stderr).
 #
-#   2  within the warn margin (close — trim soon).
+#   2  within the warn margin (close - trim soon).
 #   3  over the hard limit (GitHub will reject).
 #
 # Examples:
@@ -70,12 +70,12 @@ bytes=$(wc -c <"$file" | tr -d ' ')
 warn_threshold=$((HARD_LIMIT - warn_margin))
 
 if ((chars > HARD_LIMIT)); then
-    echo "OVER LIMIT: $chars chars ($bytes bytes) — GitHub caps bodies at $HARD_LIMIT. Trim $((chars - HARD_LIMIT)) chars."
+    echo "OVER LIMIT: $chars chars ($bytes bytes) - GitHub caps bodies at $HARD_LIMIT. Trim $((chars - HARD_LIMIT)) chars."
     exit 3
 elif ((chars > warn_threshold)); then
-    echo "CLOSE: $chars chars ($bytes bytes) — within $warn_margin of the $HARD_LIMIT cap. Consider trimming."
+    echo "CLOSE: $chars chars ($bytes bytes) - within $warn_margin of the $HARD_LIMIT cap. Consider trimming."
     exit 2
 else
-    echo "OK: $chars chars ($bytes bytes) — under the $HARD_LIMIT cap ($((HARD_LIMIT - chars)) to spare)."
+    echo "OK: $chars chars ($bytes bytes) - under the $HARD_LIMIT cap ($((HARD_LIMIT - chars)) to spare)."
     exit 0
 fi

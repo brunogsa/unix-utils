@@ -25,9 +25,9 @@ skill-name/
 
 ## Progressive disclosure
 
-Each layer is paid on a different cadence — metadata every session, body every trigger, references only on demand — so each gets its own budget.
+Each layer is paid on a different cadence - metadata every session, body every trigger, references only on demand - so each gets its own budget.
 
-- [Instruction] Keep a skill's frontmatter — name plus description — under ~100 words.
+- [Instruction] Keep a skill's frontmatter - name plus description - under ~100 words.
   - [Why] Frontmatter loads whether or not the skill triggers, so every unrelated task pays for it.
 
 - [Instruction] Keep the SKILL.md body under ~500 lines, splitting a layer into `references/` with a pointer saying when to read it once it grows past that.
@@ -52,7 +52,7 @@ cloud-deploy/
 
 `scripts/`, `agents/`, `references/schemas.md`, `eval-viewer/`, and `assets/` are absorbed locally from Anthropic's `skill-creator` plugin, not loaded at runtime.
 
-- [Instruction] Never load `skill-creator` before authoring or editing a SKILL.md — this skill carries what matters.
+- [Instruction] Never load `skill-creator` before authoring or editing a SKILL.md - this skill carries what matters.
   - [Why] The plugin cache is unversioned and can be overwritten, losing local fixes like `run_eval.py`'s early-return bug.
 
 - [Instruction] Skim skill-creator's upstream changes for ideas worth stealing, never to re-sync wholesale.
@@ -68,16 +68,16 @@ See [`references/eval-workflow.md`](references/eval-workflow.md) for the full ru
 - [Instruction] Load `personal-environment` before editing any skill file.
   - [Why] `~/.claude/skills/` symlinks into `~/unix-utils/`; without its rules the commit fails from the wrong dir.
 
-- [Instruction] Read [`references/marker-authoring.md`](references/marker-authoring.md) before editing a file that uses the marker convention — the global CLAUDE.md and every `*-standards` skill, but not an ordinary skill.
+- [Instruction] Read [`references/marker-authoring.md`](references/marker-authoring.md) before editing a file that uses the marker convention - the global CLAUDE.md and every `*-standards` skill, but not an ordinary skill.
   - [Why] Those files carry `[Instruction]`/`[Why]`/`[Example]`/`CRITICAL` markers ordinary prose lacks.
 
 ## Descriptions
 
 - [Instruction] State a skill's purpose and when to invoke it, never an inventory of what it covers.
-  - [Why] Only the first 250 chars drive `/skills` routing (2.1.86+ cap) — an inventory burns budget, changing nothing.
+  - [Why] Only the first 250 chars drive `/skills` routing (2.1.86+ cap) - an inventory burns budget, changing nothing.
 
-- [Instruction] Name concrete trigger phrases and contexts explicitly, including non-obvious ones — bias toward over-triggering.
-  - [Why] Models undertrigger by default — an abstract goal reads narrower than real scope, so explicit contexts close it.
+- [Instruction] Name concrete trigger phrases and contexts explicitly, including non-obvious ones - bias toward over-triggering.
+  - [Why] Models undertrigger by default - an abstract goal reads narrower than real scope, so explicit contexts close it.
 
 ## Output formats and examples
 
@@ -105,7 +105,7 @@ ALWAYS use this exact template:
 
   - [Example] Qualifying moves: conditional loads some invocations never read; files read only by a spawned subagent; late loads in marathon flows, read fresh after compactions.
 
-- [Instruction] Keep a mandatory read — text opened at invocation time on every run — inside SKILL.md, trimmed under budget or covered by an honest `words-budget:` override.
+- [Instruction] Keep a mandatory read - text opened at invocation time on every run - inside SKILL.md, trimmed under budget or covered by an honest `words-budget:` override.
   - [Why] Relocating it is a fake lazy-load that moves the words without saving any.
 
 - [Instruction] Merge two bundled files back into one when no run reads either without the other, then trim or override honestly.
@@ -114,14 +114,14 @@ ALWAYS use this exact template:
 ### Splitting and naming
 
 - [Instruction] Split a bundled file whose two topics never fire on the same run.
-  - [Why] A mixed file makes every consumer load the branch it never takes — pure context tax on every run.
+  - [Why] A mixed file makes every consumer load the branch it never takes - pure context tax on every run.
 
   - [Example] `wave5-emit.md` held mutually exclusive `## github mode` and `## local mode`; now `wave5-emit-github.md` + `wave5-emit-local.md`.
 
-- [Instruction] Keep two co-firing topics in one file — split only when the skipped half outweighs the Read round-trip and pointer line it costs.
+- [Instruction] Keep two co-firing topics in one file - split only when the skipped half outweighs the Read round-trip and pointer line it costs.
   - [Why] Fragmenting co-firing content trades a smaller file for an extra round-trip and a skippable step.
 
-  - [Example] `review-principles.md`'s twelve principles run ~100 words each and are always read together — that one is a trim, not a split.
+  - [Example] `review-principles.md`'s twelve principles run ~100 words each and are always read together - that one is a trim, not a split.
 
 - [Instruction] Name every bundled file and every heading after what it contains, never after a position or number.
   - [Why] A positional name tells the reader nothing unopened, and rots when steps reorder.
@@ -133,25 +133,25 @@ ALWAYS use this exact template:
 - [Instruction] Break any bundled file past ~512 words into `## ` sections; `assets/flowchart.md` is the sole exemption, being one indivisible diagram.
   - [Why] Without a landmark the reader scans the whole file to find one section, and a bigger budget can't fix that.
 
-- [Instruction] Set an honest `words-budget:`/`lines-budget:` override on a bundled file whose size is fixed by an artifact it reproduces — a schema, a filled-in template, a realistic worked example.
-  - [Why] Tightening can't shrink a faithful reproduction — a trim makes it wrong, a split scatters one thing apart.
+- [Instruction] Set an honest `words-budget:`/`lines-budget:` override on a bundled file whose size is fixed by an artifact it reproduces - a schema, a filled-in template, a realistic worked example.
+  - [Why] Tightening can't shrink a faithful reproduction - a trim makes it wrong, a split scatters one thing apart.
 
-- [Instruction] Propose that override to the user alongside the trim and split alternatives — never apply one on your own initiative.
+- [Instruction] Propose that override to the user alongside the trim and split alternatives - never apply one on your own initiative.
   - [Why] The budget trade-off is the user's to own, per the same user-only rule `performance-check-principles-and-skills` sets.
 
-- [Instruction] Raise an `assets/flowchart.md` budget without asking — the one exception, since the file is parked in assets and never loaded by the model.
+- [Instruction] Raise an `assets/flowchart.md` budget without asking - the one exception, since the file is parked in assets and never loaded by the model.
   - [Why] Its words cost no context, so the gate measures a spend that never happens.
 
-- [Instruction] Set every `words-budget:`/`lines-budget:` value to a power of 2 — 1024, 2048, 4096, 8192 — never a bespoke number like 5096.
+- [Instruction] Set every `words-budget:`/`lines-budget:` value to a power of 2 - 1024, 2048, 4096, 8192 - never a bespoke number like 5096.
   - [Why] A round doubling reads as a deliberate tier; a bespoke number reads as an unaudited guess.
 
 - [Instruction] Trim toward the lower power first, and propose the doubling only once the file still exceeds it after that trim.
   - [Why] Doubling on a small overage buys 2x the budget for a few words, and the slack absorbs later additions unmeasured.
 
-- [Instruction] Skip that trim-first step for `assets/flowchart.md` — raise straight to whichever power of 2 fits its current size.
+- [Instruction] Skip that trim-first step for `assets/flowchart.md` - raise straight to whichever power of 2 fits its current size.
   - [Why] It costs no context, so trimming it first strips diagram fidelity for a savings that doesn't exist.
 
-- [Instruction] Move a worked example between files intact — never trim one to fit a budget.
+- [Instruction] Move a worked example between files intact - never trim one to fit a budget.
   - [Why] An example earns its keep by being realistic, and realism is the first thing a size-driven trim takes away.
 
 ### Trimming a body over its budget
@@ -174,13 +174,13 @@ This specializes the two rules above for any skill: examples are what moves, so 
 - [Instruction] Ship an `assets/flowchart.md` with every step-shaped skill: one mermaid flowchart of its own control flow.
   - [Why] Mermaid is a drift-prone second encoding of the steps that would tax every trigger in-body; assets keeps it free.
 
-- [Instruction] Render that control flow twice in the same file — a `## Pseudo-code` section above the `## Flowchart` diagram — tagging each pseudo-code step with its diagram node id.
+- [Instruction] Render that control flow twice in the same file - a `## Pseudo-code` section above the `## Flowchart` diagram - tagging each pseudo-code step with its diagram node id.
   - [Why] Each rendering is legible where the other is weakest, and shared ids turn drift into something `grep` finds.
 
 - [Instruction] Read [`references/flowchart-authoring.md`](references/flowchart-authoring.md) before writing or regenerating a flowchart.
   - [Why] It carries the node-numbering scheme, collapse rule, classDef legend, and the `mmdc` validation step.
 
-- [Instruction] Never restate a rule the global CLAUDE.md already owns — TaskList seeding for step-shaped skills, the dispatch-line render format.
+- [Instruction] Never restate a rule the global CLAUDE.md already owns - TaskList seeding for step-shaped skills, the dispatch-line render format.
   - [Why] A restated rule drifts from its source on the next edit, leaving two versions and no way to tell which one binds.
 
 ## When a skill underperforms
@@ -190,8 +190,8 @@ This specializes the two rules above for any skill: examples are what moves, so 
 
   - [Example] "produce a review" → "list every modified function, each with its covering test or explicitly marked untested."
 
-- [Instruction] Add heavier machinery — gates, fresh-context subagents, steps behind a context boundary — only once the criterion is irreducibly fuzzy AND rushing persists after the rewrite.
+- [Instruction] Add heavier machinery - gates, fresh-context subagents, steps behind a context boundary - only once the criterion is irreducibly fuzzy AND rushing persists after the rewrite.
   - [Why] Added process taxes every future run, so it has to be the second resort rather than the first.
 
 - [Instruction] Test empirically via `scripts/run_eval.py` before rewriting the wording of a skill reported as not triggering or not followed.
-  - [Why] A bug in the eval harness mimics a weak description — `run_eval.py`'s own early-return bug once caused this.
+  - [Why] A bug in the eval harness mimics a weak description - `run_eval.py`'s own early-return bug once caused this.

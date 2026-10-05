@@ -1,20 +1,20 @@
 """Blackbox CLI tests for check-ac-task-consistency.py.
 
-Fixtures: none on disk except what each test writes to tmp_path — every
+Fixtures: none on disk except what each test writes to tmp_path - every
 plan is a minimal Test Design + Task Breakdown + Task Details trio,
 small enough that the expected OK/mismatch verdict is verifiable by
 eye. No test reads a planning artifact from the repo, so no suite run
 can be steered, or broken, by a document its author is still editing.
 
 Fixtures use the reshaped doc layout: a task's own `### N.` heading
-(body side, under `## Task Breakdown`) carries no AC field any more —
+(body side, under `## Task Breakdown`) carries no AC field any more -
 its `**Testable Acceptance criteria**` field moved into the appendix,
-under `## Task Details`, one `<details><summary>Task N — ...`
+under `## Task Details`, one `<details><summary>Task N - ...`
 per task. Old-location reading (the field still on the body-side
 heading) is deliberately not supported: this checker only ever runs
 at authoring time, from to-plan self-review against a freshly
 written plan, never against an old in-flight plan the way /implement's
-parsers do — so new-shape-only is the right tradeoff, not a gap.
+parsers do - so new-shape-only is the right tradeoff, not a gap.
 
 Usage:
   pytest scripts/tests/check-ac-task-consistency.test.py
@@ -49,7 +49,7 @@ CONSISTENT_TASKS = """\
 
 CONSISTENT_DETAILS = """\
 <details>
-<summary>Task 1 — Export the plan PRs to Linear</summary>
+<summary>Task 1 - Export the plan PRs to Linear</summary>
 
 **Testable Acceptance criteria**:
 - AC-1
@@ -58,7 +58,7 @@ CONSISTENT_DETAILS = """\
 </details>
 
 <details>
-<summary>Task 2 — Recompose the existing PR body</summary>
+<summary>Task 2 - Recompose the existing PR body</summary>
 
 **Testable Acceptance criteria**:
 - AC-2
@@ -68,7 +68,7 @@ CONSISTENT_DETAILS = """\
 
 ONE_LACKING_DETAILS = """\
 <details>
-<summary>Task 1 — Export the plan PRs to Linear</summary>
+<summary>Task 1 - Export the plan PRs to Linear</summary>
 
 **Testable Acceptance criteria**:
 - AC-1
@@ -77,7 +77,7 @@ ONE_LACKING_DETAILS = """\
 </details>
 
 <details>
-<summary>Task 2 — Recompose the existing PR body</summary>
+<summary>Task 2 - Recompose the existing PR body</summary>
 
 **Testable Acceptance criteria**:
 - AC-9
@@ -202,7 +202,7 @@ def test_reports_a_cited_task_with_no_criteria_field_once_per_row(tmp_path):
     design = SINGLE_ROW_DESIGN.replace("// AC-1 T1", "// AC-1 AC-2 T1")
     details_no_ac_field = (
         "<details>\n"
-        "<summary>Task 1 — Export the plan PRs to Linear</summary>\n\n"
+        "<summary>Task 1 - Export the plan PRs to Linear</summary>\n\n"
         "**Files**: `x.sh`\n\n"
         "</details>\n"
     )
@@ -228,9 +228,9 @@ def test_flags_a_cited_ac_when_the_tasks_details_entry_names_no_ac_at_all(
 ):
     details_no_ac_token = (
         "<details>\n"
-        "<summary>Task 1 — Export the plan PRs to Linear</summary>\n\n"
+        "<summary>Task 1 - Export the plan PRs to Linear</summary>\n\n"
         "**Testable Acceptance criteria**:\n"
-        "- design-level — documented as a hard requirement.\n\n"
+        "- design-level - documented as a hard requirement.\n\n"
         "</details>\n"
     )
     plan = _write_plan(
@@ -278,7 +278,7 @@ def test_fails_when_a_task_breakdown_entry_has_no_task_details_entry(
 ):
     details_missing_task_2 = (
         "<details>\n"
-        "<summary>Task 1 — Export the plan PRs to Linear</summary>\n\n"
+        "<summary>Task 1 - Export the plan PRs to Linear</summary>\n\n"
         "**Testable Acceptance criteria**:\n"
         "- AC-1\n"
         "- AC-2\n\n"
@@ -350,7 +350,7 @@ def test_ignores_a_task_heading_inside_a_fenced_block_in_task_breakdown(
     tmp_path,
 ):
     """A fenced sample showing task-heading syntax (e.g. a template
-    snippet) must not register as a real task — it would open a
+    snippet) must not register as a real task - it would open a
     phantom task with no Task Details entry and trip the pairing
     check for no reason."""
     fenced_task_body = (
@@ -446,12 +446,12 @@ def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
     tmp_path,
 ):
     """A fenced sample inside Task Details showing the
-    `<summary>Task N` syntax must not register as a real entry — it
+    `<summary>Task N` syntax must not register as a real entry - it
     would pair a phantom Task Details entry against no matching task
     heading."""
     fenced_details_body = (
         CONSISTENT_DETAILS
-        + "\n```\n<summary>Task 9 — Example entry shown as sample markup</summary>\n```\n"
+        + "\n```\n<summary>Task 9 - Example entry shown as sample markup</summary>\n```\n"
     )
     plan = _write_plan(
         tmp_path,
@@ -466,7 +466,7 @@ def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
 def test_exits_two_when_the_test_design_section_holds_no_rows(tmp_path):
     plan = _write_plan(
         tmp_path,
-        design_body="N/A — nothing designed yet.\n",
+        design_body="N/A - nothing designed yet.\n",
         task_body=CONSISTENT_TASKS,
         details_body=CONSISTENT_DETAILS,
     )

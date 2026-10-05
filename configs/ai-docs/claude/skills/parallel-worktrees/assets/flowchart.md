@@ -1,7 +1,7 @@
 ---
 # performance-check budget overrides, not part of the diagram itself.
 # This file's size is fixed by the number of steps the skill actually has, and
-# it renders each step twice — once as pseudo-code, once as a diagram node — so
+# it renders each step twice - once as pseudo-code, once as a diagram node - so
 # trimming to the bundled defaults would drop steps from the flow audit or drop
 # a whole rendering. Two renderings is the point: they cross-check each other.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
@@ -9,9 +9,9 @@ words-budget: 2048
 lines-budget: 256
 ---
 
-# parallel-worktrees — flow overview
+# parallel-worktrees - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the prose in [`../SKILL.md`](../SKILL.md) wins on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the prose in [`../SKILL.md`](../SKILL.md) wins on any conflict. Regenerate this file whenever the skill's flow changes.
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
@@ -90,7 +90,7 @@ def parallel_worktrees(candidates, files_by_item, base_sha, slug):
     for item in sorted(wave, key=lambda i: int(i.id)):
         # 12a · INSIDE the worktree: git refuses to rebase a branch that is
         #       checked out elsewhere. Rebase every branch, including the
-        #       first, where it is a no-op — a uniform two-step has no
+        #       first, where it is a no-op - a uniform two-step has no
         #       special case left to get wrong.
         if not git("-C", item.worktree, "rebase", caller.base_branch):   # 12b
             # 12b1 · A conflict means predicate 2 or 3 was wrong for that
@@ -108,7 +108,7 @@ def parallel_worktrees(candidates, files_by_item, base_sha, slug):
 
     # 13 · Back to the caller. A worktree the caller made for its own reasons
     #      was never touched here: it may exist for a human to review, so it
-    #      has to outlive the run. The ones above are the opposite — per-item,
+    #      has to outlive the run. The ones above are the opposite - per-item,
     #      commits already on the branch, and no human was meant to open one.
     return Done()
 ```
@@ -121,16 +121,16 @@ flowchart TD
 
   n2["2. Drop pairwise file overlaps, keeping the lowest id of each<br/>colliding pair: dependency satisfaction encodes ORDERING,<br/>never shared files, so two items the caller called independent<br/>can still edit one file and collide at merge-back"]
   n3["3. Drop any item touching a path in git status --porcelain:<br/>a --ff-only merge refuses to overwrite a locally-modified<br/>file, so that item would halt the merge-back it was<br/>supposed to make cheap"]
-  n4["4. Cap the survivors at 4 — past that the worktrees contend<br/>for one disk and one test runner, so the wall-clock curve<br/>flattens while the merge queue keeps growing"]
+  n4["4. Cap the survivors at 4 - past that the worktrees contend<br/>for one disk and one test runner, so the wall-clock curve<br/>flattens while the merge queue keeps growing"]
 
   n5{"5. Are 2 or more left?"}
   n5a["5a. Hand the set back and create NOTHING. A worktree exists<br/>only to keep concurrent siblings off one index, and below<br/>two there are none: the caller dispatches in its main tree"]
 
-  subgraph perItem["Per item in the set — the whole loop runs before any agent is spawned, so the ledger is complete when the fan-out goes out"]
+  subgraph perItem["Per item in the set - the whole loop runs before any agent is spawned, so the ledger is complete when the fan-out goes out"]
     direction TB
     n6["6. git worktree add -b parallel/&lt;slug&gt;/t&lt;id&gt; off the base SHA<br/>rather than HEAD: one common base is what makes 12's<br/>ascending-id merge order deterministic"]
-    n7["7. Symlink every untracked artifact the agent must read into<br/>the worktree — the checkout carries tracked files only — and<br/>COPY any .env*, which is worktree-local by design. A symlink<br/>keeps one file; a copy would drift on the next append"]:::state
-    n8["8. Mark the item in-flight in the CALLER's ledger, with its<br/>branch and worktree path — BEFORE the spawn, never after.<br/>That mark is the only thing stopping a later round from<br/>dispatching the same item into a second worktree"]:::state
+    n7["7. Symlink every untracked artifact the agent must read into<br/>the worktree - the checkout carries tracked files only - and<br/>COPY any .env*, which is worktree-local by design. A symlink<br/>keeps one file; a copy would drift on the next append"]:::state
+    n8["8. Mark the item in-flight in the CALLER's ledger, with its<br/>branch and worktree path - BEFORE the spawn, never after.<br/>That mark is the only thing stopping a later round from<br/>dispatching the same item into a second worktree"]:::state
   end
 
   n9["9. Dispatch the whole set in ONE message, each agent pointed at<br/>its own worktree. One message per agent serializes the fan-out<br/>and gives back the wall-clock the worktrees just bought"]:::dispatch
@@ -140,14 +140,14 @@ flowchart TD
   n11{"11. Has every item in the set been accepted?"}
   n11a["11a. Keep waiting. A failure or block is that item's alone:<br/>it re-dispatches into its OWN worktree while its siblings<br/>keep working, and the caller's retry and chain-abort<br/>rules apply exactly as in a sequential run"]
 
-  n12{"12. Any accepted branch still unmerged? Take them in<br/>ASCENDING id order — that order is the whole reason<br/>the resulting history is indistinguishable from a<br/>sequential run's: same commits, same order, one line"}
-  n12a["12a. git -C &lt;worktree&gt; rebase &lt;base-branch&gt; — INSIDE the<br/>worktree, since git refuses to rebase a branch checked out<br/>elsewhere. Rebase even the first, where it is a no-op: a<br/>uniform two-step has no special case left to get wrong"]
+  n12{"12. Any accepted branch still unmerged? Take them in<br/>ASCENDING id order - that order is the whole reason<br/>the resulting history is indistinguishable from a<br/>sequential run's: same commits, same order, one line"}
+  n12a["12a. git -C &lt;worktree&gt; rebase &lt;base-branch&gt; - INSIDE the<br/>worktree, since git refuses to rebase a branch checked out<br/>elsewhere. Rebase even the first, where it is a no-op: a<br/>uniform two-step has no special case left to get wrong"]
   n12b{"12b. Did the rebase apply cleanly?"}
   n12b1["12b1. git rebase --abort, leave that worktree AND branch<br/>untouched, then halt down the caller's own halt path naming<br/>the branch. Cleanup stops entirely on the way out: these<br/>branches hold work only a human can resolve"]:::gate
   n12c["12c. git merge --ff-only &lt;branch&gt; in the main tree"]
   n12d["12d. git worktree remove + git branch -d, per merge and never<br/>batched to the end of the wave. git branch -d refuses an<br/>unmerged branch, so the delete cannot outrun the merge"]:::state
 
-  n13["13. Back to the caller. A worktree the caller made for its own<br/>reasons was never touched: it may exist for a human to review,<br/>so it outlives the run. The ones above are the opposite —<br/>per-item, commits already on the branch, never opened"]
+  n13["13. Back to the caller. A worktree the caller made for its own<br/>reasons was never touched: it may exist for a human to review,<br/>so it outlives the run. The ones above are the opposite -<br/>per-item, commits already on the branch, never opened"]
 
   n1 --> n2 --> n3 --> n4 --> n5
   n5 -->|"fewer than 2"| n5a
@@ -157,9 +157,9 @@ flowchart TD
   n11 -->|"not yet"| n11a --> n10
   n11 -->|"yes"| n12
   n12 -->|"yes"| n12a --> n12b
-  n12b -->|"no — conflict"| n12b1
+  n12b -->|"no - conflict"| n12b1
   n12b -->|"yes"| n12c --> n12d --> n12
-  n12 -->|"no — all merged"| n13
+  n12 -->|"no - all merged"| n13
 
 classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
 classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

@@ -1,15 +1,15 @@
 # Specialist: Corner Cases & Side-Effects
 
 Sources:
-- `code-review-pipeline/references/review-checklists.md#Corner Cases to Verify` — empty / null / undefined / [] / {}, large inputs, boundary values (0, -1, max), invalid types, timeouts / retries, concurrency, i18n (encoding, locale, timezone).
+- `code-review-pipeline/references/review-checklists.md#Corner Cases to Verify` - empty / null / undefined / [] / {}, large inputs, boundary values (0, -1, max), invalid types, timeouts / retries, concurrency, i18n (encoding, locale, timezone).
 
 - `code-review-pipeline/references/review-checklists.md#Silent Failure Checklist`.
 
-- Side-effect hygiene — mutations, I/O, and hidden state changes the caller doesn't expect.
+- Side-effect hygiene - mutations, I/O, and hidden state changes the caller doesn't expect.
 
 Why bundled: all three are "things happening at runtime the caller didn't ask for".
 
-- **Silent failures are treated here as a kind of side-effect** — an error quietly mutating state or skipping work is exactly a side-effect the caller can't see from the signature.
+- **Silent failures are treated here as a kind of side-effect** - an error quietly mutating state or skipping work is exactly a side-effect the caller can't see from the signature.
 
 - Corner cases are the inputs that trigger these surprises.
 
@@ -51,9 +51,9 @@ Flag only when the code will demonstrably misbehave (crash, wrong result,
 silent bad data, unexpected mutation). Internal functions with trusted callers
 don't need defensive checks.
 
-Per `code-standards`: fail loudly, not silently — a crash you see beats silent
+Per `code-standards`: fail loudly, not silently - a crash you see beats silent
 corruption you don't. Per layered architecture: I/O belongs in controllers,
-not use cases — a use case that writes to disk is a flagged side-effect.
+not use cases - a use case that writes to disk is a flagged side-effect.
 
 ## Signals you should flag
 

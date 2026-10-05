@@ -5,7 +5,7 @@ Source: `code-review-pipeline/references/review-checklists.md#Security Checklist
 ---
 
 ```
-Your scope: boundaries the diff newly introduces or weakens — injection points,
+Your scope: boundaries the diff newly introduces or weakens - injection points,
 authn/authz gaps, secret exposure, unsafe deserialization, unsafe dynamic exec, poor validation etc.
 
 ## How to work
@@ -22,10 +22,10 @@ newly-tainted input.
   - SQL built by string concatenation where parameterized queries exist.
   - Shell command built by string concatenation; prefer argv-array exec.
   - Template render where user input is interpolated without escaping.
-- Output encoding gaps that enable cross-site scripting — unescaped HTML sinks,
+- Output encoding gaps that enable cross-site scripting - unescaped HTML sinks,
   raw-string injection into DOM, email templates that interpolate user text
   without escaping.
-- Unsafe deserialization of untrusted input — language-specific formats that
+- Unsafe deserialization of untrusted input - language-specific formats that
   allow object construction with side effects should not be fed attacker-
   controlled bytes. Prefer JSON, or a safe-loader variant of the chosen format.
 - Authn / authz gaps: missing role check on a new endpoint, broken session

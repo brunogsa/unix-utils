@@ -23,7 +23,7 @@ SKILL_MD = (
 )
 
 # The shortest of the three real script headers this work
-# measures as a baseline (dag-check-helper.sh) — the SKILL.md
+# measures as a baseline (dag-check-helper.sh) - the SKILL.md
 # example must drop strictly below this line count.
 SHORTEST_MEASURED_BASELINE_LINES = 23
 
@@ -52,7 +52,7 @@ def _find_unix_philosophy_instruction_lines(text):
 
     Takes raw text rather than reading SKILL_MD itself, so the
     same AC-32 counting rule can run against the whole file and
-    against an inline fixture — the fixture is what proves the
+    against an inline fixture - the fixture is what proves the
     rule actually counts file-wide, not just within one section.
     """
     return [
@@ -79,7 +79,7 @@ def _classify_header_comment_lines(comment_lines):
     closes the block instead of being swept in, so content AC-18
     excludes can't hide inside Usage: before any separator.
     """
-    name_purpose_pattern = re.compile(r"^#\s*[\w.-]+\s*[-—]\s*\S")
+    name_purpose_pattern = re.compile(r"^#\s*[\w.-]+\s*-\s*\S")
     usage_header_pattern = re.compile(r"^#\s*Usage:\s*$")
     usage_continuation_pattern = re.compile(r"^#\s{2,}\S")
     io_contract_pattern = re.compile(r"^#\s*(stdin|stdout|exit):")
@@ -173,7 +173,7 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
         # Name + purpose: a "# <name> - <purpose>" style line
         # right after the shebang.
         self.assertRegex(
-            fence_text, r"#\s*[\w.-]+\s*[-—]\s*\S+",
+            fence_text, r"#\s*[\w.-]+\s*-\s*\S+",
             msg="example must name the script and its one-line purpose "
                 "on the line right after the shebang")
 
@@ -186,7 +186,7 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
         # the absent content and its file, not AttributeError.
         if usage_match is None:
             self.fail(
-                msg="example must carry a 'Usage:' block — no "
+                msg="example must carry a 'Usage:' block - no "
                     "'Usage:' line followed by comment lines in the "
                     "first fenced block of the '## Scripts' section "
                     f"of {SKILL_MD}")
@@ -233,9 +233,9 @@ class TestCodeStandardsScriptsSectionHappy(unittest.TestCase):
                 "language")
 
         self.assertIn(
-            "# Requires-npm: <package> — <stdlib gap>", section,
+            "# Requires-npm: <package> - <stdlib gap>", section,
             msg="section must state the exact "
-                "'# Requires-npm: <package> — <stdlib gap>' header "
+                "'# Requires-npm: <package> - <stdlib gap>' header "
                 "line convention for the .js exception")
 
         self.assertRegex(
@@ -255,12 +255,12 @@ class TestCodeStandardsScriptsSectionGuardHelpers(unittest.TestCase):
             "## Scripts\n"
             "\n"
             "- [Instruction] **CRITICAL: Follow the Unix "
-            "philosophy — make each script do one thing well.**\n"
+            "philosophy - make each script do one thing well.**\n"
             "\n"
             "## Naming\n"
             "\n"
             "- [Instruction] **CRITICAL: Follow the Unix "
-            "philosophy — name things by purpose.**\n"
+            "philosophy - name things by purpose.**\n"
         )
 
         instruction_lines_with_unix_philosophy = (

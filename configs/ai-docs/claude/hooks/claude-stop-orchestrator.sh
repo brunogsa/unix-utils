@@ -184,7 +184,7 @@ esac
 #
 #    The checker's own severity split (FAIL only on
 #    settings.json/install.sh, WARN on markdown) is what keeps
-#    that survivable — WARN-only findings stay silent.
+#    that survivable - WARN-only findings stay silent.
 rename_guard_out=""
 if [ -f "$rename_guard" ]; then
   rename_guard_out=$(printf '%s' "$input" | bash "$rename_guard" 2>/dev/null || true)
@@ -218,7 +218,7 @@ esac
 #    while any unit is still in tasks|gates|tails.
 #
 #    halted and blocked units are NOT mid-flight, so a run that
-#    stopped FOR the human still pings — those are exactly the
+#    stopped FOR the human still pings - those are exactly the
 #    stops worth interrupting for.
 #
 #    A missing or failing --check exits non-zero and the ping
@@ -230,7 +230,7 @@ fi
 # 9b. Same backstop, second source: the Stop payload's
 #    own background_tasks array.
 #
-#    Only `subagent`/`workflow` entries count — those are the
+#    Only `subagent`/`workflow` entries count - those are the
 #    only types that guarantee a LATER Stop event wakes the
 #    session back up, which is the whole point of dispatching
 #    them in the background.

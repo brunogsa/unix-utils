@@ -19,7 +19,7 @@ SCRIPT="$script_dir/check-bullet-gap.py"
 # get-changed-lines.sh anchors on
 # `git rev-parse --show-toplevel` Always physical, so an
 # unresolved work_dir would make its relative-path comparison
-# miss — same caveat as test-get-changed-lines.sh.
+# miss - same caveat as test-get-changed-lines.sh.
 work_dir=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$work_dir"' EXIT
 

@@ -60,23 +60,23 @@ write_plan() {
 
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof() {
   local fixture="$work_dir/unclosed-backtick.md"
-  printf '## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$fixture"
+  printf '## PR Breakdown\n\n1. **PR-1** - Naming and validators. Tasks: 1.\n\n```\nunclosed fence\n' > "$fixture"
   run_script "$fixture"
   assert_eq "should fail closed when a \`\`\` fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
 }
 
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof() {
   local fixture="$work_dir/unclosed-tilde.md"
-  printf '## PR Breakdown\n\n1. **PR-1** — Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$fixture"
+  printf '## PR Breakdown\n\n1. **PR-1** - Naming and validators. Tasks: 1.\n\n~~~\nunclosed fence\n' > "$fixture"
   run_script "$fixture"
   assert_eq "should fail closed when a ~~~ fence is left open at EOF (exit code)" "2" "$VERDICT_EXIT"
 }
 
 it_should_emit_one_tsv_line_per_pr_n_entry_for_a_normal_multi_pr_plan() {
   local fixture
-  fixture=$(write_plan "happy-multi-pr" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
-2. **PR-2** — Worktree hygiene. Tasks: 4. Depends on: none.
-3. **PR-3** — Core loop. Tasks: 5, 6, 7. Depends on: PR-1, PR-2.')
+  fixture=$(write_plan "happy-multi-pr" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+2. **PR-2** - Worktree hygiene. Tasks: 4. Depends on: none.
+3. **PR-3** - Core loop. Tasks: 5, 6, 7. Depends on: PR-1, PR-2.')
   run_script "$fixture"
   assert_eq "should emit one TSV line per PR-N entry for a normal multi-PR plan (exit code)" "0" "$VERDICT_EXIT"
   local expected
@@ -94,7 +94,7 @@ it_should_report_nothing_to_parse_for_a_single_pr_plan() {
 
 it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies() {
   local fixture
-  fixture=$(write_plan "corner-no-deps" '1. **PR-1** — Naming and validators. Tasks: 1. Depends on: none.')
+  fixture=$(write_plan "corner-no-deps" '1. **PR-1** - Naming and validators. Tasks: 1. Depends on: none.')
   run_script "$fixture"
   assert_eq "should emit an empty deps field for a PR with no dependencies (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should emit an empty deps field for a PR with no dependencies (TSV body)" "$(printf 'PR-1\t1\t\t')" "$VERDICT_OUT"
@@ -102,9 +102,9 @@ it_should_emit_an_empty_deps_field_for_a_pr_with_no_dependencies() {
 
 it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency() {
   local fixture
-  fixture=$(write_plan "corner-diamond" '1. **PR-1** — First slice. Tasks: 1. Depends on: none.
-2. **PR-2** — Second slice. Tasks: 2. Depends on: none.
-3. **PR-3** — Diamond merge. Tasks: 3. Depends on: PR-1, PR-2.')
+  fixture=$(write_plan "corner-diamond" '1. **PR-1** - First slice. Tasks: 1. Depends on: none.
+2. **PR-2** - Second slice. Tasks: 2. Depends on: none.
+3. **PR-3** - Diamond merge. Tasks: 3. Depends on: PR-1, PR-2.')
   run_script "$fixture"
   assert_eq "should emit every dependency for a PR with a diamond dependency (exit code)" "0" "$VERDICT_EXIT"
   local diamond_line
@@ -114,8 +114,8 @@ it_should_emit_every_dependency_for_a_pr_with_a_diamond_dependency() {
 
 it_should_emit_the_branch_name_from_a_pushed_prs_branch_clause() {
   local fixture
-  fixture=$(write_plan "happy-branch-clause" '1. **[Done] PR-1** — Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-naming/pr1`.
-2. **PR-2** — Core loop. Tasks: 2. Depends on: PR-1.')
+  fixture=$(write_plan "happy-branch-clause" '1. **[Done] PR-1** - Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-naming/pr1`.
+2. **PR-2** - Core loop. Tasks: 2. Depends on: PR-1.')
   run_script "$fixture"
   assert_eq "should emit the branch name from a pushed PR Branch: clause (exit code)" "0" "$VERDICT_EXIT"
   local expected
@@ -125,7 +125,7 @@ it_should_emit_the_branch_name_from_a_pushed_prs_branch_clause() {
 
 it_should_keep_a_branch_name_containing_periods_intact() {
   local fixture
-  fixture=$(write_plan "corner-branch-with-periods" '1. **[Done] PR-1** — Release cut. Tasks: 1. Depends on: none. Branch: `release/1.2.3`.')
+  fixture=$(write_plan "corner-branch-with-periods" '1. **[Done] PR-1** - Release cut. Tasks: 1. Depends on: none. Branch: `release/1.2.3`.')
   run_script "$fixture"
   assert_eq "should keep a branch name containing periods intact (exit code)" "0" "$VERDICT_EXIT"
   assert_eq "should keep a branch name containing periods intact (branch field)" "$(printf 'PR-1\t1\t\trelease/1.2.3')" "$VERDICT_OUT"
@@ -161,7 +161,7 @@ it_should_exit_2_when_the_plan_file_does_not_exist() {
 
 it_should_parse_a_pr_entry_with_no_tasks_or_depends_clauses() {
   local fixture
-  fixture=$(write_plan "pr-with-minimal-format" '1. **PR-1** — A simple PR.')
+  fixture=$(write_plan "pr-with-minimal-format" '1. **PR-1** - A simple PR.')
   run_script "$fixture"
   assert_eq "should parse PR with no Tasks or Depends fields (exit code)" "0" "$VERDICT_EXIT"
   local expected
@@ -207,7 +207,7 @@ Sequenced ahead of **PR-4** so the validators land first. Depends on: PR-7 is th
 
 it_should_read_a_legacy_one_line_entry_whose_clauses_wrap_to_the_next_line() {
   local fixture
-  fixture=$(write_plan "corner-legacy-wrapped-entry" '1. **PR-1** — Decision tooling, grouped so the riskiest conversion lands first.
+  fixture=$(write_plan "corner-legacy-wrapped-entry" '1. **PR-1** - Decision tooling, grouped so the riskiest conversion lands first.
 Tasks: 3, 4, 10. Depends on: PR-2.')
   run_script "$fixture"
   assert_eq "should read a legacy one-line entry whose clauses wrap to the next physical line (exit code)" "0" "$VERDICT_EXIT"
@@ -216,13 +216,13 @@ Tasks: 3, 4, 10. Depends on: PR-2.')
 
 it_should_keep_reading_prs_after_a_fenced_line_that_starts_with_a_section_heading_marker() {
   local fixture
-  fixture=$(write_plan "fenced-section-heading" '1. **PR-1** — Naming and validators. Tasks: 1, 2, 3. Depends on: none.
+  fixture=$(write_plan "fenced-section-heading" '1. **PR-1** - Naming and validators. Tasks: 1, 2, 3. Depends on: none.
 
 ```
 ## Not a real heading, just sample doc text quoted in the fence
 ```
 
-2. **PR-2** — Worktree hygiene. Tasks: 4. Depends on: none.')
+2. **PR-2** - Worktree hygiene. Tasks: 4. Depends on: none.')
   run_script "$fixture"
   assert_eq "should keep reading PRs after a fenced line that starts with a section heading marker (exit code)" "0" "$VERDICT_EXIT"
   local expected

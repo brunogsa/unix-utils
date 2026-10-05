@@ -1,13 +1,13 @@
-# personal-format — flow overview
+# personal-format - flow overview
 
-Human-facing overview for auditing the flow at a glance. Non-authoritative — the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
+Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
 
 ```mermaid
 flowchart TD
   n1(["1. /personal-format, or asked to format or clean up comments or markdown"]):::start
   n2["2. Step 1 · Resolve changed files: union of git diff --name-only<br/>and git ls-files --others --exclude-standard"]
   n3{"3. Step 2 · Union empty?"}
-  n3a(["3a. STOP — report nothing to check.<br/>Dispatch no fixer agent"]):::done
+  n3a(["3a. STOP - report nothing to check.<br/>Dispatch no fixer agent"]):::done
   n4["4. Step 3 · Classify by extension:<br/>ts, js, sh, py to the comment batch, md to the markdown batch"]
   n4a["4a. Any other extension is skipped silently, not an error"]
   n5["5. Step 4 · Drop deleted files from each batch<br/>and name each in the report as skipped-because-deleted"]

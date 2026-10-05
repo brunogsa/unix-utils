@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-# BRT (UTC-3) — Google Calendar exports from Brazil use this or
+# BRT (UTC-3) - Google Calendar exports from Brazil use this or
 # UTC
 BRT = timezone(timedelta(hours=-3))
 
@@ -10,7 +10,7 @@ BRT = timezone(timedelta(hours=-3))
 def resolve_overlaps(events):
     """Resolve overlapping non-OO events using creation time.
 
-    The most recently created event takes priority — the user stopped the
+    The most recently created event takes priority - the user stopped the
     older activity to attend the newer one. The overlap duration is
     decremented from the older event.
 

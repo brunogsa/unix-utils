@@ -1,6 +1,6 @@
 {
   "skill_name": "code-review-pipeline",
-  "notes": "Evals for the wave-based review pipeline used by /pr-review (GitHub mode) and /auto-review (local mode). Assertions are intentionally unset — fill them when running the first iteration through skill-creator's benchmark loop. See skill-creator/references/schemas.md for the full assertions shape.",
+  "notes": "Evals for the wave-based review pipeline used by /pr-review (GitHub mode) and /auto-review (local mode). Assertions are intentionally unset - fill them when running the first iteration through skill-creator's benchmark loop. See skill-creator/references/schemas.md for the full assertions shape.",
   "evals": [
     {
       "id": 1,
@@ -8,7 +8,7 @@
       "mode": "github",
       "prompt": "/pr-review <SMALL_PR_URL>",
       "setup": "Pick or craft a small open PR (≤5 files, ≤100 lines changed) with at least one real bug (e.g., off-by-one, missing await, or a subjective style issue). Prefer a throwaway repo so the pending review can be deleted without noise.",
-      "expected_output": "A PENDING review appears in the GitHub UI with an EMPTY top-level body — the Review Guide is posted separately, as its own PR conversation comment wrapped in a collapsed <details> block. At ≤100 added lines tiny_pr is true, so that comment carries a 2-sentence change summary instead of the full Onde focar / Mudanças incidentais guide, and Wave 3's validator pass is skipped. Inline comments anchor on the right lines, follow the severity tag → summary line → Sugestão → Trade-off de não fazer body structure, lead the Sugestão with an applyable suggestion block, keep prose under 512 chars (1024 and 16 lines for MANDATORY, fenced code excluded), and carry the '— gerado por IA, revisado pelo usuário' signature footer. Terminal summary prints the review URL, the guide comment URL, per-severity finding counts, the dropped-findings list, and skipped files.",
+      "expected_output": "A PENDING review appears in the GitHub UI with an EMPTY top-level body - the Review Guide is posted separately, as its own PR conversation comment wrapped in a collapsed <details> block. At ≤100 added lines tiny_pr is true, so that comment carries a 2-sentence change summary instead of the full Onde focar / Mudanças incidentais guide, and Wave 3's validator pass is skipped. Inline comments anchor on the right lines, follow the severity tag → summary line → Sugestão → Trade-off de não fazer body structure, lead the Sugestão with an applyable suggestion block, keep prose under 512 chars (1024 and 16 lines for MANDATORY, fenced code excluded), and carry the 'gerado por IA, revisado pelo usuário' signature footer. Terminal summary prints the review URL, the guide comment URL, per-severity finding counts, the dropped-findings list, and skipped files.",
       "assertions": [],
       "files": []
     },
@@ -17,7 +17,7 @@
       "name": "gh-already-reviewed-early-exit",
       "mode": "github",
       "prompt": "/pr-review <PR_URL_THAT_ALREADY_HAS_A_CLAUDE_REVIEW>",
-      "setup": "Re-run /pr-review on a PR that already carries the '— gerado por IA, revisado pelo usuário' signature from a prior pending review. Wave 0 should abort before Wave 2 runs.",
+      "setup": "Re-run /pr-review on a PR that already carries the 'gerado por IA, revisado pelo usuário' signature from a prior pending review. Wave 0 should abort before Wave 2 runs.",
       "expected_output": "Skill prints 'abort: prior review detected'. No review pass runs at all.",
       "assertions": [],
       "files": []
@@ -28,7 +28,7 @@
       "mode": "local",
       "prompt": "/auto-review main",
       "setup": "Create a throwaway feature branch with (a) one real bug in use-case code, (b) one subjective style quirk, (c) one incidental fix in an unrelated module (bump log level, fix typo). Run /auto-review main.",
-      "expected_output": "./verdict_auto-review_<timestamp>.md generated, carrying no Review Guide block — local mode skips the guide writer, so the incidental change gets no narration and surfaces only if Wave 2 flags it. The bug is flagged MANDATORY. The style quirk is flagged NITPICK with the subjective-opinion prefix.",
+      "expected_output": "./verdict_auto-review_<timestamp>.md generated, carrying no Review Guide block - local mode skips the guide writer, so the incidental change gets no narration and surfaces only if Wave 2 flags it. The bug is flagged MANDATORY. The style quirk is flagged NITPICK with the subjective-opinion prefix.",
       "assertions": [],
       "files": []
     }

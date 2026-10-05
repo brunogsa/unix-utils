@@ -14,17 +14,17 @@
 #   open-in-tmux <mode> <command>
 #
 # Modes:
-# - vertical — Side-by-side split of the caller's own pane
+# - vertical - Side-by-side split of the caller's own pane
 #   (this session's pane, not the pane the user is currently
 #   viewing).
 #
-# - horizontal — Stacked split of the caller's own pane
+# - horizontal - Stacked split of the caller's own pane
 #   (same targeting).
 #
-# - window — New tmux window; leaves the current layout
+# - window - New tmux window; leaves the current layout
 #   untouched.
 #
-# - pane:<N> — Send the command to pane N via send-keys
+# - pane:<N> - Send the command to pane N via send-keys
 #   (types it into the existing shell; preserves pane
 #   history and state).
 #
@@ -87,7 +87,7 @@ case "$mode" in
 esac
 
 if [[ -z "${TMUX:-}" ]]; then
-  echo "Warning: not inside a tmux session — cannot open a pane." >&2
+  echo "Warning: not inside a tmux session - cannot open a pane." >&2
   echo "$command_str"
   exit 2
 fi
@@ -103,7 +103,7 @@ case "$mode" in
     #
     # That may be a different window than the one this ran in
     # (e.g. a Claude Code session in window 1 while the user
-    # browses window 2 — the split would wrongly land in window
+    # browses window 2 - the split would wrongly land in window
     # 2).
     #
     # Fall back to the active pane only if $TMUX_PANE is somehow

@@ -217,13 +217,13 @@ def main():
         )
         deny(
             f"subagent '{subagent_type}' is pinned to model={pinned_model} "
-            f"(effort={pinned_effort}, which this guard does not gate — "
+            f"(effort={pinned_effort}, which this guard does not gate - "
             f"override effort freely). {override_note}That frontmatter is the "
             f"only place a model tier is decided, so it outranks any skill or "
             f"reference telling you to override the pin. Either omit the model "
             f"param and take the pin, or dispatch a different agent type when "
             f"you need another tier. If a doc told you to override, that is a "
-            f"real conflict, not your misreading — surface it so the pin or "
+            f"real conflict, not your misreading - surface it so the pin or "
             f"the doc gets changed, and do not retry this dispatch."
         )
         return
@@ -232,7 +232,7 @@ def main():
     # has no model:
     if requested_model is None:
         deny(
-            f"agent type '{subagent_type}' has no frontmatter model pin — "
+            f"agent type '{subagent_type}' has no frontmatter model pin - "
             f"name a model explicitly (haiku = mechanical transforms, "
             f"sonnet = compose under conventions, opus/fable = judgment); "
             f"an omitted model silently inherits the session's expensive tier."
@@ -249,13 +249,13 @@ def main():
             f"tier here. Dispatch a different, pinned agent type that "
             f"legitimately needs that tier instead of forcing it through "
             f"this one. If a doc told you to do this, that is a real "
-            f"conflict, not your misreading — surface it so the doc or the "
+            f"conflict, not your misreading - surface it so the doc or the "
             f"ban gets changed, and do not retry this dispatch."
         )
         return
 
     # else: allow: unpinned type with an explicit, non-denied
-    # model — the invoker decides
+    # model - the invoker decides
 
 
 if __name__ == "__main__":

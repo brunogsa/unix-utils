@@ -3,7 +3,7 @@
 fills the committed assets/audit-template.html from cost.json +
 timeline.json + narrative.json.
 
-Fixtures: hand-built dicts shaped like the real producers' output —
+Fixtures: hand-built dicts shaped like the real producers' output -
 cost.json mirrors claude-usage-report.py's build_payload() (see its
 TestSessionMode suite), timeline.json mirrors
 extract-session-timeline.py's build_timeline_payload(). No fixture reads
@@ -37,7 +37,7 @@ rsa = _load_module("render-session-audit.py", "render_session_audit")
 
 
 def _cost_fixture(**overrides):
-    """A trimmed but realistically-shaped cost.json — the fields the
+    """A trimmed but realistically-shaped cost.json - the fields the
     renderer actually reads, matching claude-usage-report.py's
     build_payload() key names (main_cost/subagent_cost/total)."""
     base = {
@@ -96,7 +96,7 @@ def _ranked_item(label, value):
 
 
 def _section_digest(section, headline, ranked=None, findings=None, incomplete=None):
-    """One shard's digest — the fixed contract render-session-audit.py
+    """One shard's digest - the fixed contract render-session-audit.py
     consumes: {section, headline, ranked[], findings[], incomplete?}."""
     digest = {
         "section": section,

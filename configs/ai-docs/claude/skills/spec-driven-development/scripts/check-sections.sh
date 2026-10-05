@@ -11,8 +11,8 @@
 # never picks which sections to write.
 #
 # A section the change doesn't need still gets its
-# heading, with an `N/A — <reason>` line as its
-# body — so this script checks HEADING PRESENCE
+# heading, with an `N/A - <reason>` line as its
+# body - so this script checks HEADING PRESENCE
 # only and never reads a section's contents.
 #
 # Why a heading and not an absence: a dropped
@@ -32,7 +32,7 @@
 # that rule, so flagging one would invent a
 # constraint the library never states.
 #
-# Both files are scanned fence-aware — a `## `
+# Both files are scanned fence-aware - a `## `
 # line inside a ``` or ~~~ block is sample content,
 # not a section, so a plan's fenced shell snippets
 # never satisfy a heading it lacks.
@@ -109,7 +109,7 @@ missing=$(comm -23 \
 if [ -n "$missing" ]; then
   echo "FAIL: sections defined by $(basename "$template") but missing from $(basename "$doc"):" >&2
   printf '%s\n' "$missing" | sed 's/^/  - /' >&2
-  echo "Write the heading with an 'N/A — <reason>' body rather than dropping it." >&2
+  echo "Write the heading with an 'N/A - <reason>' body rather than dropping it." >&2
   exit 1
 fi
 

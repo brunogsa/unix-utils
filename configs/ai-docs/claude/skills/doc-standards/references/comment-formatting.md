@@ -1,4 +1,4 @@
-# Comment formatting — fix shapes & worked examples
+# Comment formatting - fix shapes & worked examples
 
 Read this when `scripts/check-comment-format.js` flags a violation, or when a comment carries bullets.
 
@@ -7,19 +7,19 @@ The caps themselves live in `SKILL.md`; this file holds the remedies and bad/goo
 ## Contents
 
 - [What the script reads](#what-the-script-reads)
-- [WIDTH — over-64-char lines](#width--over-64-char-lines)
-- [CODE-GAP — a comment block glued to the code above](#code-gap--a-comment-block-glued-to-the-code-above)
-- [PARAGRAPH and SENTENCE-BREAK — where a break may land](#paragraph-and-sentence-break--where-a-break-may-land)
+- [WIDTH - over-64-char lines](#width---over-64-char-lines)
+- [CODE-GAP - a comment block glued to the code above](#code-gap---a-comment-block-glued-to-the-code-above)
+- [PARAGRAPH and SENTENCE-BREAK - where a break may land](#paragraph-and-sentence-break---where-a-break-may-land)
 - [Bullets inside comments](#bullets-inside-comments)
 - [ASCII-only separators](#ascii-only-separators)
 
 ## What the script reads
 
-It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang — pass `--lang` when a file has neither.
+It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang - pass `--lang` when a file has neither.
 
 A Python module docstring is a string, not a comment, so the script skips it and its width goes unmeasured.
 
-## WIDTH — over-64-char lines
+## WIDTH - over-64-char lines
 
 - [Instruction] When a trailing comment pushes its physical line over 64 chars, move the comment above the code as its own line(s) rather than shortening it in place.
   - [Why] Squeezing an overflowing trailing comment onto the code line relocates the overflow instead of fixing it, and the reader still loses the comment in the right margin.
@@ -34,12 +34,12 @@ quantidadeVenda: 7, // 1058.33 / 7 = 151.19 exactly (LLD formula) vs 1058.33 (th
 quantidadeVenda: 7,
 ```
 
-## CODE-GAP — a comment block glued to the code above
+## CODE-GAP - a comment block glued to the code above
 
 - [Instruction] Put a blank line above any standalone comment block whose preceding physical line is code.
   - [Why] A comment touching the code above still reads as attached to that line; the gap is what turns it into an introduction to the code below.
 
-- [Instruction] Skip that blank line when the preceding line OPENS the comment's scope — it ends in `{`, `(`, `[`, or is a `case`/`default` label — or is a `#!` shebang.
+- [Instruction] Skip that blank line when the preceding line OPENS the comment's scope - it ends in `{`, `(`, `[`, or is a `case`/`default` label - or is a `#!` shebang.
   - [Why] Inside a freshly opened scope no sibling statement sits above the comment to confuse it with, so the gap would only separate it from the scope it opens.
 
 ```ts
@@ -64,9 +64,9 @@ const envOverrides = {
 };
 ```
 
-## PARAGRAPH and SENTENCE-BREAK — where a break may land
+## PARAGRAPH and SENTENCE-BREAK - where a break may land
 
-- [Instruction] When sentence-aligned breaks still leave a paragraph over 4 lines, trim the sentence or split it in two — never cut at an arbitrary line count.
+- [Instruction] When sentence-aligned breaks still leave a paragraph over 4 lines, trim the sentence or split it in two - never cut at an arbitrary line count.
   - [Why] The 4-line cap and the sentence-boundary rule can conflict, and resolving it by cutting mid-sentence trades a readable paragraph for a passing check.
 
 ```ts
@@ -91,10 +91,10 @@ Good (blank comment line splits it into two 3-line paragraphs):
  * Line 6
  */
 
-Bad (break lands mid-sentence — "still" / "depends on." is one clause):
+Bad (break lands mid-sentence - "still" / "depends on." is one clause):
 /**
  * `createDynamoTable` is idempotent (checks `ListTablesCommand`
- * first), so calling it here is safe either way — but this spec
+ * first), so calling it here is safe either way - but this spec
  * deliberately does NOT call `deleteDynamoTable` in `afterAll`:
  * doing so would drop a table a sibling agent's run still
  *
@@ -126,13 +126,13 @@ Good (rewritten as two complete sentences, break lands on the period):
 ```ts
 Bad (bullet over-indented; no blank line after a 2-line-wrapped bullet):
  *   - Material 1 has 6 kits spread unevenly across all 4
- *     bimestres (3/1/1/1) — proves per-kit/bimestre line
+ *     bimestres (3/1/1/1) - proves per-kit/bimestre line
  *     generation across an uneven split.
  *   - Material 2 carries a `suplementar` item.
 
 Good (single space before the dash; blank line after the wrapped bullet):
  * - Material 1 has 6 kits spread unevenly across all 4
- *   bimestres (3/1/1/1) — proves per-kit/bimestre line
+ *   bimestres (3/1/1/1) - proves per-kit/bimestre line
  *   generation across an uneven split.
  *
  * - Material 2 carries a `suplementar` item.

@@ -33,7 +33,7 @@ Read before drafting PR-body prose.
 
 - **Every body decision carries decided → why → considered, in that order** -- the bold line gives decision plus why; a `Considered:` sub-bullet names the rejected alternative and why.
 
-  - Omit `Considered` only when no alternative was weighed — never write "none" or "N/A".
+  - Omit `Considered` only when no alternative was weighed - never write "none" or "N/A".
 
 - **Decisions split into `### Functional` then `### Technical`** -- functional: a non-engineer could disagree; technical: an engineer weighs in.
   - Omit either subsection when empty, never a placeholder.
@@ -45,9 +45,9 @@ Read before drafting PR-body prose.
 - **"WARNING:" prefix on operational risks** -- add to decisions/checklist items needing human coordination (maintenance windows, irreversible migrations).
 
 - **CRITICAL: ZERO references to untracked session docs** -- never name the spec file, plan file, gitignored `.md`, internal task/AC numbers, commit SHAs in prose, or internal dependency files.
-  - Verify with `git ls-files <name>` first; substitute the value or delete if untracked — a Git-tracked repo file stays.
+  - Verify with `git ls-files <name>` first; substitute the value or delete if untracked - a Git-tracked repo file stays.
 
-  - Outranks "copy reused content verbatim": strip every `AC-N`/`PR-N`/`D-N`/`R-N`/`OQ-N` token from pasted spec/plan text, appendix included — replace each with the behavior it names, or drop it.
+  - Outranks "copy reused content verbatim": strip every `AC-N`/`PR-N`/`D-N`/`R-N`/`OQ-N` token from pasted spec/plan text, appendix included - replace each with the behavior it names, or drop it.
 
 - **No shorthand the reviewer can't resolve** -- define team jargon, spec acronyms ("AC", "FR/NFR"), and implementation jargon on first use.
 
@@ -81,7 +81,7 @@ Read before drafting PR-body prose.
     CDPI-574 lets PIC operators declare professor material in `materiais[]` entries. Only Oracle EBS documents a sync flow for it. SAP B1 and Raízes have none, so a `professores[]` payload reaches their mappers undefined. SGE differs: it documents a "no professor material" rule. Its mapper never reads `professores`. So SGE was already safe from that ambiguity.
     ```
 
-  - Good: break it after "…undefined." and after "…never reads `professores`." — three paragraphs of 3, 2, and 1 sentences.
+  - Good: break it after "…undefined." and after "…never reads `professores`." - three paragraphs of 3, 2, and 1 sentences.
 
 - **Section names AND body prose in PT-BR** -- translate headers and recurring terms; engineering jargon stays English. Examples: [`decision-quality.md`](decision-quality.md).
 

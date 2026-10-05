@@ -218,7 +218,7 @@ def _render_section(digest, extra_html=""):
     if incomplete:
         return (
             f'<section class="incomplete">\n'
-            f"<h2>{_escape(title)} — INCOMPLETE</h2>\n"
+            f"<h2>{_escape(title)} - INCOMPLETE</h2>\n"
             f"{extra_html}"
             f"<p>{_escape(incomplete)}</p>\n"
             f"</section>\n"
@@ -554,7 +554,7 @@ def render_audit_html(cost, timeline, narrative, template=None):
         template = _read_template()
     sid = timeline.get("sid") or cost.get("sid") or "unknown"
     body = (
-        f"<h1>Session audit — {_escape(sid)}</h1>\n"
+        f"<h1>Session audit - {_escape(sid)}</h1>\n"
         f"{_render_highlights(cost, timeline)}"
         f"{_render_narrative(cost, timeline, narrative)}"
     )

@@ -13,7 +13,7 @@
 # suites, and the repo-root pytest.ini's python suites.
 #
 # A prior version left pytest out and pointed at running
-# it separately — but nothing enforced that second
+# it separately - but nothing enforced that second
 # command, so this script's own exit code silently lied
 # about whether the repo was actually green.
 #
@@ -50,7 +50,7 @@ cd "$repo_root" || exit 1
 #
 # A profile of one full run later showed it averages only
 # ~0.47 cores (48.6s user + 63.1s sys CPU over 237s
-# wall-clock on a 12-core machine) — light runs weren't
+# wall-clock on a 12-core machine) - light runs weren't
 # the cause, the sessions' own separate load was.
 #
 # A gate that refuses to start on an already-busy machine
@@ -62,8 +62,8 @@ cd "$repo_root" || exit 1
 # ago. Two runs launched in the same instant can both read
 # the same stale load and both get GO.
 #
-# Only concurrency *correctness* — never letting two runs
-# execute their suites at the same time — would need a
+# Only concurrency *correctness* - never letting two runs
+# execute their suites at the same time - would need a
 # lock back. This gate only protects a machine that is
 # already under load when a run starts.
 headroom_gate="$repo_root/configs/ai-docs/claude/scripts/check-machine-headroom.sh"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tests for delivered-work-ledger.py — the repo walk, the shipped-commit
+"""Tests for delivered-work-ledger.py - the repo walk, the shipped-commit
 filter, and the committed-ledger reader.
 
 Fixtures: real directory trees and real git repositories built in a temp
@@ -85,7 +85,7 @@ def _commit(repo, subject, author=OWNER, authored_on="2026-07-11",
 
 
 class TestFindRepos(unittest.TestCase):
-    """find_repos() answers "which checkouts on this machine hold work?" — the
+    """find_repos() answers "which checkouts on this machine hold work?" - the
     question a wrong answer to reports a confident zero."""
 
     def setUp(self):
@@ -149,7 +149,7 @@ class TestShippedCommits(unittest.TestCase):
         self.assertEqual(
             [day for day, _ in rows], ["2026-07-11"],
             msg="the spend series is daily, so effort belongs on the day it "
-                "was spent — a rebase that moves the committer date must not "
+                "was spent - a rebase that moves the committer date must not "
                 "move a week of work onto the day someone pressed merge")
 
     def test_omits_a_commit_written_before_the_window_but_landed_inside_it(self):
@@ -283,7 +283,7 @@ class TestActiveSeconds(unittest.TestCase):
             ledger.active_seconds(self._epochs("09:00:00", "09:04:30",
                                                "09:11:10")),
             670.0,
-            msg="the gaps are the only evidence of attention — a count of "
+            msg="the gaps are the only evidence of attention - a count of "
                 "records would say a chatty minute beat a quiet hour")
 
     def test_excludes_a_gap_longer_than_the_idle_cap_so_lunch_is_not_billed_as_work(self):

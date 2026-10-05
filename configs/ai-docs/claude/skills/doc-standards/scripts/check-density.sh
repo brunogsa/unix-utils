@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-density.sh — flag markdown lines exceeding density caps.
+# check-density.sh - flag markdown lines exceeding density caps.
 #
 # AI-consumed output (compact, parseable):
 #   <line>:<chars>:<words>  one per violation
@@ -29,10 +29,10 @@
 # skill-router budget (~first 250 chars), not the word count.
 #
 # Char/word counts are measured AFTER stripping `(https://…)`
-# and `(data:…)` URI portions and remaining `[`/`]` brackets
-# — so "[label](url)" measures as "label" and a base64 image.
+# and `(data:…)` URI portions and remaining `[`/`]` brackets -
+# so "[label](url)" measures as "label" and a base64 image.
 #
-# Inline `![alt](data:…)` or reference def `[id]: <data:…>` —
+# Inline `![alt](data:…)` or reference def `[id]: <data:…>` -
 # collapses to its label, giving the rendered density a
 # reader actually sees.
 #

@@ -8,11 +8,11 @@ user-invocable: true
 
 Run `comment-format-fixer` and `markdown-standards-fixer` over the files the
 user has changed in the current working tree. No automatic enforcement runs
-today — this skill is currently the only pass that applies these standards,
+today - this skill is currently the only pass that applies these standards,
 including the case where a file was touched outside this session, or
 hand-edited directly.
 
-This skill invents no new checker script and no new scoping logic — it only
+This skill invents no new checker script and no new scoping logic - it only
 orchestrates the two existing fixer agents over files found with existing git
 commands.
 
@@ -33,7 +33,7 @@ whole-file-changed.
 ### 2. Handle an empty union
 
 If the union is empty, report "nothing to check" and stop. Dispatch no
-fixer agent — a clean tree is a no-op.
+fixer agent - a clean tree is a no-op.
 
 ### 3. Classify by extension
 
@@ -44,7 +44,7 @@ fixer agent — a clean tree is a no-op.
 ### 4. Drop deleted files from each batch
 
 For each file in either batch, check whether it was deleted in the working
-tree — `git diff --name-status` showing a `D` status, or the file missing on
+tree - `git diff --name-status` showing a `D` status, or the file missing on
 disk while `git ls-files` still lists it. Skip a deleted file: don't pass it
 to any fixer, and name it explicitly in the final report as
 skipped-because-deleted.
@@ -52,7 +52,7 @@ skipped-because-deleted.
 ### 5. Dispatch the fixers
 
 When both batches are non-empty, dispatch `comment-format-fixer` and
-`markdown-standards-fixer` in parallel — they touch disjoint files, so
+`markdown-standards-fixer` in parallel - they touch disjoint files, so
 nothing about running them concurrently is unsafe. Scope each dispatch to
 only its own batch's files, never the whole repo. When only one batch is
 non-empty, dispatch just that one.
@@ -61,7 +61,7 @@ non-empty, dispatch just that one.
 
 Once both dispatched fixers return, report each file's outcome individually:
 fixed, not-reached, or failed. Never merge a failing file's status into a
-success summary — if one fixer reports residue or failure while the other
+success summary - if one fixer reports residue or failure while the other
 reports clean, state both outcomes distinctly. No automatic retry on a
 fixer failure; a failure is reported, not re-attempted.
 
@@ -75,4 +75,4 @@ further edits. No special-case logic is needed for this.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it — non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.
