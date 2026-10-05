@@ -326,6 +326,28 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("escape", result.stderr)
 
+    def test_should_replay_a_git_init_row_unchanged_against_its_own_golden(self):
+        # The row's git status is captured on its own, so the
+        # volatile .git internals (the index differs run to run)
+        # must stay out of the file hash.
+        script = _write_executable(self.tmp_path / "toy.sh", (
+            "#!/bin/sh\necho top > top.txt\nexit 0\n"
+        ))
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "git-row", "argv": [], "stdin": "", "branch": None,
+             "fixture_files": {"seed.txt": "seed-content"}, "git_init": True},
+        ])
+        emitted = self.tmp_path / "toy.test.py"
+        capture_result = _run("capture", "--script", str(script), "--table", str(table),
+                               "--out", str(emitted))
+        self.assertEqual(capture_result.returncode, 0, msg=capture_result.stderr)
+
+        replay_result = subprocess.run(
+            [sys.executable, "-m", "pytest", "--import-mode=importlib", str(emitted), "-q"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(replay_result.returncode, 0, msg=replay_result.stdout + replay_result.stderr)
+
     def test_should_normalize_duration_pid_temp_path_and_uuid_values_to_the_same_masked_value_across_captures(self):
         # One row, captured twice independently (two fresh
         # fixture dirs, guaranteed different paths) via a script

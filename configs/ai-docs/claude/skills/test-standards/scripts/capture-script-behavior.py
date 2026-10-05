@@ -53,6 +53,10 @@ MASK_PATTERNS = (
 # capture must never be allowed to write into the real repo.
 FIXTURE_ESCAPE_MARKERS = ("..",)
 
+# Skipped when hashing: its contents (e.g. .git/index) differ
+# run to run, and the row's git status is captured separately.
+GIT_DIR_NAME = ".git"
+
 
 class FixtureEscapeError(ValueError):
     """Raised when a row's fixture_files key would write outside its
@@ -135,8 +139,9 @@ def hash_fixture_tree(root: Path, *, fixture_dir: Path) -> dict:
     captured tuple."""
     tree = {}
     for path in sorted(root.rglob("*")):
-        if path.is_file():
-            relpath = path.relative_to(root).as_posix()
+        relative = path.relative_to(root)
+        if path.is_file() and relative.parts[0] != GIT_DIR_NAME:
+            relpath = relative.as_posix()
             raw = path.read_bytes()
             try:
                 masked = mask_text(raw.decode("utf-8"), fixture_dir=fixture_dir).encode("utf-8")
