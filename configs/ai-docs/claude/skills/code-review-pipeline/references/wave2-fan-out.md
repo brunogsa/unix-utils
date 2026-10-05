@@ -47,7 +47,10 @@ Dedup is **not** done here. Eight lenses over the same diff can still flag one d
 
 Applies in github mode with `tiny_pr=false`. Dispatch `agent(subAgent=general-purpose, title=Write review guide, model=opus)` in the background — in the lens dispatch message when both go out together —
 
-- telling it to read `references/guide-writer.md`, resolve its placeholders against the Wave 1 files, write the guide to `$work_dir/wave2-guide.md`, and return one line.
+- telling it to read `references/guide-writer.md`, resolve its placeholders against the Wave 1 files and the input header's `Design sections` value, write the guide to `$work_dir/wave2-guide.md`, and return one line.
+
+- telling it to invoke the `mermaid-diagrams` skill when `Design sections` is `on`, since the Arquitetura and Fluxo sections carry diagrams it must validate before writing them.
+
 - `guide-writer.md` takes the diff as input, so running it inline re-reads the whole diff the fan-out exists to keep out of this window.
   - `general-purpose` has no frontmatter, so the model is named on the call and effort inherits — acceptable for prose.
 

@@ -27,6 +27,7 @@ The code-review-pipeline expects these inputs:
 - **PR URL:** `<PR_URL>` (from the command argument)
 - **Issue ref:** `<ISSUE_REF>` (only if `--issue` was passed; it replaces the automatic extraction)
 - **Language:** Portuguese (Brazil)
+- **Design sections:** `on` — the Review Guide carries the Arquitetura, Fluxo and Design de testes sections (specified in `code-review-pipeline/references/guide-writer.md`), the parts of a spec or plan a reviewer reads first.
 
 With the inputs above resolved, spawn `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the inputs in its prompt body and the instruction to read `~/.claude/skills/code-review-pipeline/SKILL.md` and orchestrate every wave (0 → 6) from there. Wait for its completion notification. The base branch is discovered inside Wave 1 from `baseRefName`.
 

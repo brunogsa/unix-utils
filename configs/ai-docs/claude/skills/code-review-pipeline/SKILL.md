@@ -43,6 +43,7 @@ Both callers also need the pipeline's reads — diff, rubrics, standards — kep
 - `Issue ref` (github, optional): a Jira or Linear URL or key; replaces automatic extraction.
 - `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` — defaults to the repo's detected default branch)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
+- `Design sections` (github only, optional): `on` or `off`; absent reads as `off`. `on` adds the Arquitetura, Fluxo and Design de testes sections to the Review Guide — `/pr-review` passes `on`.
 
 **Load lazily, by wave; keep afterward** — they ground your validation and decisions:
 
@@ -136,7 +137,7 @@ Dedup is **not** done at the merge — Wave 3 resolves overlaps with the full me
 
 - **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
 - **If `tiny_pr=true`**: skip `references/guide-writer.md`; emit a 2-sentence change summary instead. At <100 added lines the change speaks for itself.
-- **Else, on the inline path**: read `references/guide-writer.md` after the merge. Produce the Review Guide Markdown (business context, decisions, where to focus, incidental changes). 400 words max.
+- **Else, on the inline path**: after the merge, read `references/guide-writer.md` and produce the guide it specifies — it owns the sections and budget, and reads `Design sections` from the header.
 
 - **Else, on the fan-out path**: never write the guide inline, since `guide-writer.md` re-reads the whole diff; dispatch the guide agent per "Guide writer on the fan-out path" in `references/wave2-fan-out.md`.
 

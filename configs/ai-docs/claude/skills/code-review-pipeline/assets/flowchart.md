@@ -129,7 +129,7 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
         #         re-dispatch once, then fall back to the 2-sentence summary.
         wait_for_guide_or_fallback(f"{work_dir}/wave2-guide.md")
     else:
-        # 13b2b · inline: github only, max 400 words.
+        # 13b2b · inline: github only; sections and budget per guide-writer.md.
         persist(f"{work_dir}/wave2-guide.md", write_review_guide())
 
     if exists(f"{work_dir}/wave3-findings.json"):             # 14
@@ -229,7 +229,7 @@ flowchart TD
   n13b1["13b1. Emit 2-sentence change summary<br/>persist wave2-guide.md"]
   n13b2{"13b2. Fan-out path?"}
   n13b2a["13b2a. Await the guide agent's<br/>wave2-guide.md (dispatched at 10c);<br/>never re-read the diff here. Still missing:<br/>ListAgents, re-dispatch once, then fall<br/>back to the 2-sentence summary"]
-  n13b2b["13b2b. Write Review Guide inline<br/>(github only, max 400 words)<br/>persist wave2-guide.md"]
+  n13b2b["13b2b. Write Review Guide inline<br/>(github only; sections and budget<br/>per guide-writer.md)<br/>persist wave2-guide.md"]
 
   n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
   n14a{"14a. tiny_pr? (not yet<br/>completed)"}

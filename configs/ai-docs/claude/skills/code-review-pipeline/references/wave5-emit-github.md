@@ -87,6 +87,8 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    - Use the issue-comments endpoint (PR conversation comments share the issue API):
 
    ```bash
+   short_sha=${commit_sha:0:7}
+   commit_url="https://github.com/$repo/pull/$pr_number/commits/$commit_sha"
    jq -n --arg body "$guide_body" '{body: $body}' > "$work_dir/guide-payload.json"
    gh api repos/"$repo"/issues/"$pr_number"/comments \
      --method POST \
@@ -101,13 +103,17 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    <details>
    <summary><strong>Code review — guia de leitura</strong> (clique para expandir)</summary>
 
-   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>). Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
+   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>), gerada a partir do commit [`<short_sha>`](<commit_url>) — commits posteriores podem deixar este guia desatualizado. Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
 
-   <guide content from references/guide-writer.md — sections "Onde focar" + "Mudanças incidentais" only; on tiny_pr=true this is just Wave 2's 2-sentence summary in place of the full guide>
+   <the full content of $work_dir/wave2-guide.md — every section `references/guide-writer.md` emitted, since that file owns the section list; on tiny_pr=true this is Wave 2's 2-sentence summary in place of the full guide>
 
    </details>
 
    — gerado por IA, revisado pelo usuário
    ```
+
+   - The commit stamp lets a reader tell a stale guide from a current one: it describes one head commit, and a later push changes the diff without touching the comment.
+
+   - Keep the blank lines around the guide content — GitHub renders Markdown (the guide's ```mermaid fences included) inside `<details>` only when a blank line separates it from the HTML tags.
 
    Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.
