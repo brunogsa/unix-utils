@@ -23,6 +23,7 @@
 # link, never in the stub itself: rewriting a linked stub would
 # change it for every case.
 
+import importlib.util
 import os
 import shlex
 import shutil
@@ -685,6 +686,88 @@ class TestParallelRun:
                 f"PASS  {self.node_suite}",
                 "PASS  pytest",
             ]
+
+    class TestNeverMoreThanFourAtOnce:
+        # The runner is loaded in-process so the test can count
+        # how many fake suites are still running whenever
+        # another one starts.
+        #
+        # Real processes cannot prove a cap: under a raised cap
+        # a late suite may start after an earlier one finished,
+        # and the run still looks capped.
+        SUITE_COUNT = 10
+        POLLS_BEFORE_DONE = 2
+
+        # Spelled out, never read from the runner's own cap
+        # constant, or a raised cap would raise this bound too.
+        FOUR_SUITES = 4
+
+        class FakeProcess:
+            def __init__(self, live_processes, polls_before_done):
+                self.live_processes = live_processes
+                self.polls_left = polls_before_done
+                live_processes.add(self)
+
+            def poll(self):
+                if self.polls_left > 0:
+                    self.polls_left -= 1
+                    return None
+                self.live_processes.discard(self)
+                return 0
+
+            def kill(self):
+                self.live_processes.discard(self)
+
+            def wait(self):
+                pass
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def most_running_at_once(cls, monkeypatch_class):
+            # The file name is hyphenated, so a plain import
+            # cannot name it.
+            #
+            # Registered in sys.modules because the runner
+            # defines dataclasses, which look their module up
+            # there.
+            spec = importlib.util.spec_from_file_location(
+                "run_tests_under_test", REPO_ROOT / RUNNER_NAME
+            )
+            assert spec is not None and spec.loader is not None
+            runner = importlib.util.module_from_spec(spec)
+            monkeypatch_class.setitem(sys.modules, spec.name, runner)
+            spec.loader.exec_module(runner)
+
+            live_processes = set()
+            most_live = 0
+
+            def fake_launch(command, log_file):
+                nonlocal most_live
+                process = cls.FakeProcess(live_processes, cls.POLLS_BEFORE_DONE)
+                most_live = max(most_live, len(live_processes))
+                return process
+
+            monkeypatch_class.setattr(runner, "launch_into_log", fake_launch)
+            monkeypatch_class.setattr(runner.time, "sleep", lambda seconds: None)
+            entries = [
+                runner.Entry(f"suite-{number}", ["bash", f"suite-{number}"], "unused.log")
+                for number in range(cls.SUITE_COUNT)
+            ]
+            tally = runner.Tally()
+            runner.run_entries(entries, tally)
+            assert tally.pass_count == cls.SUITE_COUNT
+            return most_live
+
+        def test_should_fill_four_slots_and_never_start_a_fifth_suite_while_four_run(
+            self, most_running_at_once
+        ):
+            assert most_running_at_once == self.FOUR_SUITES
+
+
+@pytest.fixture(scope="class")
+def monkeypatch_class():
+    with pytest.MonkeyPatch.context() as patcher:
+        yield patcher
 
 
 class TestBashNotInstalled:
