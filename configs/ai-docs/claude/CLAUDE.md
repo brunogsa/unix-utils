@@ -22,11 +22,7 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] Place every rule by its scope — the narrowest surface that still reaches every reader who needs it.
   - [Why] The always-on CLAUDE.md, a lazy-loaded skill, and a repo file cost wildly different context for the same words.
 
-  - [Example] Cross-cutting and always needed → the global CLAUDE.md (here), which loads every session.
-
-  - [Example] Domain knowledge, how-tos, anything lazy-loadable → a skill, which rides along only when its trigger fires.
-
-  - [Example] Repo-specific gotchas, conventions, architecture, non-obvious decisions → that repo's CLAUDE.md / agents.md, noise anywhere else.
+  - [Example] Always needed → the global CLAUDE.md; lazy-loadable how-tos → a skill; repo gotchas, conventions, architecture → that repo's CLAUDE.md / agents.md.
 
 - [Instruction] **Prefer CLI scripts + skills over MCP servers** — use MCP only for capabilities CLI + skills can't provide.
   - [Why] CLI is cheaper in context, easier to debug, and composes via pipes.
@@ -196,23 +192,14 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 ### Skills & standards loading
 
-- [Instruction] **Skill tool over Read for matching skills** -- invoke via Skill when description matches; use Read on `SKILL.md` only for meta-work (audit/edit/compare).
-  - [Why] Skill activates guidance and counts toward metrics; Read merely shows the file.
-
 - [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) — one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load, so each standard you skip is wisdom the user must repeat by hand.
-
-- [Instruction] Treat config files as code — editing one (e.g. `init.lua`) fires the same `*-standards` triggers a source file would.
-  - [Why] Counting config as code loads code-standards on it, so its conventions apply instead of being skipped.
 
 - [Instruction] Load a skill once per session — never re-invoke it while it remains loaded in context.
   - [Why] Re-invoking repeats guidance already active in context, spending tokens without adding anything new.
 
 - [Instruction] After a compaction, count a skill as still loaded only when the post-compaction reminder shows its full text; one shown truncated, or not shown at all, counts as unloaded.
   - [Why] Reload-all cost 10-30k tokens per compaction, and re-invoking a skill the reminder re-injected in full pays twice.
-
-- [Instruction] On compaction, reload eagerly-first — before continuing the task — any procedural/orchestrator skill (e.g. `brainstorm-why`, `implement`) that still governs what you are doing.
-  - [Why] These carry multi-step state compaction drops, leaving the orchestrator blind until its procedure returns.
 
 - [Instruction] **Mirror remaining steps as TaskList entries** -- when a step-shaped skill starts, add each remaining step as a `[Reminder]` entry and complete it as it runs.
   - [Why] Steps were observed skipped after compaction; TaskList survives it and re-surfaces every turn.
@@ -307,9 +294,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 - [Instruction] On resume or after compaction, re-ground from `notes.md` — re-read the file and trust it over recalled context.
   - [Why] Post-compaction recall feels complete but is a summary; the file re-reads verbatim as a checkable fact.
 
-- [Instruction] Write `<skill>-brief.md` once the work unit it records has finished — never continuously, and never merely because a dispatch is imminent.
-  - [Why] Composing it early hands off unfinished results, and a zero-context reader needs elaboration notes.md's guide omits.
-
 - [Instruction] A dispatched subagent gets its own, different scratchpad directory — pass your own resolved path explicitly in its dispatch prompt if it must read yours.
   - [Why] Its environment carries only its own directory, so an unstated path leaves it with no way to find your notes at all.
 
@@ -399,9 +383,6 @@ Architectural principles — auto-memory disabled, so knowledge persists only wh
 
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated — hand the subagent everything else.
   - [Why] Permission UIs only render in main, so a subagent cannot complete one at all — a harness limit.
-
-- [Instruction] Launch every subagent in the background (`run_in_background`), waiting for its completion notification — never poll via a blocking `TaskOutput` call, a Bash `sleep`/`until` busy-wait, or a `kill -0`/`pgrep` wait loop.
-  - [Why] One session lost 33 min to 6 blocking `TaskOutput` calls — 3 returned nothing — plus 12 min busy-waiting, vs 0.1s.
 
 - [Instruction] Size every dispatch to finish well inside the 64-turn subagent cap — 4-6 files per mechanical batch, an explicit stop criterion for any collection or checker loop.
   - [Why] Five sessions hit the cap or a silent 45-minute agent, each losing the whole slice's work.
