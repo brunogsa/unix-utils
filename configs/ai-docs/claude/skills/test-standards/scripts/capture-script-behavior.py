@@ -48,6 +48,13 @@ MASK_PATTERNS = (
     (re.compile(r"/var/folders/[A-Za-z0-9_./-]+"), "<TMPDIR>"),
 )
 
+# The fixture dir differs every run, so a row's env value keeps
+# this token in the table, --json-out and the emitted test.
+#
+# It becomes the real path only when the row runs, and mask_text
+# turns that path back into the token in captured output.
+FIXTURE_DIR_TOKEN = "<FIXTURE_DIR>"
+
 # A fixture_files key that resolves outside its own fixture
 # directory is the exact escape the Threat Model warns about - a
 # capture must never be allowed to write into the real repo.
@@ -106,6 +113,7 @@ class Row:
     expected_stderr: str | None = None
     expected_exit_code: int | None = None
     expected_post_state: dict | None = None
+    env: dict | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Row":
@@ -118,6 +126,7 @@ class Row:
         if unknown:
             listed = ", ".join(repr(key) for key in unknown)
             raise InvalidRowError(f"unknown key(s) {listed}")
+        _validate_env(data.get("env"))
         return cls(**data)
 
     def has_golden(self) -> bool:
@@ -156,10 +165,35 @@ def mask_text(text: str, *, fixture_dir: Path | None = None) -> str:
         candidates = sorted({str(fixture_dir), str(fixture_dir.resolve())}, key=len, reverse=True)
         for candidate in candidates:
             if candidate:
-                text = text.replace(candidate, "<FIXTURE_DIR>")
+                text = text.replace(candidate, FIXTURE_DIR_TOKEN)
     for pattern, replacement in MASK_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
+
+
+def _validate_env(env) -> None:
+    if env is None:
+        return
+    if not isinstance(env, dict):
+        raise InvalidRowError(f"env must be an object mapping variable names to strings or null, got {env!r}")
+    for variable, value in env.items():
+        if value is not None and not isinstance(value, str):
+            raise InvalidRowError(f"env variable {variable!r} must be a string or null, got {value!r}")
+
+
+def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:
+    """The full environment for a row's run, or None to inherit.
+    subprocess.run(env=...) replaces the environment instead of
+    merging, so the row's entries are layered on os.environ here."""
+    if row.env is None:
+        return None
+    merged = dict(os.environ)
+    for variable, value in row.env.items():
+        if value is None:
+            merged.pop(variable, None)
+        else:
+            merged[variable] = value.replace(FIXTURE_DIR_TOKEN, str(fixture_dir))
+    return merged
 
 
 def _validate_fixture_key(key: str) -> None:
@@ -224,7 +258,7 @@ def capture_row(
     try:
         result = subprocess.run(
             [str(script), *row.argv],
-            cwd=fixture_dir, input=row.stdin,
+            cwd=fixture_dir, input=row.stdin, env=_build_env(row, fixture_dir=fixture_dir),
             capture_output=True, text=True, timeout=timeout_seconds,
         )
     except subprocess.TimeoutExpired as exc:

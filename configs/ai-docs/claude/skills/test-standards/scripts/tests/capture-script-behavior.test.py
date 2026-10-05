@@ -646,6 +646,29 @@ class TestCaptureScriptBehaviorFailure(_TempDirTestCase):
         self.assertNotIn("AttributeError", output)
 
 
+class TestCaptureScriptBehaviorRowEnv(_TempDirTestCase):
+    def test_should_run_a_row_with_its_env_set_and_unset_and_keep_the_fixture_dir_token_in_the_stored_row(self):
+        script = _write_executable(self.tmp_path / "toy.sh", (
+            "#!/bin/sh\n"
+            'cat "$MY_VAR"\n'
+            'echo "$MY_VAR"\n'
+            'echo "${HOME-unset}"\n'
+        ))
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "env-row", "fixture_files": {"x": "hello\n"},
+             "env": {"MY_VAR": "<FIXTURE_DIR>/x", "HOME": None}},
+        ])
+        json_out = self.tmp_path / "captured.json"
+
+        result = _run("capture", "--script", str(script), "--table", str(table),
+                       "--json-out", str(json_out))
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        row = json.loads(json_out.read_text())["rows"][0]
+        self.assertEqual(row["expected_stdout"], "hello\n<FIXTURE_DIR>/x\nunset\n")
+        self.assertEqual(row["env"], {"MY_VAR": "<FIXTURE_DIR>/x", "HOME": None})
+
+
 class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     """A row the tool rejects before running anything: the toy
     script path is never executed, so it need not exist."""
@@ -699,6 +722,20 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertEqual(lines[0].count("slow-row"), 1, msg=lines[0])
         self.assertFalse(json_out.exists())
         self.assertFalse(emitted.exists())
+
+    def test_should_reject_an_env_that_is_not_an_object_naming_the_row(self):
+        stderr = self._capture_rejecting([{"name": "env-list-row", "env": ["MY_VAR=1"]}])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: row 'env-list-row': "), msg=stderr)
+        self.assertIn("must be an object", stderr)
+
+    def test_should_reject_an_env_value_that_is_neither_a_string_nor_null_naming_the_row_and_variable(self):
+        stderr = self._capture_rejecting([{"name": "env-number-row", "env": {"RETRIES": 3}}])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: row 'env-number-row': "), msg=stderr)
+        self.assertIn("RETRIES", stderr)
 
     def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
         stderr = self._capture_rejecting([
