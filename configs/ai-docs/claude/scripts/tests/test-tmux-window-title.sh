@@ -56,7 +56,11 @@ assert_eq() {
 # server - so the pid/session fields can be stubbed.
 start_server() {
   SOCK="tmux-title-test-$$-${RANDOM}"
-  tmux -L "$SOCK" new-session -d -s t 2>/dev/null
+
+  # -f /dev/null skips ~/.tmux.conf, whose plugins slow each
+  # boot from ~40 ms to ~800 ms; cat keeps the session alive
+  # without starting the user's login shell.
+  tmux -f /dev/null -L "$SOCK" new-session -d -s t cat 2>/dev/null
 
   local socket_path
   socket_path=$(tmux -L "$SOCK" display-message -p '#{socket_path}')
