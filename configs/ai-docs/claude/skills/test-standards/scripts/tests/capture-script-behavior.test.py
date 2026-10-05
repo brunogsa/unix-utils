@@ -913,3 +913,74 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 self.assertTrue(stderr.startswith("error: table "), msg=stderr)
                 self.assertIn("known_branches", stderr)
+
+
+class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
+    def _load_harness(self):
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        return harness
+
+    def _capture_rejecting(self, rows):
+        table = _write_table(self.tmp_path / "table.json", rows)
+        json_out = self.tmp_path / "captured.json"
+        emitted = self.tmp_path / "toy.test.py"
+        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
+                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse(json_out.exists())
+        self.assertFalse(emitted.exists())
+        return result.stderr
+
+    def test_should_reject_a_row_field_of_the_wrong_json_type_naming_the_field_the_accepted_type_and_the_type_it_got(self):
+        cases = (
+            ({"name": 5}, "name", "string", "number"),
+            ({"stdin": None}, "stdin", "string", "null"),
+            ({"branch": 5}, "branch", "string or null", "number"),
+            ({"divergence": ["x"]}, "divergence", "string or null", "array"),
+            ({"expected_stdout": 0}, "expected_stdout", "string or null", "number"),
+            ({"expected_stderr": {}}, "expected_stderr", "string or null", "object"),
+            ({"script_relpath": 5}, "script_relpath", "string or null", "number"),
+            ({"argv": "--help"}, "argv", "array of strings", "string"),
+            ({"argv": ["ok", 5]}, "argv", "array of strings", "array"),
+            ({"executable_files": [["a"]]}, "executable_files", "array of strings", "array"),
+            ({"fixture_files": ["a"]}, "fixture_files", "object whose values are strings", "array"),
+            ({"fixture_files": {"a": 5}}, "fixture_files", "object whose values are strings", "object"),
+            ({"git_init": "yes"}, "git_init", "boolean", "string"),
+            ({"expected_exit_code": True}, "expected_exit_code", "integer or null", "boolean"),
+            ({"expected_exit_code": "0"}, "expected_exit_code", "integer or null", "string"),
+            ({"expected_exit_code": 1.5}, "expected_exit_code", "integer or null", "number"),
+            ({"expected_post_state": "x"}, "expected_post_state", "object or null", "string"),
+            ({"env": ["A=1"]}, "env", "object or null", "array"),
+        )
+        for fields, field_name, accepted, json_type in cases:
+            with self.subTest(fields=fields):
+                stderr = self._capture_rejecting([{"name": "typed-row", **fields} if "name" not in fields else fields])
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                expected_label = "error: row #0: " if field_name == "name" else "error: row 'typed-row': "
+                self.assertTrue(stderr.startswith(expected_label), msg=stderr)
+                self.assertIn(field_name, stderr)
+                self.assertIn(accepted, stderr)
+                self.assertIn(json_type, stderr)
+
+    def test_should_accept_a_row_with_every_field_at_its_accepted_type(self):
+        harness = self._load_harness()
+
+        row = harness.Row.from_dict({
+            "name": "typed-row", "argv": ["--flag"], "stdin": "in", "branch": None,
+            "fixture_files": {"a.txt": "x"}, "git_init": False, "divergence": None,
+            "expected_stdout": "", "expected_stderr": None, "expected_exit_code": 0,
+            "expected_post_state": {}, "env": {"MY_VAR": "1"},
+            "executable_files": ["a.txt"], "script_relpath": "tools/toy",
+        })
+
+        self.assertEqual(row.expected_exit_code, 0)
+
+    def test_should_have_a_type_check_entry_for_every_row_field(self):
+        harness = self._load_harness()
+
+        self.assertEqual(set(harness.ROW_FIELD_TYPES), set(harness.Row.__dataclass_fields__))

@@ -149,6 +149,7 @@ class Row:
         if unknown:
             listed = ", ".join(repr(key) for key in unknown)
             raise InvalidRowError(f"unknown key(s) {listed}")
+        _validate_field_types(data)
         _validate_env(data.get("env"))
         _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
         _validate_script_relpath(data.get("script_relpath"), data.get("fixture_files"))
@@ -194,6 +195,57 @@ def mask_text(text: str, *, fixture_dir: Path | None = None) -> str:
     for pattern, replacement in MASK_PATTERNS:
         text = pattern.sub(replacement, text)
     return text
+
+
+def _is_string_or_null(value) -> bool:
+    return value is None or isinstance(value, str)
+
+
+def _is_string_list(value) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _is_string_valued_object(value) -> bool:
+    return isinstance(value, dict) and all(isinstance(item, str) for item in value.values())
+
+
+def _is_integer_or_null(value) -> bool:
+    # A Python bool is an int, but JSON true is not an exit
+    # code.
+    return value is None or (isinstance(value, int) and not isinstance(value, bool))
+
+
+def _is_object_or_null(value) -> bool:
+    return value is None or isinstance(value, dict)
+
+
+# One entry per Row field: the accepted JSON types as the error
+# message words them, and the check.
+# A test fails when a Row field has no entry, so a field added
+# later cannot skip the type check.
+ROW_FIELD_TYPES = {
+    "name": ("a string", lambda value: isinstance(value, str)),
+    "argv": ("an array of strings", _is_string_list),
+    "stdin": ("a string", lambda value: isinstance(value, str)),
+    "branch": ("a string or null", _is_string_or_null),
+    "fixture_files": ("an object whose values are strings", _is_string_valued_object),
+    "git_init": ("a boolean", lambda value: isinstance(value, bool)),
+    "divergence": ("a string or null", _is_string_or_null),
+    "expected_stdout": ("a string or null", _is_string_or_null),
+    "expected_stderr": ("a string or null", _is_string_or_null),
+    "expected_exit_code": ("an integer or null", _is_integer_or_null),
+    "expected_post_state": ("an object or null", _is_object_or_null),
+    "env": ("an object or null", _is_object_or_null),
+    "executable_files": ("an array of strings", _is_string_list),
+    "script_relpath": ("a string or null", _is_string_or_null),
+}
+
+
+def _validate_field_types(data: dict) -> None:
+    for field_name, value in data.items():
+        accepted, is_accepted = ROW_FIELD_TYPES[field_name]
+        if not is_accepted(value):
+            raise InvalidRowError(f"{field_name} must be {accepted}, got {_json_type_name(value)}")
 
 
 def _validate_env(env) -> None:
@@ -522,7 +574,7 @@ def _load_table(path: Path) -> tuple:
             rows.append(Row.from_dict(row_dict))
         except RowError as exc:
             # from_dict cannot know the row's table position.
-            is_named = isinstance(row_dict, dict) and "name" in row_dict
+            is_named = isinstance(row_dict, dict) and isinstance(row_dict.get("name"), str)
             exc.row = repr(row_dict["name"]) if is_named else f"#{index}"
             raise
     return rows, known_branches
