@@ -1721,9 +1721,13 @@ it_should_return_well_under_the_timeout_on_a_successful_keychain_read
 # On GNU coreutils, `-f` is not a format flag - it means the
 # boolean `--file-system` flag.
 #
-# So trying `stat -f %m path` first would succeed (printing a
-# multi-line filesystem dump) and the `||` fallback to
-# `stat -c %Y` would never fire (auto-review#F2).
+# GNU therefore reads `%m` as a second file operand: it
+# prints the filesystem dump for the real file, complains
+# about `%m` on stderr, and exits 1.
+#
+# So trying `stat -f %m path` first would still run the `||`
+# fallback to `stat -c %Y`, but the capture would be the
+# dump followed by the epoch: multi-line garbage.
 #
 # BSD rejects `-c`, so GNU-first falls through to `-f %m`
 # there.
@@ -1741,7 +1745,8 @@ Block size: 4096       Fundamental block size: 4096
 Blocks: Total: 100     Free: 50      Available: 50
 Inodes: Total: 100     Free: 50
 DUMP
-  exit 0
+  printf "stat: cannot read file system information for '%%m': No such file or directory\n" >&2
+  exit 1
 elif [ "$1" = "-c" ] && [ "$2" = "%Y" ]; then
   printf '1700000000\n'
   exit 0
@@ -1755,9 +1760,9 @@ chmod +x "$SHARED_FAKE_BIN_DIR/stat"
 # "$bin_dir/stat" that mirrors GNU coreutils' own argument
 # parsing.
 #
-# `-f` succeeds as the boolean --file-system flag (a
-# multi-line dump, exit 0) while `-c %Y` is the real
-# mtime-epoch format read.
+# `-f` is the boolean --file-system flag (a multi-line dump
+# on stdout, an error on stderr, exit 1) while `-c %Y` is
+# the real mtime-epoch format read.
 write_fake_gnu_stat() {
   local bin_dir="$1"
   ln -sf "$SHARED_FAKE_BIN_DIR/stat" "$bin_dir/stat"
@@ -1778,7 +1783,7 @@ it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_a
   )
 
   assert_eq \
-    "StatMtimeEpoch > corner > should return a single-line integer epoch when the host's stat treats -f as a GNU boolean flag that succeeds" \
+    "StatMtimeEpoch > corner > should return a single-line integer epoch when the host's stat treats -f as a GNU boolean flag" \
     "1700000000" "$actual"
   rm -rf "$sandbox"
 }

@@ -310,9 +310,9 @@ stat_mtime_epoch() {
   # `-f %m` below.
   #
   # The reverse order is unsafe: GNU's `-f` isn't a format
-  # flag, it's the boolean `--file-system` flag, which
-  # succeeds and prints a multi-line filesystem dump instead
-  # of failing into the fallback.
+  # flag, it's the boolean `--file-system` flag: it prints a
+  # multi-line filesystem dump and then fails, so the
+  # fallback would append the epoch to that dump.
   stat -c %Y "$path" 2>/dev/null || stat -f %m "$path" 2>/dev/null
 }
 
