@@ -24,7 +24,8 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RUNNER_SRC="$script_dir/check-deterministic-gates.sh"
 
 work_dir=$(mktemp -d)
-trap 'rm -rf "$work_dir"' EXIT
+shared_dir=$(mktemp -d)
+trap 'rm -rf "$work_dir" "$shared_dir"' EXIT
 
 pass_count=0
 fail_count=0
@@ -68,11 +69,43 @@ assert_not_contains() {
   fi
 }
 
+# The four .py gate stubs are exec'd directly by the runner, and
+# macOS scans every newly written executable on its first exec
+# (150 to 450 ms each).
+#
+# One shared stub is written and exec'd once here, and every
+# case links its .py gate names to it, since a link to an
+# already-run file costs 17 to 20 ms.
+#
+# The stub reads its exit code and marker from <gate>.fixture
+# beside the link.
+GATE_STUB="$shared_dir/gate-stub"
+cat > "$GATE_STUB" <<'STUB'
+#!/usr/bin/env bash
+name=${0##*/}
+echo "$name $*" >> "$CALL_LOG"
+{ read -r code; read -r marker; } < "${0%/*}/$name.fixture"
+[ -n "$marker" ] && echo "$marker" >&2
+exit "$code"
+STUB
+chmod +x "$GATE_STUB"
+printf '0\n\n' > "$shared_dir/gate-stub.fixture"
+CALL_LOG=/dev/null "$GATE_STUB"
+
 # make_stub - writes a gate stub that logs "<name> <argv>" to
 # $CALL_LOG, optionally prints a marker line to stderr, and
 # exits with the code passed in.
+#
+# A .py name links to the shared stub and writes only its
+# fixture, because writing through the link would change the
+# stub for every case.
 make_stub() {
   local path="$1" name="$2" code="$3" marker="${4:-}"
+  if [[ "$path" == *.py ]]; then
+    ln -sf "$GATE_STUB" "$path"
+    printf '%s\n%s\n' "$code" "$marker" > "$path.fixture"
+    return
+  fi
   {
     cat <<STUB
 #!/usr/bin/env bash
