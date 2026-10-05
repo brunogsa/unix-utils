@@ -230,6 +230,9 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
   - [Example] Don't touch indentation, blank lines, whitespace, quotes, or semicolons you weren't asked to change.
 
+- [Instruction] **CRITICAL: Change file contents with Edit or Write, never through Bash** (sed, awk, perl, heredoc), whatever the harness prompt allows - except an editor-style replace-all of the same text.
+  - [Why] A Bash edit can silently change the wrong line or nothing, with no diff prompt, mismatch error or hook to catch it.
+
 ### TaskList discipline
 
 - [Instruction] **Leverage TaskList proactively** -- whenever there are 2+ things to do, use TaskCreate/TaskUpdate; never skip it.
@@ -337,8 +340,6 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
 - [Instruction] Before carving that exception, implement the compliant version and show it fails - an exception is never the first response to a rule your own code broke.
   - [Why] Documenting a deviation costs less than restructuring code, so without this gate the exception wins by default.
-
-  - [Example] A controller validating inline because a route-level pipe can't see the field: extracting an isolated validation function complies and was never tried, so the exception was unjustified.
 
 - [Instruction] **Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
   - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
