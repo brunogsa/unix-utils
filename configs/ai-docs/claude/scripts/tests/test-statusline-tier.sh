@@ -1384,9 +1384,11 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
   # NOT older, so a correct implementation must serve the
   # cache unchanged rather than re-read.
   #
-  # That proves the comparison is conditional, not an
-  # unconditional re-read every call.
-  printf '%s old-tier\n' "$(stat -f %m "$sandbox/credentials.json" 2>/dev/null || stat -c %Y "$sandbox/credentials.json")" \
+  # The cache holds a tier the credentials file does not, so
+  # the first call's output shows which source answered: only
+  # a cache hit returns cached-tier. That proves the
+  # comparison is conditional, not an unconditional re-read.
+  printf '%s cached-tier\n' "$(stat -f %m "$sandbox/credentials.json" 2>/dev/null || stat -c %Y "$sandbox/credentials.json")" \
     >"$sandbox/tier-cache"
 
   first=$(
@@ -1411,7 +1413,7 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
 
   assert_eq \
     "StatusLineTierSegment > corner > should re-read subscriptionType when the invalidation timestamp is newer than the cache" \
-    "old-tier new-tier" "$first $second"
+    "cached-tier new-tier" "$first $second"
   rm -rf "$sandbox"
 }
 
