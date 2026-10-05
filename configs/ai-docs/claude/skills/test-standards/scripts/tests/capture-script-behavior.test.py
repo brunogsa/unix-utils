@@ -31,13 +31,13 @@ class _TempDirTestCase(unittest.TestCase):
         self._tmp.cleanup()
 
 
-def _run(*args, cwd=None):
+def _run(*args, cwd=None, env=None):
     """Run capture-script-behavior.py with `args`, returning the
     completed subprocess. Blackbox by design: this is the only way
     the tool is ever invoked in production too."""
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
-        capture_output=True, text=True, cwd=cwd,
+        capture_output=True, text=True, cwd=cwd, env=env,
     )
 
 
@@ -260,7 +260,7 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         self.assertIsNotNone(row["expected_post_state"]["git_status"])
         self.assertIn("top.txt", row["expected_post_state"]["git_status"])
 
-    def test_should_leave_the_real_repo_untouched_when_a_capture_crashes_midway_or_is_re_run(self):
+    def test_should_reject_a_dotdot_fixture_key_before_it_can_write_beside_the_fixture_directory(self):
         script = _write_executable(self.tmp_path / "toy.sh", (
             "#!/bin/sh\necho hi\nexit 0\n"
         ))
@@ -270,26 +270,60 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         ])
         json_out = self.tmp_path / "captured.json"
 
-        before = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=REPO_ROOT,
-            capture_output=True, text=True,
-        ).stdout
+        # A '..' key resolves against the fixture dir, so a leak
+        # would land beside it, in the system temp dir. Point
+        # TMPDIR at a directory this test owns and expect it
+        # empty after the run (a clean run deletes its fixture
+        # dir).
+        #
+        # The directory must exist: tempfile silently falls back
+        # to /tmp when TMPDIR names a missing one.
+        tool_tmp = self.tmp_path / "tool-tmp"
+        tool_tmp.mkdir()
+        env = {**os.environ, "TMPDIR": str(tool_tmp)}
 
-        # crash, then a repeat run - both must leave the repo
-        # untouched
+        # Crash, then a repeat run - both must leave it empty.
         for _ in range(2):
             result = _run("capture", "--script", str(script), "--table", str(table),
-                           "--json-out", str(json_out))
+                           "--json-out", str(json_out), env=env)
+            self.assertEqual(list(tool_tmp.iterdir()), [])
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("escape", result.stderr)
 
-        after = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=REPO_ROOT,
-            capture_output=True, text=True,
-        ).stdout
-        self.assertEqual(before, after)
-        self.assertFalse((REPO_ROOT.parent / "escape.txt").exists())
-        self.assertFalse((REPO_ROOT / "escape.txt").exists())
+    def test_should_reject_an_absolute_fixture_key_before_it_can_write_into_a_repo_it_points_at(self):
+        # An absolute key replaces the fixture dir outright, so
+        # a leak lands wherever the key points.
+        # Point it into a throwaway git repo and compare that
+        # repo's porcelain before and after.
+        repo = self.tmp_path / "victim-repo"
+        repo.mkdir()
+        script = _write_executable(repo / "toy.sh", (
+            "#!/bin/sh\necho hi\nexit 0\n"
+        ))
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+        leak_target = repo / "leaked.txt"
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "escaping-row", "argv": [], "stdin": "", "branch": None,
+             "fixture_files": {str(leak_target): "should never land"}, "git_init": False},
+        ])
+        json_out = self.tmp_path / "captured.json"
+
+        def porcelain() -> str:
+            return subprocess.run(
+                ["git", "status", "--porcelain"], cwd=repo,
+                capture_output=True, text=True, check=True,
+            ).stdout
+
+        before = porcelain()
+
+        result = _run("capture", "--script", str(script), "--table", str(table),
+                       "--json-out", str(json_out), cwd=repo)
+
+        self.assertEqual(before, porcelain())
+        self.assertFalse(leak_target.exists())
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("escape", result.stderr)
 
     def test_should_normalize_duration_pid_temp_path_and_uuid_values_to_the_same_masked_value_across_captures(self):
         # One row, captured twice independently (two fresh
