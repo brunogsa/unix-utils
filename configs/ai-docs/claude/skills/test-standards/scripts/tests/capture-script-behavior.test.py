@@ -669,6 +669,33 @@ class TestCaptureScriptBehaviorRowEnv(_TempDirTestCase):
         self.assertEqual(row["env"], {"MY_VAR": "<FIXTURE_DIR>/x", "HOME": None})
 
 
+class TestCaptureScriptBehaviorExecutableFiles(_TempDirTestCase):
+    def test_should_let_a_script_run_a_fixture_file_listed_as_executable_from_path_with_the_index_recording_the_bit(self):
+        # One fake tool is the only extra executable this file
+        # pays a first-exec scan for, so keep it to one row.
+        script = _write_executable(self.tmp_path / "toy.sh", (
+            "#!/bin/sh\n"
+            "fake\n"
+            "git ls-files -s bin/fake | cut -d' ' -f1\n"
+        ))
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "fake-tool-row", "git_init": True,
+             "fixture_files": {"bin/fake": "#!/bin/sh\necho fake-marker\n"},
+             "executable_files": ["bin/fake"],
+             "env": {"PATH": "<FIXTURE_DIR>/bin:/usr/bin:/bin"}},
+        ])
+        json_out = self.tmp_path / "captured.json"
+
+        result = _run("capture", "--script", str(script), "--table", str(table),
+                       "--json-out", str(json_out))
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        row = json.loads(json_out.read_text())["rows"][0]
+        self.assertEqual(row["expected_stdout"], "fake-marker\n100755\n")
+        self.assertEqual(row["expected_exit_code"], 0)
+        self.assertEqual(row["expected_post_state"]["git_status"], "A  bin/fake\n")
+
+
 class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     """A row the tool rejects before running anything: the toy
     script path is never executed, so it need not exist."""
@@ -736,6 +763,15 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: row 'env-number-row': "), msg=stderr)
         self.assertIn("RETRIES", stderr)
+
+    def test_should_reject_an_executable_file_that_is_not_a_fixture_file_naming_the_row_and_the_key(self):
+        stderr = self._capture_rejecting([
+            {"name": "ghost-exec-row", "fixture_files": {"a": "x"}, "executable_files": ["bin/ghost"]},
+        ])
+
+        self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+        self.assertTrue(stderr.startswith("error: row 'ghost-exec-row': "), msg=stderr)
+        self.assertIn("bin/ghost", stderr)
 
     def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
         stderr = self._capture_rejecting([

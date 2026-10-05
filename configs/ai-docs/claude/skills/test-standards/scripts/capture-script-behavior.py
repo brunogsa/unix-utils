@@ -114,6 +114,7 @@ class Row:
     expected_exit_code: int | None = None
     expected_post_state: dict | None = None
     env: dict | None = None
+    executable_files: list = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict) -> "Row":
@@ -127,6 +128,7 @@ class Row:
             listed = ", ".join(repr(key) for key in unknown)
             raise InvalidRowError(f"unknown key(s) {listed}")
         _validate_env(data.get("env"))
+        _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
         return cls(**data)
 
     def has_golden(self) -> bool:
@@ -196,6 +198,14 @@ def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:
     return merged
 
 
+def _validate_executable_files(executable_files, fixture_files) -> None:
+    if not isinstance(executable_files, list):
+        raise InvalidRowError(f"executable_files must be a list of fixture_files keys, got {executable_files!r}")
+    for key in executable_files:
+        if key not in (fixture_files or {}):
+            raise InvalidRowError(f"executable_files entry {key!r} is not a key of fixture_files")
+
+
 def _validate_fixture_key(key: str) -> None:
     if Path(key).is_absolute() or any(marker in Path(key).parts for marker in FIXTURE_ESCAPE_MARKERS):
         raise FixtureEscapeError(
@@ -243,6 +253,8 @@ def setup_fixture(fixture_dir: Path, row: Row) -> None:
             )
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content)
+        if key in row.executable_files:
+            target.chmod(0o755)
     if row.git_init:
         subprocess.run(["git", "init", "-q"], cwd=fixture_dir, capture_output=True)
         subprocess.run(["git", "add", "-A"], cwd=fixture_dir, capture_output=True)
