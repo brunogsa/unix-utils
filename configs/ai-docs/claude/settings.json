@@ -208,6 +208,15 @@
             "command": "bash ~/.claude/hooks/claude-explore-mandate-hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|mcp__claude_ai_Slack__slack_(send_message|send_message_draft|schedule_message|create_canvas|update_canvas)|mcp__plugin_linear_linear__save_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/dash-guard.py"
+          }
+        ]
       }
     ],
     "PostToolUse": [
