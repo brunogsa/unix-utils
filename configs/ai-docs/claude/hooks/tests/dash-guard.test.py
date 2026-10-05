@@ -52,7 +52,7 @@ class DashGuardTestCase(unittest.TestCase):
 
     def assert_denied(self, payload):
         out = decision(run_hook(payload))
-        self.assertIsNotNone(out, "expected a deny decision")
+        assert out is not None, "expected a deny decision"
         self.assertEqual(out["hookEventName"], "PreToolUse")
         self.assertEqual(out["permissionDecision"], "deny")
         return out["permissionDecisionReason"]
