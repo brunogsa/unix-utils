@@ -696,6 +696,31 @@ class TestCaptureScriptBehaviorExecutableFiles(_TempDirTestCase):
         self.assertEqual(row["expected_post_state"]["git_status"], "A  bin/fake\n")
 
 
+class TestCaptureScriptBehaviorScriptRelpath(_TempDirTestCase):
+    def test_should_run_a_copy_of_the_script_inside_the_fixture_so_it_finds_its_siblings_and_leave_the_copy_out_of_the_tree(self):
+        script = _write_executable(self.tmp_path / "toy.sh", (
+            "#!/bin/sh\n"
+            'cat "$(dirname "$0")/data.txt"\n'
+            'echo "$0"\n'
+        ))
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "sibling-row", "git_init": True,
+             "fixture_files": {"tools/data.txt": "sibling-data\n"},
+             "script_relpath": "tools/toy.sh"},
+        ])
+        json_out = self.tmp_path / "captured.json"
+
+        result = _run("capture", "--script", str(script), "--table", str(table),
+                       "--json-out", str(json_out))
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        row = json.loads(json_out.read_text())["rows"][0]
+        self.assertEqual(row["expected_stdout"], "sibling-data\n./tools/toy.sh\n")
+        post_state = row["expected_post_state"]
+        self.assertEqual(list(post_state["tree"]), ["tools/data.txt"])
+        self.assertEqual(post_state["git_status"], "A  tools/data.txt\nA  tools/toy.sh\n")
+
+
 class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     """A row the tool rejects before running anything: the toy
     script path is never executed, so it need not exist."""
@@ -772,6 +797,32 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: row 'ghost-exec-row': "), msg=stderr)
         self.assertIn("bin/ghost", stderr)
+
+    def test_should_reject_a_script_relpath_that_leaves_the_fixture_naming_the_row_and_the_field(self):
+        for bad_relpath in ("/etc/toy.sh", "../toy.sh"):
+            with self.subTest(script_relpath=bad_relpath):
+                stderr = self._capture_rejecting([{"name": "escape-row", "script_relpath": bad_relpath}])
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith("error: row 'escape-row': "), msg=stderr)
+                self.assertIn("script_relpath", stderr)
+                self.assertIn(bad_relpath, stderr)
+
+    def test_should_reject_a_script_relpath_that_collides_with_a_fixture_file_naming_the_row_and_the_field(self):
+        collisions = (
+            ("tools/toy.sh", {"tools/toy.sh": "x"}),
+            ("tools/toy.sh", {"tools": "x"}),
+            ("tools", {"tools/data.txt": "x"}),
+        )
+        for relpath, fixture_files in collisions:
+            with self.subTest(script_relpath=relpath, fixture_files=list(fixture_files)):
+                stderr = self._capture_rejecting([
+                    {"name": "clash-row", "script_relpath": relpath, "fixture_files": fixture_files},
+                ])
+
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith("error: row 'clash-row': "), msg=stderr)
+                self.assertIn("script_relpath", stderr)
 
     def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
         stderr = self._capture_rejecting([

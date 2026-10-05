@@ -29,6 +29,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
@@ -115,6 +116,7 @@ class Row:
     expected_post_state: dict | None = None
     env: dict | None = None
     executable_files: list = field(default_factory=list)
+    script_relpath: str | None = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "Row":
@@ -129,6 +131,7 @@ class Row:
             raise InvalidRowError(f"unknown key(s) {listed}")
         _validate_env(data.get("env"))
         _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
+        _validate_script_relpath(data.get("script_relpath"), data.get("fixture_files"))
         return cls(**data)
 
     def has_golden(self) -> bool:
@@ -206,6 +209,26 @@ def _validate_executable_files(executable_files, fixture_files) -> None:
             raise InvalidRowError(f"executable_files entry {key!r} is not a key of fixture_files")
 
 
+def _validate_script_relpath(script_relpath, fixture_files) -> None:
+    if script_relpath is None:
+        return
+    if not isinstance(script_relpath, str) or not script_relpath:
+        raise InvalidRowError(f"script_relpath must be a non-empty string, got {script_relpath!r}")
+    script_path = Path(script_relpath)
+    if script_path.is_absolute() or any(marker in script_path.parts for marker in FIXTURE_ESCAPE_MARKERS):
+        raise InvalidRowError(
+            f"script_relpath {script_relpath!r} escapes the fixture directory "
+            "(absolute paths and '..' segments are rejected)"
+        )
+    for key in fixture_files or {}:
+        key_path = Path(key)
+        if key_path == script_path or key_path in script_path.parents or script_path in key_path.parents:
+            raise InvalidRowError(
+                f"script_relpath {script_relpath!r} collides with fixture_files key {key!r}: "
+                "the same path, or one inside the other"
+            )
+
+
 def _validate_fixture_key(key: str) -> None:
     if Path(key).is_absolute() or any(marker in Path(key).parts for marker in FIXTURE_ESCAPE_MARKERS):
         raise FixtureEscapeError(
@@ -215,14 +238,14 @@ def _validate_fixture_key(key: str) -> None:
         )
 
 
-def hash_fixture_tree(root: Path, *, fixture_dir: Path) -> dict:
+def hash_fixture_tree(root: Path, *, fixture_dir: Path, skip_relpath: str | None = None) -> dict:
     """Recursively hash every file under `root` (masking content
     first) into a {relpath: sha256} map - the post-state half of the
-    captured tuple."""
+    captured tuple. `skip_relpath` leaves one file out."""
     tree = {}
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
-        if path.is_file() and relative.parts[0] != GIT_DIR_NAME:
+        if path.is_file() and relative.parts[0] != GIT_DIR_NAME and relative.as_posix() != skip_relpath:
             relpath = relative.as_posix()
             raw = path.read_bytes()
             try:
@@ -260,6 +283,20 @@ def setup_fixture(fixture_dir: Path, row: Row) -> None:
         subprocess.run(["git", "add", "-A"], cwd=fixture_dir, capture_output=True)
 
 
+def _place_script_in_fixture(script: Path, row: Row, *, fixture_dir: Path) -> str:
+    """Copy `script` to row.script_relpath and return the program
+    to run. A copy, not a symlink: Path.resolve() and readlink -f
+    follow a symlink back into the repo. The './' prefix keeps
+    $0 free of any temp path."""
+    relpath = str(row.script_relpath)
+    destination = fixture_dir / relpath
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(script, destination)
+    if row.git_init:
+        subprocess.run(["git", "add", "--", relpath], cwd=fixture_dir, capture_output=True)
+    return f"./{relpath}"
+
+
 def capture_row(
     script: Path, row: Row, *, fixture_dir: Path, timeout_seconds: float = ROW_TIMEOUT_SECONDS,
 ) -> Captured:
@@ -267,9 +304,12 @@ def capture_row(
     prepared fixture_dir and return the full captured tuple. A run
     past `timeout_seconds` raises RowTimeoutError rather than
     recording a golden from a killed process."""
+    program = str(script)
+    if row.script_relpath is not None:
+        program = _place_script_in_fixture(script, row, fixture_dir=fixture_dir)
     try:
         result = subprocess.run(
-            [str(script), *row.argv],
+            [program, *row.argv],
             cwd=fixture_dir, input=row.stdin, env=_build_env(row, fixture_dir=fixture_dir),
             capture_output=True, text=True, timeout=timeout_seconds,
         )
@@ -280,7 +320,10 @@ def capture_row(
             row=repr(row.name),
         ) from exc
     post_state = {
-        "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir),
+        # The copy is not hashed: the original script and its
+        # rewrite differ in content by design, so hashing it
+        # would fail every replay.
+        "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir, skip_relpath=row.script_relpath),
         "git_status": capture_git_status(fixture_dir, fixture_dir=fixture_dir) if row.git_init else None,
     }
     return Captured(
