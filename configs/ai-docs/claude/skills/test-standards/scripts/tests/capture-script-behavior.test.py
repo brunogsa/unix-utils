@@ -721,6 +721,26 @@ class TestCaptureScriptBehaviorScriptRelpath(_TempDirTestCase):
         self.assertEqual(post_state["git_status"], "A  tools/data.txt\nA  tools/toy.sh\n")
 
 
+class TestMaskText(unittest.TestCase):
+    def test_should_mask_a_temp_path_a_script_creates_to_the_same_text_on_macos_and_linux(self):
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        temp_paths = (
+            "/var/folders/ab/cd/T/tmpqwerty12/sub/file",
+            "/private/var/folders/ab/cd/T/tmp.QwErTy12/sub/file",
+            "/tmp/tmpqwerty12/sub/file",
+            "/tmp/tmp.QwErTy1234/sub/file",
+            "/var/folders/ab/cd/T/pytest-of-bruno/pytest-7/test_case0/out.txt",
+        )
+
+        for temp_path in temp_paths:
+            with self.subTest(temp_path=temp_path):
+                self.assertEqual(harness.mask_text(f"wrote {temp_path}\n"), "wrote <TMPDIR>\n")
+                self.assertEqual(harness.mask_text(f'"{temp_path}" is gone'), '"<TMPDIR>" is gone')
+
+
 class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     """A row the tool rejects before running anything: the toy
     script path is never executed, so it need not exist."""

@@ -45,8 +45,13 @@ MASK_PATTERNS = (
     (re.compile(r"\b\d+(\.\d+)?s\b"), "<DURATION>"),
     (re.compile(r"\bpid[= ]\d+\b", re.IGNORECASE), "pid=<PID>"),
     (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE), "<UUID>"),
-    (re.compile(r"/tmp/tmp[A-Za-z0-9_]{4,}"), "<TMPDIR>"),
-    (re.compile(r"/var/folders/[A-Za-z0-9_./-]+"), "<TMPDIR>"),
+
+    # Both temp-dir patterns consume the rest of the path, so
+    # macOS (/var/folders, or /private/var/folders once resolved
+    # by `pwd -P`) and Linux (Python tempfile or GNU mktemp,
+    # whose names carry a dot) mask to the same <TMPDIR>.
+    (re.compile(r"/tmp/tmp[A-Za-z0-9_.][A-Za-z0-9_./-]{3,}"), "<TMPDIR>"),
+    (re.compile(r"(?:/private)?/var/folders/[A-Za-z0-9_./-]+"), "<TMPDIR>"),
 )
 
 # The fixture dir differs every run, so a row's env value keeps
