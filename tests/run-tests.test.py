@@ -166,7 +166,7 @@ def build_sandbox(
     *,
     gate=GO_GATE,
     node=PASSING_NODE,
-    pytest_tool=PASSING_PYTEST,
+    pytest_tool: FakeTool | None = PASSING_PYTEST,
     path_tools=DEFAULT_PATH_TOOLS,
     bash_suites=None,
     bash_suite_bodies=None,
@@ -245,6 +245,20 @@ def shared_stub(tmp_path_factory):
     stub.chmod(0o755)
     subprocess.run([str(stub)], check=True)
     return stub
+
+
+@pytest.fixture(scope="session")
+def unexecable_tool(tmp_path_factory):
+    # Executable as far as `shutil.which` and `os.access` can
+    # tell, yet the kernel cannot exec it: its `#!`
+    # line names an interpreter that does not exist.
+    #
+    # Written once per session because macOS scans each new
+    # executable on its first exec.
+    tool = tmp_path_factory.mktemp("unexecable-tools") / "unexecable-tool"
+    tool.write_text("#!/nonexistent/interpreter\n")
+    tool.chmod(0o755)
+    return tool
 
 
 class TestHeadroomGate:
@@ -788,3 +802,29 @@ class TestBashNotInstalled:
 
     def test_should_name_bash_as_not_installed_in_the_replayed_log(self, result):
         assert "bash: command not found" in result.output
+
+
+class TestToolFoundButCannotBeExecuted:
+    @pytest.fixture(scope="class")
+    @classmethod
+    def result(cls, tmp_path_factory, shared_stub, unexecable_tool):
+        root = tmp_path_factory.mktemp("sandbox")
+        build_sandbox(
+            root,
+            shared_stub,
+            pytest_tool=None,
+            bash_suites={FAKE_BASH_SUITE: 0},
+        )
+        (root / "bin" / "pytest").symlink_to(unexecable_tool)
+        return run_runner(root)
+
+    def test_should_fail_the_pytest_entry_and_exit_non_zero_instead_of_crashing(
+        self, result
+    ):
+        assert (result.status, "FAIL  pytest" in result.output) == (1, True)
+
+    def test_should_explain_the_launch_error_in_the_replayed_log(self, result):
+        assert "pytest: No such file or directory" in result.output
+
+    def test_should_still_run_the_other_suites_rather_than_aborting(self, result):
+        assert f"PASS  {FAKE_BASH_SUITE}" in result.output
