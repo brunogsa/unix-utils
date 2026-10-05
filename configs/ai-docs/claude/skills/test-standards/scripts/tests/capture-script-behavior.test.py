@@ -271,10 +271,11 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         json_out = self.tmp_path / "captured.json"
 
         # A '..' key resolves against the fixture dir, so a leak
-        # would land beside it, in the system temp dir. Point
-        # TMPDIR at a directory this test owns and expect it
-        # empty after the run (a clean run deletes its fixture
-        # dir).
+        # would land beside it, in the system temp dir.
+        #
+        # Point TMPDIR at a directory this test owns and expect
+        # it empty after the run (a clean run deletes its
+        # fixture dir).
         #
         # The directory must exist: tempfile silently falls back
         # to /tmp when TMPDIR names a missing one.
