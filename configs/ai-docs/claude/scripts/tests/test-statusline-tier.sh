@@ -317,6 +317,17 @@ EOF
   chmod +x "$bin_dir/mktemp"
 }
 
+# The ccburn, ccstatusline and stat fakes never vary per
+# test, so each is written once here and linked into every
+# sandbox; a per-test copy would pay the first-exec scan
+# described above again.
+cat >"$SHARED_FAKE_BIN_DIR/ccburn" <<'SHARED_FAKE_CCBURN'
+#!/usr/bin/env bash
+cat
+SHARED_FAKE_CCBURN
+chmod +x "$SHARED_FAKE_BIN_DIR/ccburn"
+"$SHARED_FAKE_BIN_DIR/ccburn" </dev/null >/dev/null 2>&1
+
 # write_fake_ccburn - installs a fake `ccburn` binary that
 # mirrors the real one's confirmed contract.
 #
@@ -329,11 +340,7 @@ EOF
 # repo's.
 write_fake_ccburn() {
   local bin_dir="$1"
-  cat >"$bin_dir/ccburn" <<'EOF'
-#!/usr/bin/env bash
-cat
-EOF
-  chmod +x "$bin_dir/ccburn"
+  ln -sf "$SHARED_FAKE_BIN_DIR/ccburn" "$bin_dir/ccburn"
 }
 
 # write_usage_cache_fixture - seeds ccstatusline's own
@@ -368,47 +375,7 @@ write_usage_cache_fixture() {
 EOF
 }
 
-# write_fake_ccstatusline - installs a fake `ccstatusline`
-# binary that reads the SAME config shape the real one
-# reads from "$HOME/.config/ccstatusline/settings.json"
-# (confirmed via ccstatusline.js's DEFAULT_SETTINGS_PATH).
-#
-# It also reads the same stdin JSON payload a Custom
-# Command widget receives (confirmed via
-# CustomCommand.tsx's render(): the full payload piped to
-# item.commandPath's stdin).
-#
-# For each configured widget it either execs the real
-# commandPath or extracts a fixed jq path.
-#
-# The exec branch covers custom-command widgets - that is
-# what actually proves our config wires statusline-tier.sh
-# correctly.
-#
-# The jq branch covers the handful of built-in widget types
-# this repo's config uses, a stand-in for ccstatusline's
-# own, out-of-scope rendering.
-#
-# Each present value is emitted as "[id-or-type: value]".
-#
-# For custom-command widgets specifically, this branches on
-# EXIT STATUS, matching ccstatusline's own
-# CustomCommandWidget.render().
-#
-# A non-zero exit makes the real widget's execSync() throw,
-# and its catch block renders a visible "[Exit: N]" token
-# regardless of any stdout the process produced.
-#
-# Only an exit-zero run with empty stdout reaches the real
-# widget's "return output || null" omission path (AC-11
-# auto-review finding F3).
-#
-# Branching on stdout emptiness alone let a script that
-# exits non-zero on the unavailable path pass tests while
-# the real widget would still render "[Exit: N]" on screen.
-write_fake_ccstatusline() {
-  local bin_dir="$1"
-  cat >"$bin_dir/ccstatusline" <<'EOF'
+cat >"$SHARED_FAKE_BIN_DIR/ccstatusline" <<'SHARED_FAKE_CCSTATUSLINE'
 #!/usr/bin/env bash
 payload="$(cat)"
 config_file="$HOME/.config/ccstatusline/settings.json"
@@ -471,8 +438,55 @@ while IFS= read -r widget; do
   [ -n "$val" ] && out="${out}[${marker}:${val}]"
 done < <(jq -c '.lines[][]' "$config_file")
 printf '%s\n' "$out"
-EOF
-  chmod +x "$bin_dir/ccstatusline"
+SHARED_FAKE_CCSTATUSLINE
+chmod +x "$SHARED_FAKE_BIN_DIR/ccstatusline"
+
+# The fake reads its widgets from the calling test's own
+# $HOME, so the warm-up needs no settings file: it execs
+# the fake and fails early, which is all the scan needs.
+HOME=/nonexistent "$SHARED_FAKE_BIN_DIR/ccstatusline" </dev/null >/dev/null 2>&1
+
+# write_fake_ccstatusline - installs a fake `ccstatusline`
+# binary that reads the SAME config shape the real one
+# reads from "$HOME/.config/ccstatusline/settings.json"
+# (confirmed via ccstatusline.js's DEFAULT_SETTINGS_PATH).
+#
+# It also reads the same stdin JSON payload a Custom
+# Command widget receives (confirmed via
+# CustomCommand.tsx's render(): the full payload piped to
+# item.commandPath's stdin).
+#
+# For each configured widget it either execs the real
+# commandPath or extracts a fixed jq path.
+#
+# The exec branch covers custom-command widgets - that is
+# what actually proves our config wires statusline-tier.sh
+# correctly.
+#
+# The jq branch covers the handful of built-in widget types
+# this repo's config uses, a stand-in for ccstatusline's
+# own, out-of-scope rendering.
+#
+# Each present value is emitted as "[id-or-type: value]".
+#
+# For custom-command widgets specifically, this branches on
+# EXIT STATUS, matching ccstatusline's own
+# CustomCommandWidget.render().
+#
+# A non-zero exit makes the real widget's execSync() throw,
+# and its catch block renders a visible "[Exit: N]" token
+# regardless of any stdout the process produced.
+#
+# Only an exit-zero run with empty stdout reaches the real
+# widget's "return output || null" omission path (AC-11
+# auto-review finding F3).
+#
+# Branching on stdout emptiness alone let a script that
+# exits non-zero on the unavailable path pass tests while
+# the real widget would still render "[Exit: N]" on screen.
+write_fake_ccstatusline() {
+  local bin_dir="$1"
+  ln -sf "$SHARED_FAKE_BIN_DIR/ccstatusline" "$bin_dir/ccstatusline"
 }
 
 # marker_value - extracts "value" from one "[marker:value]"
@@ -1711,16 +1725,7 @@ it_should_return_well_under_the_timeout_on_a_successful_keychain_read
 # write_fake_gnu_stat reproduces that divergence on this
 # BSD/macOS dev host via a fake `stat` shim.
 
-# write_fake_gnu_stat - installs a fake `stat` binary at
-# "$bin_dir/stat" that mirrors GNU coreutils' own argument
-# parsing.
-#
-# `-f` succeeds as the boolean --file-system flag (a
-# multi-line dump, exit 0) while `-c %Y` is the real
-# mtime-epoch format read.
-write_fake_gnu_stat() {
-  local bin_dir="$1"
-  cat >"$bin_dir/stat" <<'EOF'
+cat >"$SHARED_FAKE_BIN_DIR/stat" <<'SHARED_FAKE_STAT'
 #!/usr/bin/env bash
 if [ "$1" = "-f" ]; then
   cat <<'DUMP'
@@ -1736,8 +1741,20 @@ elif [ "$1" = "-c" ] && [ "$2" = "%Y" ]; then
   exit 0
 fi
 exit 1
-EOF
-  chmod +x "$bin_dir/stat"
+SHARED_FAKE_STAT
+chmod +x "$SHARED_FAKE_BIN_DIR/stat"
+"$SHARED_FAKE_BIN_DIR/stat" -c %Y warm-up >/dev/null 2>&1 </dev/null
+
+# write_fake_gnu_stat - installs a fake `stat` binary at
+# "$bin_dir/stat" that mirrors GNU coreutils' own argument
+# parsing.
+#
+# `-f` succeeds as the boolean --file-system flag (a
+# multi-line dump, exit 0) while `-c %Y` is the real
+# mtime-epoch format read.
+write_fake_gnu_stat() {
+  local bin_dir="$1"
+  ln -sf "$SHARED_FAKE_BIN_DIR/stat" "$bin_dir/stat"
 }
 
 it_should_return_a_single_line_integer_epoch_when_the_hosts_stat_treats_dash_f_as_a_gnu_boolean_flag() {
