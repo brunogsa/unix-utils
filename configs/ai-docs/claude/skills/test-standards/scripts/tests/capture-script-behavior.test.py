@@ -7,6 +7,7 @@
 # per test so no run touches the real repo tree.
 
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -347,6 +348,28 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
             capture_output=True, text=True,
         )
         self.assertEqual(replay_result.returncode, 0, msg=replay_result.stdout + replay_result.stderr)
+
+    def test_should_fail_naming_the_row_when_its_script_outlives_the_row_timeout(self):
+        # The script blocks on a FIFO opened read-write via a
+        # bash builtin, so it starts no child process a kill
+        # could miss.
+        fifo = self.tmp_path / "block.fifo"
+        os.mkfifo(fifo)
+        script = _write_executable(self.tmp_path / "hang.sh", (
+            "#!/bin/bash\nexec 3<>\"$1\"\nread -t 600 -u 3\n"
+        ))
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        row = harness.Row.from_dict({"name": "hanging-row", "argv": [str(fifo)]})
+        fixture_dir = self.tmp_path / "fixture"
+        fixture_dir.mkdir()
+
+        with self.assertRaises(harness.RowTimeoutError) as raised:
+            harness.capture_row(script, row, fixture_dir=fixture_dir, timeout_seconds=1)
+
+        self.assertIn("hanging-row", str(raised.exception))
 
     def test_should_normalize_duration_pid_temp_path_and_uuid_values_to_the_same_masked_value_across_captures(self):
         # One row, captured twice independently (two fresh

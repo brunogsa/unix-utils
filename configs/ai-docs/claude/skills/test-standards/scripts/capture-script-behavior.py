@@ -57,10 +57,18 @@ FIXTURE_ESCAPE_MARKERS = ("..",)
 # run to run, and the row's git status is captured separately.
 GIT_DIR_NAME = ".git"
 
+# Generous for a real script row; a hung row would otherwise
+# block the capture, and every replay, forever.
+ROW_TIMEOUT_SECONDS = 60
+
 
 class FixtureEscapeError(ValueError):
     """Raised when a row's fixture_files key would write outside its
     isolated fixture directory."""
+
+
+class RowTimeoutError(RuntimeError):
+    """Raised when a row's script outlives its timeout."""
 
 
 @dataclass
@@ -176,14 +184,24 @@ def setup_fixture(fixture_dir: Path, row: Row) -> None:
         subprocess.run(["git", "add", "-A"], cwd=fixture_dir, capture_output=True)
 
 
-def capture_row(script: Path, row: Row, *, fixture_dir: Path) -> Captured:
+def capture_row(
+    script: Path, row: Row, *, fixture_dir: Path, timeout_seconds: float = ROW_TIMEOUT_SECONDS,
+) -> Captured:
     """Run one table row against `script` inside its own, already-
-    prepared fixture_dir and return the full captured tuple."""
-    result = subprocess.run(
-        [str(script), *row.argv],
-        cwd=fixture_dir, input=row.stdin,
-        capture_output=True, text=True,
-    )
+    prepared fixture_dir and return the full captured tuple. A run
+    past `timeout_seconds` raises RowTimeoutError rather than
+    recording a golden from a killed process."""
+    try:
+        result = subprocess.run(
+            [str(script), *row.argv],
+            cwd=fixture_dir, input=row.stdin,
+            capture_output=True, text=True, timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RowTimeoutError(
+            f"row {row.name!r} ran past {timeout_seconds}s and was killed; "
+            "no golden is recorded from a killed run"
+        ) from exc
     post_state = {
         "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir),
         "git_status": capture_git_status(fixture_dir, fixture_dir=fixture_dir) if row.git_init else None,
