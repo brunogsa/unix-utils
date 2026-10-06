@@ -512,6 +512,62 @@ it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing() {
   assert_eq "should fail open and allow an over-cap subject when the subject checker cannot be run" "0" "$HOOK_EXIT"
 }
 
+# A git global option between "git" and the subcommand must not
+# hide the subcommand from the guard's checks.
+it_should_block_an_unattributed_commit_behind_a_global_option() {
+  local cmd
+  for cmd in \
+    'git -C /tmp/x commit -m msg' \
+    'git -c user.name=t commit -m msg' \
+    'git -C "/tmp/my dir" commit -m msg' \
+    'git --no-pager commit -m msg' \
+    'git --git-dir=/tmp/x/gitdir commit -m msg' \
+    'git --git-dir /tmp/x/gitdir --work-tree /tmp/x commit -m msg'; do
+    run_hook "$cmd"
+    assert_eq "should block a commit without attribution behind a global option: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_block_a_destructive_operation_behind_a_global_option() {
+  local cmd
+  for cmd in \
+    'git -C /tmp/x commit --amend -m "fix\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' \
+    'git -C /tmp/x reset --hard' \
+    'git -C /tmp/x clean -fd' \
+    'git -C /tmp/x branch -D feat' \
+    'git -C /tmp/x checkout .' \
+    'git -C /tmp/x restore .' \
+    'git -C /tmp/x worktree remove --force /tmp/wt' \
+    'git -C /tmp/x push --force origin feat'; do
+    run_hook "$cmd"
+    assert_eq "should block a destructive operation behind a global option: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_allow_a_safe_operation_behind_a_global_option() {
+  local cmd
+  for cmd in \
+    'git -C /tmp/x status' \
+    'git -C /tmp/x checkout feat' \
+    'git -C /tmp/x branch -d feat' \
+    'git -C /tmp/x push --force-with-lease origin feat' \
+    'git -c core.pager=cat log'; do
+    run_hook "$cmd"
+    assert_eq "should allow a safe operation behind a global option: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
+it_should_block_a_commit_into_another_repo_whose_staged_file_breaks_comment_format() {
+  local dir elsewhere cmd
+  dir=$(make_repo main)
+  elsewhere=$(make_repo main)
+  printf '%s\n' '# this standalone comment line runs well past the sixty-four character cap' > "$dir/f.sh"
+  git -C "$dir" add f.sh
+  cmd=$(printf 'git -C %s commit -m "add f.sh\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir")
+  run_hook "$cmd" "$elsewhere"
+  assert_eq "should block a commit run with -C into a repo whose staged file carries a comment-format violation" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -571,6 +627,10 @@ it_should_allow_commit_with_violation_when_format_gate_is_missing
 it_should_block_a_commit_whose_subject_runs_past_64_characters
 it_should_allow_a_commit_whose_subject_is_exactly_64_characters
 it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing
+it_should_block_an_unattributed_commit_behind_a_global_option
+it_should_block_a_destructive_operation_behind_a_global_option
+it_should_allow_a_safe_operation_behind_a_global_option
+it_should_block_a_commit_into_another_repo_whose_staged_file_breaks_comment_format
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

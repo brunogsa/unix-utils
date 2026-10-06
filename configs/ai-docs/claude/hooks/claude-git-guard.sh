@@ -39,6 +39,16 @@
 # doc line mentioning "git commit", a test string containing
 # "aigitcommit" - reads as a real invocation.
 #
+# CMD_STRUCT also drops every git global option (-C, -c,
+# --git-dir, --no-pager, ...) sitting between "git" and its
+# subcommand, so each check sees plain "git <subcommand>".
+#
+# Otherwise "git -C dir reset --hard" hides the subcommand from
+# every pattern below.
+#
+# The attribution, subject and staged-format checks still get
+# the RAW command, which keeps -C for them to read.
+#
 # Heredocs fed to a shell (bash, sh, ssh) are left unstripped,
 # since those genuinely execute an embedded git command.
 #
@@ -84,6 +94,7 @@ export CLAUDE_GIT_CMD="$CMD"
 CMD_STRUCT=$(python3 - 2>/dev/null <<'PYEOF'
 import importlib.util
 import os
+import re
 
 _lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
 _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
@@ -117,9 +128,26 @@ def blank_quotes(line):
     return "".join(out)
 
 
+# A quoted value is already blanked to one token, so each option
+# ends at whitespace; -Cr or -ca.b=c is not a git option and stays.
+GIT_OPTION_VALUE = r"(?:\x22[^\x22]*\x22|\x27[^\x27]*\x27|\S+)"
+GIT_GLOBAL_OPTIONS = re.compile(
+    r"\bgit(?:\s+(?:"
+    r"-[Cc]\s+" + GIT_OPTION_VALUE
+    + r"|--(?:git-dir|work-tree|namespace|config-env|attr-source)\s+" + GIT_OPTION_VALUE
+    + r"|--[A-Za-z][\w-]*(?:=\S*)?"
+    + r"|-[pP]"
+    + r")(?=\s))+"
+)
+
+
+def drop_git_global_options(line):
+    return GIT_GLOBAL_OPTIONS.sub("git", line)
+
+
 cmd = os.environ.get('CLAUDE_GIT_CMD', '')
 stripped = strip_heredoc_bodies_for_sinks(cmd, NON_EXECUTING_SINK_PATTERN)
-print('\n'.join(blank_quotes(line) for line in stripped.split('\n')))
+print('\n'.join(drop_git_global_options(blank_quotes(line)) for line in stripped.split('\n')))
 PYEOF
 ) || CMD_STRUCT="$CMD"
 
