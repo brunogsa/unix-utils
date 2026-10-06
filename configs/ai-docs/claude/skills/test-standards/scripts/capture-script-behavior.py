@@ -16,13 +16,14 @@
 #     --actual ACTUAL.json
 #
 # stdin: none
-# stdout: `compare` prints one JSON result object;
-# `capture` prints
+# stdout: `compare` prints one JSON result object, or nothing
+#   when an input file is malformed; `capture` prints
 #   nothing on success (its output is --json-out / --out)
 #
 # exit: 0 on success; 1 on a row that fails without an
 #   accepted divergence marker, a fixture-escape attempt,
-#   or a bad invocation
+#   a bad invocation, or a malformed compare input (told
+#   apart from a no-match by its empty stdout)
 
 import argparse
 import hashlib
@@ -217,10 +218,14 @@ def _is_object(value) -> bool:
     return isinstance(value, dict)
 
 
-def _is_integer_or_null(value) -> bool:
+def _is_integer(value) -> bool:
     # A Python bool is an int, but JSON true is not an exit
     # code.
-    return value is None or (isinstance(value, int) and not isinstance(value, bool))
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_integer_or_null(value) -> bool:
+    return value is None or _is_integer(value)
 
 
 def _is_object_or_null(value) -> bool:
@@ -718,9 +723,42 @@ def cmd_capture(args) -> int:
     return 0
 
 
+# The fields `compare` reads. An expected one is typed by the
+# same ROW_FIELD_TYPES entry a table row uses, so the two cannot
+# drift.
+COMPARE_EXPECTED_FIELDS = ("expected_stdout", "expected_stderr", "expected_exit_code", "expected_post_state")
+COMPARE_ACTUAL_FIELD_TYPES = {
+    "stdout": FieldType("a string", _is_string),
+    "stderr": FieldType("a string", _is_string),
+    "exit_code": FieldType("an integer", _is_integer),
+    "post_state": ROW_FIELD_TYPES["expected_post_state"],
+}
+
+
+def _compare_input_problem(data, field_types: dict) -> str | None:
+    """Why `data` cannot be compared, or None. A missing key is
+    fine, since compare defaults it, and a key compare does not
+    read is ignored: an expected file may be a whole row."""
+    if not isinstance(data, dict):
+        return f"the top level must be an object, got {_json_type_name(data)}"
+    for field_name, field_type in field_types.items():
+        if field_name in data and not field_type.is_accepted(data[field_name]):
+            return f"{field_name} must be {field_type.accepted}, got {_json_type_name(data[field_name])}"
+    return None
+
+
 def cmd_compare(args) -> int:
     expected = json.loads(Path(args.expected).read_text())
     actual_data = json.loads(Path(args.actual).read_text())
+    expected_field_types = {name: ROW_FIELD_TYPES[name] for name in COMPARE_EXPECTED_FIELDS}
+    for flag, path, data, field_types in (
+        ("--expected", args.expected, expected, expected_field_types),
+        ("--actual", args.actual, actual_data, COMPARE_ACTUAL_FIELD_TYPES),
+    ):
+        problem = _compare_input_problem(data, field_types)
+        if problem is not None:
+            print(f"error: {flag} {path}: {problem}", file=sys.stderr)
+            return 1
     actual = Captured(
         name=actual_data.get("name", ""),
         branch=actual_data.get("branch"),

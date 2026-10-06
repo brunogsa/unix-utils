@@ -1134,3 +1134,74 @@ class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
         self.assertFalse(json_out.exists())
         self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
         self.assertEqual(len(stderr.getvalue().splitlines()), 1, msg=stderr.getvalue())
+
+
+class TestCaptureScriptBehaviorCompareInput(_TempDirTestCase):
+    def _compare(self, expected, actual):
+        """Run `compare` in-process on two JSON files holding the
+        given values, returning (exit code, stdout, stderr)."""
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        expected_path = self.tmp_path / "expected.json"
+        actual_path = self.tmp_path / "actual.json"
+        expected_path.write_text(json.dumps(expected))
+        actual_path.write_text(json.dumps(actual))
+        stdout, stderr = io.StringIO(), io.StringIO()
+
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = harness.main(["compare", "--expected", str(expected_path), "--actual", str(actual_path)])
+
+        return exit_code, stdout.getvalue(), stderr.getvalue()
+
+    def test_should_report_a_compare_file_that_is_not_an_object_as_one_error_line_naming_the_flag_and_its_path(self):
+        cases = (
+            ("--expected", [{"expected_stdout": "x"}], {"stdout": "x"}, "array"),
+            ("--actual", {"expected_stdout": "x"}, "x", "string"),
+            ("--actual", {"expected_stdout": "x"}, None, "null"),
+        )
+        for flag, expected, actual, json_type in cases:
+            with self.subTest(flag=flag, actual=actual):
+                exit_code, stdout, stderr = self._compare(expected, actual)
+
+                self.assertEqual(exit_code, 1)
+                self.assertEqual(stdout, "")
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith(f"error: {flag} {self.tmp_path}"), msg=stderr)
+                self.assertIn(json_type, stderr)
+
+    def test_should_report_a_compare_field_of_the_wrong_json_type_naming_the_flag_the_field_and_the_type_it_got(self):
+        cases = (
+            ("--expected", {"expected_stdout": 5}, {}, "expected_stdout", "number"),
+            ("--expected", {"expected_stderr": ["x"]}, {}, "expected_stderr", "array"),
+            ("--expected", {"expected_exit_code": True}, {"exit_code": 1}, "expected_exit_code", "boolean"),
+            ("--expected", {"expected_exit_code": "0"}, {}, "expected_exit_code", "string"),
+            ("--expected", {"expected_post_state": "x"}, {}, "expected_post_state", "string"),
+            ("--actual", {}, {"stdout": 5}, "stdout", "number"),
+            ("--actual", {}, {"stderr": None}, "stderr", "null"),
+            ("--actual", {}, {"exit_code": True}, "exit_code", "boolean"),
+            ("--actual", {}, {"exit_code": "1"}, "exit_code", "string"),
+            ("--actual", {}, {"post_state": []}, "post_state", "array"),
+        )
+        for flag, expected, actual, field_name, json_type in cases:
+            with self.subTest(flag=flag, field=field_name, got=json_type):
+                exit_code, stdout, stderr = self._compare(expected, actual)
+
+                self.assertEqual(exit_code, 1)
+                self.assertEqual(stdout, "")
+                self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
+                self.assertTrue(stderr.startswith(f"error: {flag} {self.tmp_path}"), msg=stderr)
+                self.assertIn(f"{field_name} must be", stderr)
+                self.assertIn(f"got {json_type}", stderr)
+
+    def test_should_compare_a_whole_row_expected_file_and_default_a_missing_actual_key(self):
+        whole_row = {
+            "name": "row", "argv": ["--flag"], "stdin": "", "fixture_files": {},
+            "expected_stdout": "ok\n", "expected_exit_code": 0,
+        }
+
+        exit_code, stdout, stderr = self._compare(whole_row, {"stdout": "ok\n"})
+
+        self.assertEqual((exit_code, stderr), (0, ""))
+        self.assertEqual(json.loads(stdout), {"matches": True, "diff": {}})
