@@ -8,6 +8,9 @@
 #   a subject over 64 characters, nothing otherwise.
 # exit: 0 either way. Any other exit is a crash, which the git
 #   guard treats as allow.
+#
+# It denies only when sure of the subject. A shell expansion
+# before a bare -- leaves it unsure; one after it does not.
 
 import importlib.util
 import os
@@ -46,7 +49,9 @@ CLEANUP_CONFIG_KEYS = frozenset({"core.commentchar", "core.commentstring"})
 CLEANUP_CONFIG_SECTION = "commit."
 GIT_CONFIG_ENV_PREFIX = "GIT_CONFIG"
 
-UNSAFE_UNQUOTED = frozenset("*?[~{}()$`<&")
+EXPANDING_UNQUOTED = frozenset("*?[~{}()$`")
+STAGE_UNSAFE_UNQUOTED = frozenset("<&")
+EXPANDING_DOUBLE_QUOTED = frozenset("$`")
 DOUBLE_QUOTE_ESCAPABLE = frozenset('$`"\\\n')
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
 
@@ -58,6 +63,10 @@ class CannotBeSure(Exception):
 class Word(NamedTuple):
     text: str
     quoted_from: int | None
+
+    # bash may turn this word into other words, or none, so its
+    # text is not what git receives.
+    is_expandable: bool = False
 
 
 class Stage(NamedTuple):
@@ -159,6 +168,9 @@ class StageLexer:
     Anything it cannot model clears is_sure rather than raising,
     so lexing still reaches a later # that turns the rest into a
     comment, which changes the whole command's structure.
+
+    An expansion marks only its own word, because one in a
+    pathspec after -- cannot change the message.
     """
 
     def __init__(self, text, values):
@@ -172,6 +184,7 @@ class StageLexer:
         self.is_started = False
         self.quoted_from = None
         self.is_redirect_target = False
+        self.is_expandable = False
 
     def lex(self):
         while self.index < len(self.text):
@@ -199,7 +212,9 @@ class StageLexer:
         elif char == ">" or self.text.startswith("&>", self.index):
             self._lex_output_redirect()
         else:
-            if char in UNSAFE_UNQUOTED:
+            if char in EXPANDING_UNQUOTED:
+                self.is_expandable = True
+            elif char in STAGE_UNSAFE_UNQUOTED:
                 self.is_sure = False
             self._append(char)
             self.index += 1
@@ -214,12 +229,17 @@ class StageLexer:
         if not self.is_started:
             return
         if self.is_redirect_target:
+            # A redirect target is no word, so nothing later can
+            # tell where it stood relative to --.
+            if self.is_expandable:
+                self.is_sure = False
             self.is_redirect_target = False
         else:
-            self.words.append(Word("".join(self.chars), self.quoted_from))
+            self.words.append(Word("".join(self.chars), self.quoted_from, self.is_expandable))
         self.chars = []
         self.is_started = False
         self.quoted_from = None
+        self.is_expandable = False
 
     def _lex_placeholder(self):
         end = self.text.index(PLACEHOLDER_MARK, self.index + 1)
@@ -257,7 +277,9 @@ class StageLexer:
                 self._append(following, is_quoted=True)
                 index += 2
                 continue
-            if char in "$`" or char == PLACEHOLDER_MARK:
+            if char in EXPANDING_DOUBLE_QUOTED:
+                self.is_expandable = True
+            elif char == PLACEHOLDER_MARK:
                 self.is_sure = False
             self._append(char, is_quoted=True)
             index += 1
@@ -366,7 +388,8 @@ def _read_option(text):
 
 
 def _read_commit_options(words):
-    """Return {"message": [...], "file": [...]}, or None.
+    """Return ({"message": [...], "file": [...]}, index of the --
+    ending options or None), or None.
 
     git keeps parsing options after a pathspec, until --.
     """
@@ -376,7 +399,7 @@ def _read_commit_options(words):
         text = words[index].text
         index += 1
         if text == "--":
-            break
+            return values, index - 1
         if not text.startswith("-") or text == "-":
             continue
         option = _read_option(text)
@@ -391,7 +414,7 @@ def _read_commit_options(words):
             value = words[index].text
             index += 1
         values[kind].append(value)
-    return values
+    return values, None
 
 
 def _join_message_options(messages):
@@ -420,7 +443,14 @@ def _commit_message(stage, values):
     options = _read_commit_options(words[index + 1 :])
     if options is None:
         return None
-    messages, files = options["message"], options["file"]
+    values_by_kind, options_end = options
+
+    # Past a bare --, git reads every word as a pathspec, so an
+    # expansion there cannot reach the message.
+    checked_end = len(words) if options_end is None else index + 1 + options_end
+    if any(word.is_expandable for word in words[:checked_end]):
+        return None
+    messages, files = values_by_kind["message"], values_by_kind["file"]
     if messages and not files:
         return _join_message_options(messages)
     if files == ["-"] and not messages and stage.heredoc_keys:

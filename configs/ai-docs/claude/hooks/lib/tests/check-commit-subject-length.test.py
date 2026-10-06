@@ -43,9 +43,33 @@ NO_BREAK_SPACE_SUBJECT = SUBJECT_AT_CAP + " "
 LINE_SEPARATOR_SUBJECT = "fix(git-guard): stop a commit whose subject is longer than a cap."
 ATTRIBUTION = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
+# Commit 1ac7104f landed this 66-character subject through the
+# guard, because the $D in its pathspec made the checker unsure.
+LANDED_SUBJECT = "test(capture-script-behavior): resolve REPO_ROOT before walking up"
+LANDED_COMMAND = (
+    "cd /Users/brunoagostini/unix-utils; D=configs/ai-docs/claude/skills/test-standards/scripts;"
+    " F=($D/capture-script-behavior.py $D/tests/capture-script-behavior.test.py);"
+    ' node configs/ai-docs/claude/skills/doc-standards/scripts/check-comment-format.js "${F[@]}";'
+    ' echo gate=$?; ruff check "${F[@]}" | tail -1; pyright "${F[@]}" | tail -1\n'
+    f"printf '%s' '{LANDED_SUBJECT}' | wc -m\n"
+    "git commit -m \"$(cat <<'EOF'\n"
+    f"{LANDED_SUBJECT}\n"
+    "\n"
+    "Reached through the ~/.claude/skills symlink, pytest keeps the\n"
+    "unresolved path in __file__ under --import-mode=importlib, so the\n"
+    "parent walk ended at / and the leak test's rglob scanned the whole\n"
+    "filesystem. Resolving first matches tests/run-tests.test.py and\n"
+    "leaves the normal path unchanged.\n"
+    "\n"
+    f"{ATTRIBUTION}\n"
+    "EOF\n"
+    ")\" -- $D/tests/capture-script-behavior.test.py 2>&1 | tail -3; git log -n 5 --format='%h %s'"
+)
+
 # Rows marked False cannot run against real git as written.
 #
-# rtk is a local proxy, and a -m after -- names a missing path.
+# rtk is a local proxy, a -m after -- names a missing path, and
+# the landed 1ac7104f command starts with a cd into this repo.
 #
 # macOS /bin/bash 3.2 rejects an apostrophe inside the HEREDOC
 # form's body, which zsh and newer bash accept.
@@ -145,6 +169,25 @@ CHECKED_FORMS = [
     ),
     ("an option after a pathspec", f'git commit notes.txt -m "{SUBJECT_OVER_CAP}"', [SUBJECT_OVER_CAP], True),
     ("-- ending option parsing", f'git commit -m "{SUBJECT_OVER_CAP}" -- notes.txt', [SUBJECT_OVER_CAP], True),
+    ("the landed 1ac7104f command", LANDED_COMMAND, [LANDED_SUBJECT], False),
+    (
+        "a variable pathspec after --",
+        f'D=.; git commit -m "{SUBJECT_OVER_CAP}" -- $D/notes.txt',
+        [SUBJECT_OVER_CAP],
+        True,
+    ),
+    (
+        "an array pathspec after --",
+        f'F=(notes.txt other.txt); git commit -m "{SUBJECT_OVER_CAP}" -- "${{F[@]}}"',
+        [SUBJECT_OVER_CAP],
+        True,
+    ),
+    (
+        "a command substitution pathspec after --",
+        f'git add notes.txt && git commit -m "{SUBJECT_OVER_CAP}" -- $(git diff --cached --name-only)',
+        [SUBJECT_OVER_CAP],
+        True,
+    ),
     (
         "an -m after -- read as a pathspec",
         f'git commit -m "{SUBJECT_AT_CAP}" -- notes.txt -m "{SUBJECT_OVER_CAP}"',
@@ -217,6 +260,11 @@ FAIL_OPEN_FORMS = [
     ("a glob pathspec", f'git commit -m "{SUBJECT_OVER_CAP}" *.txt'),
     ("a tilde pathspec", f'git commit -m "{SUBJECT_OVER_CAP}" ~/notes.txt'),
     ("a brace pathspec", f'git commit -m "{SUBJECT_OVER_CAP}" {{notes,other}}.txt'),
+    ("a variable that may expand to options", f'git commit $OPTS -m "{SUBJECT_OVER_CAP}"'),
+    ("a variable pathspec with no --", f'git commit -m "{SUBJECT_OVER_CAP}" $FILE'),
+    ("a variable message", 'git commit -m "$SUBJ"'),
+    ("a -- taken as the value of -m", f'git commit -m "{SUBJECT_OVER_CAP}" -m -- $D'),
+    ("-F - fed by an input redirection after --", 'git commit -F - -- $D <"$MSG_FILE"'),
     ("a subshell", f'(git commit -m "{SUBJECT_OVER_CAP}" notes.txt)'),
     ("a commit inside a comment", f'echo ready # then; git commit -m "{SUBJECT_OVER_CAP}" notes.txt'),
     ("-C reusing a message", f'git commit -C HEAD -m "{SUBJECT_OVER_CAP}"'),
@@ -312,12 +360,14 @@ class TestCheckedForms:
         ids=[name for name, _command, _subjects, _oracle in CHECKED_FORMS],
     )
     def test_should_deny_from_the_cli_exactly_when_a_subject_runs_past_the_cap(self, command, expected_subjects):
-        is_over_cap = any(len(subject) > 64 for subject in expected_subjects)
+        over_cap = [subject for subject in expected_subjects if len(subject) > 64]
 
         result = _run_checker(command)
 
         assert result.returncode == 0
-        assert (result.stdout != "") == is_over_cap
+        assert (result.stdout != "") == bool(over_cap)
+        if over_cap:
+            assert f"subject is {len(over_cap[0])} characters" in result.stdout
 
 
 class TestFailOpen:
