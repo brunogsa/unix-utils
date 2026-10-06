@@ -479,6 +479,39 @@ it_should_allow_commit_with_violation_when_format_gate_is_missing() {
   assert_eq "should fail open and allow the commit when the comment-format gate cannot be run" "0" "$HOOK_EXIT"
 }
 
+# run_hook discards stderr, and this case must prove the deny
+# came from the subject length, not from another rule.
+it_should_block_a_commit_whose_subject_runs_past_64_characters() {
+  local dir cmd payload stderr_text
+  dir=$(make_repo main)
+  cmd=$(printf 'git commit --allow-empty -m "fix(git-guard): stop a commit whose subject is longer than a cap.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"')
+  payload=$(jq -n --arg c "$cmd" --arg d "$dir" '{tool_input: {command: $c}, cwd: $d}')
+  stderr_text=$(printf '%s' "$payload" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  assert_eq "should block a commit whose subject runs past 64 characters" "2" "$HOOK_EXIT"
+  case "$stderr_text" in
+    *"65 characters"*) assert_eq "should name the subject's length in the denial" "named" "named" ;;
+    *) assert_eq "should name the subject's length in the denial" "named" "$stderr_text" ;;
+  esac
+}
+
+it_should_allow_a_commit_whose_subject_is_exactly_64_characters() {
+  local dir cmd
+  dir=$(make_repo main)
+  cmd=$(printf 'git commit --allow-empty -m "fix(git-guard): stop a commit whose subject is longer than a cap\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"')
+  run_hook "$cmd" "$dir"
+  assert_eq "should allow a commit whose subject is exactly 64 characters" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing() {
+  local dir hook cmd
+  dir=$(make_repo main)
+  hook=$(make_hook_without_lib)
+  cmd=$(printf 'git commit --allow-empty -m "fix(git-guard): stop a commit whose subject is longer than a cap.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"')
+  run_hook_with_script "$hook" "$cmd" "$dir"
+  assert_eq "should fail open and allow an over-cap subject when the subject checker cannot be run" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -535,6 +568,9 @@ it_should_allow_git_status_when_shared_lib_is_missing
 it_should_block_commit_whose_file_breaks_comment_format
 it_should_allow_commit_whose_file_respects_comment_format
 it_should_allow_commit_with_violation_when_format_gate_is_missing
+it_should_block_a_commit_whose_subject_runs_past_64_characters
+it_should_allow_a_commit_whose_subject_is_exactly_64_characters
+it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
