@@ -351,8 +351,6 @@ def _validate_utf8_text(data: dict) -> None:
 def _validate_env(env) -> None:
     if env is None:
         return
-    if not isinstance(env, dict):
-        raise InvalidRowError(f"env must be an object mapping variable names to strings or null, got {env!r}")
     for variable, value in env.items():
         if not variable or "=" in variable or "\0" in variable:
             raise InvalidRowError(
@@ -385,8 +383,6 @@ def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:
 
 
 def _validate_executable_files(executable_files, fixture_files) -> None:
-    if not isinstance(executable_files, list):
-        raise InvalidRowError(f"executable_files must be a list of fixture_files keys, got {executable_files!r}")
     for key in executable_files:
         if key not in (fixture_files or {}):
             raise InvalidRowError(f"executable_files entry {key!r} is not a key of fixture_files")
@@ -395,7 +391,7 @@ def _validate_executable_files(executable_files, fixture_files) -> None:
 def _validate_script_relpath(script_relpath, fixture_files) -> None:
     if script_relpath is None:
         return
-    if not isinstance(script_relpath, str) or not script_relpath:
+    if not script_relpath:
         raise InvalidRowError(f"script_relpath must be a non-empty string, got {script_relpath!r}")
     script_path = Path(script_relpath)
     if script_path.is_absolute() or any(marker in script_path.parts for marker in FIXTURE_ESCAPE_MARKERS):
