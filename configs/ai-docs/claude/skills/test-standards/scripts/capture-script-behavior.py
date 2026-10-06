@@ -152,6 +152,7 @@ class Row:
             raise InvalidRowError(f"unknown key(s) {listed}")
         _validate_field_types(data)
         _validate_env(data.get("env"))
+        _validate_argv(data.get("argv", []))
         _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
         for key in data.get("fixture_files") or {}:
             _validate_fixture_key(key)
@@ -284,6 +285,20 @@ def _validate_env(env) -> None:
         return
     if not isinstance(env, dict):
         raise InvalidRowError(f"env must be an object mapping variable names to strings or null, got {env!r}")
+    for variable, value in env.items():
+        if not variable or "=" in variable or "\0" in variable:
+            raise InvalidRowError(
+                f"env variable name {variable!r} must be non-empty and hold no '=' or NUL byte, "
+                "which no process can receive"
+            )
+        if value is not None and "\0" in value:
+            raise InvalidRowError(f"env[{variable!r}] must not hold a NUL byte, which no process can receive")
+
+
+def _validate_argv(argv: list) -> None:
+    for index, entry in enumerate(argv):
+        if "\0" in entry:
+            raise InvalidRowError(f"argv[{index}] must not hold a NUL byte, which no process can receive")
 
 
 def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:

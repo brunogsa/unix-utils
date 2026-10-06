@@ -1071,3 +1071,66 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
         self.assertEqual(exit_code, 1)
         capture_row.assert_not_called()
         self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
+
+
+class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
+    def _load_harness(self):
+        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+        assert spec is not None and spec.loader is not None
+        harness = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(harness)
+        return harness
+
+    def test_should_reject_an_argv_entry_or_env_value_holding_a_nul_byte_naming_the_field_and_the_entry(self):
+        harness = self._load_harness()
+        cases = (
+            ({"argv": ["ok", "a\0b"]}, "argv[1]"),
+            ({"env": {"PROBE": "a\0b"}}, "env['PROBE']"),
+        )
+        for fields, entry in cases:
+            with self.subTest(fields=fields):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "nul-row", **fields})
+
+                self.assertIn(entry, raised.exception.reason)
+                self.assertIn("NUL byte", raised.exception.reason)
+
+    def test_should_reject_an_env_variable_name_that_is_empty_or_holds_an_equals_sign_or_a_nul_byte(self):
+        harness = self._load_harness()
+
+        for bad_name in ("", "A=B", "=", "A\0B"):
+            with self.subTest(name=bad_name):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "env-row", "env": {bad_name: "1"}})
+
+                self.assertIn("env variable name", raised.exception.reason)
+                self.assertIn(repr(bad_name), raised.exception.reason)
+
+    def test_should_accept_a_nul_byte_in_stdin_and_in_fixture_file_contents(self):
+        harness = self._load_harness()
+
+        row = harness.Row.from_dict({
+            "name": "binary-row", "stdin": "a\0b", "fixture_files": {"data.bin": "x\0y"},
+        })
+
+        self.assertEqual(row.stdin, "a\0b")
+
+    def test_should_run_no_row_when_a_later_row_holds_a_nul_byte_in_an_argv_entry(self):
+        harness = self._load_harness()
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "good-row"},
+            {"name": "bad-row", "argv": ["a\0b"]},
+        ])
+        json_out = self.tmp_path / "captured.json"
+        stderr = io.StringIO()
+
+        with mock.patch.object(harness, "capture_row") as capture_row, \
+                contextlib.redirect_stderr(stderr):
+            exit_code = harness.main(["capture", "--script", str(self.tmp_path / "never-run.sh"),
+                                      "--table", str(table), "--json-out", str(json_out)])
+
+        self.assertEqual(exit_code, 1)
+        capture_row.assert_not_called()
+        self.assertFalse(json_out.exists())
+        self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
+        self.assertEqual(len(stderr.getvalue().splitlines()), 1, msg=stderr.getvalue())
