@@ -49,10 +49,10 @@ MASK_PATTERNS = (
     (re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.IGNORECASE), "<UUID>"),
 
     # Both temp-dir patterns consume the rest of the path, so
-    # macOS (/var/folders, or /private/var/folders once resolved
-    # by `pwd -P`) and Linux (Python tempfile or GNU mktemp,
-    # whose names carry a dot) mask to the same <TMPDIR>.
-    (re.compile(r"/tmp/tmp[A-Za-z0-9_.][A-Za-z0-9_./-]{3,}"), "<TMPDIR>"),
+    # macOS (/var/folders or /tmp, also as /private/... once
+    # resolved by `pwd -P`) and Linux (Python tempfile or GNU
+    # mktemp, whose names carry a dot) mask to one <TMPDIR>.
+    (re.compile(r"(?:/private)?/tmp/tmp[A-Za-z0-9_.][A-Za-z0-9_./-]{3,}"), "<TMPDIR>"),
     (re.compile(r"(?:/private)?/var/folders/[A-Za-z0-9_./-]+"), "<TMPDIR>"),
 )
 

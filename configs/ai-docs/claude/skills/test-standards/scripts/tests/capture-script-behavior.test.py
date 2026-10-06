@@ -732,6 +732,8 @@ class TestMaskText(unittest.TestCase):
             "/private/var/folders/ab/cd/T/tmp.QwErTy12/sub/file",
             "/tmp/tmpqwerty12/sub/file",
             "/tmp/tmp.QwErTy1234/sub/file",
+            "/private/tmp/tmpqwerty12/sub/file",
+            "/private/tmp/tmp.QwErTy1234/sub/file",
             "/var/folders/ab/cd/T/pytest-of-bruno/pytest-7/test_case0/out.txt",
         )
 
