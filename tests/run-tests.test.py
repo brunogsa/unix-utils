@@ -27,8 +27,10 @@ import importlib.util
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -80,15 +82,23 @@ UNKNOWN_LINE = (
 # `drain_stdin` makes the fake read stdin to EOF before it
 # answers, the way a tool that reads stdin would hang on a
 # caller's stdin that never closes.
+#
+# `block_on_fifo` names a FIFO the fake opens read-write and
+# reads one line from, so it blocks until a signal stops it.
+# Its `.calls` line is written first and marks it started.
 FAKE_TOOL_SCRIPT = """#!/bin/sh
 exit_code=0
 output=
 expected_args=
 drain_stdin=
+block_on_fifo=
 [ -f "$0.fixture" ] && . "$0.fixture"
 printf '%s\\n' "$*" >> "$0.calls"
 if [ -n "$drain_stdin" ]; then
   while IFS= read -r line || [ -n "$line" ]; do :; done
+fi
+if [ -n "$block_on_fifo" ]; then
+  read -r line <> "$block_on_fifo"
 fi
 case "$*" in
   $expected_args) ;;
@@ -105,6 +115,7 @@ class FakeTool:
     output: str = ""
     expected_args: str = ""
     drain_stdin: bool = False
+    block_on_fifo: str = ""
 
 
 @dataclass(frozen=True)
@@ -135,6 +146,7 @@ def link_fake_tool(shared_stub, link_path, behavior):
         f"output={shlex.quote(behavior.output)}",
         f"expected_args={shlex.quote(behavior.expected_args)}",
         f"drain_stdin={'1' if behavior.drain_stdin else ''}",
+        f"block_on_fifo={shlex.quote(behavior.block_on_fifo)}",
     ]
     Path(f"{link_path}.fixture").write_text("\n".join(fixture_lines) + "\n")
 
@@ -797,7 +809,7 @@ class TestParallelRun:
                 for number in range(cls.SUITE_COUNT)
             ]
             tally = runner.Tally()
-            runner.run_entries(entries, tally)
+            runner.run_entries(entries, tally, runner.StopRequest())
             assert tally.pass_count == cls.SUITE_COUNT
             return most_live
 
@@ -857,3 +869,334 @@ class TestToolFoundButCannotBeExecuted:
 
     def test_should_still_run_the_other_suites_rather_than_aborting(self, result):
         assert f"PASS  {FAKE_BASH_SUITE}" in result.output
+
+
+# Both are hang guards, never timing assertions: a healthy stop
+# takes about two grace periods of two seconds at most.
+SIGNAL_HANG_GUARD_SECONDS = 20
+START_MARKER_BOUND_SECONDS = 10
+START_MARKER_POLL_SECONDS = 0.02
+
+# Far past STOPPED_WITHIN_SECONDS, so a runner that waits for
+# its suites to finish on their own fails that bound.
+SUITE_BLOCK_SECONDS = 60
+STOPPED_WITHIN_SECONDS = 8
+
+INTERRUPTED_STATUS = 130
+TERMINATED_STATUS = 143
+
+STOP_TESTS_DIR = "configs/ai-docs/claude/tests"
+
+
+@dataclass(frozen=True)
+class SignalledRun:
+    status: int
+    stderr: str
+    seconds_from_signal_to_exit: float
+    is_process_group_gone: bool
+    temp_dir_entries: list
+    sandbox: Path
+
+
+def blocking_suite_body(started_marker, block_fifo, traps=()):
+    """Script text that installs traps, marks itself started, then blocks.
+
+    It blocks on a bash builtin read, never a child process, so the only
+    process to stop is the suite itself. The traps come first, so the start
+    marker also means they are in place.
+    """
+    return "".join(
+        [
+            *(f"{trap}\n" for trap in traps),
+            f": > {shlex.quote(str(started_marker))}\n",
+            f"read -t {SUITE_BLOCK_SECONDS} <> {shlex.quote(str(block_fifo))}\n",
+        ]
+    )
+
+
+def trap_term_writing(marker):
+    return f'trap ": > {shlex.quote(str(marker))}; exit {TERMINATED_STATUS}" TERM'
+
+
+def wait_for_paths(paths):
+    deadline = time.monotonic() + START_MARKER_BOUND_SECONDS
+    while not all(path.exists() for path in paths):
+        if time.monotonic() > deadline:
+            missing = [str(path) for path in paths if not path.exists()]
+            pytest.fail(f"never started: {missing}")
+        time.sleep(START_MARKER_POLL_SECONDS)
+
+
+def is_process_group_gone(group_id):
+    try:
+        os.killpg(group_id, 0)
+    except ProcessLookupError:
+        return True
+    return False
+
+
+def run_runner_until_signalled(sandbox, *, started_markers, send_signal, preexec_fn=None):
+    """Start the runner in its own process group, signal it once every marker exists.
+
+    TMPDIR is a directory this test owns, so the runner's log dir must be
+    gone from it afterwards. Output goes to files, not pipes, so a process
+    the runner left behind can never hold the test's read open.
+    """
+    temp_dir = sandbox / "runner-temp"
+    temp_dir.mkdir()
+    stderr_path = sandbox / "runner-stderr.txt"
+    with open(sandbox / "runner-stdout.txt", "wb") as stdout, open(stderr_path, "wb") as stderr:
+        runner = subprocess.Popen(
+            [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME)],
+            cwd=sandbox,
+            env={**os.environ, "PATH": str(sandbox / "bin"), "TMPDIR": str(temp_dir)},
+            stdin=subprocess.DEVNULL,
+            stdout=stdout,
+            stderr=stderr,
+            start_new_session=True,
+            preexec_fn=preexec_fn,
+        )
+    try:
+        wait_for_paths(started_markers)
+        signalled_at = time.monotonic()
+        send_signal(runner.pid)
+        try:
+            status = runner.wait(timeout=SIGNAL_HANG_GUARD_SECONDS)
+        except subprocess.TimeoutExpired:
+            pytest.fail("the runner did not exit after the signal")
+        return SignalledRun(
+            status=status,
+            stderr=stderr_path.read_text(),
+            seconds_from_signal_to_exit=time.monotonic() - signalled_at,
+            is_process_group_gone=is_process_group_gone(runner.pid),
+            temp_dir_entries=sorted(entry.name for entry in temp_dir.iterdir()),
+            sandbox=sandbox,
+        )
+    finally:
+        # A runner that left suites behind must not leave them
+        # to block for a minute after the test ends.
+        if not is_process_group_gone(runner.pid):
+            os.killpg(runner.pid, signal.SIGKILL)
+        if runner.poll() is None:
+            runner.kill()
+            runner.wait()
+
+
+def send_ctrl_c_to_the_whole_group(runner_pid):
+    os.killpg(runner_pid, signal.SIGINT)
+
+
+def send_term_to_the_runner_alone(runner_pid):
+    os.kill(runner_pid, signal.SIGTERM)
+
+
+class TestStopOnSignal:
+    class TestCtrlCWhileSuitesRun:
+        # Five blocking suites for four slots, so one blocking
+        # suite and the queued one are still waiting to launch.
+        blocking_suites = tuple(
+            f"{STOP_TESTS_DIR}/test-stop-blocking-{number}.sh" for number in range(1, 6)
+        )
+        running_suite_count = 4
+        queued_suite = f"{STOP_TESTS_DIR}/test-stop-zz-queued.sh"
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            block_fifo = root / "block.fifo"
+            os.mkfifo(block_fifo)
+            started = [root / f"started-{number}" for number in range(1, 6)]
+
+            # Suite 1 survives Ctrl-C, so only the runner's own
+            # SIGTERM after the grace period stops it.
+            bodies = {
+                suite: blocking_suite_body(
+                    started[number],
+                    block_fifo,
+                    traps=(
+                        ("trap '' INT", trap_term_writing(root / "term-after-ctrl-c"))
+                        if number == 0
+                        else ()
+                    ),
+                )
+                for number, suite in enumerate(cls.blocking_suites)
+            }
+            bodies[cls.queued_suite] = f": > {shlex.quote(str(root / 'queued-ran'))}\n"
+            sandbox = build_sandbox(root, shared_stub, bash_suite_bodies=bodies)
+            return run_runner_until_signalled(
+                sandbox,
+                started_markers=started[: cls.running_suite_count],
+                send_signal=send_ctrl_c_to_the_whole_group,
+            )
+
+        def test_should_exit_130(self, result):
+            assert result.status == INTERRUPTED_STATUS
+
+        def test_should_send_sigterm_after_the_grace_period_to_a_suite_that_ignores_ctrl_c(
+            self, result
+        ):
+            assert (result.sandbox / "term-after-ctrl-c").exists()
+
+        def test_should_leave_no_process_of_its_group_running(self, result):
+            assert result.is_process_group_gone
+
+        def test_should_never_launch_a_suite_still_queued_at_ctrl_c(self, result):
+            assert not (result.sandbox / "queued-ran").exists()
+
+        def test_should_remove_its_log_dir(self, result):
+            assert result.temp_dir_entries == []
+
+    class TestTermToTheRunnerAlone:
+        blocking_suites = tuple(
+            f"{STOP_TESTS_DIR}/test-term-blocking-{number}.sh" for number in range(1, 5)
+        )
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            block_fifo = root / "block.fifo"
+            os.mkfifo(block_fifo)
+            started = [root / f"started-{number}" for number in range(1, 5)]
+
+            # Suite 1 ignores SIGTERM, so only SIGKILL stops it;
+            # the others record the SIGTERM the runner sends.
+            bodies = {
+                suite: blocking_suite_body(
+                    started[number],
+                    block_fifo,
+                    traps=(
+                        ("trap '' TERM",)
+                        if number == 0
+                        else (trap_term_writing(root / f"term-{number + 1}"),)
+                    ),
+                )
+                for number, suite in enumerate(cls.blocking_suites)
+            }
+            sandbox = build_sandbox(root, shared_stub, bash_suite_bodies=bodies)
+            return run_runner_until_signalled(
+                sandbox,
+                started_markers=started,
+                send_signal=send_term_to_the_runner_alone,
+            )
+
+        def test_should_exit_143(self, result):
+            assert result.status == TERMINATED_STATUS
+
+        def test_should_exit_within_a_few_seconds_while_its_suites_are_still_blocked(
+            self, result
+        ):
+            assert result.seconds_from_signal_to_exit < STOPPED_WITHIN_SECONDS
+
+        def test_should_pass_sigterm_on_to_every_running_suite(self, result):
+            assert sorted(
+                path.name for path in result.sandbox.glob("term-*")
+            ) == ["term-2", "term-3", "term-4"]
+
+        def test_should_leave_no_suite_running_even_one_that_ignores_sigterm(
+            self, result
+        ):
+            assert result.is_process_group_gone
+
+        def test_should_remove_its_log_dir(self, result):
+            assert result.temp_dir_entries == []
+
+    class TestSignalWhileTheGateRuns:
+        @pytest.fixture(
+            scope="class",
+            params=[
+                (send_ctrl_c_to_the_whole_group, INTERRUPTED_STATUS),
+                (send_term_to_the_runner_alone, TERMINATED_STATUS),
+            ],
+            ids=["ctrl-c-to-the-group", "term-to-the-runner"],
+        )
+        @classmethod
+        def signal_case(cls, request):
+            return request.param
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def expected_status(cls, signal_case):
+            return signal_case[1]
+
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub, signal_case):
+            send_signal = signal_case[0]
+            root = tmp_path_factory.mktemp("sandbox")
+            block_fifo = root / "gate.fifo"
+            os.mkfifo(block_fifo)
+            sandbox = build_sandbox(
+                root,
+                shared_stub,
+                gate=FakeTool(output=GO_LINE, block_on_fifo=str(block_fifo)),
+                bash_suites={BODY_PROBE_SUITE: 0},
+            )
+            return run_runner_until_signalled(
+                sandbox,
+                started_markers=[Path(f"{root / GATE_RELATIVE_PATH}.calls")],
+                send_signal=send_signal,
+            )
+
+        def test_should_exit_with_the_signals_status(self, result, expected_status):
+            assert result.status == expected_status
+
+        def test_should_print_no_traceback(self, result):
+            assert "Traceback" not in result.stderr
+
+        def test_should_not_report_a_headroom_refusal(self, result):
+            assert "did NOT run" not in result.stderr
+
+        def test_should_not_run_a_single_suite(self, result):
+            assert not suite_bodies_ran(result)
+
+        def test_should_leave_the_gate_stopped(self, result):
+            assert result.is_process_group_gone
+
+    class TestSignalIgnoredBeforeTheRunnerStarted:
+        # A shell without job control starts a background job
+        # with Ctrl-C ignored; the runner must keep that ignore.
+        suite = f"{STOP_TESTS_DIR}/test-waits-for-release.sh"
+
+        @pytest.fixture(
+            scope="class",
+            params=[
+                (signal.SIGINT, send_ctrl_c_to_the_whole_group),
+                (signal.SIGTERM, send_term_to_the_runner_alone),
+            ],
+            ids=["ctrl-c-ignored", "term-ignored"],
+        )
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub, request):
+            ignored_signal, send_signal = request.param
+            root = tmp_path_factory.mktemp("sandbox")
+            block_fifo = root / "release.fifo"
+            os.mkfifo(block_fifo)
+            started = root / "started"
+            sandbox = build_sandbox(
+                root,
+                shared_stub,
+                bash_suite_bodies={cls.suite: blocking_suite_body(started, block_fifo)},
+            )
+
+            # Held open by the test, so the release line lands
+            # even when the suite already died to the signal.
+            release_fd = os.open(block_fifo, os.O_RDWR)
+
+            def signal_then_release(runner_pid):
+                send_signal(runner_pid)
+                os.write(release_fd, b"release\n")
+
+            try:
+                return run_runner_until_signalled(
+                    sandbox,
+                    started_markers=[started],
+                    send_signal=signal_then_release,
+                    preexec_fn=lambda: signal.signal(ignored_signal, signal.SIG_IGN),
+                )
+            finally:
+                os.close(release_fd)
+
+        def test_should_finish_the_run_as_if_no_signal_arrived(self, result):
+            assert result.status == 0

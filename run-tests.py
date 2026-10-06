@@ -69,6 +69,13 @@ NODE_SUITE_GLOBS = (
 MAX_CONCURRENT_SUITES = 4
 POLL_INTERVAL_SECONDS = 0.05
 
+# Ctrl-C reaches the suites along with the runner, so they
+# get this long to exit on their own before a SIGTERM, and a
+# SIGTERM gets as long again before SIGKILL.
+STOP_GRACE_SECONDS = 2
+
+EXIT_STATUS_BY_STOP_SIGNAL = {signal.SIGINT: 130, signal.SIGTERM: 143}
+
 LAUNCH_PRIORITY = {"pytest": 0, "node": 1}
 LAUNCH_PRIORITY_DEFAULT = 2
 
@@ -87,7 +94,57 @@ def write_stdout_bytes(data):
     sys.stdout.buffer.flush()
 
 
-def run_headroom_gate(headroom_gate):
+@dataclass
+class StopRequest:
+    """The first INT or TERM the runner received; every wait loop checks it.
+
+    The handler only records and never raises. A raising handler can fire
+    inside Popen after the fork and lose the child, and a second signal
+    could abort the stop sequence itself.
+    """
+
+    signum: signal.Signals | None = None
+
+    def record(self, signum, _frame):
+        if self.signum is None:
+            self.signum = signal.Signals(signum)
+
+    def install(self):
+        for signum in EXIT_STATUS_BY_STOP_SIGNAL:
+            # An inherited ignore stays: a shell without job
+            # control starts a background job with INT
+            # ignored, so a Ctrl-C meant for the foreground
+            # job spares it.
+            if signal.getsignal(signum) != signal.SIG_IGN:
+                signal.signal(signum, self.record)
+
+    def get_exit_status(self):
+        return None if self.signum is None else EXIT_STATUS_BY_STOP_SIGNAL[self.signum]
+
+
+def wait_for_exit(processes, seconds):
+    """Poll until every process has exited or seconds pass; return those still running."""
+    deadline = time.monotonic() + seconds
+    running = [process for process in processes if process.poll() is None]
+    while running and time.monotonic() < deadline:
+        time.sleep(POLL_INTERVAL_SECONDS)
+        running = [process for process in running if process.poll() is None]
+    return running
+
+
+def stop_processes(processes, stop_signal):
+    """Stop the runner's own child processes, escalating to SIGKILL; reap every one."""
+
+    # Ctrl-C already reached them through the terminal's
+    # process group; a TERM sent to the runner alone did not.
+    if stop_signal == signal.SIGINT:
+        processes = wait_for_exit(processes, STOP_GRACE_SECONDS)
+    for process in processes:
+        process.terminate()
+    kill_and_reap(wait_for_exit(processes, STOP_GRACE_SECONDS))
+
+
+def run_headroom_gate(headroom_gate, stop_request):
     """Return (exit status, stdout bytes) of the gate; stderr passes through.
 
     stdin comes from /dev/null for the same reason every suite's does: the
@@ -97,13 +154,26 @@ def run_headroom_gate(headroom_gate):
     if not os.access(headroom_gate, os.X_OK):
         return GATE_UNAVAILABLE_STATUS, b""
     try:
-        completed = subprocess.run(
+        gate = subprocess.Popen(
             [headroom_gate], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE
         )
     except OSError as error:
         print(f"run-tests.py: {headroom_gate}: {error.strerror}", file=sys.stderr, flush=True)
         return GATE_NOT_EXECUTABLE_STATUS, b""
-    return completed.returncode, completed.stdout
+
+    # A short timeout, so a stop is noticed while the gate
+    # still runs; a retried communicate() loses no output.
+    while stop_request.signum is None:
+        try:
+            stdout, _ = gate.communicate(timeout=POLL_INTERVAL_SECONDS)
+            return gate.returncode, stdout
+        except subprocess.TimeoutExpired:
+            pass
+
+    # Its pipe is never read to EOF here: a child the gate
+    # started could hold it open and hang the stop.
+    stop_processes([gate], stop_request.signum)
+    return gate.returncode, b""
 
 
 def refuse_to_run(headroom_gate, gate_stdout):
@@ -200,7 +270,7 @@ def kill_and_reap(processes):
         process.wait()
 
 
-def run_entries(entries, tally):
+def run_entries(entries, tally, stop_request):
     """Run entries MAX_CONCURRENT_SUITES at a time; report them in list order.
 
     The main thread is the only launcher, and it waits by polling rather than
@@ -213,8 +283,8 @@ def run_entries(entries, tally):
     passed_by_index = {}
     next_to_report = 0
     try:
-        while pending or running:
-            while pending and len(running) < MAX_CONCURRENT_SUITES:
+        while (pending or running) and stop_request.signum is None:
+            while pending and len(running) < MAX_CONCURRENT_SUITES and stop_request.signum is None:
                 index = pending.popleft()
                 process = launch_into_log(entries[index].command, entries[index].log_file)
                 if process is None:
@@ -233,9 +303,13 @@ def run_entries(entries, tally):
 
             if running:
                 time.sleep(POLL_INTERVAL_SECONDS)
+
+        if stop_request.signum is not None:
+            stop_processes(list(running.values()), stop_request.signum)
+            running.clear()
     finally:
-        # Ctrl-C and SIGTERM raise out of the loop; no suite
-        # may outlive the run that started it.
+        # Any exception still leaves no suite outliving the
+        # run that started it.
         kill_and_reap(list(running.values()))
 
 
@@ -250,7 +324,7 @@ def discover_suites(patterns):
                 yield match
 
 
-def run_all_suites(log_dir):
+def run_all_suites(log_dir, stop_request):
     tally = Tally()
     entries = [(suite, ["bash", suite]) for suite in discover_suites(BASH_SUITE_GLOBS)]
 
@@ -279,6 +353,7 @@ def run_all_suites(log_dir):
             for index, (suite, command) in enumerate(entries, start=1)
         ],
         tally,
+        stop_request,
     )
     return tally
 
@@ -296,6 +371,9 @@ def replay_failures(tally):
 
 
 def main():
+    stop_request = StopRequest()
+    stop_request.install()
+
     # Anchored on this script's own directory, not the
     # caller's, so the globs resolve the same from any
     # subdirectory. Not resolved through symlinks.
@@ -330,20 +408,24 @@ def main():
     # lock back. This gate only protects a machine that is
     # already under load when a run starts.
     headroom_gate = os.path.join(repo_root, HEADROOM_GATE_RELATIVE_PATH)
-    gate_status, gate_stdout = run_headroom_gate(headroom_gate)
+    gate_status, gate_stdout = run_headroom_gate(headroom_gate, stop_request)
+    stop_status = stop_request.get_exit_status()
+    if stop_status is not None:
+        return stop_status
     if gate_status != 0:
         return refuse_to_run(headroom_gate, gate_stdout)
 
-    # The temp dir is removed on every exit path: SIGTERM
-    # becomes a SystemExit and Ctrl-C a KeyboardInterrupt,
-    # both unwinding through the context manager.
+    # The temp dir is removed on every exit path: INT and
+    # TERM only record a stop, so a stopped run still
+    # unwinds through the context manager.
     with tempfile.TemporaryDirectory() as log_dir:
-        signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(143))
-        try:
-            tally = run_all_suites(log_dir)
+        tally = run_all_suites(log_dir, stop_request)
+        if stop_request.signum is None:
             replay_failures(tally)
-        except KeyboardInterrupt:
-            return 130
+
+    stop_status = stop_request.get_exit_status()
+    if stop_status is not None:
+        return stop_status
     return 1 if tally.failures else 0
 
 
