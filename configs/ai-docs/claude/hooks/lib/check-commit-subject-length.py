@@ -11,6 +11,8 @@
 #
 # It denies only when sure of the subject. A shell expansion
 # before a bare -- leaves it unsure; one after it does not.
+# So does a git global option that could change the message,
+# since only a pager, repository or path option is known safe.
 
 import importlib.util
 import os
@@ -44,7 +46,30 @@ SHORT_VALUE_OPTIONS = {"m": "message", "F": "file"}
 LONG_FLAGS = frozenset({"--all", "--quiet", "--verbose", "--no-verify", "--include", "--only", "--allow-empty"})
 LONG_VALUE_OPTIONS = {"--message": "message", "--file": "file"}
 
-WRAPPER_COMMANDS = frozenset({"rtk", "command", "env"})
+# git global options that only pick a pager, a repository or how
+# pathspecs read, so the message git records is unchanged.
+# --config-env is left out on purpose: it injects a config value
+# (commit.cleanup among them) that the command text cannot show.
+GLOBAL_FLAG_OPTIONS = frozenset(
+    {
+        "--no-pager",
+        "-P",
+        "--paginate",
+        "-p",
+        "--bare",
+        "--literal-pathspecs",
+        "--glob-pathspecs",
+        "--noglob-pathspecs",
+        "--icase-pathspecs",
+        "--no-optional-locks",
+        "--no-advice",
+        "--no-replace-objects",
+        "--no-lazy-fetch",
+    }
+)
+GLOBAL_VALUE_OPTIONS = frozenset({"--git-dir", "--work-tree", "--namespace", "--attr-source"})
+
+WRAPPER_COMMANDS =frozenset({"rtk", "command", "env"})
 CLEANUP_CONFIG_KEYS = frozenset({"core.commentchar", "core.commentstring"})
 CLEANUP_CONFIG_SECTION = "commit."
 GIT_CONFIG_ENV_PREFIX = "GIT_CONFIG"
@@ -352,6 +377,12 @@ def _subcommand_index(words, index):
             if index + 1 >= len(words) or _is_cleanup_setting(words[index + 1].text):
                 return None
             index += 2
+        elif text in GLOBAL_FLAG_OPTIONS:
+            index += 1
+        elif text in GLOBAL_VALUE_OPTIONS:
+            index += 2
+        elif text.partition("=")[0] in GLOBAL_VALUE_OPTIONS:
+            index += 1
         elif text.startswith("-"):
             return None
         else:
