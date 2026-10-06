@@ -795,7 +795,6 @@ def cmd_capture(args) -> int:
 
     updated_rows = []
     for row in rows:
-        import tempfile
         with tempfile.TemporaryDirectory() as fixture_dir:
             fixture_path = Path(fixture_dir)
             try:
