@@ -69,6 +69,36 @@ def _write_table(path: Path, rows: list[dict], known_branches: list[str] | None 
     return path
 
 
+def _load_harness():
+    """Load the tool in-process, for a test that must reach past
+    its command line."""
+    spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    harness = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(harness)
+    return harness
+
+
+def _capture_rejecting_data(tmp_path: Path, data):
+    """Run `capture` over a table holding `data` the tool must
+    reject before running anything, returning its stderr."""
+    table = tmp_path / "table.json"
+    table.write_text(json.dumps(data))
+    json_out = tmp_path / "captured.json"
+    emitted = tmp_path / "toy.test.py"
+    result = _run("capture", "--script", str(tmp_path / "never-run.sh"),
+                   "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
+    assert result.returncode == 1, result.stderr
+    assert "Traceback" not in result.stderr
+    assert not json_out.exists()
+    assert not emitted.exists()
+    return result.stderr
+
+
+def _capture_rejecting(tmp_path: Path, rows):
+    return _capture_rejecting_data(tmp_path, {"known_branches": [], "rows": rows})
+
+
 class TestCaptureScriptBehaviorHappy(_TempDirTestCase):
     def test_should_capture_stdout_stderr_exit_code_and_fixture_post_state_for_every_table_row(self):
         script = _write_executable(self.tmp_path / "toy.py", (
@@ -367,10 +397,7 @@ class TestCaptureScriptBehaviorCorner(_TempDirTestCase):
         script = _write_executable(self.tmp_path / "hang.sh", (
             "#!/bin/bash\nexec 3<>\"$1\"\nread -t 600 -u 3\n"
         ))
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
+        harness = _load_harness()
         row = harness.Row.from_dict({"name": "hanging-row", "argv": [str(fifo)]})
         fixture_dir = self.tmp_path / "fixture"
         fixture_dir.mkdir()
@@ -729,10 +756,7 @@ class TestCaptureScriptBehaviorScriptRelpath(_TempDirTestCase):
 
 class TestMaskText(unittest.TestCase):
     def test_should_mask_a_temp_path_a_script_creates_to_the_same_text_on_macos_and_linux(self):
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
+        harness = _load_harness()
         temp_paths = (
             "/var/folders/ab/cd/T/tmpqwerty12/sub/file",
             "/private/var/folders/ab/cd/T/tmp.QwErTy12/sub/file",
@@ -753,20 +777,8 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     """A row the tool rejects before running anything: the toy
     script path is never executed, so it need not exist."""
 
-    def _capture_rejecting(self, rows):
-        table = _write_table(self.tmp_path / "table.json", rows)
-        json_out = self.tmp_path / "captured.json"
-        emitted = self.tmp_path / "toy.test.py"
-        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
-                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
-        self.assertEqual(result.returncode, 1, msg=result.stderr)
-        self.assertNotIn("Traceback", result.stderr)
-        self.assertFalse(json_out.exists())
-        self.assertFalse(emitted.exists())
-        return result.stderr
-
     def test_should_reject_a_row_with_a_misspelled_key_naming_the_row_and_every_unknown_key(self):
-        stderr = self._capture_rejecting([
+        stderr = _capture_rejecting(self.tmp_path,[
             {"name": "typo-row", "expected_stdut": "hi\n", "fixture_file": {"a": "b"}},
         ])
 
@@ -809,21 +821,21 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertFalse(emitted.exists())
 
     def test_should_reject_an_env_that_is_not_an_object_naming_the_row(self):
-        stderr = self._capture_rejecting([{"name": "env-list-row", "env": ["MY_VAR=1"]}])
+        stderr = _capture_rejecting(self.tmp_path,[{"name": "env-list-row", "env": ["MY_VAR=1"]}])
 
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: row 'env-list-row': "), msg=stderr)
         self.assertIn("must be an object", stderr)
 
     def test_should_reject_an_env_value_that_is_neither_a_string_nor_null_naming_the_row_and_variable(self):
-        stderr = self._capture_rejecting([{"name": "env-number-row", "env": {"RETRIES": 3}}])
+        stderr = _capture_rejecting(self.tmp_path,[{"name": "env-number-row", "env": {"RETRIES": 3}}])
 
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: row 'env-number-row': "), msg=stderr)
         self.assertIn("RETRIES", stderr)
 
     def test_should_reject_an_executable_file_that_is_not_a_fixture_file_naming_the_row_and_the_key(self):
-        stderr = self._capture_rejecting([
+        stderr = _capture_rejecting(self.tmp_path,[
             {"name": "ghost-exec-row", "fixture_files": {"a": "x"}, "executable_files": ["bin/ghost"]},
         ])
 
@@ -834,7 +846,7 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
     def test_should_reject_a_script_relpath_that_leaves_the_fixture_naming_the_row_and_the_field(self):
         for bad_relpath in ("/etc/toy.sh", "../toy.sh"):
             with self.subTest(script_relpath=bad_relpath):
-                stderr = self._capture_rejecting([{"name": "escape-row", "script_relpath": bad_relpath}])
+                stderr = _capture_rejecting(self.tmp_path,[{"name": "escape-row", "script_relpath": bad_relpath}])
 
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 self.assertTrue(stderr.startswith("error: row 'escape-row': "), msg=stderr)
@@ -849,7 +861,7 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         )
         for relpath, fixture_files in collisions:
             with self.subTest(script_relpath=relpath, fixture_files=list(fixture_files)):
-                stderr = self._capture_rejecting([
+                stderr = _capture_rejecting(self.tmp_path,[
                     {"name": "clash-row", "script_relpath": relpath, "fixture_files": fixture_files},
                 ])
 
@@ -858,7 +870,7 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
                 self.assertIn("script_relpath", stderr)
 
     def test_should_name_a_row_without_a_name_by_its_position_in_the_table(self):
-        stderr = self._capture_rejecting([
+        stderr = _capture_rejecting(self.tmp_path,[
             {"name": "first-row"},
             {"name": "second-row"},
             {"argv": ["--flag"]},
@@ -870,19 +882,6 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
 
 
 class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
-    def _capture_rejecting_data(self, data):
-        table = self.tmp_path / "table.json"
-        table.write_text(json.dumps(data))
-        json_out = self.tmp_path / "captured.json"
-        emitted = self.tmp_path / "toy.test.py"
-        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
-                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
-        self.assertEqual(result.returncode, 1, msg=result.stderr)
-        self.assertNotIn("Traceback", result.stderr)
-        self.assertFalse(json_out.exists())
-        self.assertFalse(emitted.exists())
-        return result.stderr
-
     def test_should_reject_a_row_that_is_not_an_object_naming_its_position_and_the_json_type_it_got(self):
         cases = (
             (5, "number"),
@@ -893,7 +892,7 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
         )
         for bad_row, json_type in cases:
             with self.subTest(row=bad_row):
-                stderr = self._capture_rejecting_data({"rows": [{"name": "first-row"}, bad_row]})
+                stderr = _capture_rejecting_data(self.tmp_path,{"rows": [{"name": "first-row"}, bad_row]})
 
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 self.assertTrue(stderr.startswith("error: row #1: "), msg=stderr)
@@ -901,7 +900,7 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
                 self.assertIn(json_type, stderr)
 
     def test_should_reject_a_table_whose_top_level_is_not_an_object_naming_the_table_and_the_json_type(self):
-        stderr = self._capture_rejecting_data([{"name": "only-row"}])
+        stderr = _capture_rejecting_data(self.tmp_path,[{"name": "only-row"}])
 
         self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
         self.assertTrue(stderr.startswith("error: table "), msg=stderr)
@@ -911,7 +910,7 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
     def test_should_reject_a_table_whose_rows_is_not_a_list_naming_the_table_and_the_json_type(self):
         for bad_rows, json_type in (("abc", "string"), ({"name": "x"}, "object"), (None, "null")):
             with self.subTest(rows=bad_rows):
-                stderr = self._capture_rejecting_data({"rows": bad_rows})
+                stderr = _capture_rejecting_data(self.tmp_path,{"rows": bad_rows})
 
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 self.assertTrue(stderr.startswith("error: table "), msg=stderr)
@@ -921,7 +920,7 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
     def test_should_reject_a_table_whose_known_branches_is_not_a_list_of_strings(self):
         for bad_branches in ("main", {"a": 1}, ["ok", 5], [["nested"]]):
             with self.subTest(known_branches=bad_branches):
-                stderr = self._capture_rejecting_data({"known_branches": bad_branches, "rows": []})
+                stderr = _capture_rejecting_data(self.tmp_path,{"known_branches": bad_branches, "rows": []})
 
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 self.assertTrue(stderr.startswith("error: table "), msg=stderr)
@@ -929,25 +928,6 @@ class TestCaptureScriptBehaviorMalformedTable(_TempDirTestCase):
 
 
 class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
-    def _load_harness(self):
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
-        return harness
-
-    def _capture_rejecting(self, rows):
-        table = _write_table(self.tmp_path / "table.json", rows)
-        json_out = self.tmp_path / "captured.json"
-        emitted = self.tmp_path / "toy.test.py"
-        result = _run("capture", "--script", str(self.tmp_path / "never-run.sh"),
-                       "--table", str(table), "--json-out", str(json_out), "--out", str(emitted))
-        self.assertEqual(result.returncode, 1, msg=result.stderr)
-        self.assertNotIn("Traceback", result.stderr)
-        self.assertFalse(json_out.exists())
-        self.assertFalse(emitted.exists())
-        return result.stderr
-
     def test_should_reject_a_row_field_of_the_wrong_json_type_naming_the_field_the_accepted_type_and_the_type_it_got(self):
         cases = (
             ({"name": 5}, "name", "string", "number"),
@@ -969,7 +949,7 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
         )
         for fields, field_name, accepted, json_type in cases:
             with self.subTest(fields=fields):
-                stderr = self._capture_rejecting([{"name": "typed-row", **fields} if "name" not in fields else fields])
+                stderr = _capture_rejecting(self.tmp_path,[{"name": "typed-row", **fields} if "name" not in fields else fields])
 
                 self.assertEqual(len(stderr.splitlines()), 1, msg=stderr)
                 expected_label = "error: row #0: " if field_name == "name" else "error: row 'typed-row': "
@@ -979,7 +959,7 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
                 self.assertIn(json_type, stderr)
 
     def test_should_name_the_field_the_entry_and_the_json_type_when_one_entry_of_an_array_or_object_field_is_wrong(self):
-        harness = self._load_harness()
+        harness = _load_harness()
         cases = (
             ({"argv": ["ok", 5]}, "argv[1] must be a string, got number"),
             ({"executable_files": ["a.txt", 1]}, "executable_files[1] must be a string, got number"),
@@ -995,7 +975,7 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
                 self.assertEqual(raised.exception.reason, message)
 
     def test_should_accept_a_row_with_every_field_at_its_accepted_type(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         row = harness.Row.from_dict({
             "name": "typed-row", "argv": ["--flag"], "stdin": "in", "branch": None,
@@ -1008,21 +988,14 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
         self.assertEqual(row.expected_exit_code, 0)
 
     def test_should_have_a_type_check_entry_for_every_row_field(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         self.assertEqual(set(harness.ROW_FIELD_TYPES), set(harness.Row.__dataclass_fields__))
 
 
 class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
-    def _load_harness(self):
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
-        return harness
-
     def test_should_reject_a_fixture_key_that_is_not_a_normal_relative_path_naming_the_field_and_the_key(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         for bad_key in ("", ".", "./a", "a/", "a//b", "a/./b", "a\0b"):
             with self.subTest(key=bad_key):
@@ -1033,7 +1006,7 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
                 self.assertIn(repr(bad_key), str(raised.exception))
 
     def test_should_reject_an_escaping_fixture_key_at_load_as_a_fixture_escape(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         for bad_key in ("/etc/x", "../x", "a/../../x"):
             with self.subTest(key=bad_key):
@@ -1041,7 +1014,7 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
                     harness.Row.from_dict({"name": "escape-row", "fixture_files": {bad_key: "x"}})
 
     def test_should_reject_a_script_relpath_that_is_not_a_normal_relative_path_naming_the_field_and_the_path(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         for bad_relpath in (".", "./toy", "tools/./toy", "tools//toy", "tools/", "toy\0"):
             with self.subTest(script_relpath=bad_relpath):
@@ -1052,7 +1025,7 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
                 self.assertIn(repr(bad_relpath), str(raised.exception))
 
     def test_should_accept_a_nested_normal_form_fixture_key_and_script_relpath(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         row = harness.Row.from_dict({
             "name": "nested-row", "fixture_files": {"dir/sub/a.txt": "x", ".hidden": "y"},
@@ -1062,14 +1035,14 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
         self.assertEqual(sorted(row.fixture_files), [".hidden", "dir/sub/a.txt"])
 
     def test_should_still_reject_a_malformed_fixture_key_on_a_row_built_without_from_dict(self):
-        harness = self._load_harness()
+        harness = _load_harness()
         row = harness.Row(name="direct-row", fixture_files={"a/": "x"})
 
         with self.assertRaises(harness.InvalidRowError):
             harness.setup_fixture(self.tmp_path, row)
 
     def test_should_run_no_row_when_a_later_row_holds_a_malformed_fixture_key(self):
-        harness = self._load_harness()
+        harness = _load_harness()
         table = _write_table(self.tmp_path / "table.json", [
             {"name": "good-row"},
             {"name": "bad-row", "fixture_files": {"a/": "x"}},
@@ -1087,15 +1060,8 @@ class TestCaptureScriptBehaviorPathForm(_TempDirTestCase):
 
 
 class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
-    def _load_harness(self):
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
-        return harness
-
     def test_should_reject_an_argv_entry_or_env_value_holding_a_nul_byte_naming_the_field_and_the_entry(self):
-        harness = self._load_harness()
+        harness = _load_harness()
         cases = (
             ({"argv": ["ok", "a\0b"]}, "argv[1]"),
             ({"env": {"PROBE": "a\0b"}}, "env['PROBE']"),
@@ -1109,7 +1075,7 @@ class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
                 self.assertIn("NUL byte", raised.exception.reason)
 
     def test_should_reject_an_env_variable_name_that_is_empty_or_holds_an_equals_sign_or_a_nul_byte(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         for bad_name in ("", "A=B", "=", "A\0B"):
             with self.subTest(name=bad_name):
@@ -1120,7 +1086,7 @@ class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
                 self.assertIn(repr(bad_name), raised.exception.reason)
 
     def test_should_accept_a_nul_byte_in_stdin_and_in_fixture_file_contents(self):
-        harness = self._load_harness()
+        harness = _load_harness()
 
         row = harness.Row.from_dict({
             "name": "binary-row", "stdin": "a\0b", "fixture_files": {"data.bin": "x\0y"},
@@ -1129,7 +1095,7 @@ class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
         self.assertEqual(row.stdin, "a\0b")
 
     def test_should_run_no_row_when_a_later_row_holds_a_nul_byte_in_an_argv_entry(self):
-        harness = self._load_harness()
+        harness = _load_harness()
         table = _write_table(self.tmp_path / "table.json", [
             {"name": "good-row"},
             {"name": "bad-row", "argv": ["a\0b"]},
@@ -1153,10 +1119,7 @@ class TestCaptureScriptBehaviorCompareInput(_TempDirTestCase):
     def _compare(self, expected, actual):
         """Run `compare` in-process on two JSON files holding the
         given values, returning (exit code, stdout, stderr)."""
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
+        harness = _load_harness()
         expected_path = self.tmp_path / "expected.json"
         actual_path = self.tmp_path / "actual.json"
         expected_path.write_text(json.dumps(expected))
@@ -1218,14 +1181,6 @@ class TestCaptureScriptBehaviorCompareInput(_TempDirTestCase):
 
         self.assertEqual((exit_code, stderr), (0, ""))
         self.assertEqual(json.loads(stdout), {"matches": True, "diff": {}})
-
-
-def _load_harness():
-    spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-    assert spec is not None and spec.loader is not None
-    harness = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(harness)
-    return harness
 
 
 class TestCaptureScriptBehaviorNonTextStrings(_TempDirTestCase):
