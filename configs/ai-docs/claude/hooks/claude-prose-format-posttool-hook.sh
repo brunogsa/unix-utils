@@ -253,12 +253,25 @@ if [ "$total" -eq 0 ]; then
   return 0
 fi
 
-RULE_BLOCK='Prose: small paragraphs of 1-4 sentences, blank line between each.
+# The guidance printed must match the checker set that ran: a
+# comment finding told "never hard-wrap" contradicts
+# check-comment-format.js, which wants a long comment wrapped.
+PROSE_RULES='Prose: small paragraphs of 1-4 sentences, blank line between each.
 Bullets + sub-bullets: 1-2 sentences each.
 One paragraph = one physical line - never hard-wrap. Never drop information.
 Colon-ended bullet: nest the items it introduces under it, or end it with a period. Single-child chain 3+ levels deep: flatten it into siblings under the shared parent.
-Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.
-Fix these by re-issuing Write/Edit with the corrected text. Never bypass this hook by writing or editing the file through Bash (sed, heredoc, redirect, tee, scripts).'
+Dash-ended bullet whose next bullet continues its sentence: rewrite the pair as two full sentences, or rejoin them into one bullet. Before flattening a chain, rewrite as a full sentence any line that continues the sentence above it.'
+COMMENT_RULES='Comment: at most 64 characters per line, indentation and code included; wrap a longer one onto the next comment line.
+Comment paragraph: at most 4 consecutive comment lines; split a longer one with a blank comment line after a sentence ending in "." or ";".
+Comment bullet: one space between the comment prefix and "-"; a bullet wrapping over 2+ lines gets a blank comment line after it.
+Comment block under a code line: leave a blank line between them.'
+FIX_LINE='Fix these by re-issuing Write/Edit with the corrected text. Never bypass this hook by writing or editing the file through Bash (sed, heredoc, redirect, tee, scripts).'
+
+if [ "${checker_names[0]}" = "check-comment-format.js" ]; then
+  RULE_BLOCK="$COMMENT_RULES"$'\n'"$FIX_LINE"
+else
+  RULE_BLOCK="$PROSE_RULES"$'\n'"$FIX_LINE"
+fi
 
 {
   printf 'prose-format: %s - %s violation%s\n\n' "$base" "$total" "$([ "$total" -eq 1 ] && echo "" || echo "s")"

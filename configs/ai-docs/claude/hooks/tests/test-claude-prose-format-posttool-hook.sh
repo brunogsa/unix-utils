@@ -258,9 +258,9 @@ it_should_route_a_shell_file_to_the_comment_checker() {
   assert_contains "should report the comment-format finding" "width" "$HOOK_OUT"
   assert_not_contains "should not run the density checker on a shell file" "density" "$HOOK_OUT"
 
-  # "hard-wrap" also appears inside the rule block's own prose
-  # ("never hard-wrap"), so the label row is what's asserted
-  # against, not the bare substring.
+  # A shell file's report prints the comment rules, which
+  # never mention hard-wrap, so a "hard-wrap" label row can
+  # only come from the markdown checker running on it.
   assert_not_contains "should not run the hard-wrap checker on a shell file" "  hard-wrap " "$HOOK_OUT"
 }
 
@@ -384,6 +384,42 @@ it_should_carry_the_rule_block_verbatim_in_every_report() {
   assert_contains "over-threshold report should carry rule line 3 verbatim" "$rule3" "$HOOK_OUT"
   assert_contains "over-threshold report should carry rule line 4 verbatim" "$rule4" "$HOOK_OUT"
   assert_contains "over-threshold report should carry rule line 5 verbatim" "$rule5" "$HOOK_OUT"
+}
+
+it_should_print_comment_rules_not_prose_rules_for_a_code_file() {
+  local dir i comment_line
+  local comment1 comment2 comment3 comment4 advice
+  comment1='Comment: at most 64 characters per line, indentation and code included; wrap a longer one onto the next comment line.'
+  comment2='Comment paragraph: at most 4 consecutive comment lines; split a longer one with a blank comment line after a sentence ending in "." or ";".'
+  comment3='Comment bullet: one space between the comment prefix and "-"; a bullet wrapping over 2+ lines gets a blank comment line after it.'
+  comment4='Comment block under a code line: leave a blank line between them.'
+  advice='Fix these by re-issuing Write/Edit with the corrected text. Never bypass this hook by writing or editing the file through Bash (sed, heredoc, redirect, tee, scripts).'
+  comment_line=$(python3 -c "print('word ' * 30)")
+
+  dir=$(new_repo_fixture)
+  printf '# %s\nx = 1\n' "$comment_line" > "$dir/wide.py"
+  run_hook "Write" "$dir/wide.py"
+  assert_contains "under-threshold report on a python file should carry comment rule 1 verbatim" "$comment1" "$HOOK_OUT"
+  assert_contains "under-threshold report on a python file should carry comment rule 2 verbatim" "$comment2" "$HOOK_OUT"
+  assert_contains "under-threshold report on a python file should carry comment rule 3 verbatim" "$comment3" "$HOOK_OUT"
+  assert_contains "under-threshold report on a python file should carry comment rule 4 verbatim" "$comment4" "$HOOK_OUT"
+  assert_contains "under-threshold report on a python file should tell the model never to bypass the hook through Bash" "$advice" "$HOOK_OUT"
+  assert_not_contains "under-threshold report on a python file should not tell the model never to hard-wrap" "never hard-wrap" "$HOOK_OUT"
+  assert_not_contains "under-threshold report on a python file should not carry the prose paragraph rule" "One paragraph = one physical line" "$HOOK_OUT"
+
+  dir=$(new_repo_fixture)
+  printf '#!/bin/bash\n' > "$dir/wide.sh"
+  for ((i = 0; i < 12; i++)); do
+    printf '# %s\necho hi\n' "$comment_line" >> "$dir/wide.sh"
+  done
+  run_hook "Write" "$dir/wide.sh"
+  assert_contains "over-threshold report on a shell file should carry comment rule 1 verbatim" "$comment1" "$HOOK_OUT"
+  assert_contains "over-threshold report on a shell file should carry comment rule 2 verbatim" "$comment2" "$HOOK_OUT"
+  assert_contains "over-threshold report on a shell file should carry comment rule 3 verbatim" "$comment3" "$HOOK_OUT"
+  assert_contains "over-threshold report on a shell file should carry comment rule 4 verbatim" "$comment4" "$HOOK_OUT"
+  assert_contains "over-threshold report on a shell file should tell the model never to bypass the hook through Bash" "$advice" "$HOOK_OUT"
+  assert_not_contains "over-threshold report on a shell file should not tell the model never to hard-wrap" "never hard-wrap" "$HOOK_OUT"
+  assert_not_contains "over-threshold report on a shell file should not carry the prose paragraph rule" "One paragraph = one physical line" "$HOOK_OUT"
 }
 
 it_should_run_the_printed_pointer_command_for_a_nested_file() {
@@ -889,6 +925,7 @@ it_should_fail_open_on_a_missing_file
 it_should_fail_open_on_a_non_write_edit_payload
 it_should_carry_the_rule_block_verbatim_in_every_report
 it_should_tell_the_model_to_fix_through_write_or_edit_never_through_bash
+it_should_print_comment_rules_not_prose_rules_for_a_code_file
 it_should_run_the_printed_pointer_command_for_a_nested_file
 it_should_keep_the_basename_in_the_header_for_a_nested_file
 it_should_align_the_flag_column_across_printed_commands
