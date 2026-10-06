@@ -945,10 +945,8 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
             ({"expected_stderr": {}}, "expected_stderr", "string or null", "object"),
             ({"script_relpath": 5}, "script_relpath", "string or null", "number"),
             ({"argv": "--help"}, "argv", "array of strings", "string"),
-            ({"argv": ["ok", 5]}, "argv", "array of strings", "array"),
-            ({"executable_files": [["a"]]}, "executable_files", "array of strings", "array"),
+            ({"executable_files": "a"}, "executable_files", "array of strings", "string"),
             ({"fixture_files": ["a"]}, "fixture_files", "object whose values are strings", "array"),
-            ({"fixture_files": {"a": 5}}, "fixture_files", "object whose values are strings", "object"),
             ({"git_init": "yes"}, "git_init", "boolean", "string"),
             ({"expected_exit_code": True}, "expected_exit_code", "integer or null", "boolean"),
             ({"expected_exit_code": "0"}, "expected_exit_code", "integer or null", "string"),
@@ -966,6 +964,22 @@ class TestCaptureScriptBehaviorRowFieldTypes(_TempDirTestCase):
                 self.assertIn(field_name, stderr)
                 self.assertIn(accepted, stderr)
                 self.assertIn(json_type, stderr)
+
+    def test_should_name_the_field_the_entry_and_the_json_type_when_one_entry_of_an_array_or_object_field_is_wrong(self):
+        harness = self._load_harness()
+        cases = (
+            ({"argv": ["ok", 5]}, "argv[1] must be a string, got number"),
+            ({"executable_files": ["a.txt", 1]}, "executable_files[1] must be a string, got number"),
+            ({"executable_files": [["a.txt"]]}, "executable_files[0] must be a string, got array"),
+            ({"fixture_files": {"a.txt": None}}, "fixture_files['a.txt'] must be a string, got null"),
+            ({"env": {"PROBE": True}}, "env['PROBE'] must be a string or null, got boolean"),
+        )
+        for fields, message in cases:
+            with self.subTest(fields=fields):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "entry-row", "fixture_files": {"a.txt": "x"}, **fields})
+
+                self.assertEqual(raised.exception.reason, message)
 
     def test_should_accept_a_row_with_every_field_at_its_accepted_type(self):
         harness = self._load_harness()

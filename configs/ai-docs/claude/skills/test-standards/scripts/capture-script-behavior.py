@@ -34,6 +34,7 @@ import subprocess
 import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
+from typing import Callable, NamedTuple
 
 # Shared, declared mask set - the ONLY place non-deterministic
 # values get normalized.
@@ -203,12 +204,16 @@ def _is_string_or_null(value) -> bool:
     return value is None or isinstance(value, str)
 
 
-def _is_string_list(value) -> bool:
-    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+def _is_string(value) -> bool:
+    return isinstance(value, str)
 
 
-def _is_string_valued_object(value) -> bool:
-    return isinstance(value, dict) and all(isinstance(item, str) for item in value.values())
+def _is_list(value) -> bool:
+    return isinstance(value, list)
+
+
+def _is_object(value) -> bool:
+    return isinstance(value, dict)
 
 
 def _is_integer_or_null(value) -> bool:
@@ -221,33 +226,57 @@ def _is_object_or_null(value) -> bool:
     return value is None or isinstance(value, dict)
 
 
-# One entry per Row field: the accepted JSON types as the error
-# message words them, and the check.
+class FieldType(NamedTuple):
+    """What one Row field accepts, as the error message words it
+    and as a check. An array or object field also says what each
+    entry accepts, so a bad entry is named on its own."""
+
+    accepted: str
+    is_accepted: Callable
+    entry_accepted: str | None = None
+    is_entry_accepted: Callable | None = None
+
+
+# One entry per Row field.
 # A test fails when a Row field has no entry, so a field added
 # later cannot skip the type check.
 ROW_FIELD_TYPES = {
-    "name": ("a string", lambda value: isinstance(value, str)),
-    "argv": ("an array of strings", _is_string_list),
-    "stdin": ("a string", lambda value: isinstance(value, str)),
-    "branch": ("a string or null", _is_string_or_null),
-    "fixture_files": ("an object whose values are strings", _is_string_valued_object),
-    "git_init": ("a boolean", lambda value: isinstance(value, bool)),
-    "divergence": ("a string or null", _is_string_or_null),
-    "expected_stdout": ("a string or null", _is_string_or_null),
-    "expected_stderr": ("a string or null", _is_string_or_null),
-    "expected_exit_code": ("an integer or null", _is_integer_or_null),
-    "expected_post_state": ("an object or null", _is_object_or_null),
-    "env": ("an object or null", _is_object_or_null),
-    "executable_files": ("an array of strings", _is_string_list),
-    "script_relpath": ("a string or null", _is_string_or_null),
+    "name": FieldType("a string", _is_string),
+    "argv": FieldType("an array of strings", _is_list, "a string", _is_string),
+    "stdin": FieldType("a string", _is_string),
+    "branch": FieldType("a string or null", _is_string_or_null),
+    "fixture_files": FieldType("an object whose values are strings", _is_object, "a string", _is_string),
+    "git_init": FieldType("a boolean", lambda value: isinstance(value, bool)),
+    "divergence": FieldType("a string or null", _is_string_or_null),
+    "expected_stdout": FieldType("a string or null", _is_string_or_null),
+    "expected_stderr": FieldType("a string or null", _is_string_or_null),
+    "expected_exit_code": FieldType("an integer or null", _is_integer_or_null),
+    "expected_post_state": FieldType("an object or null", _is_object_or_null),
+    "env": FieldType("an object or null", _is_object_or_null, "a string or null", _is_string_or_null),
+    "executable_files": FieldType("an array of strings", _is_list, "a string", _is_string),
+    "script_relpath": FieldType("a string or null", _is_string_or_null),
 }
+
+
+def _entries(value) -> list:
+    """(label suffix, entry) pairs of an array or object value."""
+    if isinstance(value, list):
+        return [(f"[{index}]", entry) for index, entry in enumerate(value)]
+    return [(f"[{key!r}]", entry) for key, entry in value.items()]
 
 
 def _validate_field_types(data: dict) -> None:
     for field_name, value in data.items():
-        accepted, is_accepted = ROW_FIELD_TYPES[field_name]
-        if not is_accepted(value):
-            raise InvalidRowError(f"{field_name} must be {accepted}, got {_json_type_name(value)}")
+        field_type = ROW_FIELD_TYPES[field_name]
+        if not field_type.is_accepted(value):
+            raise InvalidRowError(f"{field_name} must be {field_type.accepted}, got {_json_type_name(value)}")
+        if field_type.is_entry_accepted is None or value is None:
+            continue
+        for suffix, entry in _entries(value):
+            if not field_type.is_entry_accepted(entry):
+                raise InvalidRowError(
+                    f"{field_name}{suffix} must be {field_type.entry_accepted}, got {_json_type_name(entry)}"
+                )
 
 
 def _validate_env(env) -> None:
@@ -255,9 +284,6 @@ def _validate_env(env) -> None:
         return
     if not isinstance(env, dict):
         raise InvalidRowError(f"env must be an object mapping variable names to strings or null, got {env!r}")
-    for variable, value in env.items():
-        if value is not None and not isinstance(value, str):
-            raise InvalidRowError(f"env variable {variable!r} must be a string or null, got {value!r}")
 
 
 def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:
