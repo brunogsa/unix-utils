@@ -162,6 +162,7 @@ class Row:
             listed = ", ".join(repr(key) for key in unknown)
             raise InvalidRowError(f"unknown key(s) {listed}")
         _validate_field_types(data)
+        _validate_utf8_text(data)
         _validate_env(data.get("env"))
         _validate_argv(data.get("argv", []))
         _validate_executable_files(data.get("executable_files", []), data.get("fixture_files"))
@@ -293,6 +294,33 @@ def _validate_field_types(data: dict) -> None:
                 raise InvalidRowError(
                     f"{field_name}{suffix} must be {field_type.entry_accepted}, got {_json_type_name(entry)}"
                 )
+
+
+def _check_utf8_text(value, *, label: str) -> None:
+    """Reject, naming `label`, any string under `value` that
+    str.encode("utf-8") refuses, nested containers included."""
+    if isinstance(value, str):
+        try:
+            value.encode("utf-8")
+        except UnicodeEncodeError:
+            raise InvalidRowError(f"{label} must be valid UTF-8 text, got {value!r}") from None
+    elif isinstance(value, list):
+        for index, entry in enumerate(value):
+            _check_utf8_text(entry, label=f"{label}[{index}]")
+    elif isinstance(value, dict):
+        key_label = "env variable name" if label == "env" else f"{label} key"
+        for key, entry in value.items():
+            _check_utf8_text(key, label=key_label)
+            _check_utf8_text(entry, label=f"{label}[{key!r}]")
+
+
+def _validate_utf8_text(data: dict) -> None:
+    """A lone surrogate is not text: stdin and fixture contents
+    cannot encode it, and argv and env turn part of that range
+    into raw bytes. One rule across every field keeps a table
+    meaning the same thing in every position."""
+    for field_name, value in data.items():
+        _check_utf8_text(value, label=field_name)
 
 
 def _validate_env(env) -> None:

@@ -1218,6 +1218,57 @@ def _load_harness():
     return harness
 
 
+class TestCaptureScriptBehaviorNonTextStrings(_TempDirTestCase):
+    def test_should_reject_a_lone_surrogate_in_stdin_an_argv_entry_an_env_name_or_value_and_a_fixture_file_content_or_key(self):
+        harness = _load_harness()
+        bad = json.loads('"x\\ud800"')
+        cases = (
+            ({"stdin": bad}, "stdin"),
+            ({"argv": ["ok", bad]}, "argv[1]"),
+            ({"env": {"PROBE": bad}}, "env['PROBE']"),
+            ({"env": {bad: "1"}}, "env variable name"),
+            ({"fixture_files": {"a.txt": bad}}, "fixture_files['a.txt']"),
+            ({"fixture_files": {bad: "content"}}, "fixture_files key"),
+        )
+        for fields, position in cases:
+            with self.subTest(position=position):
+                with self.assertRaises(harness.InvalidRowError) as raised:
+                    harness.Row.from_dict({"name": "surrogate-row", **fields})
+
+                self.assertIn(position, raised.exception.reason)
+                self.assertIn("valid UTF-8 text", raised.exception.reason)
+                self.assertIn(repr(bad), raised.exception.reason)
+                self.assertIn("\\ud800", raised.exception.reason)
+
+    def test_should_reject_a_surrogate_that_would_reach_a_process_as_a_raw_byte_in_an_argv_entry(self):
+        harness = _load_harness()
+
+        with self.assertRaises(harness.InvalidRowError) as raised:
+            harness.Row.from_dict({"name": "raw-byte-row", "argv": ["\udc80"]})
+
+        self.assertIn("argv[0]", raised.exception.reason)
+
+    def test_should_run_no_row_when_a_later_row_holds_a_lone_surrogate(self):
+        harness = _load_harness()
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "good-row"},
+            {"name": "bad-row", "stdin": json.loads('"x\\ud800"')},
+        ])
+        self.assertTrue(table.read_bytes().isascii())
+        json_out = self.tmp_path / "captured.json"
+        stderr = io.StringIO()
+
+        with mock.patch.object(harness, "capture_row") as capture_row, \
+                contextlib.redirect_stderr(stderr):
+            exit_code = harness.main(["capture", "--script", str(self.tmp_path / "never-run.sh"),
+                                      "--table", str(table), "--json-out", str(json_out)])
+
+        self.assertEqual(exit_code, 1)
+        capture_row.assert_not_called()
+        self.assertFalse(json_out.exists())
+        self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
+
+
 class TestCaptureScriptBehaviorLaunchFailure(_TempDirTestCase):
     def _fixture_dir(self) -> Path:
         fixture_dir = self.tmp_path / "fixture"
