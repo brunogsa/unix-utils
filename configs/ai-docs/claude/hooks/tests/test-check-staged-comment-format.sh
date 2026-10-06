@@ -277,7 +277,7 @@ it_should_fall_back_to_the_index_when_a_cd_target_is_missing() {
     "command string" "$GATE_STDERR"
 }
 
-it_should_fall_back_to_the_index_when_a_cd_argument_is_a_variable() {
+it_should_allow_a_commit_after_a_cd_into_a_command_substitution_when_the_index_is_clean() {
   local repo
   repo=$(new_repo unit8cdvar)
   write_violating_shell_file "$repo/deploy.sh"
@@ -290,7 +290,7 @@ it_should_fall_back_to_the_index_when_a_cd_argument_is_a_variable() {
     "command string" "$GATE_STDERR"
 }
 
-it_should_still_judge_the_index_when_a_cd_argument_is_a_variable() {
+it_should_step_aside_when_a_cd_argument_is_a_variable_over_a_staged_violation() {
   local repo
   repo=$(new_repo unit8cdvarstaged)
   write_violating_shell_file "$repo/release.sh"
@@ -298,8 +298,10 @@ it_should_still_judge_the_index_when_a_cd_argument_is_a_variable() {
 
   run_gate "$repo" 'cd $HOME && git add deploy.sh && git commit -m "x"'
 
-  assert_eq "should block on the index verdict when the cd argument is a variable" \
-    1 "$GATE_EXIT"
+  assert_eq "should allow a commit after a cd into a variable even when the caller's index holds a violation" \
+    0 "$GATE_EXIT"
+  assert_contains "should warn that the cd into a variable leaves the commit's repository unnamed" \
+    "which repository the commit targets" "$GATE_STDERR"
 }
 
 # A staged file no comment lexer covers must not decide
@@ -1004,6 +1006,153 @@ it_should_not_read_an_ambiguous_pathspec_abbreviation_as_a_pathspec_file_option(
     "deploy.sh" "$GATE_STDERR"
 }
 
+# make_misdirected_fixture - repo A, where the caller stands,
+# holds a staged violation; repo B, which the commit under
+# test is really aimed at, is clean. Sets A_REPO and B_REPO.
+make_misdirected_fixture() {
+  A_REPO=$(new_repo "$1-a")
+  B_REPO=$(new_repo "$1-b")
+  write_violating_shell_file "$A_REPO/bad.sh"
+  git -C "$A_REPO" add bad.sh
+}
+
+# assert_gate_steps_aside - the run left in GATE_EXIT and
+# GATE_STDERR allowed the commit and said it could not tell
+# which repository the commit lands in.
+assert_gate_steps_aside() {
+  local description="$1"
+  assert_eq "should allow $description" 0 "$GATE_EXIT"
+  assert_contains "should warn that the repository $description cannot be named" \
+    "which repository the commit targets" "$GATE_STDERR"
+}
+
+# A commit aimed at repo B through an option or variable
+# the gate cannot resolve from the text must not be judged
+# by repo A's index: A's files are never in that commit.
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_git_dir_and_work_tree_equals() {
+  make_misdirected_fixture misdir1
+
+  run_gate "$A_REPO" \
+    "git --git-dir=$B_REPO/.git --work-tree=$B_REPO commit -m \"x\""
+
+  assert_gate_steps_aside "a commit aimed elsewhere through --git-dir=<dir> and --work-tree=<dir>"
+}
+
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_separate_git_dir_and_work_tree_values() {
+  make_misdirected_fixture misdir2
+
+  run_gate "$A_REPO" \
+    "git --git-dir $B_REPO/.git --work-tree $B_REPO commit -m \"x\""
+
+  assert_gate_steps_aside "a commit aimed elsewhere through --git-dir <dir> and --work-tree <dir>"
+}
+
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_bare_git_dir_variables() {
+  make_misdirected_fixture misdir3
+
+  run_gate "$A_REPO" \
+    "GIT_DIR=$B_REPO/.git GIT_WORK_TREE=$B_REPO git commit -m \"x\""
+
+  assert_gate_steps_aside "a commit aimed elsewhere through GIT_DIR and GIT_WORK_TREE assignments"
+}
+
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_git_dir_variables_after_env() {
+  make_misdirected_fixture misdir4
+
+  run_gate "$A_REPO" \
+    "env GIT_DIR=$B_REPO/.git GIT_WORK_TREE=$B_REPO git commit -m \"x\""
+
+  assert_gate_steps_aside "a commit aimed elsewhere through GIT_DIR and GIT_WORK_TREE after env"
+}
+
+it_should_step_aside_for_a_commit_that_reads_another_index_file_through_git_index_file() {
+  make_misdirected_fixture misdir5
+
+  run_gate "$A_REPO" "GIT_INDEX_FILE=$tmp_root/alt-index git commit -m \"x\""
+
+  assert_gate_steps_aside "a commit reading another index through a GIT_INDEX_FILE assignment"
+}
+
+it_should_step_aside_for_a_commit_whose_git_dash_c_target_is_a_variable() {
+  make_misdirected_fixture misdir6
+
+  run_gate "$A_REPO" "git -C \"\$REPO\" commit -m \"x\""
+
+  assert_gate_steps_aside "a commit whose git -C target is a variable"
+}
+
+it_should_step_aside_for_a_commit_after_a_cd_into_a_variable() {
+  make_misdirected_fixture misdir7
+
+  run_gate "$A_REPO" "cd \"\$REPO\" && git commit -m \"x\""
+
+  assert_gate_steps_aside "a commit after a cd into a variable"
+}
+
+# git's flag-only global options sit before the subcommand
+# and carry no value, so they are skipped the way -C is and
+# the subcommand and its pathspec are still read.
+it_should_read_a_commit_pathspec_after_a_flag_only_git_global_option() {
+  local repo
+  repo=$(new_repo flagonly)
+  write_clean_shell_file "$repo/bad.sh"
+  commit_tracked_file "$repo" bad.sh
+  write_violating_shell_file "$repo/bad.sh"
+
+  run_gate "$repo" 'git --no-pager commit -m "x" bad.sh'
+
+  assert_eq "should block a --no-pager commit whose pathspec names a violating tracked file" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the violating file a --no-pager commit pathspec names" \
+    "bad.sh" "$GATE_STDERR"
+}
+
+# A commit that does name its repository, or names none,
+# is still judged: these pin that stepping aside stays
+# limited to the unresolvable cases.
+it_should_still_block_a_commit_in_the_callers_own_repo_through_plain_and_no_pager_commits() {
+  make_misdirected_fixture stillblock1
+
+  run_gate "$A_REPO" 'git commit -m "x"'
+  assert_eq "should block a plain commit in the repo holding a staged violation" \
+    1 "$GATE_EXIT"
+
+  run_gate "$A_REPO" 'git --no-pager commit -m "x"'
+  assert_eq "should block a --no-pager commit with no pathspec in the repo holding a staged violation" \
+    1 "$GATE_EXIT"
+}
+
+it_should_still_block_a_no_pager_commit_whose_pathspec_names_the_staged_violation() {
+  make_misdirected_fixture stillblock2
+
+  run_gate "$A_REPO" 'git --no-pager commit -m "x" bad.sh'
+
+  assert_eq "should block a --no-pager commit whose pathspec names the staged violating file" \
+    1 "$GATE_EXIT"
+}
+
+it_should_still_block_a_commit_aimed_at_a_literal_repo_from_a_clean_directory() {
+  local clean
+  make_misdirected_fixture literal
+  clean=$(new_repo literal-clean)
+
+  run_gate_from "$clean" "git -C $A_REPO commit -m \"x\""
+  assert_eq "should block on the index of the repo a literal git -C names" \
+    1 "$GATE_EXIT"
+
+  run_gate_from "$clean" "git -C \"$A_REPO\" commit -m \"x\""
+  assert_eq "should block on the index of the repo a quoted literal git -C names" \
+    1 "$GATE_EXIT"
+
+  run_gate_from "$clean" "git -C ../literal-a commit -m \"x\""
+  assert_eq "should block on the index of the repo a relative git -C names" \
+    1 "$GATE_EXIT"
+
+  run_gate_from "$clean" "cd $A_REPO && git commit -m \"x\""
+  assert_eq "should block on the index of the repo a literal cd lands in" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -1012,8 +1161,8 @@ it_should_block_a_violation_in_an_already_staged_file
 it_should_fall_back_to_the_index_when_a_pathspec_is_a_variable
 it_should_still_judge_the_index_when_a_pathspec_is_a_variable
 it_should_fall_back_to_the_index_when_a_cd_target_is_missing
-it_should_fall_back_to_the_index_when_a_cd_argument_is_a_variable
-it_should_still_judge_the_index_when_a_cd_argument_is_a_variable
+it_should_allow_a_commit_after_a_cd_into_a_command_substitution_when_the_index_is_clean
+it_should_step_aside_when_a_cd_argument_is_a_variable_over_a_staged_violation
 it_should_allow_a_staged_markdown_file_beside_a_clean_shell_file
 it_should_block_a_shell_violation_staged_beside_a_markdown_file
 it_should_allow_the_commit_when_the_checker_is_missing
@@ -1056,6 +1205,17 @@ it_should_fall_back_to_the_index_when_the_pathspec_list_comes_from_stdin
 it_should_block_a_violation_listed_in_an_abbreviated_pathspec_from_file
 it_should_block_a_violation_listed_through_an_abbreviated_pathspec_file_nul
 it_should_not_read_an_ambiguous_pathspec_abbreviation_as_a_pathspec_file_option
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_git_dir_and_work_tree_equals
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_separate_git_dir_and_work_tree_values
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_bare_git_dir_variables
+it_should_step_aside_for_a_commit_aimed_elsewhere_through_git_dir_variables_after_env
+it_should_step_aside_for_a_commit_that_reads_another_index_file_through_git_index_file
+it_should_step_aside_for_a_commit_whose_git_dash_c_target_is_a_variable
+it_should_step_aside_for_a_commit_after_a_cd_into_a_variable
+it_should_read_a_commit_pathspec_after_a_flag_only_git_global_option
+it_should_still_block_a_commit_in_the_callers_own_repo_through_plain_and_no_pager_commits
+it_should_still_block_a_no_pager_commit_whose_pathspec_names_the_staged_violation
+it_should_still_block_a_commit_aimed_at_a_literal_repo_from_a_clean_directory
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

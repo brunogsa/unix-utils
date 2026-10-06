@@ -54,15 +54,33 @@
 # tracked modified file, which git names on request with
 # nothing left for the shell to expand.
 #
-# A `cd` or `-C` target the gate cannot name - a missing
-# directory, a variable, a command substitution - lands in
-# that same gap, since it leaves every later pathspec
-# rooted nowhere the gate can point at.
+# A literal `cd` or `-C` target that is not a directory - a
+# missing one - lands in that same gap, since it leaves every
+# later pathspec rooted nowhere the gate can point at.
 #
-# Expanding or guessing one here would judge whichever
-# files happen to sit elsewhere, so the whole command
-# string is discarded instead and the index alone decides,
-# with a warning saying so.
+# Guessing one here would judge whichever files happen to
+# sit elsewhere, so the whole command string is discarded
+# instead and the index alone decides, with a warning.
+#
+# A commit whose target repository the text cannot name at
+# all steps aside instead, allowing it with a warning.
+#
+# That is a variable or command substitution after `cd` or
+# `-C`, a `--git-dir` or `--work-tree` option, or a GIT_DIR,
+# GIT_WORK_TREE or GIT_INDEX_FILE assignment, bare or after
+# `env`.
+#
+# Judging the caller's index there would deny a commit over
+# files that commit never records, so the gate cannot be
+# right about it and allows it.
+#
+# git's flag-only global options, such as `--no-pager`, are
+# skipped like `-C` so the subcommand and its pathspec are
+# still read.
+#
+# Not read, so a commit using one is still judged against
+# the caller's own repo: `git -c core.worktree=<dir>` and a
+# GIT_DIR exported by an earlier `export` stage.
 #
 # Every infrastructure problem - no node, no checker, no git
 # repo, a failing git call - exits 0 with a warning.
@@ -129,6 +147,25 @@ PATHSPEC_FILE_OPTIONS = ('--pathspec-from-file', '--pathspec-file-nul')
 
 SHORT_OPTION_CLUSTER_RE = re.compile(r'-[A-Za-z]+$')
 
+# git's global options that take no value, so one of them
+# before the subcommand is skipped the way `-C <dir>` is.
+GIT_FLAG_ONLY_GLOBAL_OPTIONS = (
+    '--no-pager', '-P', '--paginate', '-p', '--bare',
+    '--literal-pathspecs', '--glob-pathspecs', '--noglob-pathspecs',
+    '--icase-pathspecs', '--no-optional-locks', '--no-advice',
+    '--no-replace-objects', '--no-lazy-fetch')
+
+# Global options with a value that leaves the repository
+# unchanged: the long ones also take the `--opt=value` form.
+GIT_VALUE_GLOBAL_OPTIONS = ('-c', '--namespace', '--config-env', '--attr-source')
+
+# Global options and variables that point git at a repository
+# or index file the command string never names as a directory.
+GIT_REPOSITORY_GLOBAL_OPTIONS = ('--git-dir', '--work-tree')
+GIT_REPOSITORY_VARIABLES = ('GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE')
+
+ENVIRONMENT_ASSIGNMENT_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*=')
+
 WARNING_PREFIX = 'check-staged-comment-format:'
 
 # Everything the command string says about the files the
@@ -177,25 +214,57 @@ def directory_after_cd(cwd, args):
 
 
 def git_subcommand_scope(tokens, directory):
-    """Index of the subcommand in a `git ...` stage and the directory that one call runs in, or None when a global option leaves either unreadable.
+    """Index of the subcommand in a `git ...` stage, the directory that one call runs in, and why its repository cannot be named (None when it can), or None when a global option leaves the subcommand unreadable.
 
     `-C` moves only its own git call, never the shell's directory, so the caller must not carry the returned directory into later stages.
+
+    A `--git-dir`/`--work-tree`, or a `-C` whose value the shell has not expanded yet, still leaves the subcommand readable, so it comes back as the unresolved reason instead of discarding the stage.
     """
     index = 1
+    unresolved = None
     while index < len(tokens) and tokens[index].startswith('-'):
+        token = tokens[index]
+        name, has_attached_value, _ = token.partition('=')
+        if token in GIT_FLAG_ONLY_GLOBAL_OPTIONS:
+            index += 1
+            continue
+        if name in GIT_REPOSITORY_GLOBAL_OPTIONS:
+            unresolved = unresolved or 'the %s option moves the commit' % name
+            index += 1 if has_attached_value else 2
+            continue
+        if has_attached_value and name in GIT_VALUE_GLOBAL_OPTIONS:
+            index += 1
+            continue
         if index + 1 >= len(tokens):
             return None
         value = tokens[index + 1]
-        if tokens[index] == '-C':
+        if token == '-C':
             if any(c in value for c in NON_LITERAL_CHARS):
-                return None
-            directory = resolve(directory, value)
-            if not os.path.isdir(directory):
-                return None
-        elif tokens[index] != '-c':
+                unresolved = unresolved or 'the -C target %s is not literal' % value
+            else:
+                directory = resolve(directory, value)
+                if not os.path.isdir(directory):
+                    return None
+        elif token not in GIT_VALUE_GLOBAL_OPTIONS:
             return None
         index += 2
-    return index, directory
+    return index, directory, unresolved
+
+
+def split_leading_environment(tokens):
+    """The `NAME=value` assignments leading a stage, however many `env` words sit between them, plus the tokens after them.
+
+    Only those assignments and a bare `env` are read: an `env` option such as `-i` ends the walk, leaving a stage the gate cannot read as a git call.
+    """
+    index = 0
+    assignments = []
+    while index < len(tokens):
+        if ENVIRONMENT_ASSIGNMENT_RE.match(tokens[index]):
+            assignments.append(tokens[index])
+        elif tokens[index] != 'env':
+            break
+        index += 1
+    return assignments, tokens[index:]
 
 
 def cluster_stages_every_tracked_file(token):
@@ -342,6 +411,8 @@ def command_scope(command, start_directory):
     directory = start_directory
     commit_directory = None
     stages_all = False
+    unresolved_cd = False
+    skipped_add = False
     for stages in _parse_shell_command.split_into_pipelines(command):
         for stage in stages:
             try:
@@ -351,19 +422,33 @@ def command_scope(command, start_directory):
             if not tokens:
                 continue
             if tokens[0] == 'cd':
+                if any(c in arg for arg in tokens[1:] for c in NON_LITERAL_CHARS):
+                    unresolved_cd = True
+                    continue
                 directory = directory_after_cd(directory, tokens[1:])
                 if directory is None:
                     return CommandScope(None, start_directory, stages_all)
                 continue
+            assignments, tokens = split_leading_environment(tokens)
             if len(tokens) < 2 or os.path.basename(tokens[0]) != 'git':
                 continue
             scope = git_subcommand_scope(tokens, directory)
             if scope is None:
                 return CommandScope(None, directory, stages_all)
-            subcommand, call_directory = scope
+            subcommand, call_directory, unresolved = scope
             if subcommand >= len(tokens):
                 continue
             if tokens[subcommand] == 'commit':
+                if unresolved_cd:
+                    unresolved = 'a cd target is not literal'
+                redirecting = [assignment.partition('=')[0] for assignment in assignments
+                               if assignment.partition('=')[0] in GIT_REPOSITORY_VARIABLES]
+                if redirecting:
+                    unresolved = 'the %s assignment moves the commit' % redirecting[0]
+                if unresolved:
+                    warn_and_allow('could not tell which repository the commit '
+                                   'targets from the command string (%s), '
+                                   'skipping the check' % unresolved)
                 commit_directory = call_directory
                 commit_stages_all, commit_pathspecs, commit_file, commit_nul = (
                     scan_commit_args(tokens[subcommand + 1:]))
@@ -380,6 +465,9 @@ def command_scope(command, start_directory):
                     paths.append(resolve(call_directory, token))
                 continue
             if tokens[subcommand] != 'add':
+                continue
+            if unresolved_cd or unresolved:
+                skipped_add = True
                 continue
             after_options = False
             add_args = tokens[subcommand + 1:]
@@ -415,6 +503,8 @@ def command_scope(command, start_directory):
                     return CommandScope(None, directory, stages_all)
                 paths.extend(listed)
                 added_paths.extend(listed)
+    if skipped_add or unresolved_cd:
+        return CommandScope(None, commit_directory or directory, stages_all)
     return CommandScope(paths, commit_directory or directory, stages_all,
                         added_paths)
 
