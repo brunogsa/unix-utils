@@ -10,6 +10,11 @@ disallowedTools: Workflow
 allowedSubagents: Explore
 skills:
   - test-driven-development
+hooks:
+  Stop:
+    - hooks:
+        - type: command
+          command: "python3 ~/.claude/hooks/check-tdd-coder-report-files.py || true"
 ---
 
 ## Objective
