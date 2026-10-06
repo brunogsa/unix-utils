@@ -24,15 +24,21 @@
 #   accepted divergence marker, a fixture-escape attempt,
 #   a bad invocation, or a malformed compare input (told
 #   apart from a no-match by its empty stdout)
+#
+# Each row's process group is killed when the row ends, so
+#   output a leftover child writes later is not in a golden.
 
 import argparse
 import hashlib
 import json
+import locale
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Callable, NamedTuple
@@ -478,6 +484,37 @@ def _place_script_in_fixture(script: Path, row: Row, *, fixture_dir: Path) -> st
     return f"./{relpath}"
 
 
+def _kill_process_group(proc: subprocess.Popen) -> None:
+    """SIGKILL every process the row's script started. The script
+    leads its own group, so the group id is its pid. A group already
+    empty raises ProcessLookupError, and one holding only its
+    unreaped zombie leader raises PermissionError on macOS."""
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
+def _capture_post_state(row: Row, *, fixture_dir: Path) -> dict:
+    return {
+        # The copy is not hashed: the original script and its
+        # rewrite differ in content by design, so hashing it
+        # would fail every replay.
+        "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir, skip_relpath=row.script_relpath),
+        "git_status": capture_git_status(fixture_dir, fixture_dir=fixture_dir) if row.git_init else None,
+    }
+
+
+def _read_output(stream, *, encoding: str) -> str:
+    """The whole text a row wrote to `stream`, decoded and with
+    newlines translated as subprocess's text mode did, so every
+    golden recorded before this reader replays unchanged. The
+    child shares the file offset, so read from the start."""
+    stream.seek(0)
+    text = stream.read().decode(encoding)
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def capture_row(
     script: Path, row: Row, *, fixture_dir: Path, timeout_seconds: float = ROW_TIMEOUT_SECONDS,
 ) -> Captured:
@@ -488,35 +525,50 @@ def capture_row(
     program = str(script)
     if row.script_relpath is not None:
         program = _place_script_in_fixture(script, row, fixture_dir=fixture_dir)
-    try:
-        result = subprocess.run(
-            [program, *row.argv],
-            cwd=fixture_dir, input=row.stdin, env=_build_env(row, fixture_dir=fixture_dir),
-            capture_output=True, text=True, timeout=timeout_seconds,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise RowTimeoutError(
-            f"ran past {timeout_seconds}s and was killed; "
-            "no golden is recorded from a killed run",
-            row=repr(row.name),
-        ) from exc
-    except OSError as exc:
-        raise RowLaunchError(
-            f"cannot start {program!r}: {_os_reason(exc)}", row=repr(row.name),
-        ) from exc
-    post_state = {
-        # The copy is not hashed: the original script and its
-        # rewrite differ in content by design, so hashing it
-        # would fail every replay.
-        "tree": hash_fixture_tree(fixture_dir, fixture_dir=fixture_dir, skip_relpath=row.script_relpath),
-        "git_status": capture_git_status(fixture_dir, fixture_dir=fixture_dir) if row.git_init else None,
-    }
+    encoding = locale.getpreferredencoding(False)
+    with tempfile.TemporaryFile() as stdin_file, \
+            tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        stdin_file.write(row.stdin.encode(encoding))
+        stdin_file.flush()
+        stdin_file.seek(0)
+        try:
+            proc = subprocess.Popen(
+                [program, *row.argv],
+                cwd=fixture_dir, env=_build_env(row, fixture_dir=fixture_dir),
+                stdin=stdin_file, stdout=stdout_file, stderr=stderr_file,
+                start_new_session=True,
+            )
+        except OSError as exc:
+            raise RowLaunchError(
+                f"cannot start {program!r}: {_os_reason(exc)}", row=repr(row.name),
+            ) from exc
+        try:
+            try:
+                exit_code = proc.wait(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired as exc:
+                _kill_process_group(proc)
+                proc.wait()
+                raise RowTimeoutError(
+                    f"ran past {timeout_seconds}s and was killed; "
+                    "no golden is recorded from a killed run",
+                    row=repr(row.name),
+                ) from exc
+
+            # Hash only after no leftover child can write.
+            _kill_process_group(proc)
+            post_state = _capture_post_state(row, fixture_dir=fixture_dir)
+            stdout = _read_output(stdout_file, encoding=encoding)
+            stderr = _read_output(stderr_file, encoding=encoding)
+        finally:
+            if proc.returncode is None:
+                _kill_process_group(proc)
+                proc.wait()
     return Captured(
         name=row.name,
         branch=row.branch,
-        stdout=mask_text(result.stdout, fixture_dir=fixture_dir),
-        stderr=mask_text(result.stderr, fixture_dir=fixture_dir),
-        exit_code=result.returncode,
+        stdout=mask_text(stdout, fixture_dir=fixture_dir),
+        stderr=mask_text(stderr, fixture_dir=fixture_dir),
+        exit_code=exit_code,
         post_state=post_state,
     )
 

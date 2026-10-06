@@ -12,10 +12,12 @@ import importlib.util
 import io
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -771,22 +773,27 @@ class TestCaptureScriptBehaviorInvalidRow(_TempDirTestCase):
         self.assertIn("fixture_file", stderr)
 
     def test_should_report_a_row_that_outlives_its_timeout_as_a_one_line_error_and_write_nothing(self):
-        # subprocess.run is patched to time out, so no script
-        # runs and no executable is needed. The real kill is
-        # covered by the row-timeout test above.
-        spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
-        assert spec is not None and spec.loader is not None
-        harness = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(harness)
-        table = _write_table(self.tmp_path / "table.json", [{"name": "slow-row"}])
+        # A timed wait on /bin/sh expires at once instead of
+        # after 60 s, and the untimed wait that follows the kill
+        # is the real one. No executable is written.
+        harness = _load_harness()
+        table = _write_table(self.tmp_path / "table.json", [
+            {"name": "slow-row", "argv": ["-c", "sleep 30"]},
+        ])
         json_out = self.tmp_path / "captured.json"
         emitted = self.tmp_path / "toy.test.py"
+        real_popen = subprocess.Popen
 
-        timed_out = subprocess.TimeoutExpired(cmd="never-run.sh", timeout=60)
+        class ExpiringPopen(real_popen):
+            def wait(self, timeout=None):
+                if timeout is None:
+                    return super().wait()
+                raise subprocess.TimeoutExpired(cmd="/bin/sh", timeout=timeout)
+
         stderr = io.StringIO()
-        with mock.patch.object(harness.subprocess, "run", side_effect=timed_out), \
+        with mock.patch.object(harness.subprocess, "Popen", ExpiringPopen), \
                 contextlib.redirect_stderr(stderr):
-            exit_code = harness.main(["capture", "--script", str(self.tmp_path / "never-run.sh"),
+            exit_code = harness.main(["capture", "--script", "/bin/sh",
                                        "--table", str(table), "--json-out", str(json_out),
                                        "--out", str(emitted)])
 
@@ -1267,6 +1274,98 @@ class TestCaptureScriptBehaviorNonTextStrings(_TempDirTestCase):
         capture_row.assert_not_called()
         self.assertFalse(json_out.exists())
         self.assertTrue(stderr.getvalue().startswith("error: row 'bad-row': "), msg=stderr.getvalue())
+
+
+class TestCaptureScriptBehaviorProcessGroup(_TempDirTestCase):
+    """Rows run through /bin/sh -c so no new executable is written
+    (macOS scans each new executable on its first direct exec)."""
+
+    def setUp(self):
+        super().setUp()
+        self.harness = _load_harness()
+        self.fixture_dir = self.tmp_path / "fixture"
+        self.fixture_dir.mkdir()
+        self.addCleanup(self._kill_background_sleep)
+
+    def _background_pid(self) -> int | None:
+        try:
+            return int((self.fixture_dir / "pid").read_text().strip())
+        except (FileNotFoundError, ValueError):
+            return None
+
+    def _kill_background_sleep(self):
+        pid = self._background_pid()
+        if pid is not None:
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(pid, signal.SIGKILL)
+
+    def _row(self, shell_code: str):
+        return self.harness.Row.from_dict({"name": "group-row", "argv": ["-c", shell_code]})
+
+    def _assert_process_gone(self, pid: int):
+        # A killed child stays a zombie until launchd reaps it,
+        # so poll instead of checking once.
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        self.fail(f"process {pid} is still alive")
+
+    def test_should_return_promptly_and_kill_the_background_child_when_the_script_exits_leaving_it_running(self):
+        row = self._row("sleep 30 & echo $! > pid; exit 0")
+        started = time.monotonic()
+
+        captured = self.harness.capture_row(
+            Path("/bin/sh"), row, fixture_dir=self.fixture_dir, timeout_seconds=5)
+
+        self.assertLess(time.monotonic() - started, 4)
+        self.assertEqual(captured.exit_code, 0)
+        pid = self._background_pid()
+        assert pid is not None
+        self._assert_process_gone(pid)
+
+    def test_should_kill_the_background_child_when_the_row_times_out(self):
+        row = self._row("sleep 30 & echo $! > pid; sleep 30")
+
+        with self.assertRaises(self.harness.RowTimeoutError):
+            self.harness.capture_row(
+                Path("/bin/sh"), row, fixture_dir=self.fixture_dir, timeout_seconds=1)
+
+        pid = self._background_pid()
+        assert pid is not None
+        self._assert_process_gone(pid)
+
+    def test_should_kill_the_script_and_its_background_child_when_the_run_is_interrupted(self):
+        row = self._row("sleep 30 & echo $! > pid; sleep 30")
+        pid_file = self.fixture_dir / "pid"
+        launched = []
+        real_popen = subprocess.Popen
+
+        class InterruptedPopen(real_popen):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                launched.append(self.pid)
+
+            def wait(self, timeout=None):
+                if timeout is None:
+                    return super().wait()
+                deadline = time.monotonic() + 5
+                while not pid_file.exists() and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                raise KeyboardInterrupt
+
+        with mock.patch.object(self.harness.subprocess, "Popen", InterruptedPopen):
+            with self.assertRaises(KeyboardInterrupt):
+                self.harness.capture_row(
+                    Path("/bin/sh"), row, fixture_dir=self.fixture_dir, timeout_seconds=5)
+
+        pid = self._background_pid()
+        assert pid is not None
+        self._assert_process_gone(launched[0])
+        self._assert_process_gone(pid)
 
 
 class TestCaptureScriptBehaviorLaunchFailure(_TempDirTestCase):
