@@ -1,7 +1,9 @@
 # capture-script-behavior.test.py - Blackbox CLI tests for
-# capture-script-behavior.py: every test invokes the script's
-# CLI via subprocess (never imports it directly - hyphenated
-# filenames aren't importable via a plain `import` statement).
+# capture-script-behavior.py: most tests drive the CLI through
+# a subprocess, because that is how the tool runs in production.
+#
+# The tests that must fake a subprocess failure load the tool
+# in-process instead, since a fake cannot reach a child process.
 #
 # Each test runs inside a fresh tempfile.TemporaryDirectory()
 # per test so no run touches the real repo tree.
@@ -40,8 +42,9 @@ class _TempDirTestCase(unittest.TestCase):
 
 def _run(*args, cwd=None, env=None):
     """Run capture-script-behavior.py with `args`, returning the
-    completed subprocess. Blackbox by design: this is the only way
-    the tool is ever invoked in production too."""
+    completed subprocess. Blackbox so a test sees what a real
+    caller sees; a test that must fake a subprocess failure
+    loads the tool in-process instead."""
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         capture_output=True, text=True, cwd=cwd, env=env,
