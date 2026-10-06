@@ -25,7 +25,7 @@ from pathlib import Path
 from unittest import mock
 
 SCRIPT = Path(__file__).parent.parent / "capture-script-behavior.py"
-REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent.parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent.parent.parent.parent
 
 
 class _TempDirTestCase(unittest.TestCase):
