@@ -27,6 +27,20 @@
 #
 # Each row's process group is killed when the row ends, so
 #   output a leftover child writes later is not in a golden.
+#
+# Git state is only partly captured. The fixture tree hash
+#   skips everything under .git/, and a git_init row sees
+#   git only through `git status --porcelain`.
+#
+# That cannot see commit messages, branches, tags, local
+#   config or hooks, so a rewrite changing any of those
+#   still replays green.
+#
+# A row without git_init records no git state at all, so a
+#   script's own `git init` is invisible.
+#
+# Capture for these is worth adding only once a script
+#   under characterization writes git state.
 
 import argparse
 import hashlib
