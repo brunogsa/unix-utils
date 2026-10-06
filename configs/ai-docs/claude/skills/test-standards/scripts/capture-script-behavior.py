@@ -123,6 +123,16 @@ class RowTimeoutError(RowError, RuntimeError):
     """Raised when a row's script outlives its timeout."""
 
 
+class RowLaunchError(RowError, RuntimeError):
+    """Raised when a row's script cannot be started or copied into
+    its fixture: a missing file, no exec bit, a file the kernel
+    cannot exec."""
+
+
+def _os_reason(exc: OSError) -> str:
+    return exc.strerror if exc.strerror is not None else str(exc)
+
+
 @dataclass
 class Row:
     name: str
@@ -426,7 +436,15 @@ def _place_script_in_fixture(script: Path, row: Row, *, fixture_dir: Path) -> st
     relpath = str(row.script_relpath)
     destination = fixture_dir / relpath
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(script, destination)
+
+    # copy2's copystat fails on a restricted system binary.
+    try:
+        shutil.copy(script, destination)
+    except OSError as exc:
+        raise RowLaunchError(
+            f"cannot copy script {str(script)!r} into the fixture: {_os_reason(exc)}",
+            row=repr(row.name),
+        ) from exc
     if row.git_init:
         subprocess.run(["git", "add", "--", relpath], cwd=fixture_dir, capture_output=True)
     return f"./{relpath}"
@@ -453,6 +471,10 @@ def capture_row(
             f"ran past {timeout_seconds}s and was killed; "
             "no golden is recorded from a killed run",
             row=repr(row.name),
+        ) from exc
+    except OSError as exc:
+        raise RowLaunchError(
+            f"cannot start {program!r}: {_os_reason(exc)}", row=repr(row.name),
         ) from exc
     post_state = {
         # The copy is not hashed: the original script and its

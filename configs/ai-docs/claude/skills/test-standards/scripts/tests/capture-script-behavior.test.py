@@ -12,6 +12,7 @@ import importlib.util
 import io
 import json
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -1207,3 +1208,84 @@ class TestCaptureScriptBehaviorCompareInput(_TempDirTestCase):
 
         self.assertEqual((exit_code, stderr), (0, ""))
         self.assertEqual(json.loads(stdout), {"matches": True, "diff": {}})
+
+
+def _load_harness():
+    spec = importlib.util.spec_from_file_location("capture_script_behavior", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    harness = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(harness)
+    return harness
+
+
+class TestCaptureScriptBehaviorLaunchFailure(_TempDirTestCase):
+    def _fixture_dir(self) -> Path:
+        fixture_dir = self.tmp_path / "fixture"
+        fixture_dir.mkdir()
+        return fixture_dir
+
+    def test_should_fail_with_a_launch_error_when_the_script_does_not_exist(self):
+        harness = _load_harness()
+        row = harness.Row.from_dict({"name": "missing-script-row"})
+
+        with self.assertRaises(harness.RowLaunchError) as raised:
+            harness.capture_row(self.tmp_path / "no-such-script.sh", row, fixture_dir=self._fixture_dir())
+
+        self.assertIn("missing-script-row", str(raised.exception))
+        self.assertIn("no-such-script.sh", str(raised.exception))
+
+    def test_should_fail_with_a_launch_error_when_the_script_to_copy_into_the_fixture_does_not_exist(self):
+        harness = _load_harness()
+        row = harness.Row.from_dict({"name": "missing-copy-row", "script_relpath": "bin/tool.sh"})
+
+        with self.assertRaises(harness.RowLaunchError) as raised:
+            harness.capture_row(self.tmp_path / "no-such-script.sh", row, fixture_dir=self._fixture_dir())
+
+        self.assertIn("no-such-script.sh", str(raised.exception))
+
+    def test_should_fail_with_a_launch_error_when_the_script_has_no_exec_bit_run_directly_or_copied(self):
+        harness = _load_harness()
+        script = self.tmp_path / "not-executable.sh"
+        script.write_text("#!/bin/sh\nexit 0\n")
+        for fields in ({}, {"script_relpath": "tool.sh"}):
+            with self.subTest(fields=fields):
+                row = harness.Row.from_dict({"name": "no-exec-row", **fields})
+                fixture_dir = Path(tempfile.mkdtemp(dir=self.tmp_path))
+
+                with self.assertRaises(harness.RowLaunchError) as raised:
+                    harness.capture_row(script, row, fixture_dir=fixture_dir)
+
+                self.assertIn("Permission denied", str(raised.exception))
+
+    def test_should_report_a_script_that_cannot_start_as_one_error_line_with_no_output_file(self):
+        script = self.tmp_path / "not-executable.sh"
+        script.write_text("#!/bin/sh\nexit 0\n")
+        table = _write_table(self.tmp_path / "table.json", [{"name": "no-exec-row"}])
+        json_out = self.tmp_path / "captured.json"
+        out = self.tmp_path / "replay.test.py"
+
+        result = _run("capture", "--script", str(script), "--table", str(table),
+                       "--json-out", str(json_out), "--out", str(out))
+
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertEqual(len(result.stderr.splitlines()), 1, msg=result.stderr)
+        self.assertTrue(result.stderr.startswith("error: row 'no-exec-row': "), msg=result.stderr)
+        self.assertFalse(json_out.exists())
+        self.assertFalse(out.exists())
+
+    @unittest.skipUnless(
+        os.path.exists("/usr/bin/true")
+        and getattr(os.stat("/usr/bin/true"), "st_flags", 0) & getattr(stat, "SF_RESTRICTED", 0x80000),
+        "needs a restricted system binary, which only darwin ships",
+    )
+    def test_should_copy_a_restricted_system_binary_into_the_fixture_keeping_its_owner_exec_bit(self):
+        harness = _load_harness()
+        row = harness.Row.from_dict({"name": "restricted-row", "script_relpath": "bin/true"})
+        fixture_dir = self._fixture_dir()
+
+        program = harness._place_script_in_fixture(Path("/usr/bin/true"), row, fixture_dir=fixture_dir)
+
+        copy = fixture_dir / "bin" / "true"
+        self.assertEqual(program, "./bin/true")
+        self.assertTrue(copy.exists())
+        self.assertTrue(copy.stat().st_mode & stat.S_IXUSR)
