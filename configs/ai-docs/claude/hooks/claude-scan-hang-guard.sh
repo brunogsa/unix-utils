@@ -78,10 +78,9 @@ import shlex
 import sys
 
 # strip_heredoc_bodies() and split_into_pipelines() live in
-# lib/parse-shell-command.py, shared with claude-rm-guard.sh - see that
+# lib/parse-shell-command.py, shared with other guards - see that
 # module's header for why guards import it via spec_from_file_location
-# instead of a bare `import` (its filename is hyphenated, not a valid
-# Python identifier).
+# instead of a bare `import`.
 _lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
 _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
 _parse_shell_command = importlib.util.module_from_spec(_spec)

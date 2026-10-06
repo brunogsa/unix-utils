@@ -67,9 +67,8 @@ import subprocess
 import sys
 
 # strip_heredoc_bodies() and the quote-aware pipeline splitter
-# live in lib/parse-shell-command.py, shared with
-# claude-rm-guard.sh and claude-scan-hang-guard.sh - see that
-# module's header for why guards import it via
+# live in lib/parse-shell-command.py, shared with other guards -
+# see that module's header for why guards import it via
 # spec_from_file_location.
 _lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
 _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)

@@ -1,19 +1,19 @@
 # parse-shell-command - Shared shell-command-string
 # parsing helpers.
 #
-# Loaded by claude-rm-guard.sh and claude-scan-hang-guard.sh.
-#
 # Each guard's bash preamble resolves this file's
 # directory through the `~/.claude/hooks` symlink
 # into CLAUDE_HOOKS_DIR.
 #
 # Its `python3 -` heredoc then imports this module
-# via `importlib.util.spec_from_file_location`.
+# via `importlib.util.spec_from_file_location`, since
+# the hyphenated filename is not a valid Python
+# identifier that a bare `import` could name.
 #
-# Both functions parse a PreToolUse Bash command string
-# BEFORE the shell runs it (globs unexpanded, quotes
-# unresolved), so both fail toward treating ambiguous
-# input as command STRUCTURE rather than silently dropping it.
+# Every function here parses a PreToolUse Bash command
+# string BEFORE the shell runs it (globs unexpanded,
+# quotes unresolved), so none can assume the text is
+# fully resolved.
 #
 # Each guard then decides for itself whether "structure
 # it could not parse" means fail-open or fail-closed.
