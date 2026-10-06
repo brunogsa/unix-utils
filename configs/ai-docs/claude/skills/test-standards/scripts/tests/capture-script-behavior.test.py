@@ -1368,6 +1368,47 @@ class TestCaptureScriptBehaviorProcessGroup(_TempDirTestCase):
         self._assert_process_gone(pid)
 
 
+class TestCaptureScriptBehaviorUndecodableOutput(_TempDirTestCase):
+    STREAM_CODE = (
+        ("stdout", "printf 'ok\\377\\n'"),
+        ("stderr", "printf 'ok\\377\\n' >&2"),
+    )
+
+    def test_should_report_a_row_printing_a_non_utf8_byte_as_one_error_line_naming_the_stream_and_write_nothing(self):
+        for stream, shell_code in self.STREAM_CODE:
+            with self.subTest(stream=stream):
+                table = _write_table(self.tmp_path / f"{stream}.json", [
+                    {"name": "binary-row", "argv": ["-c", shell_code]},
+                ])
+                json_out = self.tmp_path / f"{stream}-captured.json"
+                out = self.tmp_path / f"{stream}-replay.test.py"
+
+                result = _run("capture", "--script", "/bin/sh", "--table", str(table),
+                               "--json-out", str(json_out), "--out", str(out))
+
+                self.assertEqual(result.returncode, 1, msg=result.stderr)
+                self.assertEqual(len(result.stderr.splitlines()), 1, msg=result.stderr)
+                self.assertTrue(result.stderr.startswith("error: row 'binary-row': "), msg=result.stderr)
+                self.assertIn(stream, result.stderr)
+                self.assertIn("utf-8", result.stderr.lower())
+                self.assertFalse(json_out.exists())
+                self.assertFalse(out.exists())
+
+    def test_should_raise_a_row_error_when_the_row_prints_a_non_utf8_byte(self):
+        harness = _load_harness()
+        fixture_dir = self.tmp_path / "fixture"
+        fixture_dir.mkdir()
+        for stream, shell_code in self.STREAM_CODE:
+            with self.subTest(stream=stream):
+                row = harness.Row.from_dict({"name": "binary-row", "argv": ["-c", shell_code]})
+
+                with self.assertRaises(harness.RowError) as raised:
+                    harness.capture_row(Path("/bin/sh"), row, fixture_dir=fixture_dir)
+
+                self.assertIsInstance(raised.exception, harness.RowOutputError)
+                self.assertIn(stream, str(raised.exception))
+
+
 class TestCaptureScriptBehaviorLaunchFailure(_TempDirTestCase):
     def _fixture_dir(self) -> Path:
         fixture_dir = self.tmp_path / "fixture"

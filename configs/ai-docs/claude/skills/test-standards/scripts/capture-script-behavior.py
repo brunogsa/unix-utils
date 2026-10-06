@@ -135,6 +135,11 @@ class RowLaunchError(RowError, RuntimeError):
     cannot exec."""
 
 
+class RowOutputError(RowError):
+    """Raised when a row's stdout or stderr is not valid text in
+    the capture encoding."""
+
+
 def _os_reason(exc: OSError) -> str:
     return exc.strerror if exc.strerror is not None else str(exc)
 
@@ -505,13 +510,20 @@ def _capture_post_state(row: Row, *, fixture_dir: Path) -> dict:
     }
 
 
-def _read_output(stream, *, encoding: str) -> str:
+def _read_output(stream, *, stream_name: str, row: Row, encoding: str) -> str:
     """The whole text a row wrote to `stream`, decoded and with
     newlines translated as subprocess's text mode did, so every
     golden recorded before this reader replays unchanged. The
     child shares the file offset, so read from the start."""
     stream.seek(0)
-    text = stream.read().decode(encoding)
+    try:
+        text = stream.read().decode(encoding)
+    except UnicodeDecodeError as exc:
+        raise RowOutputError(
+            f"{stream_name} is not valid {encoding} text: {exc.reason} "
+            f"at byte {exc.start}; no golden holds raw bytes",
+            row=repr(row.name),
+        ) from exc
     return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
@@ -557,8 +569,8 @@ def capture_row(
             # Hash only after no leftover child can write.
             _kill_process_group(proc)
             post_state = _capture_post_state(row, fixture_dir=fixture_dir)
-            stdout = _read_output(stdout_file, encoding=encoding)
-            stderr = _read_output(stderr_file, encoding=encoding)
+            stdout = _read_output(stdout_file, stream_name="stdout", row=row, encoding=encoding)
+            stderr = _read_output(stderr_file, stream_name="stderr", row=row, encoding=encoding)
         finally:
             if proc.returncode is None:
                 _kill_process_group(proc)
