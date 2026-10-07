@@ -267,6 +267,27 @@ it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments() {
   assert_contains "should print usage on stderr" "usage:" "$RUN_ERR"
 }
 
+it_should_print_usage_on_stdout_and_exit_0_without_running_any_gate_when_given_help_or_h() {
+  local flag
+  for flag in --help -h; do
+    build_tree
+    run_runner "$flag"
+    assert_eq "should exit 0 on $flag" "0" "$RUN_EXIT"
+    assert_contains "should print usage on stdout for $flag" "usage:" "$RUN_OUT"
+    assert_eq "should print nothing on stderr for $flag" "" "$RUN_ERR"
+    assert_eq "should run no gate for $flag" "" "$(cat "$CALL_LOG")"
+  done
+}
+
+it_should_exit_2_naming_the_option_with_usage_on_stderr_when_given_an_unknown_option() {
+  build_tree
+  run_runner --bogus "$PLAN"
+  assert_eq "should exit 2 on an unknown option" "2" "$RUN_EXIT"
+  assert_contains "should name the unknown option on stderr" "error: unknown option: --bogus" "$RUN_ERR"
+  assert_contains "should print usage on stderr" "usage:" "$RUN_ERR"
+  assert_eq "should run no gate on an unknown option" "" "$(cat "$CALL_LOG")"
+}
+
 it_should_run_exactly_the_spec_gates_and_report_the_plan_gates_as_skipped_when_given_spec_only() {
   build_tree
   run_runner --spec-only "$SPEC"
@@ -356,6 +377,8 @@ it_should_warn_without_failing_the_run_when_a_plan_or_spec_has_a_hard_wrapped_pa
 it_should_count_a_hard_wrap_checker_usage_error_as_a_failure
 it_should_exit_2_with_usage_on_stderr_when_given_no_arguments
 it_should_exit_2_with_usage_on_stderr_when_given_more_than_two_arguments
+it_should_print_usage_on_stdout_and_exit_0_without_running_any_gate_when_given_help_or_h
+it_should_exit_2_naming_the_option_with_usage_on_stderr_when_given_an_unknown_option
 it_should_run_exactly_the_spec_gates_and_report_the_plan_gates_as_skipped_when_given_spec_only
 it_should_exit_1_with_the_failing_gate_when_a_spec_gate_fails_in_spec_only_mode
 it_should_exit_2_with_usage_on_stderr_when_spec_only_has_no_file_argument

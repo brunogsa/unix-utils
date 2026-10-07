@@ -48,11 +48,39 @@
 # Exit codes:
 #   0 - no gate failed (WARN and SKIP do not count).
 #   1 - at least one gate exited non-zero.
-#   2 - usage error, or a named file missing.
+#   2 - usage error (including an unknown option), or a named
+#       file missing.
+#
+# -h / --help print the usage line to stdout and exit 0.
 
 set -uo pipefail
 
 usage="usage: $(basename "$0") <plan-file> [<spec-file>] | --spec-only <spec-file>"
+
+# Flags are screened before any file handling, so a typo such as
+# `--hlep` reports itself instead of "file not found: --hlep".
+# Only a leading --spec-only is a real flag; it is skipped here
+# and parsed below.
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help)
+      echo "$usage"
+      exit 0
+      ;;
+  esac
+done
+
+first_checked=1
+[ "${1:-}" = "--spec-only" ] && first_checked=2
+for arg in "${@:$first_checked}"; do
+  case "$arg" in
+    -*)
+      echo "error: unknown option: $arg" >&2
+      echo "$usage" >&2
+      exit 2
+      ;;
+  esac
+done
 
 if [ "${1:-}" = "--spec-only" ]; then
   if [ $# -ne 2 ]; then
