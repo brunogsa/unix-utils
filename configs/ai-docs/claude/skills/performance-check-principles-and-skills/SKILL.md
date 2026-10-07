@@ -27,6 +27,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 | Target | Budget | Rationale |
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research-claudemd-budgets.md#claudemd-length) |
+| CLAUDE.md characters | 40,000 | [Floor of Claude Code's "Large CLAUDE.md" startup warning](references/research-claudemd-budgets.md#claudemd-chars) |
 | CLAUDE.md words per line | 32 | User preference - enforces "Prefer scannable shape" |
 | Skill total count | 64 | [Next power of 2 above half of Anthropic's 100+ routing scale; preload negligible (~1.5% of context)](references/research-skill-budgets.md#skill-count) |
 | Skill non-blank lines | 500 | [Anthropic official best practice](references/research-skill-budgets.md#skill-size) |
@@ -41,6 +42,8 @@ All limits sourced where possible. [`references/research.md`](references/researc
 | *-standards [Instruction] total (sum across `*-standards/SKILL.md`) | 200 | [Reserved share for lazy-loaded standards skills - deliberately tight vs. IFScale 500 ceiling](references/research-instruction-load-budgets.md#instruction-count-budgets) |
 | CRITICAL ratio per file ([Instruction] lines marked CRITICAL ÷ [Instruction] count) | 16% | [Emphasis-salience reasoning - not measured](references/research-instruction-load-budgets.md#critical-emphasis-ratio) |
 | CRITICAL [Instruction] lines with no [Why] in the next 3 non-blank lines | 0 | A tiebreaker with no stated rationale can't be weighed against the rule it overrides |
+| [Why] lines over 128 bytes | 0 | User preference - below the median [Why] length, so it binds typical rationale |
+| Agent-authoring contract failures (canonical agents dir) | 0 | Every agent file must pass `agent-standards/scripts/check-agent-contract.sh` |
 
 `synced/` is excluded from every check above: upstream reverts local edits there, so these budgets govern only authored skills.
 
@@ -137,7 +140,7 @@ The script measures with `grep`, `awk`, `wc`, `find`, and `readlink`.
 
 A status table with one row per budget above, each `Measured | Budget | OK`-or-`OVER`, then one follow-up section per failing budget naming the offending lines, skills, or bundled files, plus a per-skill CRITICAL-ratio table and the density total.
 
-Run the script rather than reproducing the shape here - a pasted sample drifts silently as budgets are added.
+Run the script rather than pasting a sample, which drifts as budgets change.
 
 ## Why Report-Only
 
@@ -174,8 +177,6 @@ Return 8-12 ranked candidates, never a pre-filtered top-3 - a short list where e
 
 Keep every entry, ranked but unfiltered, each carrying its verbatim text, what real coverage is lost if it goes, and a confidence.
 
-A last-place candidate with an honest loss note still belongs - the human may value what the audit doesn't.
-
 ### Trim hierarchy (preference order)
 
 Apply in order, top to bottom. Each step is cheaper / less destructive than the next.
@@ -196,8 +197,6 @@ Earns it: a mid-flight helper-insertion procedure, `code-review-pipeline`'s per-
 
 Doesn't earn it (move inline or split the skill instead): gate procedures, "how to use this skill" content, a verification matrix every output needs - these fire every invocation.
 
-When extraction doesn't pass the lazy test, prefer steps 1-2 (drop / tighten) over step 3.
-
 ### Per-overage moves
 
 - **Lines or words per line over in CLAUDE.md**: drop duplicate principles; collapse multi-example sub-bullets into one comma-separated line.
@@ -210,8 +209,6 @@ When extraction doesn't pass the lazy test, prefer steps 1-2 (drop / tighten) ov
 
 - **Skill count over**: merge near-duplicate skills or fold rarely-used ones into a broader sibling.
 
-Cite the research file when justifying cuts - grounded numbers are easier to defend than aesthetic preference.
-
 ## Why These Numbers
 
-See [`references/research.md`](references/research.md) for the citation backing each budget value and how to re-derive one when a source changes.
+See [`references/research.md`](references/research.md) for the citation backing each budget value - cite it when justifying a cut - and how to re-derive one when a source changes.

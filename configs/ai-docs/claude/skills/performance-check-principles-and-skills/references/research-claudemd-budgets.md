@@ -54,6 +54,35 @@ https://code.claude.com/docs/en/best-practices - "Keep CLAUDE.md short and human
 
 ---
 
+## CLAUDE.md chars
+
+**Budget: 40,000 characters**
+
+### Claude Code binary - the "Large CLAUDE.md" warning
+
+Source: the Claude Code 2.1.292 binary (`~/.local/share/claude/versions/2.1.292`, extracted 2026-10-07).
+
+- Function `S7e` computes the per-file instruction limit as `max(40000, round(contextWindow * 0.05 * charsPerToken))`.
+- `charsPerToken` is 4 for pre-Claude-5 models and 3 otherwise.
+- So 40,000 is the floor, and it binds on 200k-context models: 200000 * 0.05 * 3 = 30,000, raised to the 40,000 floor.
+- A 1M-context model gets 150,000.
+- Warning text: "Large <file> will impact performance (<n> chars > <limit>)".
+- `<n>` is the file's JS string length, which equals characters for non-astral text.
+- `check.sh` counts code points with a locale-free `tr -d '\200-\277' | wc -c`.
+
+Why 40,000 rather than the model-specific limit: it is the strictest value across every model, so a CLAUDE.md that passes never triggers the warning.
+
+Known non-gate: a second warning, "Instruction files will impact performance: N files, X chars in total > Y".
+
+- Y = `max(120000, per-file limit)`, summed over all loaded instruction files (user, project and local CLAUDE.md, plus rules dirs).
+- `check.sh` does not gate this total, because it depends on which project the session runs in.
+
+Official doc: https://code.claude.com/docs/en/memory does not state 40k. It says "target under 200 lines per CLAUDE.md file" (see [CLAUDE.md length](#claudemd-length)) and "Claude Code skips a file over 4 MiB" (the binary has `CB=4194304`).
+
+Re-derive: when a Claude Code release changes the warning, byte-search the current binary for `will impact performance`, then read the limit function that warning calls. Minified names like `S7e` change every release, so search by the warning text, not the name.
+
+---
+
 ## CLAUDE.md words per line
 
 **Budget: 32 words per line**
