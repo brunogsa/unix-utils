@@ -11,6 +11,7 @@ The citations are split into three files so a reader loads one cluster, not ever
 - [`research-claudemd-budgets.md`](research-claudemd-budgets.md) - how big CLAUDE.md may get.
   - [CLAUDE.md length](research-claudemd-budgets.md#claudemd-length) - 260 non-blank lines.
   - [CLAUDE.md chars](research-claudemd-budgets.md#claudemd-chars) - 40,000 characters.
+  - [CLAUDE.md imports](research-claudemd-budgets.md#claudemd-imports) - zero `@path` imports.
   - [CLAUDE.md words per line](research-claudemd-budgets.md#claudemd-words-per-line) - 32 words.
 
 - [`research-skill-budgets.md`](research-skill-budgets.md) - everything measured per skill.
@@ -30,6 +31,7 @@ The citations are split into three files so a reader loads one cluster, not ever
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | Marker-convention re-derivation ([Why] pairs ~2× lines/instruction); count is the real gate |
 | CLAUDE.md characters | 40,000 | Floor of Claude Code 2.1.292's "Large CLAUDE.md will impact performance" startup warning |
+| CLAUDE.md @path imports | 0 | Imports load at launch but escape every CLAUDE.md budget; Claude Code 2.1.292 import parser |
 | CLAUDE.md words per line | 32 | User preference; prose-bloat guard |
 | Skill total count | 64 | 64 is the next power of 2 above half of Anthropic's documented 100+ routing scale, still well under it; preload negligible (~1.5% of context) |
 | Skill non-blank lines | 500 | Anthropic official best practice |

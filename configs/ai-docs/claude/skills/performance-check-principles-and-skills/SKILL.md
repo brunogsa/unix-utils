@@ -18,7 +18,7 @@ Audit a CLAUDE.md file + its companion `.claude/skills/` directory against resea
 Examples:
 - `/performance-check-principles-and-skills` - your personal config
 - `/performance-check-principles-and-skills ~/work/my-project` - an explicit repo path
-- `/performance-check-principles-and-skills this repo` / `... here` / `... current` - Claude resolves these natural phrases to `.` (the cwd)
+- `/performance-check-principles-and-skills this repo` / `... here` / `... current` - Claude resolves these to `.`
 
 ## Budgets
 
@@ -28,6 +28,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 |---|---|---|
 | CLAUDE.md non-blank lines | 260 | [Marker-convention re-derivation: [Why] pairs double lines-per-instruction; count is the real gate](references/research-claudemd-budgets.md#claudemd-length) |
 | CLAUDE.md characters | 40,000 | [Floor of Claude Code's "Large CLAUDE.md" startup warning](references/research-claudemd-budgets.md#claudemd-chars) |
+| CLAUDE.md `@path` imports | 0 | [Each import loads at launch but escapes every CLAUDE.md budget above](references/research-claudemd-budgets.md#claudemd-imports) |
 | CLAUDE.md words per line | 32 | User preference - enforces "Prefer scannable shape" |
 | Skill total count | 64 | [Next power of 2 above half of Anthropic's 100+ routing scale; preload negligible (~1.5% of context)](references/research-skill-budgets.md#skill-count) |
 | Skill non-blank lines | 500 | [Anthropic official best practice](references/research-skill-budgets.md#skill-size) |
@@ -49,7 +50,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 
 Skills have no per-line length limit - the per-skill word cap covers overflow.
 
-Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. Per-file violation counts are listed under "Density violations" in the report.
+Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. The report lists per-file counts under "Density violations".
 
 ### Instruction-density measurement (markers)
 
@@ -91,7 +92,7 @@ The heading gate takes no override; the fix is always `## ` landmarks.
 
 - AI may **propose** an override as one of several alternatives surfaced to the user, but never apply it silently. Cite the trim alternatives alongside it so the user picks deliberately.
 
-- Why: an override is a trade-off the user owns - AI applying it unilaterally hides complexity behind a config knob, exactly the drift performance-check exists to catch.
+- Why: an override is a trade-off the user owns; applying it unilaterally hides complexity behind a config knob.
 
 ### Per-skill instructions-budget override
 
@@ -140,7 +141,7 @@ The script measures with `grep`, `awk`, `wc`, `find`, and `readlink`.
 
 A status table with one row per budget above, each `Measured | Budget | OK`-or-`OVER`, then one follow-up section per failing budget naming the offending lines, skills, or bundled files, plus a per-skill CRITICAL-ratio table and the density total.
 
-Run the script rather than pasting a sample, which drifts as budgets change.
+Run the script; a pasted sample drifts as budgets change.
 
 ## Why Report-Only
 

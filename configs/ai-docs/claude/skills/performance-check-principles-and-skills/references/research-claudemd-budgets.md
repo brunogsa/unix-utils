@@ -1,6 +1,6 @@
 # Research - CLAUDE.md size budgets
 
-Citations behind the three CLAUDE.md size numbers: 260 non-blank lines, 40,000 characters, and 32 words per line.
+Citations behind the four CLAUDE.md budgets: 260 non-blank lines, 40,000 characters, zero `@path` imports, and 32 words per line.
 
 The instruction-count and CRITICAL-ratio budgets are separate - see [`research-instruction-load-budgets.md`](research-instruction-load-budgets.md).
 
@@ -80,6 +80,30 @@ Known non-gate: a second warning, "Instruction files will impact performance: N 
 Official doc: https://code.claude.com/docs/en/memory does not state 40k. It says "target under 200 lines per CLAUDE.md file" (see [CLAUDE.md length](#claudemd-length)) and "Claude Code skips a file over 4 MiB" (the binary has `CB=4194304`).
 
 Re-derive: when a Claude Code release changes the warning, byte-search the current binary for `will impact performance`, then read the limit function that warning calls. Minified names like `S7e` change every release, so search by the warning text, not the name.
+
+---
+
+## CLAUDE.md imports
+
+**Budget: 0 `@path` imports**
+
+Source: the Claude Code 2.1.292 binary (extracted 2026-10-07).
+
+- The import regex is `/(?:^|\s)@((?:[^\s\\]|\\ )+)/g`, applied only to markdown text tokens.
+- It skips fenced code blocks and inline code spans, and strips HTML comments.
+- A path counts when it starts with `./`, `~/`, `/x`, or `[a-zA-Z0-9._-]`.
+
+Official doc https://code.claude.com/docs/en/memory:
+
+- "Imports help you organize a long file but don't reduce its context cost, because imported files also load at launch."
+- "Each CLAUDE.md, rules file, and `@path` import counts as a separate file."
+- "Import parsing skips Markdown code spans and fenced code blocks."
+
+Why zero: every `check.sh` CLAUDE.md row sees only the file itself, so an import loads more always-on content while bypassing all of them, including the 40,000-character warning.
+
+`check.sh` mirrors the parser, so a CLAUDE.md documenting the rule in backticks passes. It over-flags an `@x` inside an HTML comment on purpose: the rule is "never".
+
+Re-derive: byte-search the current binary for `(?:^|\s)@((?:[^\s\\]|\\ )+)`, not the minified function name.
 
 ---
 
