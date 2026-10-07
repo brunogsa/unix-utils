@@ -396,6 +396,7 @@ fi
 skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -path "$SYNCED_DIR" | wc -l | tr -d ' ')
 
 skill_overages=""
+skill_size_over=0
 max_desc=0
 max_desc_skill="-"
 max_name=0
@@ -460,6 +461,10 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     [ "$lines" -gt "$SKILL_LINES_BUDGET" ] && issues+=" lines=$lines"
     [ "$words" -gt "$skill_words_budget" ] && issues+=" words=$words(>$skill_words_budget$words_overage_suffix)"
     [ "$skill_words_budget" -gt "$SKILL_WORDS_BUDGET_CEILING" ] && issues+=" words-budget=$skill_words_budget(>$SKILL_WORDS_BUDGET_CEILING ceiling; SKILL.md override)"
+
+    # Desc and name issues have their own table rows, so
+    # only the size issues above count toward this one.
+    [ -n "$issues" ] && skill_size_over=$((skill_size_over + 1))
     [ "$desc_chars" -gt "$SKILL_DESC_BUDGET" ] && issues+=" desc=${desc_chars}c"
     [ "$name_chars" -gt "$SKILL_NAME_BUDGET" ] && issues+=" name=${name_chars}c"
 
@@ -640,6 +645,7 @@ fi
 echo "| Skill count (excl. synced/) | $skill_count | $SKILLS_COUNT_BUDGET | $(status_of "$skill_count" "$SKILLS_COUNT_BUDGET") |"
 echo "| Max skill desc chars | $max_desc ($max_desc_skill) | $SKILL_DESC_BUDGET | $(status_of "$max_desc" "$SKILL_DESC_BUDGET") |"
 echo "| Max skill name chars | $max_name ($max_name_skill) | $SKILL_NAME_BUDGET | $(status_of "$max_name" "$SKILL_NAME_BUDGET") |"
+echo "| Skills failing line/word checks (excl. synced/) | $skill_size_over of $skill_count | 0 | $(status_of "$skill_size_over" 0) |"
 [ "$skill_count" -gt "$SKILLS_COUNT_BUDGET" ] && overages=1
 [ -n "$skill_overages" ] && overages=1
 
