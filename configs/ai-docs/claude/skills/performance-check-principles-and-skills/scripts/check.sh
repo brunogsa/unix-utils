@@ -450,7 +450,7 @@ for f in "$SKILLS_DIR"/*/SKILL.md; do
     lines=$(grep -c '\S' "$f")
     words=$(wc -w < "$f" | tr -d ' ')
     desc=$(extract_description "$f")
-    desc_chars=$(printf '%s' "$desc" | LC_ALL=en_US.UTF-8 wc -m | tr -d ' ')
+    desc_chars=$(printf '%s' "$desc" | count_chars)
     name_chars=${#name}
 
     # Per-skill override beats default.

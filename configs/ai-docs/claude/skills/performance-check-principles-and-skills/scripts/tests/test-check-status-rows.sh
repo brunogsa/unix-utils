@@ -175,7 +175,23 @@ it_should_count_claude_md_multibyte_text_in_characters_not_bytes() {
     rm -rf "$d"
 }
 
+it_should_count_a_multibyte_skill_description_in_characters_not_bytes() {
+    echo "it_should_count_a_multibyte_skill_description_in_characters_not_bytes"
+    local d; d=$(new_fixture)
+    write_skill_with_words "$d" "accented-desc" 100
+    local desc; desc=$(printf 'ç%.0s' $(seq 1 200))
+    sed -i.bak "s/^description: .*/description: \"$desc\"/" "$d/skills/accented-desc/SKILL.md"
+
+    # 200 chars is 400 bytes: over the 250 budget if bytes
+    # leak in.
+    assert_eq "row reads 200 chars OK" \
+        "| Max skill desc chars | 200 (accented-desc) | 250 | OK |" \
+        "$(table_row "$d" "Max skill desc chars")"
+    rm -rf "$d"
+}
+
 it_should_count_a_skill_over_the_word_budget_in_the_status_table
+it_should_count_a_multibyte_skill_description_in_characters_not_bytes
 it_should_report_zero_failing_skills_when_every_skill_is_within_budget
 it_should_count_a_skill_with_a_line_and_a_word_overage_once
 it_should_not_count_a_skill_failing_only_the_description_budget
