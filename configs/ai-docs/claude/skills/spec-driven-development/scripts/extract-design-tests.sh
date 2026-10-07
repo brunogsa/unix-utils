@@ -57,6 +57,11 @@
 # invariant skipped such a line entirely - no title, no
 # breadcrumb, no annotation - silently under-extracting.
 #
+# Jest's parameterized `it.each(cases)("Title")` form reads
+# the same way, its `%s` placeholders kept verbatim, whether
+# the title sits on the `it.each(` line or wraps onto the
+# next one; an annotation must sit on the title's line.
+#
 # The breadcrumb is DERIVED from Test Design's own structure -
 # the `describe("X")` name and the nearest `// Happy cases` /
 # `// Corner cases` / `// Failure scenarios` comment above the
@@ -130,7 +135,7 @@ titles=$(awk -v pairs="$pairs" -v annotations="$annotations" \
   -f "$script_dir/extract-design-tests.awk" "$plan")
 
 if [ -z "$titles" ]; then
-  echo "error: no it(\"...\") titles found in the '## Test Design' section of $plan" >&2
+  echo "error: no it(\"...\") or it.each titles found in the '## Test Design' section of $plan" >&2
   exit 1
 fi
 

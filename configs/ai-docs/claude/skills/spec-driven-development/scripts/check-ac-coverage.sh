@@ -6,9 +6,9 @@
 #   check-ac-coverage.sh <plan-path> <spec-path>
 #
 # Two Test Design forms, detected per-plan from
-# extract-design-tests.sh --annotations (any it() line carrying
-# an `// AC-<n>` or `T<n>` token puts the WHOLE plan
-# in annotated form).
+# extract-design-tests.sh --annotations (any it() or
+# it.each line carrying an `// AC-<n>` or `T<n>` token
+# puts the WHOLE plan in annotated form).
 #
 # ANNOTATED form (single source - the AC -> test mapping lives
 # ONLY as inline `// AC-N T<n>` comments on Test Design's it()

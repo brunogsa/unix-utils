@@ -113,8 +113,8 @@ done
 # same script).
 #
 # Its diagnostic is held back until the "N/A" escape below is
-# ruled out: on an N/A Test Design, "no it() titles found" is
-# the expected reading, not a defect.
+# ruled out: on an N/A Test Design, "no it() or it.each
+# titles found" is the expected reading, not a defect.
 design_err=$(mktemp)
 trap 'rm -f "$design_err"' EXIT
 
