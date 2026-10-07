@@ -175,6 +175,108 @@ it_should_count_claude_md_multibyte_text_in_characters_not_bytes() {
     rm -rf "$d"
 }
 
+IMPORT_ROW="CLAUDE.md @path imports"
+
+# Append <text> as one line to the fixture CLAUDE.md.
+append_claude_line() {
+    printf '%s\n' "$2" >> "$1/CLAUDE.md"
+}
+
+# Echo the full check.sh report for <dir>.
+full_report() {
+    HOME="$FAKE_HOME" bash "$CHECK" "$1" 2>/dev/null
+}
+
+it_should_fail_a_claude_md_with_a_bare_at_path_import_line() {
+    echo "it_should_fail_a_claude_md_with_a_bare_at_path_import_line"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" "@README"
+    assert_eq "row reads 1 OVER" \
+        "| $IMPORT_ROW | 1 | 0 | OVER |" "$(table_row "$d" "$IMPORT_ROW")"
+    assert_eq "exits non-zero" "1" "$(exit_code "$d")"
+    rm -rf "$d"
+}
+
+it_should_fail_a_claude_md_with_an_at_path_import_mid_sentence() {
+    echo "it_should_fail_a_claude_md_with_an_at_path_import_mid_sentence"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" "see @docs/x.md here"
+    assert_eq "row reads 1 OVER" \
+        "| $IMPORT_ROW | 1 | 0 | OVER |" "$(table_row "$d" "$IMPORT_ROW")"
+    rm -rf "$d"
+}
+
+it_should_name_every_import_line_number_in_the_follow_up_section() {
+    echo "it_should_name_every_import_line_number_in_the_follow_up_section"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" "@README"
+    append_claude_line "$d" "plain line"
+    append_claude_line "$d" "see @docs/x.md here"
+    local report; report=$(full_report "$d")
+    assert_eq "row reads 2 OVER" \
+        "| $IMPORT_ROW | 2 | 0 | OVER |" "$(table_row "$d" "$IMPORT_ROW")"
+    assert_eq "first import line named" "1" \
+        "$(printf '%s\n' "$report" | grep -cF 'line 5: @README')"
+    assert_eq "second import line named" "1" \
+        "$(printf '%s\n' "$report" | grep -cF 'line 7: see @docs/x.md here')"
+    rm -rf "$d"
+}
+
+it_should_not_flag_an_at_path_written_inside_inline_backticks() {
+    echo "it_should_not_flag_an_at_path_written_inside_inline_backticks"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" 'Write `@README` to keep the text literal.'
+    assert_eq "row reads 0 OK" \
+        "| $IMPORT_ROW | 0 | 0 | OK |" "$(table_row "$d" "$IMPORT_ROW")"
+    rm -rf "$d"
+}
+
+it_should_not_flag_an_at_path_inside_a_fenced_code_block() {
+    echo "it_should_not_flag_an_at_path_inside_a_fenced_code_block"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" '```'
+    append_claude_line "$d" "@docs/x.md"
+    append_claude_line "$d" '```'
+    append_claude_line "$d" '~~~'
+    append_claude_line "$d" "@docs/y.md"
+    append_claude_line "$d" '~~~'
+    assert_eq "row reads 0 OK" \
+        "| $IMPORT_ROW | 0 | 0 | OK |" "$(table_row "$d" "$IMPORT_ROW")"
+    rm -rf "$d"
+}
+
+it_should_flag_an_import_that_follows_a_closed_fence() {
+    echo "it_should_flag_an_import_that_follows_a_closed_fence"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" '```'
+    append_claude_line "$d" "inside"
+    append_claude_line "$d" '```'
+    append_claude_line "$d" "@README"
+    assert_eq "row reads 1 OVER" \
+        "| $IMPORT_ROW | 1 | 0 | OVER |" "$(table_row "$d" "$IMPORT_ROW")"
+    rm -rf "$d"
+}
+
+it_should_not_flag_an_email_address_or_a_placeholder_at_sign_in_code() {
+    echo "it_should_not_flag_an_email_address_or_a_placeholder_at_sign_in_code"
+    local d; d=$(new_fixture)
+    append_claude_line "$d" "Write to user@example.com for access."
+    append_claude_line "$d" 'Run `claude plugin install <name>@<marketplace>` once.'
+    append_claude_line "$d" 'Use `git add "${files[@]}"` for many paths.'
+    assert_eq "row reads 0 OK" \
+        "| $IMPORT_ROW | 0 | 0 | OK |" "$(table_row "$d" "$IMPORT_ROW")"
+    rm -rf "$d"
+}
+
+it_should_report_zero_imports_and_exit_zero_for_a_clean_claude_md() {
+    echo "it_should_report_zero_imports_and_exit_zero_for_a_clean_claude_md"
+    local d; d=$(new_fixture)
+    assert_eq "row reads 0 OK" \
+        "| $IMPORT_ROW | 0 | 0 | OK |" "$(table_row "$d" "$IMPORT_ROW")"
+    assert_eq "exits zero" "0" "$(exit_code "$d")"
+    rm -rf "$d"
+}
+
 it_should_count_a_multibyte_skill_description_in_characters_not_bytes() {
     echo "it_should_count_a_multibyte_skill_description_in_characters_not_bytes"
     local d; d=$(new_fixture)
@@ -199,6 +301,14 @@ it_should_count_a_skill_over_the_word_ceiling_override
 it_should_flag_a_claude_md_of_40001_characters_as_over
 it_should_accept_a_claude_md_of_exactly_40000_characters
 it_should_count_claude_md_multibyte_text_in_characters_not_bytes
+it_should_fail_a_claude_md_with_a_bare_at_path_import_line
+it_should_fail_a_claude_md_with_an_at_path_import_mid_sentence
+it_should_name_every_import_line_number_in_the_follow_up_section
+it_should_not_flag_an_at_path_written_inside_inline_backticks
+it_should_not_flag_an_at_path_inside_a_fenced_code_block
+it_should_flag_an_import_that_follows_a_closed_fence
+it_should_not_flag_an_email_address_or_a_placeholder_at_sign_in_code
+it_should_report_zero_imports_and_exit_zero_for_a_clean_claude_md
 
 echo
 echo "$passed passed, $failed failed"

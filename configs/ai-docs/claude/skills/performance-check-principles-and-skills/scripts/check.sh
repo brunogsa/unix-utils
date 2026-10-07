@@ -39,6 +39,13 @@ readonly CLAUDE_LINES_BUDGET=260
 #
 # See references/research-claudemd-budgets.md#claudemd-chars
 readonly CLAUDE_CHARS_BUDGET=40000
+
+# Claude Code loads every @path-imported file at launch, but
+# the other CLAUDE.md rows measure only the file itself, so a
+# single import bypasses them all. Zero imports allowed.
+#
+# See references/research-claudemd-budgets.md#claudemd-imports
+readonly CLAUDE_IMPORTS_BUDGET=0
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=64
 readonly SKILL_LINES_BUDGET=500
@@ -392,6 +399,24 @@ if [ "$has_claude_md" -eq 1 ]; then
     claude_max_words_line=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print ln+0 }' "$CLAUDE_MD")
     claude_offending=$(awk -v b="$CLAUDE_WORDS_PER_LINE_BUDGET" '{ if (NF > b) print NR": "NF" words" }' "$CLAUDE_MD")
 
+    # Fenced blocks and inline code spans are skipped so a
+    # CLAUDE.md documenting the rule in backticks does not fail
+    # it: Claude Code treats a backticked @x as literal text.
+    # No regex intervals: macOS awk (BWK) lacks them.
+    claude_import_lines=$(awk '
+        /^ ? ? ?(```|~~~)/ { in_fence = !in_fence; next }
+        in_fence { next }
+        {
+            text = $0
+            gsub(/`[^`]*`/, "", text)
+            if (text ~ /(^|[[:space:]])@[.\/~A-Za-z0-9_-]/) print "line " NR ": " $0
+        }
+    ' "$CLAUDE_MD")
+    claude_imports=0
+    if [ -n "$claude_import_lines" ]; then
+        claude_imports=$(printf '%s\n' "$claude_import_lines" | wc -l | tr -d ' ')
+    fi
+
     # Instruction-density measurements.
     # Transitional: 0 markers = unmigrated, skip ratio check.
     claude_instructions=$(count_instructions "$CLAUDE_MD")
@@ -641,6 +666,8 @@ if [ "$has_claude_md" -eq 1 ]; then
     echo "| CLAUDE.md non-blank lines | $claude_lines | $CLAUDE_LINES_BUDGET | $(status_of "$claude_lines" "$CLAUDE_LINES_BUDGET") |"
     echo "| CLAUDE.md chars | $claude_chars | $CLAUDE_CHARS_BUDGET | $(status_of "$claude_chars" "$CLAUDE_CHARS_BUDGET") |"
     [ "$claude_chars" -gt "$CLAUDE_CHARS_BUDGET" ] && overages=1
+    echo "| CLAUDE.md @path imports | $claude_imports | $CLAUDE_IMPORTS_BUDGET | $(status_of "$claude_imports" "$CLAUDE_IMPORTS_BUDGET") |"
+    [ "$claude_imports" -gt "$CLAUDE_IMPORTS_BUDGET" ] && overages=1
     echo "| CLAUDE.md max words/line | $claude_max_words (line $claude_max_words_line) | $CLAUDE_WORDS_PER_LINE_BUDGET | $(status_of "$claude_max_words" "$CLAUDE_WORDS_PER_LINE_BUDGET") |"
     [ "$claude_lines" -gt "$CLAUDE_LINES_BUDGET" ] && overages=1
     [ "$claude_max_words" -gt "$CLAUDE_WORDS_PER_LINE_BUDGET" ] && overages=1
@@ -713,6 +740,13 @@ if [ "$has_claude_md" -eq 1 ] && [ -n "$claude_offending" ]; then
     echo "## CLAUDE.md lines exceeding $CLAUDE_WORDS_PER_LINE_BUDGET words"
     echo
     echo "$claude_offending"
+    echo
+fi
+
+if [ "$has_claude_md" -eq 1 ] && [ "$claude_imports" -gt "$CLAUDE_IMPORTS_BUDGET" ]; then
+    echo "## CLAUDE.md @path imports"
+    echo
+    echo "$claude_import_lines"
     echo
 fi
 
