@@ -1,6 +1,6 @@
 # Research - CLAUDE.md size budgets
 
-Citations behind the two CLAUDE.md size numbers: 260 non-blank lines, and 32 words per line.
+Citations behind the three CLAUDE.md size numbers: 260 non-blank lines, 40,000 characters, and 32 words per line.
 
 The instruction-count and CRITICAL-ratio budgets are separate - see [`research-instruction-load-budgets.md`](research-instruction-load-budgets.md).
 
