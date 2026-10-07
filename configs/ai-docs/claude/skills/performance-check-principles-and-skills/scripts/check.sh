@@ -31,6 +31,14 @@ set -eo pipefail
 #
 # See references/research-claudemd-budgets.md#claudemd-length
 readonly CLAUDE_LINES_BUDGET=260
+
+# Claude Code warns "Large CLAUDE.md will impact performance"
+# past max(40000, 5% of the context window in chars). 40000
+# is the floor and binds on 200k-context models, so it is the
+# strictest value for any model.
+#
+# See references/research-claudemd-budgets.md#claudemd-chars
+readonly CLAUDE_CHARS_BUDGET=40000
 readonly CLAUDE_WORDS_PER_LINE_BUDGET=32
 readonly SKILLS_COUNT_BUDGET=64
 readonly SKILL_LINES_BUDGET=500
@@ -207,6 +215,15 @@ fi
 # time - definitions must precede their first call site in
 # source order.
 
+# Count characters on stdin, whatever the locale.
+#
+# wc -m counts bytes when the UTF-8 locale is not installed,
+# so strip UTF-8 continuation bytes (0x80-0xBF) instead: one
+# byte per code point is left, and wc -c counts those.
+count_chars() {
+    LC_ALL=C tr -d '\200-\277' | wc -c | tr -d ' '
+}
+
 # Extract single-line YAML frontmatter description.
 # Handles optional surrounding quotes.
 extract_description() {
@@ -370,6 +387,7 @@ why_over_rows=""
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
     claude_lines=$(grep -c '\S' "$CLAUDE_MD")
+    claude_chars=$(count_chars < "$CLAUDE_MD")
     claude_max_words=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print max+0 }' "$CLAUDE_MD")
     claude_max_words_line=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print ln+0 }' "$CLAUDE_MD")
     claude_offending=$(awk -v b="$CLAUDE_WORDS_PER_LINE_BUDGET" '{ if (NF > b) print NR": "NF" words" }' "$CLAUDE_MD")
@@ -621,6 +639,8 @@ echo "|---|---|---|---|"
 overages=0
 if [ "$has_claude_md" -eq 1 ]; then
     echo "| CLAUDE.md non-blank lines | $claude_lines | $CLAUDE_LINES_BUDGET | $(status_of "$claude_lines" "$CLAUDE_LINES_BUDGET") |"
+    echo "| CLAUDE.md chars | $claude_chars | $CLAUDE_CHARS_BUDGET | $(status_of "$claude_chars" "$CLAUDE_CHARS_BUDGET") |"
+    [ "$claude_chars" -gt "$CLAUDE_CHARS_BUDGET" ] && overages=1
     echo "| CLAUDE.md max words/line | $claude_max_words (line $claude_max_words_line) | $CLAUDE_WORDS_PER_LINE_BUDGET | $(status_of "$claude_max_words" "$CLAUDE_WORDS_PER_LINE_BUDGET") |"
     [ "$claude_lines" -gt "$CLAUDE_LINES_BUDGET" ] && overages=1
     [ "$claude_max_words" -gt "$CLAUDE_WORDS_PER_LINE_BUDGET" ] && overages=1

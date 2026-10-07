@@ -132,11 +132,57 @@ it_should_count_a_skill_over_the_word_ceiling_override() {
     rm -rf "$d"
 }
 
+CLAUDE_ROW="CLAUDE.md chars"
+
+# Pad the fixture CLAUDE.md with 200-char lines until it holds
+# exactly <total_chars> characters (ASCII, so bytes = chars).
+pad_claude_md_to_chars() {
+    local dir=$1 total_chars=$2
+    local have
+    have=$(wc -c < "$dir/CLAUDE.md" | tr -d ' ')
+    yes "$(printf 'a%.0s' $(seq 1 199))" | head -c "$((total_chars - have))" >> "$dir/CLAUDE.md"
+}
+
+it_should_flag_a_claude_md_of_40001_characters_as_over() {
+    echo "it_should_flag_a_claude_md_of_40001_characters_as_over"
+    local d; d=$(new_fixture)
+    pad_claude_md_to_chars "$d" 40001
+    assert_eq "row reads 40001 OVER" \
+        "| $CLAUDE_ROW | 40001 | 40000 | OVER |" "$(table_row "$d" "$CLAUDE_ROW")"
+    assert_eq "exits non-zero" "1" "$(exit_code "$d")"
+    rm -rf "$d"
+}
+
+it_should_accept_a_claude_md_of_exactly_40000_characters() {
+    echo "it_should_accept_a_claude_md_of_exactly_40000_characters"
+    local d; d=$(new_fixture)
+    pad_claude_md_to_chars "$d" 40000
+    assert_eq "row reads 40000 OK" \
+        "| $CLAUDE_ROW | 40000 | 40000 | OK |" "$(table_row "$d" "$CLAUDE_ROW")"
+    assert_eq "exits zero" "0" "$(exit_code "$d")"
+    rm -rf "$d"
+}
+
+it_should_count_claude_md_multibyte_text_in_characters_not_bytes() {
+    echo "it_should_count_claude_md_multibyte_text_in_characters_not_bytes"
+    local d; d=$(new_fixture)
+    local base; base=$(wc -c < "$d/CLAUDE.md" | tr -d ' ')
+
+    # Each line is "ção→x" + newline: 6 chars but 10 bytes.
+    for _ in 1 2 3 4 5 6 7 8 9 10; do echo "ção→x" >> "$d/CLAUDE.md"; done
+    assert_eq "10 lines of 6 chars each added" \
+        "| $CLAUDE_ROW | $((base + 60)) | 40000 | OK |" "$(table_row "$d" "$CLAUDE_ROW")"
+    rm -rf "$d"
+}
+
 it_should_count_a_skill_over_the_word_budget_in_the_status_table
 it_should_report_zero_failing_skills_when_every_skill_is_within_budget
 it_should_count_a_skill_with_a_line_and_a_word_overage_once
 it_should_not_count_a_skill_failing_only_the_description_budget
 it_should_count_a_skill_over_the_word_ceiling_override
+it_should_flag_a_claude_md_of_40001_characters_as_over
+it_should_accept_a_claude_md_of_exactly_40000_characters
+it_should_count_claude_md_multibyte_text_in_characters_not_bytes
 
 echo
 echo "$passed passed, $failed failed"
