@@ -244,6 +244,32 @@ class TestDeclaredTestCommands:
         assert "CLAUDE.md: ./run-tests.py   # every bash suite" in command_lines
         assert "CLAUDE.md: pytest" in command_lines
 
+    def test_should_keep_only_the_test_runs_under_a_build_test_and_lint_heading(
+        self, repo
+    ):
+        (repo / "CLAUDE.md").write_text(
+            "# Repo\n\n## Build, Test, and Lint Commands\n\n"
+            "```bash\n"
+            "# Install dependencies\n"
+            "yarn install\n"
+            "yarn build\n"
+            "yarn test                     # All workspaces\n"
+            "yarn test:core\n"
+            "yarn workspace integrator-core pretest:ci\n"
+            "yarn workspace integrator-core test -- path/to/file.spec.ts\n"
+            "yarn lint\n"
+            "yarn core:start:dev\n"
+            "```\n"
+        )
+
+        command_lines = get_section(get_report(repo).stdout, "test-commands")
+
+        assert command_lines == [
+            "CLAUDE.md: yarn test                     # All workspaces",
+            "CLAUDE.md: yarn test:core",
+            "CLAUDE.md: yarn workspace integrator-core test -- path/to/file.spec.ts",
+        ]
+
     def test_should_ignore_fenced_commands_under_a_heading_unrelated_to_testing(
         self, repo
     ):

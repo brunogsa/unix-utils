@@ -52,6 +52,18 @@ TEST_TOKEN = "test"
 FENCE_PATTERN = re.compile(r"^\s*```")
 HEADING_PATTERN = re.compile(r"^#{1,6}\s+(.*)$")
 
+# A fenced line runs tests only when "test"/"tests" is a
+# standalone word or script segment (`yarn test:core`,
+# `./run-tests.py`), or when it names a runner.
+#
+# A glued prefix (`pretest:ci`, `dbtest:migrate`) is setup,
+# not a run, so a letter before the word disqualifies it.
+TEST_RUN_PATTERN = re.compile(
+    r"(?<![A-Za-z])tests?(?![A-Za-z])"
+    r"|\b(?:pytest|jest|vitest|mocha|nextest|rspec|phpunit)\b",
+    re.IGNORECASE,
+)
+
 # A target line, excluding `NAME := value` assignments, which
 # share the leading-word shape but declare no runnable target.
 MAKEFILE_TARGET_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.\-/]*):(?!=)")
@@ -156,7 +168,10 @@ def get_commits(
 
 
 def extract_fenced_test_commands(path: Path) -> list[str]:
-    """Return the fenced commands under a testing heading."""
+    """Return the fenced test runs under a testing heading.
+
+    A heading like "Build, Test, and Lint" also fences install,
+    build and lint lines, which are not test commands."""
     commands: list[str] = []
     is_under_test_heading = False
     is_inside_fence = False
@@ -176,7 +191,12 @@ def extract_fenced_test_commands(path: Path) -> list[str]:
             continue
 
         command = line.strip()
-        if command and not command.startswith("#"):
+        if not command or command.startswith("#"):
+            continue
+
+        # A trailing comment must not make a build line look
+        # like a test run.
+        if TEST_RUN_PATTERN.search(command.split(" #", 1)[0]):
             commands.append(command)
         if len(commands) >= COMMANDS_PER_FILE_CAP:
             break
