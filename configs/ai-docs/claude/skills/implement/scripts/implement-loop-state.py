@@ -124,6 +124,11 @@ class BudgetStatus:
         # count + GATE_FIX_ALLOWANCE) is the backstop for a
         # runaway gate-fixing loop (gate_dispatches piling up).
         #
+        # It counts non-pass attempts plus gate_dispatches only:
+        # /implement records one attempt per chunk dispatch,
+        # and a passing chunk is forward progress, not a
+        # runaway loop.
+        #
         # Because a single task alone can never exceed
         # MAX_ATTEMPTS + 1 non-pass attempts before the
         # per-task "stuck" verdict already caught it.
@@ -132,16 +137,16 @@ class BudgetStatus:
 
 def compute_budget_status(state: dict) -> BudgetStatus:
     task_count = len(state["tasks"])
-    attempts_n = len(state["attempts"])
+    non_pass_attempts_n = sum(1 for a in state["attempts"] if a["result"] != "pass")
     gate_n = state.get("gate_dispatches") or 0
-    total_dispatches = attempts_n + gate_n
+    total_dispatches = non_pass_attempts_n + gate_n
     budget_threshold = BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE
     return BudgetStatus(task_count, total_dispatches, budget_threshold)
 
 
 def budget_clause(status: BudgetStatus, *, verb: str) -> str:
     return (
-        f"total dispatches ({status.total_dispatches}) {verb} the batch budget "
+        f"non-pass dispatches ({status.total_dispatches}) {verb} the batch budget "
         f"({status.budget_threshold} = {BATCH_CAP_MULT}x{status.task_count} tasks "
         f"+ {GATE_FIX_ALLOWANCE} gate allowance)"
     )

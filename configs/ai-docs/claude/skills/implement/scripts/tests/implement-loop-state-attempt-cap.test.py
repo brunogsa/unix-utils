@@ -23,8 +23,9 @@ def attempt(result: str, signature: str) -> dict:
 
 def verdict_for(tmp_path: Path, attempts: list) -> dict:
     # Four tasks, not one: the batch dispatch budget is 4 per
-    # task plus 2, so a lone task's 7 chunk attempts would trip
-    # halt-budget before the attempt cap is ever consulted.
+    # task plus 2, so four tasks keep it far above any case's
+    # failed attempts and halt-budget never preempts the
+    # attempt cap under test.
     state = {
         "phase": "tasks",
         "tasks": [

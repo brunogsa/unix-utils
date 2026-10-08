@@ -17,7 +17,7 @@ This file obeys only `retry`, `stuck`, and `halt-budget` - the ones a failed or 
 | `next-task` | a `pass` attempt, with another non-terminal task still pending | §3.4 - activate that task |
 | `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
 | `halted` | a `pass` attempt, either every task terminal with at least one `blocked`, or pending tasks remain with none `depends_on`-eligible | §5.5 below |
-| `halt-budget` | total dispatches (`attempts` + `gate_dispatches`) hit the batch cap, checked before anything else | §5.5 below |
+| `halt-budget` | non-pass dispatches (`attempts` not `pass`, + `gate_dispatches`) hit the batch cap, checked before anything else; passing chunk dispatches never count | §5.5 below |
 
 ### Record the attempt
 
