@@ -388,13 +388,16 @@ Marking the task terminal, chain-aborting dependents transitively, flipping the 
 
 Record the attempt with `result: "pass"`, `signature: "n/a"`.
 
-Flip that task to `status: "done"` and `reason: "done"` in the state file - before calling the verdict script.
+Flip that task to `status: "done"` and `reason: "done"` in the state file - before calling the verdict script. On a chunk that isn't the task's last (§4.1), leave it `in_progress` instead.
 
 The script picks by `status`, so a passed task left `pending` gets re-dispatched later.
 
 Also flip the plan to `[Done]` (§6), file the subagent's `[Scout]` items per §4.3, and `TaskUpdate` its TaskList status to `completed`.
 
 Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` and obey the verdict:
+
+- **`next-chunk`** → the `task` field's task passed a chunk and is still `in_progress`; dispatch its next chunk (§4.1).
+  - Had that been its last chunk, flip it to `done` and re-run this verdict instead.
 
 - **`next-task`** → its `task` field names the next task-id; re-run §3.4 on it. §1, §2, and §3.1-§3.3 don't repeat.
   - **When `stack.wanted` is true, take the next id from `stack.order` instead**, and dispatch that one alone (`stacked-by-task.md`'s "Stacked mode is strictly sequential" covers why).

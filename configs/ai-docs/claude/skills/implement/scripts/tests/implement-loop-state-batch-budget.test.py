@@ -28,11 +28,14 @@ def failing_chunk(signature: str) -> dict:
     return {"task": "1", "result": "fail", "signature": signature}
 
 
-def run_script(tmp_path: Path, attempts: list, *, gate_dispatches: int = 0, flag: str = "") -> dict:
+def run_script(
+    tmp_path: Path, attempts: list, *,
+    gate_dispatches: int = 0, flag: str = "", status: str = "in_progress",
+) -> dict:
     # One task, so the batch budget is 4x1 + 2 = 6 dispatches.
     state = {
         "phase": "tasks",
-        "tasks": [{"id": "1", "status": "in_progress", "depends_on": []}],
+        "tasks": [{"id": "1", "status": status, "depends_on": []}],
         "attempts": attempts,
         "gate_dispatches": gate_dispatches,
     }
@@ -47,7 +50,9 @@ def run_script(tmp_path: Path, attempts: list, *, gate_dispatches: int = 0, flag
 
 
 def test_reaches_the_gates_after_eight_passing_chunks_of_a_one_task_batch(tmp_path):
-    verdict = run_script(tmp_path, [passing_chunk() for _ in range(8)])
+    # The orchestrator flips a task to done after its last
+    # chunk lands.
+    verdict = run_script(tmp_path, [passing_chunk() for _ in range(8)], status="done")
 
     assert verdict == {
         "action": "gates",

@@ -6,15 +6,17 @@ Load this on an unresolvable reported commit (§5.1), a §4 timeout, a self-repo
 
 ### The full verdict set - for orientation
 
-`implement-loop-state.py` emits six verdicts; the table below is the whole set.
+`implement-loop-state.py` emits eight verdicts; the table below is the whole set.
 
-This file obeys only `retry`, `stuck`, and `halt-budget` - the ones a failed or blocked attempt can produce. The other three only ever follow a `pass`, so they belong to §5.4.
+This file obeys only `retry`, `stuck`, and `halt-budget` - the ones a failed or blocked attempt can produce. The other five only ever follow a `pass`, so they belong to §5.4.
 
 | Verdict | When | Routes to |
 |---|---|---|
 | `retry` | a `fail`/`timeout` attempt, under the attempt cap (passing attempts never count toward it), not yet a repeating signature | re-dispatch the same task (§4) |
 | `stuck` | a `blocked` attempt (first try), or a `fail`/`timeout` run that stopped converging | §5.3 below - mark terminal, chain-abort dependents |
+| `next-chunk` | a `pass` attempt on a task still `in_progress` - more of its chunks remain | §4 - dispatch that task's next chunk |
 | `next-task` | a `pass` attempt, with another non-terminal task still pending | §3.4 - activate that task |
+| `wait` | a `pass` attempt, no pending task eligible yet, another task still `in_progress` | §5.4 - dispatch nothing until its report lands |
 | `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
 | `halted` | a `pass` attempt, either every task terminal with at least one `blocked`, or pending tasks remain with none `depends_on`-eligible | §5.5 below |
 | `halt-budget` | non-pass dispatches (`attempts` not `pass`, + `gate_dispatches`) hit the batch cap, checked before anything else; passing chunk dispatches never count | §5.5 below |

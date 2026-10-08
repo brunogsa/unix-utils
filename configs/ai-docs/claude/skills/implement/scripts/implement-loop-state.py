@@ -28,7 +28,7 @@ from pathlib import Path
 # The orchestrator (main session AI) is the fallible recorder of
 # raw facts (attempt outcomes, phase, report paths); this script
 # is the infallible judge that turns those facts into one of
-# seven actions.
+# eight actions.
 
 # Tunable constants.
 MAX_ATTEMPTS = 3
@@ -45,7 +45,7 @@ GATE_FIX_ALLOWANCE = 2
 #
 # Renaming the self-reference is Task 14's job (full rename to
 # resolve-task-loop-verdict), not this conversion's.
-USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-state.sh --budget <state-file>\n       implement-loop-state.sh --next-eligible <state-file>\n       implement-loop-state.sh --eligible-set <state-file>\n\nWith no flag, reads a /implement run\'s JSON state file at phase "tasks" and\nprints one JSON verdict:\n  {"action": "retry|stuck|next-task|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}\n\n--budget: is the batch\'s dispatch budget exhausted? Works at any phase.\n  {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}\n\n--next-eligible: which pending task is DAG-eligible to dispatch next? Works\nat any phase, and does not depend on attempts[-1].result. Checks the same\nbatch dispatch budget --budget and --eligible-set check; once it\'s\nexhausted this answers "none" regardless of eligibility (reason names the\nbudget). Otherwise "none" with a non-zero in_progress means wait for a live\nsibling, not halt.\n  {"task": "<id or the literal string \\"none\\">", "in_progress": N, "reason": "..."}\n\n--eligible-set: every task dispatchable right now, for a parallel wave. Works\nat any phase. Empty tasks[] with in_progress > 0 means wait; empty with\nin_progress 0 means the wave drained. exhausted true forces tasks[] empty.\n  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}\n\nExamples:\n  implement-loop-state.sh /tmp/implement_abc123.json\n  implement-loop-state.sh --budget /tmp/implement_abc123.json\n  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json\n  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json\n'
+USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-state.sh --budget <state-file>\n       implement-loop-state.sh --next-eligible <state-file>\n       implement-loop-state.sh --eligible-set <state-file>\n\nWith no flag, reads a /implement run\'s JSON state file at phase "tasks" and\nprints one JSON verdict:\n  {"action": "retry|stuck|next-task|next-chunk|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}\n\n--budget: is the batch\'s dispatch budget exhausted? Works at any phase.\n  {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}\n\n--next-eligible: which pending task is DAG-eligible to dispatch next? Works\nat any phase, and does not depend on attempts[-1].result. Checks the same\nbatch dispatch budget --budget and --eligible-set check; once it\'s\nexhausted this answers "none" regardless of eligibility (reason names the\nbudget). Otherwise "none" with a non-zero in_progress means wait for a live\nsibling, not halt.\n  {"task": "<id or the literal string \\"none\\">", "in_progress": N, "reason": "..."}\n\n--eligible-set: every task dispatchable right now, for a parallel wave. Works\nat any phase. Empty tasks[] with in_progress > 0 means wait; empty with\nin_progress 0 means the wave drained. exhausted true forces tasks[] empty.\n  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}\n\nExamples:\n  implement-loop-state.sh /tmp/implement_abc123.json\n  implement-loop-state.sh --budget /tmp/implement_abc123.json\n  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json\n  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json\n'
 
 
 def normalize_signature(signature: str) -> str:
@@ -203,6 +203,20 @@ def load_state(state_file: Path) -> dict:
 
 
 def verdict_pass(state: dict, current_task: str) -> None:
+    # /implement keeps a chunked task in_progress until its last
+    # chunk lands, so a pass on a still-in_progress task means
+    # more chunks follow - not a sibling to wait on, nor done.
+    current_status = next(
+        (task["status"] for task in state["tasks"] if task["id"] == current_task),
+        None,
+    )
+    if current_status == "in_progress":
+        emit_verdict("next-chunk", current_task,
+            f"task {current_task} passed a chunk and is still in_progress; "
+            f"dispatch its next chunk (if that was its last chunk, flip it "
+            f"to done and re-run this verdict instead)")
+        return
+
     remaining = [
         task for task in state["tasks"]
         if task["id"] != current_task and task["status"] not in ("done", "blocked")
@@ -376,9 +390,11 @@ def main(argv: list) -> int:
         return 0
 
     # This no-flag mode only verdicts phase "tasks"
-    # (retry/stuck/next-task/wait/gates/halted/halt-budget). Any
-    # other phase is a caller misuse it fails loud on rather
-    # than guess a verdict for.
+    # (retry/stuck/next-task/next-chunk/wait/gates/halted/
+    # halt-budget).
+    #
+    # Any other phase is a caller misuse it fails loud on
+    # rather than guess a verdict for.
     phase = state.get("phase")
     if phase != "tasks":
         fail(f"no verdict defined for phase '{phase}' (this script only verdicts phase 'tasks')")
