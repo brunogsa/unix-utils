@@ -164,6 +164,8 @@ For each file the caller names:
 
 - A bullet followed by its OWN deeper sub-bullet needs no gap - they are one group.
 
+- Consecutive task-list items (`- [ ]`, `- [x]`) need no gap at any nesting - a shared checklist template must stay verbatim.
+
 - Insert the blank line only; never re-indent, merge, or re-order the bullets around it.
 
 - Edit ONLY the lines needed to clear violations. No reformatting, re-indenting, or touching unrelated lines, whitespace, quotes, or punctuation. Delete or disable nothing.
