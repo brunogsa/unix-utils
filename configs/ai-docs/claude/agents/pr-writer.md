@@ -93,6 +93,7 @@ The format has to stay stable, because the page-fit script can only hold a secti
 ### Fixing what a gate flags
 
 - **Density is the one gate you report instead of fixing**: run `check-density.sh`, then name every line it flags in your report - file and line number each.
+  - Splitting a pasted plan/spec line into a lead plus sub-bullets as you write it is not rewording; `writing-style.md` mandates it.
   - Dispatch no fixer and reword nothing to satisfy it. Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a document.
 
   - The caller files the `[Scout]` TaskList entry your report feeds, because it runs in the main loop and you do not.
