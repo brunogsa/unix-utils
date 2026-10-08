@@ -212,6 +212,25 @@ class TestCommitLog:
 
 
 class TestDeclaredTestCommands:
+    def test_should_print_the_test_commands_before_the_long_status_and_log_sections(
+        self, repo
+    ):
+        (repo / "CLAUDE.md").write_text(
+            "# Repo\n\n## Testing\n\n```bash\n./run-tests.py\n```\n"
+        )
+        for index in range(preflight.STATUS_LINE_CAP):
+            (repo / f"newcomer-{index:03}.txt").write_text("untracked\n")
+        for index in range(preflight.DEFAULT_LOG_COUNT):
+            commit_file(repo, f"history-{index:03}.txt", "x\n", f"chore: commit {index}")
+
+        report = get_report(repo).stdout
+
+        # A caller reading through a capped tool result keeps
+        # only the head, so the sections it needs come first.
+        assert report.index("[test-commands]") < report.index("[status]")
+        assert report.index("[test-commands]") < report.index("[log]")
+        assert report.index("[checked-paths]") < report.index("[status]")
+
     def test_should_report_the_commands_fenced_under_a_testing_heading_in_claude_md(
         self, repo
     ):

@@ -9,10 +9,13 @@
 #
 # stdin: none.
 #
-# stdout: a `[section]` report - repo identity, working-tree
-#         status, commits since the base ref, the declared
-#         test commands with the file declaring each, and
-#         every --check-path's existence.
+# stdout: a `[section]` report - repo identity, the declared
+#         test commands with the file declaring each, every
+#         --check-path's existence, working-tree status, and
+#         commits since the base ref.
+#
+#         The long status and log sections come last so a
+#         capped tool result truncates them, never the commands.
 #
 # exit: 0 when the report printed,
 #       1 when the working directory is not a git work tree
@@ -317,12 +320,6 @@ def render_report(preflight: dict) -> str:
         f"tracked-changes: {preflight['tracked_changes']}",
         f"untracked-files: {preflight['untracked_files']}",
         "",
-        "[status]",
-        *render_status_lines(preflight["status_lines"]),
-        "",
-        f"[log] {preflight['log_range']}",
-        *(preflight["commits"] or ["(no commits yet)"]),
-        "",
         "[test-commands]",
         *(
             [f"{name}: {command}" for name, command in preflight["test_commands"]]
@@ -334,6 +331,12 @@ def render_report(preflight: dict) -> str:
             [f"{path}: {verdict}" for path, verdict in preflight["checked_paths"]]
             or ["(none requested)"]
         ),
+        "",
+        "[status]",
+        *render_status_lines(preflight["status_lines"]),
+        "",
+        f"[log] {preflight['log_range']}",
+        *(preflight["commits"] or ["(no commits yet)"]),
     ]
     return "\n".join(lines)
 
