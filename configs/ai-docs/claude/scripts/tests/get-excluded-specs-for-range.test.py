@@ -115,3 +115,52 @@ class TestFinderListsSpecsReferencingAChangedFile:
         assert result.returncode == 0, result.stderr
         assert result.stdout.splitlines() == [spec]
 
+
+class TestFinderListsNothingUnrelated:
+    def test_should_print_nothing_when_no_integration_spec_references_a_changed_file(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _write(
+            tmp_path,
+            "core/test/modules/orders/consumers/y.consumer.integration.spec.ts",
+            "import { CancelY } from '@orders/cancel-y';\n",
+        )
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == ""
+
+    def test_should_never_list_an_ordinary_unit_spec_even_when_it_imports_the_changed_use_case(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _write(
+            tmp_path,
+            "core/test/modules/orders/create-x/index.spec.ts",
+            "import { CreateX } from '@orders/create-x';\n",
+        )
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout == ""
+
+
+class TestFinderFailureScenarios:
+    def test_should_exit_non_zero_naming_the_range_when_git_cannot_resolve_it(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _commit_all(tmp_path, "baseline")
+
+        result = _run(tmp_path, "no-such-ref..HEAD")
+
+        assert result.returncode != 0
+        assert result.stdout == ""
+        assert "no-such-ref..HEAD" in result.stderr
