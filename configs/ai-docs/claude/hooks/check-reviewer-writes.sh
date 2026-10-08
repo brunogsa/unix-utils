@@ -13,6 +13,8 @@
 #   2. scratch under /tmp - the review pipeline (auto-review)
 #      persists wave artifacts to a mktemp dir there; /tmp is
 #      never repo source.
+#      Safe only because subagent-notes-guard.py denies
+#      writes to the main session's notes.md.
 #
 # When code-reviewer runs auto-review's local mode (its own
 # pin), Wave 2's findings JSON lands in that same mktemp dir
