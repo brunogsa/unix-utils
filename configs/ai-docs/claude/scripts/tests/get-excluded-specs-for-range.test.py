@@ -142,6 +142,90 @@ class TestFinderListsSpecsReferencingAChangedFile:
         assert result.stdout.splitlines() == [spec]
 
 
+ORDERS_DIR = "core/src/modules/orders"
+
+SPEC_AT_CHAIN_HEAD = "core/test/modules/orders/chain.consumer.integration.spec.ts"
+
+
+def _write_import_chain(repo, module_count):
+    """Write spec -> chain/m1 -> ... -> chain/m<module_count> -> create-x
+    (the changed use case), so the spec reaches it in module_count + 1 hops."""
+    _write(repo, SPEC_AT_CHAIN_HEAD, "import { M } from '../../../src/modules/orders/chain/m1';\n")
+    for index in range(1, module_count + 1):
+        is_last = index == module_count
+        target = "../create-x" if is_last else f"./m{index + 1}"
+        _write(repo, f"{ORDERS_DIR}/chain/m{index}.ts", f"import {{ X }} from '{target}';\nexport const M = X;\n")
+
+
+class TestFinderListsSpecsReachingAChangedFileThroughImportChains:
+    def test_should_list_a_spec_that_reaches_the_changed_provider_through_one_module(self, tmp_path):
+        _init_incident_shaped_repo(tmp_path)
+        _write_import_chain(tmp_path, 1)
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [SPEC_AT_CHAIN_HEAD]
+
+    def test_should_list_a_spec_that_reaches_the_changed_file_in_exactly_three_hops(self, tmp_path):
+        _init_incident_shaped_repo(tmp_path)
+        _write_import_chain(tmp_path, 2)
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [SPEC_AT_CHAIN_HEAD]
+
+    def test_should_not_list_a_spec_that_reaches_the_changed_file_only_in_four_hops(self, tmp_path):
+        _init_incident_shaped_repo(tmp_path)
+        _write_import_chain(tmp_path, 3)
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == []
+
+    def test_should_finish_and_still_list_the_spec_when_modules_on_the_path_import_each_other_in_a_cycle(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _write(tmp_path, SPEC_AT_CHAIN_HEAD, "import { A } from '../../../src/modules/orders/cycle/a';\n")
+        _write(tmp_path, f"{ORDERS_DIR}/cycle/a.ts", "import { B } from './b';\nexport const A = B;\n")
+        _write(
+            tmp_path,
+            f"{ORDERS_DIR}/cycle/b.ts",
+            "import { A } from './a';\nimport { X } from '../create-x';\nexport const B = A + X;\n",
+        )
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [SPEC_AT_CHAIN_HEAD]
+
+    def test_should_finish_and_list_nothing_when_an_import_cycle_never_reaches_the_changed_file(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _write(tmp_path, SPEC_AT_CHAIN_HEAD, "import { A } from '../../../src/modules/orders/cycle/a';\n")
+        _write(tmp_path, f"{ORDERS_DIR}/cycle/a.ts", "import { B } from './b';\nexport const A = B;\n")
+        _write(tmp_path, f"{ORDERS_DIR}/cycle/b.ts", "import { A } from './a';\nexport const B = A;\n")
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == []
+
+
 class TestFinderListsNothingUnrelated:
     def test_should_print_nothing_when_no_integration_spec_references_a_changed_file(
         self, tmp_path

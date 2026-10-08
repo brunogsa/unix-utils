@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # get-excluded-specs-for-range.py - list the integration/e2e
-# test files that import a source file changed in a git range.
+# test files that import a source file changed in a git range,
+# directly or through up to MAX_IMPORT_HOPS importing modules.
 #
 # Usage:
 #   get-excluded-specs-for-range.py <git-range>
@@ -14,7 +15,8 @@
 # stdout: one repo-relative test file path per line, sorted -
 #   every *.integration.spec.*, *.e2e.spec.*,
 #   *.integration.test.* or *.e2e.test.* file whose import
-#   specifiers resolve to a file changed in <git-range>.
+#   specifiers resolve to a file changed in <git-range>, or
+#   to a file that itself reaches one within the hop cap.
 #
 #   Empty when none does.
 #
@@ -42,6 +44,10 @@ IMPORT_SPECIFIER_PATTERN = re.compile(
 )
 
 PATH_WILDCARD = "*"
+
+# Hop 1 is a direct importer of a changed file. The cap stops a
+# shared util imported everywhere from selecting the whole suite.
+MAX_IMPORT_HOPS = 3
 
 # A string literal is matched first so a "//" inside a path
 # value is kept, not read as a comment.
@@ -85,11 +91,6 @@ def get_changed_module_paths(repo_root, git_range):
 def get_module_path(path):
     without_extension = SOURCE_EXTENSION_PATTERN.sub("", posixpath.normpath(path))
     return re.sub(r"/index$", "", without_extension)
-
-
-def get_excluded_spec_paths(repo_root):
-    result = run_git(repo_root, "ls-files", "--cached", "--others", "--exclude-standard")
-    return [path for path in result.stdout.splitlines() if EXCLUDED_SPEC_PATTERN.search(path)]
 
 
 def get_nearest_tsconfig_paths(repo_root, spec_path, cache):
@@ -165,15 +166,49 @@ def get_import_targets(spec_path, specifier, tsconfig_paths):
     return get_alias_targets(specifier, tsconfig_paths)
 
 
-def is_spec_referencing_changed_module(repo_root, spec_path, changed_module_paths, tsconfig_cache):
-    source = (repo_root / spec_path).read_text(encoding="utf-8", errors="replace")
-    tsconfig_paths = get_nearest_tsconfig_paths(repo_root, spec_path, tsconfig_cache)
+def get_imported_module_paths(repo_root, source_path, tsconfig_cache):
+    source = (repo_root / source_path).read_text(encoding="utf-8", errors="replace")
+    tsconfig_paths = get_nearest_tsconfig_paths(repo_root, source_path, tsconfig_cache)
 
+    imported_module_paths = set()
     for specifier in IMPORT_SPECIFIER_PATTERN.findall(source):
-        targets = get_import_targets(spec_path, specifier, tsconfig_paths)
-        if any(get_module_path(target) in changed_module_paths for target in targets):
-            return True
-    return False
+        for target in get_import_targets(source_path, specifier, tsconfig_paths):
+            imported_module_paths.add(get_module_path(target))
+    return imported_module_paths
+
+
+def get_tracked_source_paths(repo_root):
+    result = run_git(repo_root, "ls-files", "--cached", "--others", "--exclude-standard")
+    return [
+        path
+        for path in result.stdout.splitlines()
+        if SOURCE_EXTENSION_PATTERN.search(path) and (repo_root / path).is_file()
+    ]
+
+
+def get_importers_by_module_path(repo_root, source_paths):
+    """Return the reverse import graph: module path -> the source
+    files importing it. Built once per run."""
+    tsconfig_cache = {}
+    importers = {}
+    for source_path in source_paths:
+        for module_path in get_imported_module_paths(repo_root, source_path, tsconfig_cache):
+            importers.setdefault(module_path, set()).add(source_path)
+    return importers
+
+
+def get_files_reaching_changed_modules(changed_module_paths, importers_by_module_path):
+    """Walk the reverse graph breadth-first up to MAX_IMPORT_HOPS;
+    the visited set also ends an import cycle."""
+    reaching_files = set()
+    frontier = set(changed_module_paths)
+    for _ in range(MAX_IMPORT_HOPS):
+        importers = set()
+        for module_path in frontier:
+            importers |= importers_by_module_path.get(module_path, set())
+        frontier = {get_module_path(path) for path in importers - reaching_files}
+        reaching_files |= importers
+    return reaching_files
 
 
 def main():
@@ -192,13 +227,10 @@ def main():
     if not changed_module_paths:
         return
 
-    tsconfig_cache = {}
-    listed_specs = [
-        spec_path
-        for spec_path in get_excluded_spec_paths(repo_root)
-        if (repo_root / spec_path).is_file()
-        and is_spec_referencing_changed_module(repo_root, spec_path, changed_module_paths, tsconfig_cache)
-    ]
+    source_paths = get_tracked_source_paths(repo_root)
+    importers_by_module_path = get_importers_by_module_path(repo_root, source_paths)
+    reaching_files = get_files_reaching_changed_modules(changed_module_paths, importers_by_module_path)
+    listed_specs = [path for path in reaching_files if EXCLUDED_SPEC_PATTERN.search(path)]
     for spec_path in sorted(listed_specs):
         print(spec_path)
 
