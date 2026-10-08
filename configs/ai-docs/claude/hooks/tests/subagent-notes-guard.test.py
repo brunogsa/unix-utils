@@ -7,12 +7,21 @@ only inside a subagent (https://code.claude.com/docs/en/hooks).
 """
 
 import json
+import re
 import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 HOOK = Path(__file__).resolve().parent.parent / "subagent-notes-guard.py"
+SETTINGS = Path(__file__).resolve().parent.parent.parent / "settings.json"
+GUARD_COMMAND = "python3 ~/.claude/hooks/subagent-notes-guard.py"
+
+# Every built-in tool that can create or modify a file by
+# path: Write and Edit per the hooks reference, NotebookEdit
+# per https://code.claude.com/docs/en/tools-reference;
+# MultiEdit, as the sibling dash-guard matcher covers it.
+WRITE_CAPABLE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")
 
 MAIN_SESSION_NOTES = (
     "/private/tmp/claude-503/-Users-brunoagostini-workspace-code-integrator/"
@@ -138,6 +147,43 @@ class WritesLeftToNormalPermissionFlowTest(SubagentNotesGuardTestCase):
 
     def test_should_fail_open_on_unparseable_input(self):
         self.assert_left_to_normal_flow(raw="{not json")
+
+
+class EveryWriteCapableToolTest(SubagentNotesGuardTestCase):
+    def test_should_run_the_guard_for_every_write_capable_tool(self):
+        pre_tool_use = json.loads(SETTINGS.read_text())["hooks"]["PreToolUse"]
+        for tool in WRITE_CAPABLE_TOOLS:
+            with self.subTest(tool=tool):
+                guarding_entries = [
+                    entry
+                    for entry in pre_tool_use
+                    if re.fullmatch(entry.get("matcher", ""), tool)
+                    and any(h.get("command") == GUARD_COMMAND for h in entry["hooks"])
+                ]
+                self.assertTrue(guarding_entries, f"{tool} never reaches the guard")
+
+    def test_should_deny_a_subagent_editing_the_notes_file_as_a_notebook(self):
+        self.assert_denied(
+            {
+                "hook_event_name": "PreToolUse",
+                "tool_name": "NotebookEdit",
+                "tool_input": {
+                    "notebook_path": MAIN_SESSION_NOTES,
+                    "new_source": "# Findings",
+                },
+                "agent_id": SUBAGENT_ID,
+                "agent_type": SUBAGENT_TYPE,
+            }
+        )
+
+    def test_should_deny_a_subagent_multi_editing_the_main_session_notes_file(self):
+        payload = edit_call(MAIN_SESSION_NOTES, SUBAGENT_ID, SUBAGENT_TYPE)
+        payload["tool_name"] = "MultiEdit"
+        payload["tool_input"] = {
+            "file_path": MAIN_SESSION_NOTES,
+            "edits": [{"old_string": "## Findings", "new_string": "## Done"}],
+        }
+        self.assert_denied(payload)
 
 
 if __name__ == "__main__":

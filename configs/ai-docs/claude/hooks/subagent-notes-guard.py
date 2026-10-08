@@ -2,7 +2,8 @@
 # subagent-notes-guard - Deny a subagent's Write/Edit to the
 # main session's scratchpad notes.md.
 #
-# Usage (PreToolUse hook, matcher Write|Edit in settings.json):
+# Usage (PreToolUse hook, every write-capable tool's matcher
+# in settings.json):
 #   subagent-notes-guard.py < tool-call.json
 #
 # stdin: the PreToolUse JSON payload.
@@ -61,10 +62,14 @@ def main():
     # also set on a main session started with --agent,
     # which owns the file.
     is_subagent_call = bool(payload.get("agent_id"))
-    tool_input = payload.get("tool_input") or {}
-    file_path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+    tool_input = payload.get("tool_input")
+    if not is_subagent_call or not isinstance(tool_input, dict):
+        return
 
-    if not is_subagent_call or not isinstance(file_path, str):
+    # NotebookEdit names its target notebook_path; every other
+    # write-capable tool names it file_path.
+    file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not isinstance(file_path, str):
         return
 
     if is_main_session_notes(file_path):
