@@ -25,6 +25,10 @@
 #
 # - Tracked and identical to HEAD -> empty output, exit 0.
 #
+# - Renamed vs HEAD (`git mv`, staged or not) -> only the lines
+#   that differ from the rename source, so a pure rename
+#   reports nothing.
+#
 #   A file that is staged but never committed still differs
 #   from HEAD, so it falls into the second case. Its whole
 #   content comes back as changed - same result as the
@@ -87,7 +91,36 @@ if [ -n "$untracked" ]; then
   exit 0
 fi
 
-git diff -U0 HEAD -- "$rel_file" 2>/dev/null | awk '
+# rename_source - prints the HEAD path rel_file was renamed
+# from, or nothing when rel_file is not a rename.
+#
+# Without it, a renamed file is absent at HEAD, so every line
+# reads as changed and a pure rename of a legacy file gets
+# blocked over violations it never touched.
+#
+# -z keeps paths with spaces or quotes intact; a rename record
+# is status, source, destination, each NUL-terminated.
+rename_source() {
+  git diff -M -z --name-status HEAD 2>/dev/null |
+    while IFS= read -r -d '' status; do
+      IFS= read -r -d '' path_a
+      case $status in
+        R*)
+          IFS= read -r -d '' path_b
+          if [ "$path_b" = "$rel_file" ]; then
+            printf '%s' "$path_a"
+            return
+          fi
+          ;;
+      esac
+    done || true
+}
+
+src_file=$(rename_source)
+
+# Listing both paths keeps git's rename pairing, so the hunks
+# compare the rename source against rel_file.
+git diff -U0 -M HEAD -- ${src_file:+"$src_file"} "$rel_file" 2>/dev/null | awk '
     /^@@ / {
       plus = $3; sub(/^\+/, "", plus);
       n = split(plus, a, ",");

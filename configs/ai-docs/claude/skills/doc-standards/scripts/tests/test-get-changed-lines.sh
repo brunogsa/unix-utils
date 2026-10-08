@@ -170,6 +170,23 @@ printf 'one\ntwo\nthree\n' > "$repo/-dashfile.md"
 out=$(cd "$repo" && "$SCRIPT" -dashfile.md)
 assert_eq "untracked dash-leading filename reports every line" "$(printf '1\n2\n3')" "$out"
 
+# --- Case 12: `git mv` with no content change -> nothing
+# changed.
+#
+# The new path is absent at HEAD, so a plain diff vs HEAD would
+# report every line; the rename source is the right baseline,
+# which lets a pure rename of a legacy file through the
+# comment-format guard.
+repo=$(new_repo repo12)
+printf 'alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\n' > "$repo/old-name.md"
+git -C "$repo" add old-name.md
+git -C "$repo" commit -q -m base
+git -C "$repo" mv old-name.md new-name.md
+out=$(cd "$repo" && "$SCRIPT" new-name.md)
+rc=$?
+assert_eq "file renamed with no content change reports no changed lines" "" "$out"
+assert_eq "file renamed with no content change exits 0" "0" "$rc"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]
