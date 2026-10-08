@@ -58,6 +58,11 @@ def edit_call(file_path, agent_id=None, agent_type=None):
 
 
 class SubagentNotesGuardTestCase(unittest.TestCase):
+    def assert_left_to_normal_flow(self, payload=None, raw=None):
+        result = run_hook(payload, raw)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "")
+
     def assert_denied(self, payload):
         result = run_hook(payload)
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -94,6 +99,45 @@ class SubagentEditToMainSessionNotesTest(SubagentNotesGuardTestCase):
             edit_call(MAIN_SESSION_NOTES, SUBAGENT_ID, SUBAGENT_TYPE)
         )
         self.assertIn("code-reviewer-notes.md", reason)
+
+
+class WritesLeftToNormalPermissionFlowTest(SubagentNotesGuardTestCase):
+    def test_should_leave_the_main_session_writing_its_own_notes_file_alone(self):
+        self.assert_left_to_normal_flow(write_call(MAIN_SESSION_NOTES))
+
+    def test_should_leave_the_main_session_editing_its_own_notes_file_alone(self):
+        self.assert_left_to_normal_flow(edit_call(MAIN_SESSION_NOTES))
+
+    def test_should_leave_a_main_session_started_with_an_agent_flag_writing_its_notes_alone(self):
+        # An --agent session carries agent_type without
+        # agent_id; it is still the main thread, the notes
+        # file's owner.
+        self.assert_left_to_normal_flow(
+            write_call(MAIN_SESSION_NOTES, agent_type="tdd-coder")
+        )
+
+    def test_should_leave_a_subagent_writing_a_review_wave_file_under_tmp_alone(self):
+        self.assert_left_to_normal_flow(
+            write_call("/tmp/auto-review.Xk3p9Q/wave1.md", SUBAGENT_ID, SUBAGENT_TYPE)
+        )
+
+    def test_should_leave_a_subagent_writing_its_own_typed_notes_file_in_the_scratchpad_alone(self):
+        own_notes = MAIN_SESSION_NOTES.replace("notes.md", "code-reviewer-notes.md")
+        self.assert_left_to_normal_flow(
+            write_call(own_notes, SUBAGENT_ID, SUBAGENT_TYPE)
+        )
+
+    def test_should_leave_a_subagent_writing_a_notes_file_outside_any_scratchpad_alone(self):
+        self.assert_left_to_normal_flow(
+            write_call(
+                "/Users/brunoagostini/workspace/code/integrator/notes.md",
+                SUBAGENT_ID,
+                SUBAGENT_TYPE,
+            )
+        )
+
+    def test_should_fail_open_on_unparseable_input(self):
+        self.assert_left_to_normal_flow(raw="{not json")
 
 
 if __name__ == "__main__":
