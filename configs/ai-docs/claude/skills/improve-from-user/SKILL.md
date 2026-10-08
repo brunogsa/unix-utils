@@ -54,15 +54,15 @@ When the symlink is healthy, the write target is the repo-tracked source path be
 
 Running from the unix-utils repo targets this repo's own `configs/ai-docs/claude/CLAUDE.md` / `configs/ai-docs/claude/skills/*`; running from any other repo targets that repo's own `CLAUDE.md` / `.claude/skills/*`.
 
-This write-target rule applies to all three modes, but repo-scoping the **read** side only applies to Mode A - which `~/.claude/projects/*` transcripts the session sweep mines.
+This write-target rule covers all three modes, but repo-scoping the **read** side only applies to Mode A - which `~/.claude/projects/*` transcripts the session sweep mines.
 
 Modes B and C keep reading PR comments and `AI!` markers globally, from any repo.
 
 ## Execution
 
-Steps 2-7 run inline, in the main context - you see every read and edit as it happens.
+Steps 2-7 run inline - you see every read and edit as it happens.
 
-The only fan-out in the whole skill is Mode A's read stage, and only when the corpus survey estimates a large window.
+The only fan-out in the skill is Mode A's read stage, and only when the corpus survey estimates a large window.
 
 1. Step 1: detect the mode, load its reference, extract feedback items (see the escalation fork below for Mode A).
 2. Steps 2-7 in main context: read targets, cluster and rank candidate learnings, generalize, target, cross-check, present findings, get per-item approval, apply edits one at a time.
@@ -75,7 +75,7 @@ If step 1 yields zero items (no quote-worthy session moments, no `AI:`-prefixed 
 
 Mode A's read stage prints a corpus survey (file count, turn count, estimated tokens) and confirms it with the user before mining any content.
 
-- **Below ~80k estimated tokens** (the common case): read every qualifying transcript's extractor output inline, in the main context.
+- **Below ~80k estimated tokens**: read every qualifying transcript's extractor output inline, in the main context.
 - **Above ~80k estimated tokens**: dispatch background `agent(subAgent=general-purpose, title=Extract feedback items from transcript slice, model=sonnet)`, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
   - Half the escalation threshold, so no single agent's read comes near filling its own context.
   - No separate cap on how many agents that produces; real parallelism is already bounded by the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` setting.
@@ -90,7 +90,7 @@ Full detail: [`references/mode-a-session.md`](references/mode-a-session.md).
 
 **Post-edit audits do NOT run inside this skill.**
 
-- Running `consistency-check-principles-and-skills` nested inside this skill's own execution would audit a half-applied edit set - its 3 ensemble children read the files exactly as they stand at that moment.
+- Running `consistency-check-principles-and-skills` nested inside this skill's execution would audit a half-applied edit set - its 3 ensemble children read the files exactly as they stand at that moment.
 
 - Step 8 (main context) reminds the user to run the audits in a fresh session.
 
@@ -102,11 +102,11 @@ Detect the mode from the arg (see the Usage table), then load and run the matchi
 - **Mode B** (explicit PR token) → [`references/mode-b-pr-comments.md`](references/mode-b-pr-comments.md)
 - **Mode C** (mentions `AI!`) → [`references/mode-c-ai-comments.md`](references/mode-c-ai-comments.md)
 
-**All modes emit items in the same unified format below** so steps 2-7 treat them uniformly, whether step 1 ran fully inline or fanned out to subagents.
+**All modes emit items in the same unified format below** so steps 2-7 treat them uniformly, whether step 1 ran inline or fanned out to subagents.
 
 ### Unified item format (all modes emit this)
 
-Format each item as a top-level bullet with five sub-bullets - keep the structure consistent so steps 2-7 can parse it reliably.
+Format each item as a top-level bullet with five sub-bullets - keep the structure consistent so steps 2-7 can parse it.
 
 This also lets an escalated read-stage subagent's returned items merge cleanly with everyone else's:
 
@@ -119,7 +119,7 @@ This also lets an escalated read-stage subagent's returned items merge cleanly w
   - **Lesson drawn**: <generalizable takeaway as you currently see it; step 2's clustering will challenge and refine it>
 ```
 
-This list is step 2-7's working input. When Mode A's read stage escalates to subagents, merge every subagent's returned items into this one list before continuing to step 2.
+This list is step 2-7's working input. When Mode A's read stage escalates to subagents, merge every subagent's returned items into this one list before step 2.
 
 - Richer input - especially verbatim quotes - matters most for an escalated read-stage subagent.
   - It sees only its own file slice, never the parent conversation, the PR diff, or the working tree.
