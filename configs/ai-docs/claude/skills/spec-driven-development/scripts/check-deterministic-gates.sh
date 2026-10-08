@@ -47,6 +47,7 @@
 #
 # Exit codes:
 #   0 - no gate failed (WARN and SKIP do not count).
+#
 #   1 - at least one gate exited non-zero.
 #   2 - usage error (including an unknown option), or a named
 #       file missing.
