@@ -17,7 +17,9 @@ Steps:
    gh api repos/{owner}/{repo}/issues/<n>/comments   # top-level conversation
    gh api repos/{owner}/{repo}/pulls/<n>/reviews     # review summaries (body field)
    ```
-3. Filter **only** entries where `user.login` equals your login. Drop everyone else (KISS - single-user signal for now).
+3. Keep **only** entries where `user.login` equals your login AND `body`, after leading whitespace, starts with `AI:`. Drop everyone else's comments and your own un-prefixed ones.
+   - Why: `AI:` marks feedback written for the AI, while an un-prefixed comment is a colleague reply that teaches the AI nothing.
+   - Keep `body` verbatim, prefix included.
 
 Per-item field hints:
 - **Source** - the comment's `html_url` (deep-link, stable across the PR's lifetime).

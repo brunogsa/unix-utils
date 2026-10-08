@@ -27,7 +27,7 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 | Form | Mode |
 |---|---|
 | omitted, `this session`, `current session` (± `--since <days>`) | **A. Session sweep** - verbatim user turns from on-disk transcripts across the last `<days>` (default 7); survives compaction |
-| `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>` | **B. PR comments** - your comments on PR `<n>` (other users ignored) |
+| `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>` | **B. PR comments** - your `AI:`-prefixed comments on PR `<n>` (other users and un-prefixed comments ignored) |
 | `AI! comments` (± `on <paths>`) | **C. AI! comments** - `AI!` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 
 Examples:
@@ -69,7 +69,7 @@ The only fan-out in the whole skill is Mode A's read stage, and only when the co
 
 3. Step 8 (audit reminder) at the end.
 
-If step 1 yields zero items (no quote-worthy session moments, no PR comments from your login, or no AI! matches), report that and stop - never run analysis on nothing.
+If step 1 yields zero items (no quote-worthy session moments, no `AI:`-prefixed PR comments from your login, or no AI! matches), report that and stop - never run analysis on nothing.
 
 ### Step 1's escalation fork (Mode A only)
 
