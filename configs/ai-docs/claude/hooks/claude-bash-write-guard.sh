@@ -35,6 +35,13 @@
 # extension the prose checkers do not handle, and any target
 # the guard cannot resolve to a literal path.
 #
+# Also allowed: a bare `cat` copying only literal, existing
+# files into a guarded path (`cat /tmp/batch.md >> notes.md`).
+# Its content was typed through Edit/Write when the source was
+# authored, so nothing new skips the checker.
+#
+# A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
+#
 # Examples (pipe JSON, check exit code):
 #   echo '{"tool_input":{"command":"echo hi > notes.md"}}' \
 #     | bash claude-bash-write-guard.sh   # blocks.
@@ -102,8 +109,12 @@ cmd = strip_heredoc_bodies(cmd)
 
 
 def split_segments(text):
-    """Flatten the shared splitter's statement/stage structure into one list of command segments."""
-    return [stage for stages in split_into_pipelines(text) for stage in stages]
+    """Flatten the shared splitter's statements into (segment, is_piped_into) pairs, in command order."""
+    return [
+        (stage, position > 0)
+        for stages in split_into_pipelines(text)
+        for position, stage in enumerate(stages)
+    ]
 
 
 def parse_segment(segment):
@@ -276,10 +287,35 @@ def write_targets(exe, tokens, cwd):
     return targets
 
 
+def is_copy_of_existing_files(exe, tokens, cwd, is_piped_into):
+    """True when the segment is a bare `cat` whose only input is one or more literal, existing files."""
+    # why: a copy carries no text typed into the command - the
+    # source files were authored earlier, through Edit/Write and
+    # its checker.
+    #
+    # A pipe, a heredoc or here-string (`<<`), stdin (`-`), a
+    # flag that rewrites the text (`-n`) or a source the guard
+    # cannot see on disk all let typed or generated text in.
+    if exe != 'cat' or is_piped_into:
+        return False
+    arguments = arguments_after(exe, tokens)
+    if any(token.startswith(('-', '<')) for token in arguments):
+        return False
+    sources = positional_arguments(arguments)
+    if not sources:
+        return False
+    for source in sources:
+        if re.search(r'[$`*?\[(]', source):
+            return False
+        if not os.path.isfile(absolute_path(cwd, source)):
+            return False
+    return True
+
+
 blocked = []
 cwd = os.getcwd()
 
-for segment in split_segments(cmd):
+for segment, is_piped_into in split_segments(cmd):
     exe, tokens = parse_segment(segment)
     if exe == 'cd':
         arguments = positional_arguments(arguments_after(exe, tokens))
@@ -295,6 +331,8 @@ for segment in split_segments(cmd):
             # guard switched off.
             break
         cwd = destination
+        continue
+    if is_copy_of_existing_files(exe, tokens, cwd, is_piped_into):
         continue
     for target in write_targets(exe, tokens, cwd):
         reason = block_reason(cwd, target)

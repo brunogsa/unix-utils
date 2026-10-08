@@ -60,6 +60,7 @@ setup_fixtures() {
     git add src/index.ts .gitignore README.md
     git commit -q -m "init"
   )
+  printf '### 1. [Task] Offloaded task\n' > "$outside_dir/batch.md"
 }
 
 teardown_fixtures() {
@@ -237,6 +238,21 @@ it_should_block_a_redirect_to_another_users_home_path_because_it_cannot_be_expan
   assert_eq "should block a redirect to ~someone/probe.md because another user's home is not expanded" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_appending_a_scratch_file_onto_a_tracked_markdown_file_with_cat() {
+  run_hook "cat $outside_dir/batch.md >> README.md"
+  assert_eq "should allow appending an existing scratch file onto a tracked markdown file with cat" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_concatenating_several_existing_files_into_a_markdown_file_in_the_repo() {
+  run_hook "cat README.md $outside_dir/batch.md > docs/combined.md"
+  assert_eq "should allow concatenating several existing files into a markdown file inside the repo" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_copying_an_existing_file_into_the_repo() {
+  run_hook "cp $outside_dir/batch.md docs/copy.md"
+  assert_eq "should allow cp copying an existing file into the repo" "0" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -266,6 +282,9 @@ it_should_allow_an_in_place_sed_on_a_tilde_path_whose_home_is_outside_any_git_wo
 it_should_block_an_in_place_sed_on_a_tilde_path_whose_home_is_inside_a_git_work_tree
 it_should_block_a_redirect_to_a_tilde_path_whose_home_is_inside_a_git_work_tree
 it_should_block_a_redirect_to_another_users_home_path_because_it_cannot_be_expanded
+it_should_allow_appending_a_scratch_file_onto_a_tracked_markdown_file_with_cat
+it_should_allow_concatenating_several_existing_files_into_a_markdown_file_in_the_repo
+it_should_allow_cp_copying_an_existing_file_into_the_repo
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
