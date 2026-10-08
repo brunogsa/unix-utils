@@ -91,6 +91,7 @@ return over a mutated accumulator) - not a documentation task.
 
 - [Instruction] When a name only makes sense alongside a comment explaining a business rule, rename it instead of keeping the comment.
   - [Why] A reader trusts the name over a comment, which can go stale or be skipped - a misleading name still misleads.
+  - [Example] Bad: `enum Scenario { A, B, C, D }` plus a comment mapping each letter to its rule. Good: members named after the rule, like `SCHOOL_MAIN_ADDRESS`.
 
 ### Booleans, conditions & naming conventions
 
@@ -131,6 +132,7 @@ only - translation and business rules belong in their own named steps.
 
 - [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means - never bake the business reaction into the client.
   - [Why] The client sees the protocol, not the domain, so a policy chosen there binds every caller that will ever use it.
+  - [Example] Bad: a contract-lookup use case throwing a terminal "no contract for this ERP" error. Good: it returns `[]`, and the sync caller decides that empty means an error callback.
 
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
   - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.

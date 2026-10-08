@@ -124,6 +124,7 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
 - [Instruction] **CRITICAL: Search before creating** -- look for existing similar code before writing anything new.
   - [Why] Duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
+  - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
 
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
@@ -149,7 +150,7 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
 - [Instruction] **CRITICAL: Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
-  - [Example] Bad: `RN-01`, `AC-8`, `RI01`, "the Apendice" - a pointer resolves only if it names a committed path or URL. Good: recap the rule inline.
+  - [Example] Bad: `RN-01`, `AC-8`, "the Apendice", a bare "callback" or "that flag". Good: a committed path or URL, the rule recapped inline, "error callback", `FEAT_FLAG_PIC_SYNC_<ERP>_ENABLED`.
 
 ### Single source of truth, no orphans
 
@@ -347,7 +348,6 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
   - [Example] Prose caps don't enforce: `repo-green-runner` ran 1h+ against a documented 40-minute max, and the CRITICAL-density rule kept failing until a hook enforced it.
-  - [Example] A check needing that ledger edited on every repo change is not a `[Harness]`; file the defect class as `[Debt]` instead.
   - [Example] I name a workflow by its skill's job and the skill didn't fire: file a `[Harness]` to fix that skill's description, not a one-off load.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.

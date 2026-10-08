@@ -128,6 +128,10 @@ it('should filter by assignee', ...);
 - [Instruction] **CRITICAL: Write test titles in domain language a non-engineer (PM, QA, designer) could understand - observable behavior, not internal field names or implementation tokens.**
   - [Why] Titles get scanned more than bodies; one tied to an internal field name breaks on rename even when behavior holds.
 
+- [Instruction] State the business rule a test checks in its title, never a count or label standing in for the rules.
+  - [Why] Titles read together document the logic; a title naming only a group guards the rules without teaching them.
+  - [Example] Bad: `should pick the address of each of the four scenarios`. Good: one test per scenario, each title naming which address wins and when.
+
 **Anti-pattern: generic noun when multiple instances of the same kind exist**
 
 - [Instruction] When a system has multiple instances of the same kind - two search fields, two filters, two query params, two endpoints - name the specific one in the title.
@@ -180,6 +184,14 @@ it('should enable Apply after operator toggles a school off then back on', ...);
 // Good - full precondition
 it('should enable Apply after operator toggles a school off then back on, only when not loading', ...);
 it('should disable Apply while loading (loading dominates dirty state)', ...);
+
+// Bad - holds only while a feature flag is on, and the title hides it
+it('should send the delivery address to the ERP', ...);
+
+// Good - the flag state lives in a describe block (or in the title)
+describe('with FEAT_FLAG_DELIVERY_ADDRESS_ENABLED on', () => {
+  it('should send the delivery address to the ERP', ...);
+});
 ```
 
 ## Splitting & pruning tests
@@ -202,6 +214,9 @@ When a committed doc really must hold a shape, encode that shape as a checker ru
 - [Instruction] **CRITICAL: Make the code path the unit of a test - every case reaching the same path collapses into one test, identical inputs or not.**
   - [Why] Distinct paths are the unit of safety; duplicates on one path add upkeep and suite time with no coverage gain.
   - [Example] If "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant - boundary + 1 is the contract.
+
+- [Instruction] When collapsing redundant tests, carry every rule a dropped title stated into a surviving title, or keep that test.
+  - [Why] A collapse that loses a rule's only title keeps the coverage but erases the documentation of that rule.
 
 - [Instruction] When multiple events produce the same outcome (different filters reset the page, different errors roll back one transaction), write ONE test on the outcome, not N one-per-trigger.
   - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome covers new triggers too.
