@@ -19,9 +19,8 @@
 # - Untracked (new, never `git add`ed) -> every line is
 #   "changed".
 #
-# - Tracked and different from HEAD -> only the lines `git diff
-#   -U0
-#     HEAD` reports as added.
+# - Tracked and different from HEAD -> only the lines
+#   `git diff -U0 HEAD` reports as added.
 #
 # - Tracked and identical to HEAD -> empty output, exit 0.
 #
