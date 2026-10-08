@@ -170,6 +170,16 @@ PHASE GREEN:
 
 - Run Verification once. Read the per-unit result.
 - All N green: append a confirmed-GREEN entry to the evidence file, then proceed to PHASE COMMIT for all N units.
+  - Before committing, run `~/.claude/scripts/get-excluded-specs-for-range.py <base-sha>`, passing the `base:` input, else step 1's `head:`.
+    - It lists the integration and e2e specs importing a file the batch changed - the files a default test command ignores, so one broke in CI past a green Verification.
+
+  - Run each listed file with a targeted command from the repo's own integration runner, e.g. `npx jest --testRegex='<file>$' --runInBand`.
+    - A plain `test -- <file>` filter can match zero integration files, which reads as a pass.
+
+  - A listed file that fails sends its unit back to the repair loop below.
+
+  - When a listed file's local service (DB, LocalStack) is unreachable, skip it and name the file and reason under Deviations.
+
 - Some units still red: repair only the failing ones, capped at 3 repair attempts per failing unit.
   - Re-check each repair with a **targeted** command - the single failing file, test name, or suite - never the full Verification command.
     - The full suite is budgeted at two runs per dispatch, post-RED and post-GREEN - past dispatches ran it a median of 4× and up to 21×, at ~145s each, 10% of all wall time re-proving units already green.
