@@ -26,11 +26,29 @@
 #   (message on stderr); 2 within 20% of the budget; 3 over
 #   the budget.
 
+import importlib.util
 import math
 import re
 import sys
 from pathlib import Path
 from typing import NoReturn
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+# The fence rule is shared repo-wide: same marker, a run at
+# least as long as the opener, and no info string closes it.
+#
+# Loaded by path because the hyphenated name blocks an import.
+PARSE_FENCES = SCRIPT_DIR.parents[2] / "scripts" / "parse-fences.py"
+_spec = importlib.util.spec_from_file_location("parse_fences", PARSE_FENCES)
+try:
+    if _spec is None or _spec.loader is None:
+        raise ImportError("no import spec")
+    parse_fences = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(parse_fences)
+except Exception as error:
+    print(f"error: cannot load {PARSE_FENCES}: {error}", file=sys.stderr)
+    sys.exit(1)
 
 DEFAULT_PAGE_LINES = "64"
 DEFAULT_WRAP_WIDTH = "95"
@@ -61,7 +79,7 @@ LINK_REF_DEFINITION = re.compile(r"^[ \t]*\[[^\]]+\]:[ \t]")
 EMPTY_ANCHOR = re.compile(r"^[ \t]*<a[ \t][^>]*></a>[ \t]*$")
 EXPANDED_DETAILS = re.compile(r"<details[ \t]+open")
 DETAILS_CLOSER_LINE = re.compile(r"^[ \t]*</details>")
-CODE_FENCE = re.compile(r"^[ \t]*```")
+CLOSED_FENCE = (False, "", 0)
 HEADING = re.compile(r"^#+[ \t]")
 HEADING_MARKER = re.compile(r"^#+[ \t]*")
 
@@ -116,16 +134,38 @@ def get_body_start(lines):
     return index + 1
 
 
+def get_fence_state(line, fence_state):
+    """(in_fence, fence_char, fence_len) after one line.
+
+    Leading whitespace is dropped first, so a fence indented
+    under a list item still opens and closes."""
+    return parse_fences.toggle_fence(line.lstrip(" \t"), *fence_state)
+
+
+def is_fence_opener(line):
+    is_in_fence, _, _ = get_fence_state(line, CLOSED_FENCE)
+    return is_in_fence
+
+
 def get_index_after_balanced_closer(lines, opener_index):
     """Index just past the </details> that balances the opener.
 
     A nested block closes first, and the outer text after it is
     still hidden. Counting per line keeps a one-line block
-    balanced."""
+    balanced.
+
+    A tag quoted inside fenced code is sample text, so fence
+    lines never move the depth."""
     depth = 0
+    fence_state = CLOSED_FENCE
     index = opener_index
     while index < len(lines):
-        depth += lines[index].count("<details") - lines[index].count("</details>")
+        line = lines[index]
+        was_in_fence = fence_state[0]
+        fence_state = get_fence_state(line, fence_state)
+        is_outside_fence = not was_in_fence and not fence_state[0]
+        if is_outside_fence:
+            depth += line.count("<details") - line.count("</details>")
         index += 1
         if depth <= 0:
             break
@@ -206,9 +246,13 @@ class PageMeter:
         """Charge a fenced block and return the index past it."""
         lines = self.lines
         is_mermaid = "mermaid" in lines[opener_index].lower()
+        fence_state = get_fence_state(lines[opener_index], CLOSED_FENCE)
         index = opener_index + 1
         fenced_cost = 0
-        while index < len(lines) and not CODE_FENCE.match(lines[index]):
+        while index < len(lines):
+            fence_state = get_fence_state(lines[index], fence_state)
+            if not fence_state[0]:
+                break
             fenced_cost += self.get_line_cost(index)
             index += 1
         if not is_mermaid:
@@ -240,7 +284,7 @@ class PageMeter:
             elif "<summary" in line:
                 self.charge(self.get_line_cost(index))
                 index += 1
-            elif CODE_FENCE.match(line):
+            elif is_fence_opener(line):
                 index = self.charge_code_fence(index)
             elif HEADING.match(line):
                 self.open_heading(line)

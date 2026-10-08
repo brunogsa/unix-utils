@@ -164,6 +164,68 @@ Visible line after the one-line block."""
         assert _measure(tmp_path, body, "Evidences") == 3
 
 
+class TestDetailsTagsQuotedInFencedCode:
+    def test_should_resume_counting_after_a_collapsed_block_whose_fenced_sample_quotes_a_details_opener(self, tmp_path):
+        body = f"""## Appendix
+
+<details>
+<summary>Full reproduction</summary>
+
+```html
+<details>
+<summary>Sample markup</summary>
+```
+{_text_lines("reproduction", 5)}
+</details>
+
+## Follow-ups
+
+One follow-up ticket filed for the retry backoff."""
+        assert _measure(tmp_path, body, "Follow-ups") == 2
+
+    def test_should_charge_a_details_opener_inside_a_tilde_fence_as_code_text(self, tmp_path):
+        body = """## Reproduction
+
+~~~html
+<details>
+<summary>Sample markup</summary>
+</details>
+~~~
+
+Visible line after the fence."""
+
+        # Heading + 3 code lines + 2 fences + the visible line.
+        assert _measure(tmp_path, body, "Reproduction") == 7
+
+    def test_should_keep_a_four_backtick_fence_open_past_an_inner_three_backtick_line(self, tmp_path):
+        body = """## Reproduction
+
+````markdown
+```
+<details>
+<summary>Sample markup</summary>
+```
+````
+
+Visible line after the fence."""
+
+        # Heading + 4 code lines + 2 fences + the visible line.
+        assert _measure(tmp_path, body, "Reproduction") == 8
+
+    def test_should_keep_a_fence_open_past_an_inner_line_carrying_an_info_string(self, tmp_path):
+        body = """## Reproduction
+
+```
+```text
+<details>
+```
+
+Visible line after the fence."""
+
+        # Heading + 2 code lines + 2 fences + the visible line.
+        assert _measure(tmp_path, body, "Reproduction") == 6
+
+
 class TestVerdictAndExitCode:
     def test_should_pass_with_exit_0_when_the_body_fits_well_under_the_page(self, tmp_path):
         result = _run(_write_body(tmp_path, f"## Summary\n\n{_text_lines('summary', 9)}"))
