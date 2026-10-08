@@ -1153,6 +1153,150 @@ it_should_still_block_a_commit_aimed_at_a_literal_repo_from_a_clean_directory() 
     1 "$GATE_EXIT"
 }
 
+# git_as_suite - runs git in a fixture repo under the
+# suite's identity, which merges and commits both need.
+git_as_suite() {
+  local repo="$1"
+  shift
+  git -C "$repo" -c user.email=suite@example.com \
+    -c user.name='Hook Suite' "$@"
+}
+
+# commit_violation_on_branch - commits a violating shell
+# file on a new branch cut from the current one, then
+# returns to where it started, so the file reaches the
+# current branch only through a merge or a checkout.
+commit_violation_on_branch() {
+  local repo="$1" branch="$2" path="$3"
+  git -C "$repo" checkout -q -b "$branch"
+  write_violating_shell_file "$repo/$path"
+  git -C "$repo" add -- "$path"
+  git_as_suite "$repo" commit -qm "add $path on $branch"
+  git -C "$repo" checkout -q -
+}
+
+# make_merge_in_progress_fixture - a repo whose current
+# branch has a `git merge --no-commit` of a branch carrying
+# a violating file stopped before its commit, so the index
+# holds the incoming file exactly as that branch wrote it.
+#
+# The path carries a space, which a word-split path list
+# would break apart.
+make_merge_in_progress_fixture() {
+  MERGE_REPO=$(new_repo "$1")
+  MERGE_PATH='incoming lib.sh'
+  commit_violation_on_branch "$MERGE_REPO" incoming "$MERGE_PATH"
+  git_as_suite "$MERGE_REPO" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+}
+
+# A merge commit carries the other branch's files as that
+# branch wrote them, so their comments are not the
+# committer's to fix inside the merge.
+it_should_allow_a_merge_whose_staged_violation_matches_the_merged_branch() {
+  make_merge_in_progress_fixture merge-identical
+
+  run_gate "$MERGE_REPO" 'git commit -m "merge incoming"'
+
+  assert_eq "should allow a merge commit whose only violation arrives unchanged from the merged branch" \
+    0 "$GATE_EXIT"
+}
+
+# A linked worktree keeps its MERGE_HEAD under
+# .git/worktrees/<name>, not under a `.git` directory of
+# its own.
+it_should_allow_a_merge_in_a_linked_worktree_whose_staged_violation_matches_the_merged_branch() {
+  local repo worktree
+  repo=$(new_repo merge-worktree-main)
+  worktree="$tmp_root/merge-worktree-linked"
+  git -C "$repo" worktree add -q -b feature "$worktree"
+  commit_violation_on_branch "$worktree" incoming 'incoming.sh'
+  git_as_suite "$worktree" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+
+  run_gate "$worktree" 'git commit -m "merge incoming"'
+
+  assert_eq "should allow a merge commit in a linked worktree whose only violation arrives unchanged from the merged branch" \
+    0 "$GATE_EXIT"
+}
+
+# An octopus merge writes one MERGE_HEAD line per merged
+# branch, and a file is the other side's when it matches
+# any one of them.
+it_should_allow_an_octopus_merge_whose_staged_violation_matches_the_second_merged_branch() {
+  local repo
+  repo=$(new_repo merge-octopus)
+  commit_violation_on_branch "$repo" first 'first.sh'
+  commit_violation_on_branch "$repo" second 'second.sh'
+  git_as_suite "$repo" merge -q --no-ff --no-commit first second >/dev/null 2>&1
+
+  run_gate "$repo" 'git commit -m "merge first and second"'
+
+  assert_eq "should allow an octopus merge commit whose violations each arrive unchanged from one merged branch" \
+    0 "$GATE_EXIT"
+}
+
+# A conflict resolution is the committer's own text, so
+# a file staged with content the merged branch never had
+# stays the committer's to fix.
+it_should_block_a_merge_whose_staged_violation_differs_from_the_merged_branch() {
+  make_merge_in_progress_fixture merge-changed
+  printf '# another comment line that also runs past the sixty-four width cap\n' \
+    >> "$MERGE_REPO/$MERGE_PATH"
+  git -C "$MERGE_REPO" add -- "$MERGE_PATH"
+
+  run_gate "$MERGE_REPO" 'git commit -m "merge incoming"'
+
+  assert_eq "should block a merge commit whose violating file was edited after the merged branch wrote it" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the edited merged file" \
+    "$MERGE_PATH" "$GATE_STDERR"
+}
+
+# A file the merged branch never had cannot be that
+# branch's text, so a new file staged during the merge is
+# the committer's own.
+it_should_block_a_merge_whose_new_staged_violation_is_absent_from_the_merged_branch() {
+  make_merge_in_progress_fixture merge-absent
+  write_violating_shell_file "$MERGE_REPO/resolution notes.sh"
+  git -C "$MERGE_REPO" add -- 'resolution notes.sh'
+
+  run_gate "$MERGE_REPO" 'git commit -m "merge incoming"'
+
+  assert_eq "should block a merge commit whose violating file is new and absent from the merged branch" \
+    1 "$GATE_EXIT"
+  assert_contains "should name the new file absent from the merged branch" \
+    "resolution notes.sh" "$GATE_STDERR"
+}
+
+# `git commit -a` commits the working tree, so an edit
+# left unstaged on a merged file is the committer's own
+# even while the index still matches the merged branch.
+it_should_block_a_merge_commit_dash_a_whose_unstaged_edit_differs_from_the_merged_branch() {
+  make_merge_in_progress_fixture merge-dash-a
+  printf '# another comment line that also runs past the sixty-four width cap\n' \
+    >> "$MERGE_REPO/$MERGE_PATH"
+
+  run_gate "$MERGE_REPO" 'git commit -a -m "merge incoming"'
+
+  assert_eq "should block a merge commit -a whose violating file was edited in the working tree after the merge" \
+    1 "$GATE_EXIT"
+}
+
+# Matching another branch is not enough on its own: with no
+# merge in progress, a file brought over by
+# `git checkout <branch> -- <path>` is a change the
+# committer chose to make here.
+it_should_block_a_violation_copied_from_another_branch_without_a_merge_in_progress() {
+  local repo
+  repo=$(new_repo merge-none)
+  commit_violation_on_branch "$repo" incoming 'incoming.sh'
+  git -C "$repo" checkout -q incoming -- incoming.sh
+
+  run_gate "$repo" 'git commit -m "bring over incoming.sh"'
+
+  assert_eq "should block a commit whose violating file matches another branch when no merge is in progress" \
+    1 "$GATE_EXIT"
+}
+
 it_should_block_a_violation_in_a_file_the_command_stages
 it_should_ignore_a_git_add_quoted_inside_a_commit_message
 it_should_block_a_violation_staged_after_a_leading_cd
@@ -1216,6 +1360,13 @@ it_should_read_a_commit_pathspec_after_a_flag_only_git_global_option
 it_should_still_block_a_commit_in_the_callers_own_repo_through_plain_and_no_pager_commits
 it_should_still_block_a_no_pager_commit_whose_pathspec_names_the_staged_violation
 it_should_still_block_a_commit_aimed_at_a_literal_repo_from_a_clean_directory
+it_should_allow_a_merge_whose_staged_violation_matches_the_merged_branch
+it_should_allow_a_merge_in_a_linked_worktree_whose_staged_violation_matches_the_merged_branch
+it_should_allow_an_octopus_merge_whose_staged_violation_matches_the_second_merged_branch
+it_should_block_a_merge_whose_staged_violation_differs_from_the_merged_branch
+it_should_block_a_merge_whose_new_staged_violation_is_absent_from_the_merged_branch
+it_should_block_a_merge_commit_dash_a_whose_unstaged_edit_differs_from_the_merged_branch
+it_should_block_a_violation_copied_from_another_branch_without_a_merge_in_progress
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -587,6 +587,10 @@ else:
                     warn_and_allow('could not list the untracked files under '
                                    '%s, skipping the check' % pathspec)
                 add_candidates_listed_by_git(untracked.stdout)
+
+# The command's own pathspecs commit their working-tree
+# version, which the index does not hold yet at PreToolUse.
+command_real_paths = set(seen_real_paths)
 add_candidates_listed_by_git(index.stdout)
 
 # `-a` stages every tracked modified file at commit time,
@@ -600,9 +604,74 @@ if scope.stages_all:
         warn_and_allow('could not read the files `git commit -a` stages, '
                        'skipping the check')
     add_candidates_listed_by_git(modified.stdout)
+    for relative in modified.stdout.splitlines():
+        if relative.strip():
+            command_real_paths.add(os.path.realpath(os.path.join(repo_root, relative)))
 
 # A staged deletion leaves nothing on disk to lex.
 files = [path for path in candidates if os.path.isfile(path)]
+
+
+def read_merge_heads():
+    """Commits a stopped `git merge` is bringing in, or an empty list when no merge is in progress.
+
+    `--git-path` points into a linked worktree's own git dir, where its MERGE_HEAD lives, and an octopus merge writes one line per merged branch.
+    """
+    git_path = run_git(['rev-parse', '--git-path', 'MERGE_HEAD'], repo_root)
+    if git_path.returncode != 0:
+        return []
+    try:
+        with open(resolve(repo_root, git_path.stdout.strip())) as handle:
+            return [line.strip() for line in handle if line.strip()]
+    except OSError:
+        return []
+
+
+def read_blobs_by_path(args, blob_column, stage_column=None):
+    """Maps each repo-root-relative path in a NUL-separated git listing to its blob id.
+
+    An unreadable listing maps nothing, which leaves every file checked.
+    """
+    listing = run_git(args, repo_root)
+    blobs = {}
+    if listing.returncode != 0:
+        return blobs
+    for entry in listing.stdout.split('\0'):
+        if '\t' not in entry:
+            continue
+        meta, path = entry.split('\t', 1)
+        columns = meta.split()
+        if stage_column is not None and columns[stage_column] != '0':
+            continue
+        blobs[path] = columns[blob_column]
+    return blobs
+
+
+def is_unchanged_from_merged_branch(path, index_blobs, merged_trees):
+    """True when the index holds the exact blob one merged branch has at this path.
+
+    A conflicted path has no stage-0 entry, so it never matches.
+    """
+    relative = os.path.relpath(os.path.realpath(path), os.path.realpath(repo_root))
+    index_blob = index_blobs.get(relative)
+    if index_blob is None:
+        return False
+    return any(tree.get(relative) == index_blob for tree in merged_trees)
+
+
+# why: a merge commit carries the other branch's files as
+# that branch wrote them, so their comments are not the
+# committer's to fix; a file the committer changed from
+# every merged branch's version stays checked.
+merge_heads = read_merge_heads()
+if merge_heads:
+    index_blobs = read_blobs_by_path(['ls-files', '--stage', '-z'], 1, stage_column=2)
+    merged_trees = [read_blobs_by_path(['ls-tree', '-r', '-z', '--full-tree', head], 2)
+                    for head in merge_heads]
+    files = [path for path in files
+             if os.path.realpath(path) in command_real_paths
+             or not is_unchanged_from_merged_branch(path, index_blobs, merged_trees)]
+
 if not files:
     sys.exit(0)
 
