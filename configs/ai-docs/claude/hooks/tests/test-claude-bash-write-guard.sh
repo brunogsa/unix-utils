@@ -253,6 +253,36 @@ it_should_allow_cp_copying_an_existing_file_into_the_repo() {
   assert_eq "should allow cp copying an existing file into the repo" "0" "$HOOK_EXIT"
 }
 
+it_should_block_a_heredoc_appended_onto_a_tracked_markdown_file_with_cat() {
+  run_hook "$(printf 'cat >> README.md <<%s\n### 1. [Task] typed\nEOF\n' "'EOF'")"
+  assert_eq "should block a heredoc appended onto a tracked markdown file with cat" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cat_appending_text_piped_in_from_a_generator() {
+  run_hook "echo 'typed line' | cat >> README.md"
+  assert_eq "should block cat appending text piped in from echo onto a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cat_appending_its_standard_input_named_as_a_dash() {
+  run_hook "cat $outside_dir/batch.md - >> README.md"
+  assert_eq "should block cat appending standard input named as a dash, even beside an existing file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cat_appending_a_source_file_that_does_not_exist() {
+  run_hook "cat $outside_dir/missing.md >> README.md"
+  assert_eq "should block cat appending a source file that does not exist" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cat_appending_a_source_named_by_command_substitution() {
+  run_hook 'cat "$(ls docs)" >> README.md'
+  assert_eq "should block cat appending a source the guard cannot resolve to a literal existing file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cat_with_a_flag_that_rewrites_the_copied_content() {
+  run_hook "cat -n $outside_dir/batch.md >> README.md"
+  assert_eq "should block cat with a flag such as -n, which adds text the source file never held" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -285,6 +315,12 @@ it_should_block_a_redirect_to_another_users_home_path_because_it_cannot_be_expan
 it_should_allow_appending_a_scratch_file_onto_a_tracked_markdown_file_with_cat
 it_should_allow_concatenating_several_existing_files_into_a_markdown_file_in_the_repo
 it_should_allow_cp_copying_an_existing_file_into_the_repo
+it_should_block_a_heredoc_appended_onto_a_tracked_markdown_file_with_cat
+it_should_block_cat_appending_text_piped_in_from_a_generator
+it_should_block_cat_appending_its_standard_input_named_as_a_dash
+it_should_block_cat_appending_a_source_file_that_does_not_exist
+it_should_block_cat_appending_a_source_named_by_command_substitution
+it_should_block_cat_with_a_flag_that_rewrites_the_copied_content
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
