@@ -173,6 +173,47 @@ def test_fails_when_a_row_cites_an_ac_its_tasks_details_entry_does_not_declare(
     assert f"line {expected_line}: T2 lacks AC-2" in result.stderr
 
 
+PARAMETERIZED_DESIGN = """\
+```
+describe("fixture", () => {
+  // Happy cases
+  it.each(["draft", "ready"])("should write one Linear issue per %s plan PR"); // AC-1 T1
+  it.each(["title", "body"])(
+    "should keep the named PR %s in existing-PR mode"); // AC-2 T2
+});
+```
+"""
+
+
+def test_passes_when_single_line_and_two_line_parameterized_rows_cite_declared_acs(
+    tmp_path,
+):
+    plan = _write_plan(
+        tmp_path,
+        design_body=PARAMETERIZED_DESIGN,
+        task_body=CONSISTENT_TASKS,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+    assert "2 Test Design rows" in result.stdout
+
+
+def test_reports_a_two_line_parameterized_row_mismatch_at_its_title_line(
+    tmp_path,
+):
+    plan = _write_plan(
+        tmp_path,
+        design_body=PARAMETERIZED_DESIGN,
+        task_body=CONSISTENT_TASKS,
+        details_body=ONE_LACKING_DETAILS,
+    )
+    expected_line = _line_of(plan, "existing-PR mode")
+    result = _run(str(plan))
+    assert result.returncode == 1, result.stderr
+    assert f"line {expected_line}: T2 lacks AC-2" in result.stderr
+
+
 def test_does_not_flag_the_row_tasks_that_do_declare_the_cited_ac(tmp_path):
     plan = _write_plan(
         tmp_path,

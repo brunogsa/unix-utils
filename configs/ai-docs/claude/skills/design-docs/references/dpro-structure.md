@@ -1,20 +1,16 @@
 # Decisions, Premises, Risks, Open Questions Structure
 
-The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions. Keep those four sections clean with these rules.
+The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions.
 
 ## Item shape and stable tokens
 
 - **One item, one sub-section - never a flat bullet list.** Give each Decision/Premise/Risk/Open-Question its own markdown heading, with the entry's body beneath it.
-  - Applies uniformly to all four sections - don't leave one as a bullet list and another as sub-sections.
-
   - **The heading title is a scannable summary.** A reader skims the outline and opens a body only for details - so the title must carry the gist, not just the token.
 
   - Format: `### <TOKEN> - <summary>`, e.g. `### OQ-08 - Preço do item: unitário vs total`.
   - Keep the stable `<TOKEN>` (OQ-/PR-/D-/R-N) in the heading as the cross-reference anchor.
   - Cross-reference these items only by their stable `<TOKEN>`, never a `§N.M`-number.
     - Items get added/removed and `§`-numbers churn, while the token is a named anchor that tracks the item.
-
-  - Tokens obey the reading-order rule above: cite them only from text after their registry section; earlier text recaps inline without the token.
 
 ## Choosing which of the four sections an item belongs in
 
@@ -25,8 +21,6 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - Assume the most reasonable default, write it as a Premise flagged provisional (e.g. "Provisória - confirmar com o time X").
   - Register what breaks if the assumption is wrong as a Risk that cites the Premise back.
   - This keeps the build moving on the assumed default while the real answer is chased in parallel - reserve Open Questions for unknowns that don't gate work already in flight.
-
-  - Since Risks (section 5) follows Premises (section 3), the Premise points forward with a linkless phrase ("risco ... registrado adiante"); the Risk then carries the backward token once both entries exist.
 
 - **A fact already stated in Context isn't a Premise**, even if later sections cite it often or in a specific way.
   - Recap the Context fact inline instead of minting or reviving a registry token for it.
@@ -43,6 +37,19 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 
   - When relocating, keep cross-references intact: repoint any `OQ-N` pointer to the item's new home (or state the fact inline), then grep the doc for dangling `OQ-/PR-/D-/R-` tokens before calling it done.
 
+## Every item earns its place
+
+The burn-down rule above covers Open Questions only. Premises, Risks, and discarded alternatives need the same pruning, or the registry grows into noise the reader must skim past.
+
+- **A verified premise becomes a plain fact.** State it inline where it matters, without a `PR-` token.
+- **A risk that was confirmed, or that changes no decision, is removed.** A confirmed risk is now a fact or a decision.
+- **An open question whose answer follows from an existing rule becomes a Decision.** Apply the rule; don't ask it.
+- **An item a reader wouldn't miss is removed, even when it is true.** Test: delete it and check whether any decision or task loses its reason.
+
+- **List a discarded alternative only when a reader would plausibly propose it.** A trivial or obviously worse option is noise.
+  - Its cost is a reason, never an authority: "o usuário decidiu" or "recusado pelo usuário" explains nothing to the next reader.
+  - Letter the alternatives A, B, C within their decision; never carry over letters from an earlier draft.
+
 ## Granularity - what counts as one item
 
 - **One item, one idea - explode bundles.** An entry carrying two independently-falsifiable assumptions, two failure modes, or two decisions splits into one item per idea, each with its own token.
@@ -51,7 +58,6 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
 
 - **Clustering means merging related fields into one item - not placing similar items next to each other.**
   - When one assumption or rule covers several fields, write ONE item listing every field it spans; never mint one item per field.
-  - The unit of an item is the idea, not the field: one idea across many fields = one item; two ideas about the same field = two items.
 
 - **One logical decision, one Decision.** Consolidate; don't fragment a single choice across several `D-` items. Rejected options belong as *"discarded alternatives"* sub-bullets under the decision they lost to, not separate entries.
 
@@ -66,6 +72,4 @@ The durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open 
   - **Never renumber a token to fit the new order** - that *does* break every reference.
 
   - Open the section with a **roadmap** naming each theme group and listing its tokens in reading order (one group per line), then order the `###` items to match.
-
-  - The roadmap gives the reader the map before the details.
   - Prefer the roadmap over per-group headings - a heading with a single item under it violates the "never a one-item heading" rule, and singleton groups are common.

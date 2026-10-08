@@ -1,8 +1,8 @@
 ---
 name: plan-reviewer
 description: Fresh-context, unbiased judge for plan docs - fresh-eyes review, AC-to-test match, failure-mode coverage, traceability, right-sizing. Never judges a spec alone; that's spec-reviewer's job. Input: plan path + optional spec path + question.
-model: sonnet
-effort: medium
+model: opus
+effort: high
 maxTurns: 64
 hooks:
   PreToolUse:

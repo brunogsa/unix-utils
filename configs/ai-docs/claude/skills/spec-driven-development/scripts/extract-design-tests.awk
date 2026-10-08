@@ -1,5 +1,6 @@
-# extract-design-tests.awk - print each it("...") title in a
-# plan's Test Design section, for extract-design-tests.sh.
+# extract-design-tests.awk - print each it("...") and
+# it.each(...)("...") title in a plan's Test Design section,
+# for extract-design-tests.sh.
 #
 # Run after parse-fences.awk, which supplies in_fence. Inputs:
 # -v pairs=<0|1> -v annotations=<0|1>.
@@ -37,21 +38,52 @@ match($0, /describe\("[^"]*"/) {
 /^[[:space:]]*\/\/ Corner cases[[:space:]]*$/   { cls = "corner";  next }
 /^[[:space:]]*\/\/ Failure scenarios[[:space:]]*$/ { cls = "failure"; next }
 
-# it("Title") - emit the breadcrumb (3-segment under a
-# class, else 2-segment). The title match ends at the
-# closing double quote, not at a quote-paren pair, so
-# one-arg and two-arg it() forms share one matchEnd.
+# it.each(cases)( with its "Title" wrapped onto the next
+# line - remember it, so that next line's leading string
+# is read as the title.
+/it\.each\(.*\)\([[:space:]]*$/ { pending_each = 1; next }
+
+pending_each && match($0, /^[[:space:]]*"[^"]*"/) {
+  pending_each = 0
+  t = substr($0, RSTART, RLENGTH)
+  rest = substr($0, RSTART + RLENGTH)
+  sub(/^[[:space:]]*"/, "", t)
+  sub(/"$/, "", t)
+  print_row(t, rest)
+  next
+}
+{ pending_each = 0 }
+
+# it.each(cases)("Title") on one line. The greedy `.*`
+# lands on the last `)("`, so a cases expression that
+# itself calls a function still yields the title.
+match($0, /it\.each\(.*\)\("[^"]*"/) {
+  t = substr($0, RSTART, RLENGTH)
+  rest = substr($0, RSTART + RLENGTH)
+  sub(/^it\.each\(.*\)\("/, "", t)
+  sub(/"$/, "", t)
+  print_row(t, rest)
+  next
+}
+
+# it("Title"). The title match ends at the closing double
+# quote, not at a quote-paren pair, so one-arg and two-arg
+# it() forms share one end position.
 match($0, /it\("[^"]*"/) {
   t = substr($0, RSTART, RLENGTH)
-  matchEnd = RSTART + RLENGTH
+  rest = substr($0, RSTART + RLENGTH)
   sub(/^it\("/, "", t)
   sub(/"$/, "", t)
+  print_row(t, rest)
+}
+
+# print_row - emit one row for title t, where rest is the
+# line text after the title: the breadcrumb (3-segment
+# under a class, else 2-segment), plus the AC and T tokens
+# of rest's trailing // comment in --annotations mode.
+function print_row(t, rest,    crumb, comment, slashPos, acs, tnums, x, tok) {
   crumb = (cls != "") ? (desc " > " cls " > " t) : (desc " > " t)
   if (annotations) {
-    # `rest` is captured before any inner match() call below,
-    # since those overwrite the same RSTART/RLENGTH the outer
-    # it() match just set.
-    rest = substr($0, matchEnd)
     comment = ""
     slashPos = index(rest, "//")
     if (slashPos > 0) comment = substr(rest, slashPos + 2)

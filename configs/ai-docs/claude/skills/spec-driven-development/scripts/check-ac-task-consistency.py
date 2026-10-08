@@ -51,6 +51,9 @@ TASKS_HEADING = re.compile(r"^## Task Breakdown[ \t]*$")
 DETAILS_HEADING = re.compile(r"^## Task Details[ \t]*$")
 DESCRIBE_CALL = re.compile(r'describe\("[^"]*"')
 IT_CALL = re.compile(r'it\("[^"]*"')
+IT_EACH_CALL = re.compile(r'it\.each\(.*\)\("[^"]*"')
+IT_EACH_OPENER = re.compile(r"it\.each\(.*\)\([ \t]*$")
+WRAPPED_TITLE = re.compile(r'^[ \t]*"[^"]*"')
 TASK_HEADING = re.compile(r"^### (\d+)\.")
 SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
@@ -92,13 +95,16 @@ def find_design_row_lines(lines):
     no line-number mode, so this walk mirrors the four rules its awk
     shares: the `## ` section bounds (fence-guarded so a fenced sample
     heading never ends the section early), the describe() skip, and the
-    it() match. The caller zips the two by position and refuses to
-    guess when the counts disagree."""
+    it() / it.each() match. An it.each() whose title wraps onto the
+    next line is that title line's row, since the annotation sits there.
+    The caller zips the two by position and refuses to guess when the
+    counts disagree."""
     row_lines = []
     in_design = False
     in_fence = False
     fence_char = ""
     fence_len = 0
+    is_title_wrapped = False
 
     for number, text in enumerate(lines, 1):
         if not in_fence and SECTION_HEADING.match(text):
@@ -116,7 +122,12 @@ def find_design_row_lines(lines):
             continue
         if DESCRIBE_CALL.search(text):
             continue
-        if IT_CALL.search(text):
+        if IT_EACH_OPENER.search(text):
+            is_title_wrapped = True
+            continue
+        is_wrapped_title = is_title_wrapped and WRAPPED_TITLE.match(text)
+        is_title_wrapped = False
+        if is_wrapped_title or IT_EACH_CALL.search(text) or IT_CALL.search(text):
             row_lines.append(number)
 
     return row_lines

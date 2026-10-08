@@ -213,7 +213,55 @@ describe("AgreementSyncUseCase", () => {
     "$actual"
 }
 
+it_should_extract_the_title_with_its_placeholder_from_a_single_line_parameterized_it_each() {
+  local plan actual
+  plan=$(write_plan "it-each-single-line" '```
+describe("AgreementSyncUseCase", () => {
+  // Failure scenarios
+  it.each(["modeloNegocio", "tipoContrato"])("should reject the agreement when %s is blank"); // AC-10 T4
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should extract the title, keeping its %s placeholder, from a single-line parameterized it.each() row" \
+    "$(printf 'should reject the agreement when %%s is blank\tAgreementSyncUseCase > failure > should reject the agreement when %%s is blank\tAC-10\tT4')" \
+    "$actual"
+}
+
+it_should_extract_the_title_from_a_parameterized_it_each_whose_title_sits_on_the_next_line() {
+  local plan actual
+  plan=$(write_plan "it-each-two-line" '```
+describe("AgreementSyncUseCase", () => {
+  // Failure scenarios
+  it.each(["price", "discount", "targetUser"])(
+    "should report the lines conflict when repeated lines differ in %s"); // AC-26 T4
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should extract the title and annotation from a parameterized it.each() row whose title sits on the next line" \
+    "$(printf 'should report the lines conflict when repeated lines differ in %%s\tAgreementSyncUseCase > failure > should report the lines conflict when repeated lines differ in %%s\tAC-26\tT4')" \
+    "$actual"
+}
+
+it_should_keep_extracting_plain_it_lines_that_follow_a_two_line_parameterized_it_each() {
+  local plan actual
+  plan=$(write_plan "it-after-it-each" '```
+describe("AgreementSyncUseCase", () => {
+  // Failure scenarios
+  it.each(["price", "discount"])(
+    "should report the lines conflict when repeated lines differ in %s"); // AC-26 T4
+  it("should DLQ the message when the downstream returns 5xx");     // AC-4 T5
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should keep extracting a plain it() row unchanged after a two-line parameterized it.each() row" \
+    "$(printf '%s\n%s' "$(printf 'should report the lines conflict when repeated lines differ in %%s\tAgreementSyncUseCase > failure > should report the lines conflict when repeated lines differ in %%s\tAC-26\tT4')" "$(printf 'should DLQ the message when the downstream returns 5xx\tAgreementSyncUseCase > failure > should DLQ the message when the downstream returns 5xx\tAC-4\tT5')")" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
+it_should_extract_the_title_with_its_placeholder_from_a_single_line_parameterized_it_each
+it_should_extract_the_title_from_a_parameterized_it_each_whose_title_sits_on_the_next_line
+it_should_keep_extracting_plain_it_lines_that_follow_a_two_line_parameterized_it_each
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several
 it_should_ignore_the_on_demand_tag_when_extracting_ac_and_t_tokens
 it_should_print_empty_ac_and_t_columns_for_every_row_when_the_plan_uses_the_old_list_form_with_no_annotations

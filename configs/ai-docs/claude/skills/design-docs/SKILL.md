@@ -102,6 +102,14 @@ Don't create a separate RFC artifact; it would duplicate the HLD.
 
 - **A decision you'll argue again in 6-12 months → ADR.** A minor one → a line in the spec/plan decision log; graduate it to an ADR if it grows teeth.
 
+- **Mark every named artifact as existing or new.** A flag, field, header, error code, or endpoint says whether it exists today or this design introduces it.
+  - A changed behavior states today's behavior next to the new one.
+  - Why: "reuse" and "build" read the same otherwise, and that difference drives the estimate and the review.
+
+- **A durable doc describes the current design, not its own history or the project's status.**
+  - Drop draft history ("a rule from an earlier draft"), transient status ("no plan exists yet"), and calendar trivia ("that date is a holiday").
+  - Why: those facts go stale within days, and git already keeps the draft history.
+
 ## Decisions, Premises, Risks, Open Questions - how to structure them
 
 Durable docs (HLD, LLD) carry numbered Decisions, Premises, Risks, and Open Questions - use tokens (`D-`, `PR-`, `R-`, `OQ-`) as stable cross-reference anchors. One item per heading, cluster by theme before ordering.
@@ -178,17 +186,9 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
   - Follow `references/spec-writing.md` for the section rules and `references/spec-acceptance-criteria.md` for AC authoring.
 
-  - Body sections, in order: Background/Context, Goals and Success Metrics/KPIs, Context Diagram, User Stories, Non-Functional and Technical Requirements, Testable Acceptance Criteria (`### AC-N:` BDD entries), Open Questions.
-
-  - `# Appendix`: `## Coverage Checklists` (boundary + failure category, instantiated per AC) and `## Functional Decisions` log.
-
   - This skill owns only the spec's *altitude and ownership*; the section structure and self-review gates live in that library, and the interview workflow in `brainstorm-why` and `brainstorm-how`.
 
 - The plan - same rule: read that same library by path and populate its `assets/plan-template.md` per `references/plan-writing.md` and `references/plan-tasks-and-appendix.md`.
-  - Body sections: Technical Approach & High Level Architecture, Threat Model, General Flow, Test Design with its AC → test coverage list, structured Task Breakdown, PR Breakdown, Open Questions.
-
-  - `# Appendix`: `## Task Details` (per-task ACs/Verification/Files) and `## Technical Decisions` log.
-
   - Authoring a spec/plan from the altitude notes above instead of these templates is the known failure mode this route exists to prevent.
 
 - Schema as JSONC - render request/response/event payloads as annotated JSONC (real values, each field tagged with type/required/constraints/description); copy `references/example-good-schema.jsonc`.
@@ -196,6 +196,9 @@ Every diagram in these examples was validated with the `mermaid-diagrams` skill 
 
 - de/para (from → to) mapping - qualify every field by its system.
   - Prefix each field with its source/destination system (`pic.`, `sge.`, `hub.`, `crm.`, or `const` for a literal), so provenance stays clear when systems share field names.
+
+  - Qualify outside the mapping too: every field, term, and value anywhere in the doc names the system that owns it.
+    - When several records feed one output, also name the record each value came from, e.g. "`quantity` 79 (Contrato Venda)".
 
   - Validate the mapping against a real production payload, not just the vendor's example - real data stress-tests edge cases the example misses before you finalize.
 

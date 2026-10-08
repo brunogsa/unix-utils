@@ -95,7 +95,7 @@ TODO
 
 ### 4.5. Design de código (componentes, classes, responsabilidades, interfaces)
 
-TODO
+TODO - inclua um diagrama mermaid de componentes (quem chama quem, o que cada um faz); uma tabela sozinha não basta.
 
 ### 4.6. Modelo de dados (DER, tabelas, chaves, índices, TTL, migrações)
 
