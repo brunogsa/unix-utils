@@ -190,13 +190,13 @@ it_should_stay_silent_when_a_subagent_of_the_owning_session_compacts() {
     "" "$LAST_DIRECTIVE"
 }
 
-it_should_stay_silent_when_a_compacting_subagent_is_identified_only_by_agent_type() {
+it_should_still_remind_the_owner_when_a_main_session_started_with_agent_flag_compacts() {
   local session_id
-  session_id=$(write_drained_task_loop_state "subagent-by-type")
+  session_id=$(write_drained_task_loop_state "main-session-with-agent-flag")
   run_hook "{\"session_id\":\"$session_id\",\"source\":\"compact\",\"agent_type\":\"tdd-coder\"}"
 
-  assert_eq "should hand a compacting subagent no batch-end directive when it carries agent_type but no agent_id" \
-    "" "$LAST_DIRECTIVE"
+  assert_eq "should still remind a main session started with --agent (agent_type but no agent_id) to finish the batch-end steps" \
+    "yes" "$([ -n "$LAST_DIRECTIVE" ] && echo yes || echo no)"
 }
 
 # --- the batch-end directive waits for the task loop ---
@@ -305,7 +305,7 @@ it_should_stay_silent_when_the_owning_run_left_a_corrupt_state_file() {
 
 it_should_remind_the_session_that_owns_the_state_file_to_finish_the_batch_end_steps
 it_should_stay_silent_when_a_subagent_of_the_owning_session_compacts
-it_should_stay_silent_when_a_compacting_subagent_is_identified_only_by_agent_type
+it_should_still_remind_the_owner_when_a_main_session_started_with_agent_flag_compacts
 it_should_keep_the_owner_in_the_task_loop_while_a_task_is_unfinished
 it_should_keep_the_owner_in_the_task_loop_when_the_only_unfinished_task_is_blocked
 it_should_hand_over_the_batch_end_directive_once_every_task_is_done

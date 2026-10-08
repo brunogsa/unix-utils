@@ -67,6 +67,16 @@ run_subagent_search() {
   HOOK_EXIT=$?
 }
 
+# run_agent_flag_main_search - a main session started with
+# `claude --agent <name>`: agent_type set, agent_id absent.
+run_agent_flag_main_search() {
+  local session_id="$1" stdin_json
+  stdin_json=$(jq -n --arg s "$session_id" \
+    '{session_id: $s, tool_name: "Grep", agent_type: "security-reviewer"}')
+  printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" >/dev/null 2>&1
+  HOOK_EXIT=$?
+}
+
 run_reset() {
   local session_id="$1" stdin_json
   stdin_json=$(jq -n --arg s "$session_id" \
@@ -127,6 +137,15 @@ it_should_exempt_a_search_coming_from_a_subagent() {
   assert_eq "should never deny a search dispatched from inside a subagent" "0" "$worst"
 }
 
+it_should_still_count_a_search_from_a_main_session_started_with_agent_flag() {
+  local i
+  for ((i = 0; i < SEARCH_LIMIT; i++)); do
+    run_agent_flag_main_search "agent-flag-main"
+  done
+  run_agent_flag_main_search "agent-flag-main"
+  assert_eq "should deny the search past the limit when agent_type is set but agent_id is absent" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_call_with_no_session_id() {
   local i worst=0 exit_code
   for ((i = 0; i < SEARCH_LIMIT * 2; i++)); do
@@ -168,6 +187,7 @@ it_should_deny_the_search_past_the_limit
 it_should_clear_the_counter_on_the_denial
 it_should_clear_the_counter_on_an_agent_dispatch
 it_should_exempt_a_search_coming_from_a_subagent
+it_should_still_count_a_search_from_a_main_session_started_with_agent_flag
 it_should_allow_a_call_with_no_session_id
 it_should_count_each_session_separately
 it_should_drop_stamps_older_than_the_window

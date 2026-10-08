@@ -79,13 +79,13 @@ it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts() {
     "" "$(emitted_directive)"
 }
 
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_compacts() {
+it_should_still_emit_the_directive_when_a_main_session_started_with_agent_flag_compacts() {
   local transcript="$work_dir/agent-type.jsonl"
   write_transcript "$transcript"
   run_hook "{\"transcript_path\":\"$transcript\",\"agent_type\":\"tdd-coder\"}"
 
-  assert_eq "should hand a compacting subagent no skill-reload directive when it carries agent_type but no agent_id" \
-    "" "$(emitted_directive)"
+  assert_eq "should still remind a main session started with --agent (agent_type but no agent_id) to reload its skills" \
+    "yes" "$([ -n "$(emitted_directive)" ] && echo yes || echo no)"
 }
 
 it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_present() {
@@ -112,7 +112,7 @@ it_should_tell_the_main_session_to_reload_brainstorm_why_and_not_the_deleted_bra
 }
 
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_compacts
+it_should_still_emit_the_directive_when_a_main_session_started_with_agent_flag_compacts
 it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_present
 it_should_tell_the_main_session_to_reload_brainstorm_why_and_not_the_deleted_brainstorm_skill
 

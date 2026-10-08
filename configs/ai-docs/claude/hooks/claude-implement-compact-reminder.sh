@@ -87,7 +87,8 @@
 #   into its own compaction summary, risking a push
 #   of another session's unreviewed commits.
 #
-#   agent_id (falling back to agent_type) scopes
+#   agent_id alone (agent_type is also set on a main session
+#   started with --agent) scopes
 #   the reminder to the owning session only. Same
 #   precedent as claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
@@ -97,7 +98,7 @@
 # - jq missing → exit 0.
 # - No session_id, or no state files match it → exit 0.
 #
-# - agent_id or agent_type non-empty (a subagent's
+# - agent_id non-empty (a subagent's
 #   compaction) → exit 0.
 #
 # - A state file that is corrupt JSON is skipped
@@ -123,7 +124,7 @@ session_id=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null || 
 # A subagent shares its parent's session_id, so this is the one
 # field that separates the orchestrator from the agents it
 # spawned.
-agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 shopt -s nullglob

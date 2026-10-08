@@ -72,10 +72,10 @@ it_should_stay_silent_when_a_subagent_identified_by_agent_id_starts() {
     "" "$(emitted_directive)"
 }
 
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_starts() {
+it_should_emit_the_directive_when_a_main_session_started_with_agent_flag_starts() {
   run_hook '{"agent_type":"tdd-coder"}'
-  assert_eq "should hand a subagent no retitle directive when it carries agent_type but no agent_id" \
-    "" "$(emitted_directive)"
+  assert_eq "should still hand a main session started with --agent (agent_type but no agent_id) the retitle directive" \
+    "yes" "$([ -n "$(emitted_directive)" ] && echo yes || echo no)"
 }
 
 it_should_stay_silent_outside_tmux_regardless_of_agent_field() {
@@ -98,7 +98,7 @@ it_should_stay_silent_for_a_non_cli_entrypoint_regardless_of_agent_field() {
 
 it_should_emit_the_directive_for_the_orchestrator_when_no_agent_field_is_present
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_starts
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_starts
+it_should_emit_the_directive_when_a_main_session_started_with_agent_flag_starts
 it_should_stay_silent_outside_tmux_regardless_of_agent_field
 it_should_stay_silent_for_a_non_cli_entrypoint_regardless_of_agent_field
 

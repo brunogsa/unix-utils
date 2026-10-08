@@ -34,7 +34,8 @@
 #
 #   session_id can't discriminate the two: a
 #   subagent inherits its parent's session_id, so
-#   only agent_id (falling back to agent_type) tells
+#   only agent_id (agent_type is also set on a main session
+#   started with --agent) tells
 #   the orchestrator apart from the agents it spawned.
 #
 #   Same precedent as claude-tmux-title-compact-reminder.sh.
@@ -75,8 +76,8 @@ input=$(cat)
 
 # Only the top-level session may be told to retitle the
 # window -- see the header. A subagent's SessionStart
-# carries agent_id (or agent_type as a fallback) on stdin.
-agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+# carries agent_id on stdin.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true

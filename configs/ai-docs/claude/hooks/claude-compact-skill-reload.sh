@@ -49,7 +49,8 @@
 #   before this compaction -- a subagent's own transcript
 #   never had them.
 #
-#   agent_id (falling back to agent_type) scopes the reminder
+#   agent_id alone (agent_type is also set on a main session
+#   started with --agent) scopes the reminder
 #   to the owning session only. Same precedent as
 #   claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
@@ -58,7 +59,7 @@
 # tooling/state gap):
 # - jq missing -> exit 0.
 #
-# - agent_id or agent_type non-empty (a subagent's
+# - agent_id non-empty (a subagent's
 #   compaction) -> exit 0.
 #
 # - No transcript_path, or the file is missing -> exit 0.
@@ -75,8 +76,8 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 # Only the session that loaded the skills may be reminded to
 # reload them -- see the header. A subagent's compaction
-# carries agent_id (or agent_type as a fallback) on stdin.
-agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+# carries agent_id on stdin.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 transcript_path=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null || true)

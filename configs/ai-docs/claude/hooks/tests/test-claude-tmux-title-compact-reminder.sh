@@ -64,10 +64,10 @@ it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts() {
     "" "$(emitted_directive)"
 }
 
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_compacts() {
+it_should_still_emit_the_directive_when_a_main_session_started_with_agent_flag_compacts() {
   run_hook '{"agent_type":"tdd-coder"}'
-  assert_eq "should hand a compacting subagent no retitle directive when it carries agent_type but no agent_id" \
-    "" "$(emitted_directive)"
+  assert_eq "should still tell a main session started with --agent (agent_type but no agent_id) to re-assess its title" \
+    "yes" "$([ -n "$(emitted_directive)" ] && echo yes || echo no)"
 }
 
 it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_present() {
@@ -77,7 +77,7 @@ it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_prese
 }
 
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_compacts
-it_should_stay_silent_when_a_subagent_identified_only_by_agent_type_compacts
+it_should_still_emit_the_directive_when_a_main_session_started_with_agent_flag_compacts
 it_should_still_emit_the_directive_when_neither_agent_id_nor_agent_type_is_present
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

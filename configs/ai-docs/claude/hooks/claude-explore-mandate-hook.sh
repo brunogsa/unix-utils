@@ -24,8 +24,9 @@
 # That trade still buys a hard interrupt mid-hunt, which
 # an end-of-turn nudge cannot deliver.
 #
-# A call carrying agent_id or agent_type is exempt: that
-# IS the delegated search the mandate asks for.
+# A call carrying agent_id is exempt: that IS the
+# delegated search the mandate asks for. agent_type is not
+# the marker: a main session started with --agent sets it too.
 #
 # Examples:
 #   echo '{"session_id":"s","tool_name":"Grep"}' \
@@ -61,7 +62,7 @@ if [ "${1:-}" = "--reset" ]; then
   exit 0
 fi
 
-AGENT=$(printf '%s' "$INPUT" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null)
+AGENT=$(printf '%s' "$INPUT" | jq -r '.agent_id // empty' 2>/dev/null)
 if [ -n "$AGENT" ]; then
   exit 0
 fi

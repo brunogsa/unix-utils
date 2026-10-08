@@ -57,7 +57,8 @@
 #   tmux-window-title.sh -- handing it TO a subagent breaks
 #   the very rule it states.
 #
-#   agent_id (falling back to agent_type) scopes the directive
+#   agent_id alone (agent_type is also set on a main session
+#   started with --agent) scopes the directive
 #   to the top-level session only.
 #
 #   Same precedent as claude-explore-mandate-hook.sh and
@@ -68,7 +69,7 @@
 #   guard as claude-tmux-title-reminder.sh) -- silent no-op, no
 #   directive.
 #
-# - agent_id or agent_type non-empty (a subagent's compaction)
+# - agent_id non-empty (a subagent's compaction)
 #   -- silent no-op, no directive.
 #
 # Examples:
@@ -94,8 +95,8 @@ input=$(cat)
 
 # Only the top-level session may be told to retitle the
 # window -- see the header. A subagent's compaction carries
-# agent_id (or agent_type as a fallback) on stdin.
-agent=$(printf '%s' "$input" | jq -r '.agent_id // .agent_type // empty' 2>/dev/null || true)
+# agent_id on stdin.
+agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true
