@@ -12,11 +12,13 @@
 #
 # stdin: none.
 #
-# stdout: one repo-relative test file path per line, sorted -
-#   every *.integration.spec.*, *.e2e.spec.*,
-#   *.integration.test.* or *.e2e.test.* file whose import
-#   specifiers resolve to a file changed in <git-range>, or
-#   to a file that itself reaches one within the hop cap.
+# stdout: one repo-relative test file path per line, sorted.
+#   Each is an *.integration.spec.*, *.e2e.spec.*,
+#   *.integration.test.* or *.e2e.test.* file.
+#
+#   It is listed when its import specifiers resolve to a file
+#   changed in <git-range>, or to a file that itself reaches
+#   one within the hop cap.
 #
 #   Empty when none does.
 #
@@ -45,8 +47,9 @@ IMPORT_SPECIFIER_PATTERN = re.compile(
 
 PATH_WILDCARD = "*"
 
-# Hop 1 is a direct importer of a changed file. The cap stops a
-# shared util imported everywhere from selecting the whole suite.
+# Hop 1 is a direct importer of a changed file. The cap stops
+# a shared util imported everywhere from selecting the whole
+# suite.
 MAX_IMPORT_HOPS = 3
 
 # A string literal is matched first so a "//" inside a path
