@@ -45,7 +45,7 @@ GATE_FIX_ALLOWANCE = 2
 #
 # Renaming the self-reference is Task 14's job (full rename to
 # resolve-task-loop-verdict), not this conversion's.
-USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-state.sh --budget <state-file>\n       implement-loop-state.sh --next-eligible <state-file>\n       implement-loop-state.sh --eligible-set <state-file>\n\nWith no flag, reads a /implement run\'s JSON state file at phase "tasks" and\nprints one JSON verdict:\n  {"action": "retry|stuck|next-task|next-chunk|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}\n\n--budget: is the batch\'s dispatch budget exhausted? Works at any phase.\n  {"exhausted": true|false, "total_dispatches": N, "budget_threshold": N, "reason": "..."}\n\n--next-eligible: which pending task is DAG-eligible to dispatch next? Works\nat any phase, and does not depend on attempts[-1].result. Checks the same\nbatch dispatch budget --budget and --eligible-set check; once it\'s\nexhausted this answers "none" regardless of eligibility (reason names the\nbudget). Otherwise "none" with a non-zero in_progress means wait for a live\nsibling, not halt.\n  {"task": "<id or the literal string \\"none\\">", "in_progress": N, "reason": "..."}\n\n--eligible-set: every task dispatchable right now, for a parallel wave. Works\nat any phase. Empty tasks[] with in_progress > 0 means wait; empty with\nin_progress 0 means the wave drained. exhausted true forces tasks[] empty.\n  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}\n\nExamples:\n  implement-loop-state.sh /tmp/implement_abc123.json\n  implement-loop-state.sh --budget /tmp/implement_abc123.json\n  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json\n  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json\n'
+USAGE = 'usage: implement-loop-state.sh <state-file>\n       implement-loop-state.sh --budget <state-file>\n       implement-loop-state.sh --next-eligible <state-file>\n       implement-loop-state.sh --eligible-set <state-file>\n\nWith no flag, reads a /implement run\'s JSON state file at phase "tasks" and\nprints one JSON verdict:\n  {"action": "retry|stuck|next-task|next-chunk|wait|gates|halted|halt-budget", "task": "...", "reason": "..."}\n\n--budget: is the batch\'s dispatch budget exhausted? Works at any phase.\n  {"exhausted": true|false, "non_pass_dispatches": N, "budget_threshold": N, "reason": "..."}\n\n--next-eligible: which pending task is DAG-eligible to dispatch next? Works\nat any phase, and does not depend on attempts[-1].result. Checks the same\nbatch dispatch budget --budget and --eligible-set check; once it\'s\nexhausted this answers "none" regardless of eligibility (reason names the\nbudget). Otherwise "none" with a non-zero in_progress means wait for a live\nsibling, not halt.\n  {"task": "<id or the literal string \\"none\\">", "in_progress": N, "reason": "..."}\n\n--eligible-set: every task dispatchable right now, for a parallel wave. Works\nat any phase. Empty tasks[] with in_progress > 0 means wait; empty with\nin_progress 0 means the wave drained. exhausted true forces tasks[] empty.\n  {"tasks": ["<id>", ...], "in_progress": N, "exhausted": true|false, "reason": "..."}\n\nExamples:\n  implement-loop-state.sh /tmp/implement_abc123.json\n  implement-loop-state.sh --budget /tmp/implement_abc123.json\n  implement-loop-state.sh --next-eligible /tmp/implement_abc123.json\n  implement-loop-state.sh --eligible-set /tmp/implement_abc123.json\n'
 
 
 def normalize_signature(signature: str) -> str:
@@ -68,7 +68,7 @@ def emit_budget(exhausted: bool, total: int, threshold: int, reason: str) -> Non
     # ad hoc convention.
     print(json.dumps({
         "exhausted": exhausted,
-        "total_dispatches": total,
+        "non_pass_dispatches": total,
         "budget_threshold": threshold,
         "reason": reason,
     }, indent=2))
@@ -107,17 +107,17 @@ def in_progress_count(state: dict) -> int:
 
 
 class BudgetStatus:
-    """task_count/total_dispatches/budget_threshold/exhausted for
+    """task_count/non_pass_dispatches/budget_threshold/exhausted for
     one state file, computed once and shared by --budget,
     --eligible-set, --next-eligible, and the no-flag backstop below
     -- so the one comparison can't drift into four slightly
     different ones."""
 
-    __slots__ = ("task_count", "total_dispatches", "budget_threshold", "exhausted")
+    __slots__ = ("task_count", "non_pass_dispatches", "budget_threshold", "exhausted")
 
-    def __init__(self, task_count: int, total_dispatches: int, budget_threshold: int):
+    def __init__(self, task_count: int, non_pass_dispatches: int, budget_threshold: int):
         self.task_count = task_count
-        self.total_dispatches = total_dispatches
+        self.non_pass_dispatches = non_pass_dispatches
         self.budget_threshold = budget_threshold
 
         # The batch-wide dispatch budget (BATCH_CAP_MULT * task
@@ -132,21 +132,21 @@ class BudgetStatus:
         # Because a single task alone can never exceed
         # MAX_ATTEMPTS + 1 non-pass attempts before the
         # per-task "stuck" verdict already caught it.
-        self.exhausted = total_dispatches >= budget_threshold
+        self.exhausted = non_pass_dispatches >= budget_threshold
 
 
 def compute_budget_status(state: dict) -> BudgetStatus:
     task_count = len(state["tasks"])
     non_pass_attempts_n = sum(1 for a in state["attempts"] if a["result"] != "pass")
     gate_n = state.get("gate_dispatches") or 0
-    total_dispatches = non_pass_attempts_n + gate_n
+    non_pass_dispatches = non_pass_attempts_n + gate_n
     budget_threshold = BATCH_CAP_MULT * task_count + GATE_FIX_ALLOWANCE
-    return BudgetStatus(task_count, total_dispatches, budget_threshold)
+    return BudgetStatus(task_count, non_pass_dispatches, budget_threshold)
 
 
 def budget_clause(status: BudgetStatus, *, verb: str) -> str:
     return (
-        f"non-pass dispatches ({status.total_dispatches}) {verb} the batch budget "
+        f"non-pass dispatches ({status.non_pass_dispatches}) {verb} the batch budget "
         f"({status.budget_threshold} = {BATCH_CAP_MULT}x{status.task_count} tasks "
         f"+ {GATE_FIX_ALLOWANCE} gate allowance)"
     )
@@ -330,7 +330,7 @@ def main(argv: list) -> int:
     status = compute_budget_status(state)
 
     if mode == "budget":
-        emit_budget(status.exhausted, status.total_dispatches, status.budget_threshold,
+        emit_budget(status.exhausted, status.non_pass_dispatches, status.budget_threshold,
                     budget_clause(status, verb="vs."))
         return 0
 

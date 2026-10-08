@@ -66,7 +66,7 @@ def test_reports_the_budget_unexhausted_after_eight_passing_chunks(tmp_path):
     budget = run_script(tmp_path, [passing_chunk() for _ in range(8)], flag="--budget")
 
     assert budget["exhausted"] is False
-    assert budget["total_dispatches"] == 0
+    assert budget["non_pass_dispatches"] == 0
 
 
 def test_still_halts_once_failed_chunks_plus_gate_fixing_dispatches_reach_the_budget(tmp_path):
