@@ -2,8 +2,8 @@
 # prose-format-extensions.sh - The file extensions each
 # prose-format checker handles, sourced by hooks.
 #
-# Usage (path relative to the sourcing script's own directory):
-#   . "$script_dir/lib/prose-format-extensions.sh"
+# Usage, where <hooks-dir> is the hooks directory:
+#   . "<hooks-dir>/lib/prose-format-extensions.sh"
 #
 # Sets two space-separated lists and runs nothing else.
 #
