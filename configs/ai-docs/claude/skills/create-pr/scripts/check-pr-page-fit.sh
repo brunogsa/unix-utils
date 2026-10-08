@@ -151,6 +151,10 @@ function bump(n,   d) {
         if (open[d] != "") cnt[open[d]] += n
 }
 
+# How many <details openers and </details> closers one line holds.
+function details_opens(s) { return gsub(/<details/, "", s) }
+function details_closes(s) { return gsub(/<\/details>/, "", s) }
+
 FNR == NR { arr[FNR] = $0; nlines = FNR; next }
 { len[FNR] = length($0) }
 
@@ -194,8 +198,16 @@ END {
             j = i + 1
             while (j <= nlines && arr[j] !~ /<summary/ && arr[j] !~ /<\/details>/) j++
             bump((j <= nlines && arr[j] ~ /<summary/) ? cost(j) : 1)
-            while (i <= nlines && arr[i] !~ /<\/details>/) i++
-            i++; continue
+            # Skip to the closer that balances this opener, not the first one:
+            # a nested block closes first, and the outer text after it is still
+            # hidden. Counting per line keeps a one-line block balanced.
+            nest = 0
+            while (i <= nlines) {
+                nest += details_opens(arr[i]) - details_closes(arr[i])
+                i++
+                if (nest <= 0) break
+            }
+            continue
         }
         if (l ~ /^[ \t]*<\/details>/) { i++; continue }
 
