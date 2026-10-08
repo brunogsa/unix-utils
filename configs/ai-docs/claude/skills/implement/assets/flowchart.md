@@ -207,6 +207,13 @@ def run_unit(unit):
             continue                                        # back to 21 - re-checks
                                                               # stack.wanted every time,
                                                               # never straight to 22
+        elif v == "next-chunk":
+            run_one_task(v.task)                            # task passed a chunk and is
+                                                              # still in_progress: back to
+                                                              # 24 (lane re-picked) for its
+                                                              # next chunk, same task; the
+                                                              # unit's verdict is re-run
+                                                              # once that chunk reports
         elif v == "gates":
             break                                            # every task in the unit is done
         else:                                                # "halted" | "halt-budget"
@@ -684,6 +691,7 @@ flowchart TD
   n28e -->|"no"| n47
   n29 --> n30
   n30 -->|"next-task"| n21
+  n30 -->|"next-chunk (task still in_progress,<br/>more chunks remain)"| n24
   n30 -->|"wait (a dispatched sibling hasn't<br/>reported yet)"| n30
   n30 -->|"gates"| n31
   n30 -->|"halted / halt-budget"| n47
