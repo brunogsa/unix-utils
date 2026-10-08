@@ -18,6 +18,10 @@ rule asks for a stopping point "between groups", and a parent plus its
 sub-bullets is one group. The literal reading would flag every
 [Instruction]/[Why] pair, which is the house style, not a defect.
 
+Two consecutive task-list items (`- [ ]`, `- [x]`, `- [X]`, any nesting)
+never fire either: team PR templates ship flush checklists that every PR
+body copies verbatim. A task item next to a plain bullet keeps the rule.
+
 Density is measured exactly as check-density.sh measures it - URLs, data URIs,
 and [] brackets stripped first - so the two scripts never disagree about how
 long a line is.
@@ -85,6 +89,7 @@ MAX_WORDS = 32
 GAP_RATIO = 0.8
 
 BULLET = re.compile(r"^(\s*)([-*+]|\d+\.)\s")
+TASK_ITEM = re.compile(r"^\s*([-*+]|\d+\.)\s+\[[ xX]\]\s")
 FENCE = re.compile(r"^\s*(```|~~~)")
 FRONTMATTER = re.compile(r"^---\s*$")
 URL = re.compile(r"\(https?://[^)]*\)")
@@ -148,6 +153,11 @@ def find_hits(lines, max_chars, max_words):
         cur_indent = indent_of(cur)
         next_indent = indent_of(lines[i + 1])
         if cur_indent is None or next_indent is None:
+            continue
+
+        # Why: team PR templates ship flush checklists that
+        # PR bodies must copy verbatim.
+        if TASK_ITEM.match(cur) and TASK_ITEM.match(lines[i + 1]):
             continue
 
         if cur_indent > next_indent:
