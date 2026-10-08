@@ -59,7 +59,7 @@ What step 5 does with the verdict:
 
 If the baseline dispatch halted or timed out, the gate has nothing to diff against - treat that the same as `HALT` and stop before the push.
 
-## Refactor + auto-review tails - step 7d
+## Refactor + auto-review tails - step 7b
 
 Runs only on a yes to step 1d's persisted toggle. When it is off, skip straight to step 8.
 

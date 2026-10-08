@@ -33,7 +33,7 @@ def address_pr_comments(pr, filters):
     TaskCreate("[Reminder] Step 4: Parse the AskUserQuestion answers")   # 3e
     TaskCreate("[Reminder] Step 5: Per-cluster commits + repo-green gate")  # 3f
     TaskCreate("[Reminder] Step 6: Batch push")                          # 3g
-    TaskCreate("[Reminder] Step 7: Post replies (7a-7d)")                # 3h
+    TaskCreate("[Reminder] Step 7: Post replies (7a-7b)")                # 3h
     TaskCreate("[Reminder] Step 8: Final report")                       # 3i
 
     # 4 · Step 0 - read-only probing: is the tree dirty, and which runners exist?
@@ -176,8 +176,8 @@ def address_pr_comments(pr, filters):
             if not retry.succeeded:                        # 24b2b
                 skip_and_list_in_final_report()             # 24b2b1
 
-    if state.answers.tails:                                # 25 · Step 7d
-        # 25a · Step 7d - 2x code-reviewer · agent-pinned, parallel (∥),
+    if state.answers.tails:                                # 25 · Step 7b
+        # 25a · Step 7b - 2x code-reviewer · agent-pinned, parallel (∥),
         #       background, reading code-reviewer-tail-pair.md.
         #       Lens A simplification → verdict_refactor_*.md
         #       Lens B correctness   → verdict_auto-review_*.md
@@ -216,7 +216,7 @@ flowchart TD
     n3e["3e. Add to TaskList a [Reminder] for Step 4:<br/>Parse the AskUserQuestion answers"]:::state
     n3f["3f. Add to TaskList a [Reminder] for Step 5:<br/>Per-cluster commits + repo-green gate"]:::state
     n3g["3g. Add to TaskList a [Reminder] for Step 6:<br/>Batch push"]:::state
-    n3h["3h. Add to TaskList a [Reminder] for Step 7:<br/>Post replies (7a-7d)"]:::state
+    n3h["3h. Add to TaskList a [Reminder] for Step 7:<br/>Post replies (7a-7b)"]:::state
     n3i["3i. Add to TaskList a [Reminder] for Step 8:<br/>Final report"]:::state
     n3a --> n3b --> n3c --> n3d --> n3e --> n3f --> n3g --> n3h --> n3i
   end
@@ -270,8 +270,8 @@ flowchart TD
   n24b2a["24b2a. Retry gh api once"]
   n24b2b{"24b2b. Retry<br/>succeeded?"}
   n24b2b1["24b2b1. Skip reply;<br/>list in final report"]
-  n25{"25. Step 7d &middot; Tails toggle on<br/>step 0 answer?"}
-  n25a["25a. Step 7d: Dispatch code-reviewer tail pair<br/>2x code-reviewer &middot; agent-pinned<br/>parallel (∥), background<br/><br/>Reads code-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
+  n25{"25. Step 7b &middot; Tails toggle on<br/>step 0 answer?"}
+  n25a["25a. Step 7b: Dispatch code-reviewer tail pair<br/>2x code-reviewer &middot; agent-pinned<br/>parallel (∥), background<br/><br/>Reads code-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
   n25b["25b. PreToolUse hook:<br/>check-reviewer-writes.sh<br/><br/>Auto-approves writes to verdict_*.md or /tmp;<br/>denies all other writes/mutations"]:::hook
   n25c["25c. Read both verdict reports;<br/>synthesize prioritized summary;<br/>offer to apply (report-only by default)"]
   n25d{"25d. User names specific<br/>findings to apply?"}

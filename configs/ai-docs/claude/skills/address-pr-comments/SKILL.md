@@ -88,7 +88,7 @@ On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`
 
 ### 1d. Tails toggle
 
-Not a pass/fail check - read step 0's persisted tails answer (consumed by step 7d). Default no if unanswered.
+Not a pass/fail check - read step 0's persisted tails answer (consumed by step 7b). Default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 
@@ -164,7 +164,7 @@ A plain "Answer" on a cluster with no `Draft answer` leaves nothing to post - as
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
 
-If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below - step 7d's tails review this range. If step 0's "Repo-green gate after changes?" is on, capture the repo-green baseline now, before the first cluster edit - see [`references/opt-in-gates.md`](references/opt-in-gates.md).
+If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below - step 7b's tails review this range. If step 0's "Repo-green gate after changes?" is on, capture the repo-green baseline now, before the first cluster edit - see [`references/opt-in-gates.md`](references/opt-in-gates.md).
 
 For each `apply` cluster, **in the order the user left them**:
 
@@ -206,7 +206,7 @@ Templates per action, the `gh api` call per reply-target kind, and the signature
 
 The inverse case - a comment addressed to Claude, answered in Claude's own voice - belongs to `gh-answer-claude-mentions`, not here.
 
-### 7d. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
+### 7b. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
 When the toggle is off, skip to step 8. Otherwise load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the tail-pair dispatch and its arguments.
 
@@ -225,7 +225,7 @@ PR <n> address summary
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 
-When step 5's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 7d ran, append its two report paths and top findings so the user sees them in the same pass.
+When step 5's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 7b ran, append its two report paths and top findings so the user sees them in the same pass.
 
 ## Flowchart (human-facing)
 
