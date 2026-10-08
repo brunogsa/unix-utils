@@ -187,6 +187,16 @@ rc=$?
 assert_eq "file renamed with no content change reports no changed lines" "" "$out"
 assert_eq "file renamed with no content change exits 0" "0" "$rc"
 
+# --- Case 13: `git mv` plus one edited line -> only that line.
+repo=$(new_repo repo13)
+printf 'alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\n' > "$repo/old-name.md"
+git -C "$repo" add old-name.md
+git -C "$repo" commit -q -m base
+git -C "$repo" mv old-name.md new-name.md
+printf 'alpha\nbravo\nCHARLIE edited\ndelta\necho\nfoxtrot\n' > "$repo/new-name.md"
+out=$(cd "$repo" && "$SCRIPT" new-name.md)
+assert_eq "file renamed with one edited line reports only that line" "3" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]
