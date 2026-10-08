@@ -912,7 +912,7 @@ it_should_gate_exactly_the_extensions_the_checker_lists() {
   hook_set=$(
     # shellcheck source=../lib/prose-format-extensions.sh
     . "$script_dir/lib/prose-format-extensions.sh"
-    printf '%s\n' $PROSE_FORMAT_COMMENT_EXTENSIONS | sort
+    printf '%s\n' "$PROSE_FORMAT_COMMENT_EXTENSIONS" | tr ' ' '\n' | sort
   )
   assert_eq "should gate exactly the extensions check-comment-format.js lists" "$checker_set" "$hook_set"
 }
