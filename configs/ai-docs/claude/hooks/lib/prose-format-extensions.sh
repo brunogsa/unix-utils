@@ -1,11 +1,9 @@
 #!/bin/bash
 # prose-format-extensions.sh - The file extensions each
-# prose-format checker handles, sourced by
-# claude-prose-format-posttool-hook.sh and
-# claude-bash-write-guard.sh.
+# prose-format checker handles, sourced by hooks.
 #
-# Usage:
-#   . "$CLAUDE_HOOKS_DIR/lib/prose-format-extensions.sh"
+# Usage (path relative to the sourcing script's own directory):
+#   . "$script_dir/lib/prose-format-extensions.sh"
 #
 # Sets two space-separated lists and runs nothing else.
 #
