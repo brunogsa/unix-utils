@@ -21,6 +21,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 # Pure: no writes, no clock reads, deterministic -- the same
 # state file always yields the same verdict.
@@ -92,7 +93,7 @@ def emit_eligible_set(tasks: list, running: int, exhausted: bool, reason: str) -
     }, indent=2))
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     # Fail-loud by design: this is not the fail-open component
     # -- that role belongs to claude-implement-stop-hook.sh.
     print(f"error: {message}", file=sys.stderr)
