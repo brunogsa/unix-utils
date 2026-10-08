@@ -7,9 +7,11 @@ only inside a subagent (https://code.claude.com/docs/en/hooks).
 """
 
 import json
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -184,6 +186,27 @@ class EveryWriteCapableToolTest(SubagentNotesGuardTestCase):
             "edits": [{"old_string": "## Findings", "new_string": "## Done"}],
         }
         self.assert_denied(payload)
+
+
+class DisguisedPathToMainSessionNotesTest(SubagentNotesGuardTestCase):
+    def test_should_deny_a_subagent_writing_the_notes_file_in_another_letter_case(self):
+        # macOS APFS is case-insensitive by default, so each
+        # variant opens the very same notes file.
+        for variant in ("Scratchpad/NOTES.md", "scratchpad/Notes.md"):
+            with self.subTest(variant=variant):
+                disguised = MAIN_SESSION_NOTES.replace("scratchpad/notes.md", variant)
+                self.assert_denied(write_call(disguised, SUBAGENT_ID, SUBAGENT_TYPE))
+
+    def test_should_deny_a_subagent_writing_the_notes_file_through_a_symlinked_dir(self):
+        with tempfile.TemporaryDirectory() as session_dir:
+            scratchpad = Path(session_dir) / "scratchpad"
+            scratchpad.mkdir()
+            (scratchpad / "notes.md").write_text("## Findings\n")
+            alias = Path(session_dir) / "review-scratch"
+            os.symlink(scratchpad, alias)
+            self.assert_denied(
+                write_call(str(alias / "notes.md"), SUBAGENT_ID, SUBAGENT_TYPE)
+            )
 
 
 if __name__ == "__main__":
