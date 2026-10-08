@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# subagent-notes-guard - Deny a subagent's Write/Edit to the
+# main session's scratchpad notes.md.
+#
+# Usage (PreToolUse hook, matcher Write|Edit in settings.json):
+#   subagent-notes-guard.py < tool-call.json
+#
+# stdin: the PreToolUse JSON payload.
+#
+# stdout: a deny decision as JSON when a subagent targets
+#   <any>/scratchpad/notes.md, nothing otherwise
+#
+# exit: 0 always; the deny lives in the JSON, and malformed
+#   input fails open
+
+import json
+import os
+import sys
+
+NOTES_FILENAME = "notes.md"
+SCRATCHPAD_DIRNAME = "scratchpad"
+
+
+def is_main_session_notes(file_path):
+    # normpath folds a `..` segment, so scratchpad/x/../notes.md
+    # cannot slip past the parent-directory check.
+    normalized = os.path.normpath(file_path)
+    parent_dir = os.path.basename(os.path.dirname(normalized))
+    return (
+        os.path.basename(normalized) == NOTES_FILENAME
+        and parent_dir == SCRATCHPAD_DIRNAME
+    )
+
+
+def build_deny(file_path, agent_type):
+    own_notes = f"{agent_type or 'subagent'}-notes.md"
+    reason = (
+        f"Subagents must not write {file_path}: that notes.md is the main "
+        f"session's working notes. Keep yours in your own work dir, or in "
+        f"{own_notes} beside it."
+    )
+    return {
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }
+
+
+def main():
+    try:
+        payload = json.loads(sys.stdin.read())
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return
+
+    if not isinstance(payload, dict):
+        return
+
+    # Only agent_id marks a subagent call; agent_type is
+    # also set on a main session started with --agent,
+    # which owns the file.
+    is_subagent_call = bool(payload.get("agent_id"))
+    tool_input = payload.get("tool_input") or {}
+    file_path = tool_input.get("file_path") if isinstance(tool_input, dict) else None
+
+    if not is_subagent_call or not isinstance(file_path, str):
+        return
+
+    if is_main_session_notes(file_path):
+        print(json.dumps(build_deny(file_path, payload.get("agent_type"))))
+
+
+if __name__ == "__main__":
+    main()
