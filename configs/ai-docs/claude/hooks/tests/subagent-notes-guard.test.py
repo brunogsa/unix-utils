@@ -46,6 +46,17 @@ def write_call(file_path, agent_id=None, agent_type=None):
     return payload
 
 
+def edit_call(file_path, agent_id=None, agent_type=None):
+    payload = write_call(file_path, agent_id, agent_type)
+    payload["tool_name"] = "Edit"
+    payload["tool_input"] = {
+        "file_path": file_path,
+        "old_string": "## Findings",
+        "new_string": "## Findings\n- verdict persisted",
+    }
+    return payload
+
+
 class SubagentNotesGuardTestCase(unittest.TestCase):
     def assert_denied(self, payload):
         result = run_hook(payload)
@@ -75,6 +86,14 @@ class SubagentWriteToMainSessionNotesTest(SubagentNotesGuardTestCase):
             "scratchpad/notes.md", "scratchpad/wave1/../notes.md"
         )
         self.assert_denied(write_call(sneaky_path, SUBAGENT_ID, SUBAGENT_TYPE))
+
+
+class SubagentEditToMainSessionNotesTest(SubagentNotesGuardTestCase):
+    def test_should_deny_a_subagent_editing_the_main_session_notes_file(self):
+        reason = self.assert_denied(
+            edit_call(MAIN_SESSION_NOTES, SUBAGENT_ID, SUBAGENT_TYPE)
+        )
+        self.assertIn("code-reviewer-notes.md", reason)
 
 
 if __name__ == "__main__":
