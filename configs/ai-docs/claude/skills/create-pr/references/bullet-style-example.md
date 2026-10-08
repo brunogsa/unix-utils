@@ -1,4 +1,4 @@
-# Bullet style (referenced by writing-style.md's "Bullets" rule)
+# Bullet style (referenced by writing-style.md's bullet rules)
 
 ## Hard to scan
 
@@ -20,3 +20,22 @@
 ```
 
 The reviewer scans the bold prefixes (`Lib test fix` / `Worktree support` / `Test DB migrations`) and skips the body of any topic they don't need to dig into.
+
+## Splitting a pasted callout
+
+Bad:
+
+```markdown
+- **WARNING:** criar o secret X em QA, Stage e Prod, pois o Terraform não cria e sem ele o pod falha no boot ...
+```
+
+That is one 220-word line, far over the density cap.
+A long `**DECISION:**` or `**WARNING:**` callout never lands whole.
+
+Good:
+
+```markdown
+- **WARNING: criar o secret X em QA, Stage e Prod**
+  - O Terraform não cria o secret.
+  - Sem ele, o pod falha no boot.
+```

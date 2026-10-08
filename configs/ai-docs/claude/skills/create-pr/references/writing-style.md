@@ -49,11 +49,10 @@ Read before drafting PR-body prose.
 
   - Outranks "copy reused content verbatim": strip every `AC-N`/`PR-N`/`D-N`/`R-N`/`OQ-N` token from pasted spec/plan text, appendix included - replace each with the behavior it names, or drop it.
 
-- **Split a pasted plan/spec line over the density cap into a lead line plus sub-bullets** -- a long `**DECISION:**` or `**WARNING:**` callout never lands whole.
+- **Split a pasted plan/spec line over the density cap into a lead line plus sub-bullets**
   - Cap per `check-density.sh`: 256 chars / 32 words for a bullet, 512 / 64 for prose.
   - Keep every fact, one thought per sub-bullet, no rewording - verbatim means the content, not the line shape.
-  - Bad: `- **WARNING:** criar o secret X em QA, Stage e Prod, pois o Terraform não cria e sem ele o pod falha no boot ...` (one 220-word line).
-  - Good: `- **WARNING: criar o secret X em QA, Stage e Prod**` with sub-bullets `- O Terraform não cria o secret.` and `- Sem ele, o pod falha no boot.`
+  - Bad/good pair: [`bullet-style-example.md`](bullet-style-example.md).
 
 - **No shorthand the reviewer can't resolve** -- define team jargon, spec acronyms ("AC", "FR/NFR"), and implementation jargon on first use.
 
