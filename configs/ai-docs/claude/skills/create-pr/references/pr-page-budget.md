@@ -59,7 +59,7 @@ Read before drafting a PR body. `pr-writer` and `pr-finalizer` load this; `SKILL
   - This is invisible to the density check (256-char cap) - nearly three rendered lines inside one compliant bullet.
   - Rendered, not source: a markdown link shows only its label, so a 200-character URL costs nothing.
 
-- **Measure it, don't estimate it** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>` prints the total plus a per-section breakdown against the budgets above, on every outcome including a pass.
+- **Measure it, don't estimate it** -- `~/.claude/skills/create-pr/scripts/check-pr-page-fit.py <file>` prints the total plus a per-section breakdown against the budgets above, on every outcome including a pass.
 
 - **CRITICAL: Measure the ideal description, never the final body** -- a repo template's structure is arbitrary, so the script cannot attribute its lines to a budgeted section.
 

@@ -76,7 +76,7 @@ The format has to stay stable, because the page-fit script can only hold a secti
 
    ```bash
    ~/.claude/skills/doc-standards/scripts/check-density.sh <file>
-   ~/.claude/skills/create-pr/scripts/check-pr-page-fit.sh <file>
+   ~/.claude/skills/create-pr/scripts/check-pr-page-fit.py <file>
    ~/.claude/skills/create-pr/scripts/check-pr-evidence.sh <file>
    ```
 

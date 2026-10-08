@@ -90,7 +90,7 @@ def create_pr():
     # 10 · Step 2 - pr-writer · agent-pinned · background. No mode argument:
     #      this agent only ever writes the ideal description now. Main
     #      orchestrates and never composes the prose. The agent loads
-    #      doc-standards itself, loops check-pr-page-fit.sh and
+    #      doc-standards itself, loops check-pr-page-fit.py and
     #      check-pr-evidence.sh until both pass, and only REPORTS what
     #      check-density.sh flagged - a file whose density flags it named is
     #      finished, and main files them as a [Scout] rather than sending it
@@ -207,7 +207,7 @@ flowchart TD
   n8["8. Derive the appendix's section list - never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh -<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n9["9. Step 1's last act · Collect the changes-gatherer digest - step 2<br/>cannot start without it, so wait here if it's still running. By this point<br/>it has had the whole interview to run in, so a wait that used to cost its<br/>full duration usually costs nothing"]
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background - the resolved evidence artifact<br/>and the resolved ticket ID (or 'none') travel with the dispatch, since<br/>with nothing to paste from a manual scenario must be dropped rather than<br/>narrated, and with no ticket the Jira link section names none<br/>it loads doc-standards itself and loops check-pr-page-fit.sh and<br/>check-pr-evidence.sh until both pass, but only REPORTS what<br/>check-density.sh flagged - main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background - the resolved evidence artifact<br/>and the resolved ticket ID (or 'none') travel with the dispatch, since<br/>with nothing to paste from a manual scenario must be dropped rather than<br/>narrated, and with no ticket the Jira link section names none<br/>it loads doc-standards itself and loops check-pr-page-fit.py and<br/>check-pr-evidence.sh until both pass, but only REPORTS what<br/>check-density.sh flagged - main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template -<br/>page-fit can only budget a section it recognizes"]:::state
 
   n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md - the result is one of the agent's four inputs<br/>(with ideal_path, out, and the ticket ID), a template path or an explicit<br/>'no template', not a branch here"]

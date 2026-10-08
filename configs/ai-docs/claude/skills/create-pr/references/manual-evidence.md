@@ -35,7 +35,7 @@ Read before writing any `<a id="scenario-N"></a>` block in `## Evidences`.
 ## Length is never the reason to cut
 
 - **A collapsed `<details>` costs exactly 1 rendered line of the PR body's 64-line budget**, whatever it holds.
-  - `scripts/check-pr-page-fit.sh` charges a collapsed block only its `<summary>` line, then skips to `</details>`.
+  - `scripts/check-pr-page-fit.py` charges a collapsed block only its `<summary>` line, then skips to `</details>`.
   - 200 lines of cURL and JSON inside cost the same 1 line a one-sentence summary would. There is no page-budget reason to ever summarize evidence.
 
 - **The only real ceiling is GitHub's 65536-character body cap**, already guarded by `scripts/check-pr-body-size.sh`.

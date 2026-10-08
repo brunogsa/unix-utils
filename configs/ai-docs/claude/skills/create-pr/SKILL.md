@@ -96,13 +96,13 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 **All three gates belong to the agent - never re-run them here, and never hand-fix its prose.**
 
-- It loops `check-pr-page-fit.sh` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
+- It loops `check-pr-page-fit.py` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
 - **Density is the one gate it reports instead of fixing** -- a file whose density flags it named IS finished, so never send it back for them.
   - File those flags as a `[Scout]` from its report; a subagent cannot, its TaskList write never reaching the user who triages it.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
-- The format has to stay stable, because `check-pr-page-fit.sh` can only hold a section to its budget when it recognizes that section.
+- The format has to stay stable, because `check-pr-page-fit.py` can only hold a section to its budget when it recognizes that section.
 
 Keep the file step 1 created -- never overwrite its resolved-answers comment.
 

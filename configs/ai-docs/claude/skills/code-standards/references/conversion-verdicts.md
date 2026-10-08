@@ -112,7 +112,7 @@ Every `convert` verdict below targets `py` - no script in either repo carries a 
 | `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/tests/test-verify-quote.sh` | convert | py | here-doc; 182 lines (>128) | Port to pytest - subject stays `.sh` |
 | `configs/ai-docs/claude/skills/consistency-check-principles-and-skills/scripts/verify-quote.sh` | stays-sh | py | no risky construct, <=128 lines | - |
 | `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-body-size.sh` | convert | py | awk | - |
-| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-page-fit.sh` | convert | py | awk+sed -E; 245 lines (>128) | - |
+| `configs/ai-docs/claude/skills/create-pr/scripts/check-pr-page-fit.sh` | convert | py | awk+sed -E; 245 lines (>128) | Converted to `check-pr-page-fit.py` - conversion already done |
 | `configs/ai-docs/claude/skills/create-pr/scripts/extract-md-sections.sh` | convert | py | awk | - |
 | `configs/ai-docs/claude/skills/create-pr/scripts/extract-mermaid-blocks.sh` | convert | py | awk | - |
 | `configs/ai-docs/claude/skills/doc-standards/scripts/check-density.sh` | convert | py | awk | - |
