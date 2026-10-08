@@ -108,7 +108,6 @@ check_file() {
   [ -f "$FILE_PATH" ] || return 0
   is_ephemeral_temp_file "$FILE_PATH" && return 0
 
-
 # Lowercased like the bash write guard does, so notes.MD is
 # gated too. `tr`, not `${var,,}`, which bash 3.2 lacks.
 ext="$(printf '%s' "${FILE_PATH##*.}" | tr '[:upper:]' '[:lower:]')"
