@@ -180,6 +180,23 @@ it_should_report_a_wall_of_text_markdown_write() {
   assert_not_contains "should never count the checker's own header line" "== " "$HOOK_OUT"
 }
 
+# The bash write guard lowercases the extension before
+# matching, so this hook must too, or a Write of notes.MD
+# escapes the check.
+it_should_report_a_wall_of_text_write_with_an_uppercase_extension() {
+  local dir long_line
+  dir=$(new_repo_fixture)
+  long_line=$(python3 -c "print('word ' * 120)")
+  {
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+  } > "$dir/NOTES.MD"
+  run_hook "Write" "$dir/NOTES.MD"
+  assert_eq "should exit 2 on a wall-of-text .MD write" "2" "$HOOK_EXIT"
+  assert_contains "should name the file in the report" "NOTES.MD" "$HOOK_OUT"
+}
+
 it_should_use_the_counts_regime_over_the_threshold() {
   local dir long_line i
   dir=$(new_repo_fixture)
@@ -930,6 +947,7 @@ it_should_still_report_a_wall_of_text_in_a_work_tree_that_holds_tmpdir
 it_should_ignore_an_empty_or_root_tmpdir
 it_should_stay_silent_on_a_bash_payload_even_when_the_work_tree_holds_a_fresh_wall_of_text
 it_should_report_a_wall_of_text_markdown_write
+it_should_report_a_wall_of_text_write_with_an_uppercase_extension
 it_should_use_the_counts_regime_over_the_threshold
 it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
 it_should_use_the_line_number_regime_under_the_threshold

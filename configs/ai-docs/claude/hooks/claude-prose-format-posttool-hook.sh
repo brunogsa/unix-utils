@@ -108,7 +108,10 @@ check_file() {
   [ -f "$FILE_PATH" ] || return 0
   is_ephemeral_temp_file "$FILE_PATH" && return 0
 
-ext="${FILE_PATH##*.}"
+
+# Lowercased like the bash write guard does, so notes.MD is
+# gated too. `tr`, not `${var,,}`, which bash 3.2 lacks.
+ext="$(printf '%s' "${FILE_PATH##*.}" | tr '[:upper:]' '[:lower:]')"
 base="$(basename -- "$FILE_PATH")"
 
 # checker_names holds the checker basenames for this file's
