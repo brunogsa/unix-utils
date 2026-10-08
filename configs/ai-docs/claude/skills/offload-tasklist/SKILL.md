@@ -55,10 +55,13 @@ at the end of this skill.
    only file operation this skill performs before dispatching the
    sweeper.
 
-   Do this with a Bash `>>` redirect (e.g. a heredoc), not the Write
-   or Edit tool. Write replaces the whole file - a real risk of
-   clobbering entries this skill never read. Edit requires reading the
-   file first, which the hard rule below forbids outright.
+   Do this in two moves, never with the Write or Edit tool on `tasklist.md` itself. Write replaces the whole file - a real risk of clobbering entries this skill never read. Edit requires reading the file first, which the hard rule below forbids outright.
+
+   - Write the whole batch with the Write tool to a fresh file in your session scratchpad directory, e.g. `<scratchpad>/offload-batch.md`.
+
+   - Append it with one Bash call, `cat <scratchpad>/offload-batch.md >> tasklist.md`.
+
+   Never type the entries into the Bash command itself (a heredoc, `echo`, `printf`) - the bash write guard blocks that, because typed text would skip the prose-format checker. A `cat` copy of an existing file passes, since the Write tool already ran that checker on the scratch file.
 
    Entry format, exactly (matches `tasklist-sweeper`'s own contract):
    ```

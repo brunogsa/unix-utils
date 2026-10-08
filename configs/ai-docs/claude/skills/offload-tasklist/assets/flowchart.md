@@ -23,8 +23,10 @@ def offload_tasklist(ids):
     #     TaskList snapshot on hand to resolve blocker ids to titles.
     entries = [task_get(t) for t in selected]
 
-    # 5 · Step 3 - append via a Bash >> heredoc, never Write/Edit
-    #     (Write would clobber entries this skill never read).
+    # 5 · Step 3 - Write the batch to a scratchpad file, then append it
+    #     with `cat <scratch> >> tasklist.md`; never Write/Edit
+    #     tasklist.md (Write would clobber entries this skill never
+    #     read) and never type entries into a heredoc (guard blocks it).
     #     Depends-on titles resolve from each Blocked-by id against
     #     the Step-1 snapshot; provisional local ids start at 1.
     exit_code = append_entries("tasklist.md", entries)
@@ -54,7 +56,7 @@ flowchart TD
   n3{"3. Selection empty?"}
   n3a(["3a. Report nothing offloaded; stop -<br/>no file write, no sweeper spawn"])
   n4["4. Step 2 · TaskGet each selected task<br/>(description + Blocked-by list);<br/>keep Step 1's TaskList output on hand"]
-  n5["5. Step 3 · Append one entry per task to<br/>tasklist.md via Bash &gt;&gt; heredoc (never Write/Edit):<br/>header, Depends-on resolved from blockers,<br/>Description, one trailing blank-line separator"]:::state
+  n5["5. Step 3 · Append one entry per task to<br/>tasklist.md - Write the batch to a scratchpad file,<br/>then Bash cat scratch &gt;&gt; tasklist.md (never Write/Edit it, never a heredoc):<br/>header, Depends-on resolved from blockers,<br/>Description, one trailing blank-line separator"]:::state
   n6{"6. Append exited 0?"}
   n6a(["6a. Report write failure; stop -<br/>no TaskUpdate calls, no sweeper spawn"])
   n7["7. Step 4 · TaskUpdate status=deleted<br/>for each appended task"]
