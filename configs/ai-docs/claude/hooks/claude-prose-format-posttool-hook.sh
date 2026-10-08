@@ -79,6 +79,10 @@ TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // empty' 2>/dev/null)
 # every file on the machine.
 is_ephemeral_temp_file() {
   local file_dir physical_dir root physical_root
+
+  # why: claude-bash-write-guard.sh sets this to check a scratch
+  # file before letting a `cat` copy it into a repo file.
+  [ "${CLAUDE_PROSE_FORMAT_CHECK_SCRATCH:-}" = "1" ] && return 1
   file_dir="$(dirname -- "$1")"
   git -C "$file_dir" rev-parse --is-inside-work-tree >/dev/null 2>&1 && return 1
   physical_dir=$(cd -P -- "$file_dir" 2>/dev/null && pwd -P) || return 1

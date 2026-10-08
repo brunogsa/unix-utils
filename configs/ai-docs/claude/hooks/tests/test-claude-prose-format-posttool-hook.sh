@@ -810,6 +810,20 @@ it_should_skip_a_wall_of_text_under_slash_tmp() {
   rm -rf "$dir"
 }
 
+it_should_report_a_wall_of_text_under_slash_tmp_when_asked_to_check_scratch() {
+  # The bash write guard checks a scratch file before letting a
+  # `cat` copy it into a repo file, so it needs temp checked.
+  local dir stdin_json
+  dir=$(mktemp -d /tmp/prose-hook-scratchXXXXXX)
+  write_wall_of_text "$dir/batch.md"
+  stdin_json=$(jq -n --arg f "$dir/batch.md" \
+    '{tool_name: "Write", tool_input: {file_path: $f}}')
+  HOOK_OUT=$(printf '%s' "$stdin_json" | CLAUDE_PROSE_FORMAT_CHECK_SCRATCH=1 "$bash_bin" "$SCRIPT" 2>&1)
+  HOOK_EXIT=$?
+  assert_eq "should exit 2 on a wall of text under /tmp when asked to check scratch" "2" "$HOOK_EXIT"
+  rm -rf "$dir"
+}
+
 it_should_skip_a_wall_of_text_under_private_tmp() {
   local dir
   [ -d /private/tmp ] || return 0
@@ -901,6 +915,7 @@ it_should_gate_exactly_the_extensions_the_checker_lists() {
 
 it_should_stay_silent_on_a_clean_markdown_write
 it_should_skip_a_wall_of_text_under_slash_tmp
+it_should_report_a_wall_of_text_under_slash_tmp_when_asked_to_check_scratch
 it_should_skip_a_wall_of_text_under_private_tmp
 it_should_skip_an_over_width_comment_under_slash_tmp
 it_should_skip_a_wall_of_text_under_a_tmpdir_that_points_elsewhere

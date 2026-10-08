@@ -43,6 +43,7 @@ assert_eq() {
 fixture_base=""
 sandbox_dir=""
 outside_dir=""
+scratch_dir=""
 
 setup_fixtures() {
   fixture_base=$(mktemp -d "$HOME/.claude-bash-write-guard-test.XXXXXX")
@@ -61,10 +62,17 @@ setup_fixtures() {
     git commit -q -m "init"
   )
   printf '### 1. [Task] Offloaded task\n' > "$outside_dir/batch.md"
+
+  # Scratch under /tmp, where a Bash write is never guarded and
+  # the PostToolUse checker skips the file, so its content
+  # reaches a copy unchecked unless the guard checks it.
+  scratch_dir=$(mktemp -d /tmp/claude-bash-write-guard-scratch.XXXXXX)
+  printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/batch.md"
 }
 
 teardown_fixtures() {
   [ -n "$fixture_base" ] && rm -rf "$fixture_base"
+  [ -n "$scratch_dir" ] && rm -rf "$scratch_dir"
 }
 
 # run_hook - invokes the guard cwd'd into the sandbox repo
@@ -295,6 +303,11 @@ it_should_block_a_copy_through_cat_with_a_rewritten_search_path() {
   assert_eq "should block a cat copy run with a rewritten PATH, which can pick any program named cat" "2" "$HOOK_EXIT"
 }
 
+it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules() {
+  run_hook "cat $scratch_dir/batch.md >> README.md"
+  assert_eq "should block copying a /tmp scratch file whose prose breaks the markdown format rules" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -335,6 +348,7 @@ it_should_block_cat_appending_a_source_named_by_command_substitution
 it_should_block_cat_with_a_flag_that_rewrites_the_copied_content
 it_should_block_a_copy_run_through_a_local_script_named_cat
 it_should_block_a_copy_through_cat_with_a_rewritten_search_path
+it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

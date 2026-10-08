@@ -61,7 +61,7 @@ at the end of this skill.
 
    - Append it with one Bash call, `cat <scratchpad>/offload-batch.md >> tasklist.md`.
 
-   Never type the entries into the Bash command itself (a heredoc, `echo`, `printf`) - the bash write guard blocks that, because typed text would skip the prose-format checker. A `cat` copy of an existing file passes, since the Write tool already ran that checker on the scratch file.
+   Never type the entries into the Bash command itself (a heredoc, `echo`, `printf`) - the bash write guard blocks that, because typed text would skip the prose-format checker. A `cat` copy of an existing file passes once the guard runs the destination's format checker on the scratch file and it comes back clean.
 
    Entry format, exactly (matches `tasklist-sweeper`'s own contract):
    ```

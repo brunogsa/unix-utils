@@ -27,18 +27,22 @@
 #
 # A false block costs every later session a legitimate command
 # and gets the guard switched off, while a false allow costs
-# only the PostToolUse checker, which still runs on the Bash
-# call afterwards.
+# only a format violation that the test suite surfaces later -
+# the PostToolUse checker never runs on a Bash call.
 #
 # Allowed by design: any path under /tmp or /private/tmp, any
 # path outside a git work tree, any git-ignored path, any
 # extension the prose checkers do not handle, and any target
 # the guard cannot resolve to a literal path.
 #
-# Also allowed: a bare `cat` copying only literal, existing
-# files into a guarded path (`cat /tmp/batch.md >> notes.md`).
-# Its content was typed through Edit/Write when the source was
-# authored, so nothing new skips the checker.
+# Also allowed: a bare system `cat` copying only literal,
+# existing files into a guarded path, such as
+# `cat /tmp/batch.md >> notes.md`, once every source passes the
+# destination's format checker, run here before the write.
+#
+# The source cannot be trusted as already checked: a /tmp
+# scratch file is written by Bash unguarded, and the PostToolUse
+# checker skips temp files even when Write authors them.
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
@@ -67,11 +71,14 @@ export CLAUDE_HOOKS_DIR
 export CLAUDE_BASH_WRITE_CMD="$CMD"
 python3 - <<'PYEOF'
 import importlib.util
+import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 
 # strip_heredoc_bodies() and the quote-aware pipeline splitter
 # live in lib/parse-shell-command.py, shared with other guards -
@@ -103,6 +110,8 @@ WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 # `./cat`, a `PATH=` prefix or a wrapper can run any program
 # named cat, which can write any text it likes.
 SYSTEM_CAT_EXECUTABLES = ('cat', '/bin/cat', '/usr/bin/cat')
+
+PROSE_FORMAT_HOOK = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'claude-prose-format-posttool-hook.sh')
 
 IN_PLACE_EDITORS = ('sed', 'gsed', 'perl')
 
@@ -292,34 +301,61 @@ def write_targets(exe, tokens, cwd):
     return targets
 
 
-def is_copy_of_existing_files(exe, tokens, cwd, is_piped_into):
-    """True when the segment is a bare `cat` whose only input is one or more literal, existing files."""
-    # why: a copy carries no text typed into the command - the
-    # source files were authored earlier, through Edit/Write and
-    # its checker.
+def copied_source_paths(exe, tokens, cwd, is_piped_into):
+    """The absolute source paths when the segment is a bare system `cat` of literal, existing files, else None."""
+    # why: such a copy carries no text typed into the command, so
+    # checking its sources is enough to check what it writes.
     #
     # A pipe, a heredoc or here-string (`<<`), stdin (`-`), a
     # flag that rewrites the text (`-n`) or a source the guard
     # cannot see on disk all let typed or generated text in.
     if not tokens or tokens[0] not in SYSTEM_CAT_EXECUTABLES:
-        return False
+        return None
     if is_piped_into:
-        return False
+        return None
     arguments = arguments_after(exe, tokens)
     if any(token.startswith(('-', '<')) for token in arguments):
-        return False
+        return None
     sources = positional_arguments(arguments)
     if not sources:
-        return False
+        return None
+    paths = []
     for source in sources:
         if re.search(r'[$`*?\[(]', source):
-            return False
-        if not os.path.isfile(absolute_path(cwd, source)):
-            return False
-    return True
+            return None
+        path = absolute_path(cwd, source)
+        if not os.path.isfile(path):
+            return None
+        paths.append(path)
+    return paths
+
+
+def format_report(source, destination):
+    """The prose-format hook's report on `source` checked as if written to `destination`, or '' when it passes."""
+    # why: the copy lands the source's text in the destination
+    # unchanged, so the destination's checker must pass on it.
+    #
+    # The temp copy carries the destination's extension, since
+    # the hook picks its checkers by extension, and the scratch
+    # flag stops the hook skipping a file under temp.
+    extension = destination.rsplit('.', 1)[-1]
+    payload_env = dict(os.environ, CLAUDE_PROSE_FORMAT_CHECK_SCRATCH='1')
+    with tempfile.TemporaryDirectory() as directory:
+        copy = os.path.join(directory, 'copied.' + extension)
+        try:
+            shutil.copyfile(source, copy)
+        except OSError as error:
+            return 'could not read {} to check it: {}\n'.format(source, error)
+        payload = json.dumps({'tool_name': 'Write', 'tool_input': {'file_path': copy}})
+        result = subprocess.run(['bash', PROSE_FORMAT_HOOK], input=payload,
+                                capture_output=True, text=True, env=payload_env)
+    if result.returncode != 2:
+        return ''
+    return '{}:\n{}'.format(source, result.stderr)
 
 
 blocked = []
+format_reports = []
 cwd = os.getcwd()
 
 for segment, is_piped_into in split_segments(cmd):
@@ -339,11 +375,18 @@ for segment, is_piped_into in split_segments(cmd):
             break
         cwd = destination
         continue
-    if is_copy_of_existing_files(exe, tokens, cwd, is_piped_into):
-        continue
+    sources = copied_source_paths(exe, tokens, cwd, is_piped_into)
     for target in write_targets(exe, tokens, cwd):
         reason = block_reason(cwd, target)
-        if reason and reason not in blocked:
+        if not reason:
+            continue
+        if sources is not None:
+            reports = [format_report(source, reason) for source in sources]
+            failing_reports = [report for report in reports if report]
+            if not failing_reports:
+                continue
+            format_reports.extend(failing_reports)
+        if reason not in blocked:
             blocked.append(reason)
 
 if not blocked:
@@ -354,6 +397,9 @@ for path in blocked:
     message.append('  - ' + path)
 message.append('A Bash write skips the PostToolUse prose-format checker, so its violations surface later as a red suite.')
 message.append('Scratch under /tmp, git-ignored paths, and anything outside a git work tree are allowed.')
+if format_reports:
+    message.append('A `cat` copy of existing files passes only when every source passes the destination format checker; these did not:')
+    message.extend(format_reports)
 sys.stderr.write('\n'.join(message) + '\n')
 sys.exit(2)
 PYEOF
