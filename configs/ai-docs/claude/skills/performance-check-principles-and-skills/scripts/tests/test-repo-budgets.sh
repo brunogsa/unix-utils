@@ -60,17 +60,26 @@ it_should_fail_when_a_bundled_reference_exceeds_its_word_budget() {
     echo "it_should_fail_when_a_bundled_reference_exceeds_its_word_budget"
     local d
     d=$(mktemp -d)
-    printf '# Principles\n' > "$d/CLAUDE.md"
+    # A marker-bearing CLAUDE.md: a marker-less one is reported
+    # UNMIGRATED, which would fail the run with no reference
+    # involved and let this test pass for the wrong reason.
+    printf -- '# Principles\n\n- [Instruction] Be brief.\n  - [Why] Brevity saves tokens.\n' > "$d/CLAUDE.md"
     mkdir -p "$d/skills/real-skill/references"
     printf -- '---\nname: real-skill\ndescription: "Real."\n---\n\n- [Instruction] Do the thing.\n' \
         > "$d/skills/real-skill/SKILL.md"
     { printf 'word %.0s' $(seq 1 1100); printf '\n'; } \
         > "$d/skills/real-skill/references/over-budget.md"
 
-    local rc
-    bash "$CHECK" "$d" >/dev/null 2>&1
+    local out rc
+    out=$(bash "$CHECK" "$d" 2>&1)
     rc=$?
     assert_eq "check.sh exits non-zero on an over-budget reference" "1" "$rc"
+
+    local named="no"
+    if printf '%s\n' "$out" | grep -qF 'real-skill/references/over-budget.md: words=1100'; then
+        named="yes"
+    fi
+    assert_eq "check.sh output names the over-budget reference" "yes" "$named"
     rm -rf "$d"
 }
 
