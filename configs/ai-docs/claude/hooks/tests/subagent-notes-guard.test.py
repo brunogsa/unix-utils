@@ -209,5 +209,29 @@ class DisguisedPathToMainSessionNotesTest(SubagentNotesGuardTestCase):
             )
 
 
+class NoFailOpenOnTheNotesFileTest(SubagentNotesGuardTestCase):
+    def test_should_still_deny_the_notes_file_when_its_path_cannot_be_resolved_on_disk(self):
+        # A NUL byte in a parent dir makes path resolution
+        # raise; the guard must not crash into an allow.
+        unresolvable = MAIN_SESSION_NOTES.replace("/scratchpad/", "\x00/scratchpad/")
+        self.assert_denied(write_call(unresolvable, SUBAGENT_ID, SUBAGENT_TYPE))
+
+    def test_should_check_the_notebook_path_even_when_another_path_field_is_present(self):
+        for other_file_path in ("/tmp/auto-review.Xk3p9Q/wave1.md", 7):
+            with self.subTest(file_path=other_file_path):
+                self.assert_denied(
+                    {
+                        "hook_event_name": "PreToolUse",
+                        "tool_name": "NotebookEdit",
+                        "tool_input": {
+                            "file_path": other_file_path,
+                            "notebook_path": MAIN_SESSION_NOTES,
+                        },
+                        "agent_id": SUBAGENT_ID,
+                        "agent_type": SUBAGENT_TYPE,
+                    }
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

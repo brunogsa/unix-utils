@@ -20,16 +20,31 @@ import sys
 
 NOTES_FILENAME = "notes.md"
 SCRATCHPAD_DIRNAME = "scratchpad"
+PATH_FIELDS = ("file_path", "notebook_path")
+
+
+def names_scratchpad_notes(path):
+    filename = os.path.basename(path).casefold()
+    parent_dir = os.path.basename(os.path.dirname(path)).casefold()
+    return filename == NOTES_FILENAME and parent_dir == SCRATCHPAD_DIRNAME
 
 
 def is_main_session_notes(file_path):
-    # realpath folds `..` segments and symlinked dirs, and
-    # casefold covers APFS's default case-insensitivity, so
-    # no spelling that opens the same file slips past.
-    resolved = os.path.realpath(file_path)
-    filename = os.path.basename(resolved).casefold()
-    parent_dir = os.path.basename(os.path.dirname(resolved)).casefold()
-    return filename == NOTES_FILENAME and parent_dir == SCRATCHPAD_DIRNAME
+    # The raw spelling is checked on its own, so a path
+    # realpath cannot resolve still denies instead of
+    # crashing the hook into an allow.
+    if names_scratchpad_notes(os.path.normpath(file_path)):
+        return True
+
+    # realpath folds symlinked dirs, and casefold covers
+    # APFS's default case-insensitivity, so no spelling
+    # that opens the same file slips past.
+    try:
+        resolved = os.path.realpath(file_path)
+    except (OSError, ValueError):
+        return False
+
+    return names_scratchpad_notes(resolved)
 
 
 def build_deny(file_path, agent_type):
@@ -49,6 +64,9 @@ def build_deny(file_path, agent_type):
 
 
 def main():
+    # Unparseable hook input fails open on purpose: it names
+    # no caller and no path, and denying it would block every
+    # Write/Edit in every session, main included.
     try:
         payload = json.loads(sys.stdin.read())
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -66,13 +84,13 @@ def main():
         return
 
     # NotebookEdit names its target notebook_path; every other
-    # write-capable tool names it file_path.
-    file_path = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not isinstance(file_path, str):
-        return
-
-    if is_main_session_notes(file_path):
-        print(json.dumps(build_deny(file_path, payload.get("agent_type"))))
+    # write-capable tool names it file_path. Each field is
+    # checked, so one present field never hides another.
+    for field in PATH_FIELDS:
+        file_path = tool_input.get(field)
+        if isinstance(file_path, str) and is_main_session_notes(file_path):
+            print(json.dumps(build_deny(file_path, payload.get("agent_type"))))
+            return
 
 
 if __name__ == "__main__":
