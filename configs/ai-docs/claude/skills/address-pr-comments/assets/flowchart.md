@@ -30,7 +30,7 @@ def address_pr_comments(pr, filters):
     TaskCreate("[Reminder] Step 1: Validate preconditions (1a-1d)")      # 3b
     TaskCreate("[Reminder] Step 2: Resolve repo + own login")            # 3c
     TaskCreate("[Reminder] Step 3: Fetch, filter, cluster, rank, propose")  # 3d
-    TaskCreate("[Reminder] Step 4: Parse the user's edited block")       # 3e
+    TaskCreate("[Reminder] Step 4: Parse the AskUserQuestion answers")   # 3e
     TaskCreate("[Reminder] Step 5: Per-cluster commits + repo-green gate")  # 3f
     TaskCreate("[Reminder] Step 6: Batch push")                          # 3g
     TaskCreate("[Reminder] Step 7: Post replies (7a-7d)")                # 3h
@@ -67,24 +67,40 @@ def address_pr_comments(pr, filters):
 
     owner_repo, my_login = resolve_repo_and_login()        # 10 · Step 2
 
-    # 11 · Step 3 - ONE subagent, general-purpose · sonnet · medium, background,
+    # 11 · Step 3 - ONE subagent, general-purpose · sonnet · high, background,
     #      serial. It reads fetch-cluster-propose.md + review-principles.md and
-    #      does the fetch, filter, cluster, rank, and propose.
-    clusters = dispatch("general-purpose · sonnet · medium", background=True)
+    #      does the fetch, filter, cluster, rank, and propose. Per apply cluster
+    #      it generalizes the AI: note into a PR-wide Rule, runs `gh pr diff`
+    #      once, sweeps every added line, and returns Sites (each with a
+    #      before -> after or pseudo-code preview); a site matching several
+    #      rules is tied to the highest-ranked cluster. Per answer cluster it
+    #      returns a Draft answer.
+    clusters = dispatch("general-purpose · sonnet · high", background=True)
 
     if not clusters:                                       # 12
         return stop("no clusters to address")              # 12a
 
-    proposal = present(clusters)                           # 13
+    # 13 · Output step - main reads reply-patterns.md (the previews quote its
+    #      templates + signature rule), then PRINTS one preview block per
+    #      cluster in chat BEFORE the first AskUserQuestion: comment lines,
+    #      Apply -> Rule + code sites + reply, Answer -> Draft answer (signed),
+    #      Drop -> drop reply, Skip -> nothing happens.
+    load_reference("reply-patterns.md")
+    print_previews(clusters)                               # 13
 
-    while True:
-        # 14 · ONE round: the user flips actions, edits reasons, deletes
-        #      clusters - per-cluster action approval.
-        edited = user_edits(proposal)
-        parsed = parse(edited)                             # 15 · Step 4
-        if parsed.ok:                                      # 16
-            break
-        surface_exact_issue(parsed.error)   # 16a · ask the user to re-send
+    # 14 · ONE unbroken round: one question per cluster, 4 per call; each
+    #      option's preview shows that option's own lines from the block above.
+    #      "Other" overrides: answer_body (unsigned), rule/planned_change, drop_reason.
+    answers = ask_per_cluster(clusters)                    # 14
+
+    parsed = parse(answers)                                # 15 · Step 4
+    # 15 · per cluster: action, comment_ids, thread_ids, urls; apply adds
+    #      planned_change + rule + sites; answer records answer_source
+    #      ("draft" for a plain Answer, "user" for typed-via-Other).
+
+    # 16 · only a cluster with NO Draft answer needs the user's text.
+    if any_plain_answer_without_draft(parsed):             # 16
+        ask_for_answer_texts(parsed)    # 16a · one follow-up round, 4 per call
 
     for c in parsed.applied_clusters:                      # 17
         TaskCreate(f"[Task] {c.title}")
@@ -99,9 +115,17 @@ def address_pr_comments(pr, filters):
     while apply_clusters_remaining():                      # 19
         c = next_apply_cluster()
         load_skill("code-standards", "test-standards", "doc-standards")  # 19a
-        make_changes(c)                                    # 19b
+        for site in c.sites:                               # 19b
+            # 19b · located by CONTENT, not line number - earlier cluster
+            #       commits shift lines. No match -> skip it, list in Step 8.
+            if not content_still_matches(site):
+                sites_skipped.append(site)
+                continue
+            edit(site)                      # every site, not only commented lines
         git("add", only_files_in_scope_of(c))              # 19b
         load_skill("commit-standards")                     # 19c
+        # 19d · body carries an `Addresses:` block (comment URLs) and a
+        #       `Sites:` block (edited sites).
         sha = git("commit")                                # 19d
         # 19e · both surfaces updated: the [Task]'s metadata and the scratchpad.
         TaskUpdate(c.task, metadata={"action": c.action, "commit_sha": sha,
@@ -123,7 +147,7 @@ def address_pr_comments(pr, filters):
             #        runner already handed back.
             return abort("repo-green gate HALT - surface surviving red")  # 20b1
 
-    confirm_with_user("git push")   # 21 · Step 6 - the batch push gate
+    # 21 · Step 6 - no push confirmation: the user already approved every cluster
     while True:
         git("push")                                        # 22 · single batch push
         if not push_rejected_remote_moved():               # 23
@@ -137,8 +161,10 @@ def address_pr_comments(pr, filters):
     # A target is one thread_id, one top-level comment, or one review-summary -
     # never a single comment inside a thread, which would post duplicates.
     while targets_remaining_in_surviving_clusters():       # 24
-        # 24a · per templates 7a-7c (apply / answer / drop) and the signature
-        #       rules. Each reply is permission-gated.
+        # 24a · per reply-patterns.md templates (apply / answer / drop; reload
+        #       it if a compaction dropped it). Signature on apply, drop, and an
+        #       accepted drafted answer; none only on a user-typed answer
+        #       (answer_source == "user"). Each reply is permission-gated.
         #       inline -> GraphQL addPullRequestReviewThreadReply(thread_id)
         #       top-level / review-summary -> REST issue comment
         result = post_reply(next_target())                 # 24a
@@ -168,8 +194,9 @@ def address_pr_comments(pr, filters):
                 #        medium, serial. Test-first: confirm RED, apply, confirm GREEN.
                 dispatch("general-purpose · sonnet · medium", finding=f)
 
-    # 26 · Step 8 - applied / answered / dropped / skipped counts, plus the
-    #      repo-green gate verdict (when it ran) and the tails findings.
+    # 26 · Step 8 - applied / sites skipped / answered / dropped / skipped
+    #      counts, plus the repo-green gate verdict (when it ran) and the
+    #      tails findings.
     return print(final_summary())
 ```
 
@@ -186,7 +213,7 @@ flowchart TD
     n3b["3b. Add to TaskList a [Reminder] for Step 1:<br/>Validate preconditions (1a-1d)"]:::state
     n3c["3c. Add to TaskList a [Reminder] for Step 2:<br/>Resolve repo + own login"]:::state
     n3d["3d. Add to TaskList a [Reminder] for Step 3:<br/>Fetch, filter, cluster, rank, propose"]:::state
-    n3e["3e. Add to TaskList a [Reminder] for Step 4:<br/>Parse the user's edited block"]:::state
+    n3e["3e. Add to TaskList a [Reminder] for Step 4:<br/>Parse the AskUserQuestion answers"]:::state
     n3f["3f. Add to TaskList a [Reminder] for Step 5:<br/>Per-cluster commits + repo-green gate"]:::state
     n3g["3g. Add to TaskList a [Reminder] for Step 6:<br/>Batch push"]:::state
     n3h["3h. Add to TaskList a [Reminder] for Step 7:<br/>Post replies (7a-7d)"]:::state
@@ -208,22 +235,22 @@ flowchart TD
   n9b1["9b1. Load debug-standards<br/>(Skill tool)"]:::skill
   n9b2["9b2. Abort: fix pre-existing<br/>breakage first"]
   n10["10. Step 2: Resolve owner/repo<br/>and own gh login"]
-  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; medium<br/>background (single, serial)<br/><br/>Reads fetch-cluster-propose.md<br/>+ review-principles.md<br/>fetch, filter, cluster, rank, propose"]:::dispatch
+  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background (single, serial)<br/><br/>Reads fetch-cluster-propose.md<br/>+ review-principles.md<br/>fetch, filter, cluster, rank, propose<br/><br/>Apply cluster: generalizes the AI: note into a PR-wide Rule;<br/>runs gh pr diff once, sweeps every added line;<br/>returns Sites, each with a before -&gt; after or pseudo-code preview<br/>(a site matching several rules goes to the highest-ranked cluster)<br/>Answer cluster: returns a Draft answer"]:::dispatch
   n12{"12. Subagent found<br/>zero matching comments?"}
   n12a["12a. Stop - no clusters to address"]
-  n13["13. Return proposal block to user"]
-  n14["14. User edits proposal block<br/>one round: flip actions, edit reasons, delete clusters<br/>(per-cluster action approval)"]:::gate
-  n15["15. Step 4: Parse edited block"]
-  n16{"16. Parse succeeded?"}
-  n16a["16a. Surface exact issue,<br/>ask user to re-send"]
+  n13["13. Output step: load reply-patterns.md, then PRINT in chat<br/>one preview block per cluster, BEFORE the first AskUserQuestion<br/><br/>- comment lines<br/>- Apply -&gt; Rule + code sites (before -&gt; after) + apply reply<br/>- Answer -&gt; Draft answer, signed<br/>- Drop -&gt; drop reply with proposed reason<br/>- Skip -&gt; no commit, no reply, thread stays open"]
+  n14["14. Ask via AskUserQuestion: one question per cluster<br/>one unbroken round, 4 clusters per call<br/>options Apply / Answer / Drop / Skip, default first (Recommended)<br/>each option's preview = comment lines + that option's own lines<br/><br/>Other overrides: typed text becomes answer_body (unsigned),<br/>rule / planned_change, or drop_reason"]:::gate
+  n15["15. Step 4: Parse the answers<br/>per cluster: action (skip = no task, no reply),<br/>comment_ids, thread_ids, urls<br/>apply adds planned_change, rule, sites<br/>answer records answer_source: draft (plain Answer)<br/>or user (typed via Other)"]
+  n16{"16. Plain Answer on a cluster<br/>with no Draft answer?"}
+  n16a["16a. Ask for those answer texts<br/>one follow-up AskUserQuestion round, 4 per call"]:::gate
   n17["17. Create one [Task] per applied cluster<br/>(TaskList)"]:::state
   n18{"18. Step 5 &middot; Repo-green gate<br/>toggle on (step 0)?"}
   n18a["18a. Dispatch repo-green-runner<br/>mode=baseline (background)<br/><br/>Fixes nothing; records log path,<br/>failure signatures, suite inventory<br/>for the gate below to diff against"]:::dispatch
   n19{"19. Step 5 &middot; More apply<br/>clusters to commit?"}
   n19a["19a. Load code-standards / test-standards /<br/>doc-standards as applicable<br/>(Skill tool)"]:::skill
-  n19b["19b. Make code changes for cluster;<br/>stage only relevant files"]
+  n19b["19b. Edit every site of the cluster (not only the commented lines),<br/>each located by content, not line number;<br/>a site whose content no longer matches is skipped<br/>and listed in the final report;<br/>stage only relevant files"]
   n19c["19c. Load commit-standards<br/>(Skill tool)"]:::skill
-  n19d["19d. Commit the cluster's<br/>staged changes"]
+  n19d["19d. Commit the cluster's staged changes<br/>body: Addresses: (comment URLs)<br/>+ Sites: (edited sites)"]
   n19e["19e. Update cluster's [Task] metadata<br/>+ scratchpad file<br/>(action, commit_sha, status)"]:::state
   n19f{"19f. Edits touched files<br/>outside cluster scope?"}
   n19f1["19f1. Ask user: a separate<br/>Drift commit, or bundle"]
@@ -231,12 +258,12 @@ flowchart TD
   n20a["20a. Dispatch repo-green-runner<br/>mode=gate (background)<br/><br/>Fixes only batch-caused red<br/>(own 3-cycle/signature budget);<br/>never touches pre-existing red"]:::dispatch
   n20b{"20b. Gate verdict?<br/>GREEN / GREEN-WITH-EXCEPTIONS / HALT"}
   n20b1["20b1. Abort: stop before push<br/>surface surviving red set<br/>never hand-fix, never auto-retry"]
-  n21["21. Step 6: Confirm git push with user<br/>(batch push gate)"]:::gate
+  n21["21. Step 6: push without confirmation<br/>(every cluster already approved)"]
   n22["22. git push - single batch push"]
   n23{"23. Push rejected<br/>remote moved?"}
   n23a["23a. Abort: stop, surface to user<br/>per-cluster commits stand<br/>user resolves divergence manually<br/>(never auto-rebase)"]
   n24{"24. Step 7 &middot; More reply targets<br/>in surviving clusters?<br/>(target = one thread_id, top-level, or review-summary)"}
-  n24a["24a. Post reply per 7a-7c templates<br/>apply/answer/drop, signature rules<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>(permission-gated per target)"]:::gate
+  n24a["24a. Post reply per reply-patterns.md templates<br/>apply/answer/drop<br/>signature on apply, drop, and accepted drafted answer;<br/>none only on a user-typed answer<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>(permission-gated per target)"]:::gate
   n24b{"24b. Permission<br/>denied?"}
   n24b1["24b1. Skip reply;<br/>list in final report"]
   n24b2{"24b2. gh api<br/>call failed?"}
@@ -249,7 +276,7 @@ flowchart TD
   n25c["25c. Read both verdict reports;<br/>synthesize prioritized summary;<br/>offer to apply (report-only by default)"]
   n25d{"25d. User names specific<br/>findings to apply?"}
   n25d1["25d1. Dispatch a fresh subagent per named finding<br/>general-purpose &middot; sonnet &middot; medium<br/>serial per named finding<br/><br/>test-first: confirm RED, apply fix, confirm GREEN"]:::dispatch
-  n26["26. Step 8: Print final summary<br/>applied/answered/dropped/skipped counts<br/>+ repo-green gate verdict (if it ran)<br/>+ tails findings (if they ran)"]
+  n26["26. Step 8: Print final summary<br/>applied / sites skipped (content no longer matched)<br/>/ answered / dropped / skipped counts<br/>+ repo-green gate verdict (if it ran)<br/>+ tails findings (if they ran)"]
 
   n1 --> n2
   n2 --> n3a
@@ -276,9 +303,9 @@ flowchart TD
   n13 --> n14
   n14 --> n15
   n15 --> n16
-  n16 -->|"fails"| n16a
-  n16a --> n14
-  n16 -->|"succeeds"| n17
+  n16 -->|"yes"| n16a
+  n16a --> n17
+  n16 -->|"no"| n17
   n17 --> n18
   n18 -->|"yes"| n18a
   n18a --> n19
