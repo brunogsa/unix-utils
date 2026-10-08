@@ -125,8 +125,8 @@ class BudgetStatus:
         # runaway gate-fixing loop (gate_dispatches piling up).
         #
         # Because a single task alone can never exceed
-        # MAX_ATTEMPTS + 1 attempts before the per-task
-        # "stuck" verdict already caught it.
+        # MAX_ATTEMPTS + 1 non-pass attempts before the
+        # per-task "stuck" verdict already caught it.
         self.exhausted = total_dispatches >= budget_threshold
 
 
@@ -255,9 +255,16 @@ def verdict_pass(state: dict, current_task: str) -> None:
 
 
 def verdict_fail_or_timeout(state: dict, current_task: str) -> None:
-    task_attempts = [a for a in state["attempts"] if a["task"] == current_task]
-    n_attempts = len(task_attempts)
-    signatures = [normalize_signature(a["signature"]) for a in task_attempts]
+    # Both the attempt cap and the signature window read only
+    # non-pass attempts: /implement records one attempt per
+    # chunk dispatch, and a passing chunk is forward progress
+    # on the task, not a retry of it.
+    failed_attempts = [
+        a for a in state["attempts"]
+        if a["task"] == current_task and a["result"] != "pass"
+    ]
+    n_attempts = len(failed_attempts)
+    signatures = [normalize_signature(a["signature"]) for a in failed_attempts]
 
     # A "blocked" attempt (handled by the caller before this
     # function runs) verdicts "stuck" on its first occurrence,

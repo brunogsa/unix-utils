@@ -12,7 +12,7 @@ This file obeys only `retry`, `stuck`, and `halt-budget` - the ones a failed or 
 
 | Verdict | When | Routes to |
 |---|---|---|
-| `retry` | a `fail`/`timeout` attempt, under the attempt cap, not yet a repeating signature | re-dispatch the same task (§4) |
+| `retry` | a `fail`/`timeout` attempt, under the attempt cap (passing attempts never count toward it), not yet a repeating signature | re-dispatch the same task (§4) |
 | `stuck` | a `blocked` attempt (first try), or a `fail`/`timeout` run that stopped converging | §5.3 below - mark terminal, chain-abort dependents |
 | `next-task` | a `pass` attempt, with another non-terminal task still pending | §3.4 - activate that task |
 | `gates` | a `pass` attempt, every task now `done`, none `blocked` | [`batch-end-review.md`](batch-end-review.md)'s §8.1 |
@@ -36,6 +36,8 @@ Run `~/.claude/skills/implement/scripts/implement-loop-state.py <state-file>` an
 - **`retry`** → re-dispatch the **same task** as a fresh subagent (§4), passing the recorded failure as feedback.
 - **`stuck`** → go to §5.3 below.
   - A `fail`/`timeout` attempt earns this only once the script judges the failures aren't converging (too many attempts, or a repeating failure signature).
+
+  - Both checks count only the task's non-pass attempts, so a task split into chunk dispatches never nears the cap through chunks that passed.
 
   - A `blocked` attempt always earns it on the first try: only the human can clear a real blocker, so retrying just burns a dispatch.
 
