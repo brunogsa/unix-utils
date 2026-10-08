@@ -436,7 +436,7 @@ fi
 # directory itself at maxdepth 1 - a "/*" glob here would
 # no-op, since synced/ is the entry being listed, not a
 # descendant of one.
-skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -path "$SYNCED_DIR" | wc -l | tr -d ' ')
+skill_count=$(find -L "$SKILLS_DIR" -maxdepth 1 -mindepth 1 -type d ! -path "$SYNCED_DIR" ! -name .trash | wc -l | tr -d ' ')
 
 skill_overages=""
 skill_size_over=0
@@ -647,7 +647,7 @@ while IFS= read -r bf; do
         bundled_overages+=$'\n'"- $rel:$b_issues"
         bundled_over=$((bundled_over + 1))
     fi
-done < <(find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
+done < <(find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" ! -path "*/.trash/*" \( -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort)
 
 # Agent-contract measurement - always the canonical dir
 # resolved above, never $SKILLS_DIR or $1.
@@ -842,7 +842,7 @@ if [ -x "$density_script" ]; then
     density_targets=()
     [ "$has_claude_md" -eq 1 ] && density_targets+=("$CLAUDE_MD")
     while IFS= read -r f; do density_targets+=("$f"); done < <(
-        find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
+        find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" ! -path "*/.trash/*" \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
     )
     if [ "${#density_targets[@]}" -gt 0 ]; then
         # Exit 2 means the scan stopped early, so its partial

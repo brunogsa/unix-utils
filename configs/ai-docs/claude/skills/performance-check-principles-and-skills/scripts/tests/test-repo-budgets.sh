@@ -74,8 +74,31 @@ it_should_fail_when_a_bundled_reference_exceeds_its_word_budget() {
     rm -rf "$d"
 }
 
+# The skills/.trash/ bin holds deleted skills; none of it ships,
+# so an over-budget file there must not count against any budget.
+it_should_ignore_an_over_budget_file_inside_a_trash_directory() {
+    echo "it_should_ignore_an_over_budget_file_inside_a_trash_directory"
+    local d
+    d=$(mktemp -d)
+    # A marker-bearing CLAUDE.md: a marker-less one is reported UNMIGRATED,
+    # which fails the run for a reason unrelated to .trash.
+    printf -- '# Principles\n\n- [Instruction] Be brief.\n  - [Why] Brevity saves tokens.\n' > "$d/CLAUDE.md"
+    mkdir -p "$d/skills/real-skill" "$d/skills/.trash/old-skill/references"
+    printf -- '---\nname: real-skill\ndescription: "Real."\n---\n\n- [Instruction] Do the thing.\n' \
+        > "$d/skills/real-skill/SKILL.md"
+    { printf 'word %.0s' $(seq 1 1100); printf '\n'; } \
+        > "$d/skills/.trash/old-skill/references/over-budget.md"
+
+    local rc
+    bash "$CHECK" "$d" >/dev/null 2>&1
+    rc=$?
+    assert_eq "check.sh exits 0 when only .trash holds an over-budget file" "0" "$rc"
+    rm -rf "$d"
+}
+
 it_should_meet_every_budget_in_this_repos_claude_tree
 it_should_fail_when_a_bundled_reference_exceeds_its_word_budget
+it_should_ignore_an_over_budget_file_inside_a_trash_directory
 
 echo
 echo "$passed passed, $failed failed"
