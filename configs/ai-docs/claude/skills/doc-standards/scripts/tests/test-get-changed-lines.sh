@@ -197,6 +197,22 @@ printf 'alpha\nbravo\nCHARLIE edited\ndelta\necho\nfoxtrot\n' > "$repo/new-name.
 out=$(cd "$repo" && "$SCRIPT" new-name.md)
 assert_eq "file renamed with one edited line reports only that line" "3" "$out"
 
+# --- Case 14: staged new file while an unrelated tracked file
+# is deleted -> still every line.
+#
+# Rename detection sees an add and a delete in the same diff;
+# dissimilar content must not be paired into a rename that
+# hides the new file's lines.
+repo=$(new_repo repo14)
+printf 'alpha\nbravo\ncharlie\n' > "$repo/removed.md"
+git -C "$repo" add removed.md
+git -C "$repo" commit -q -m base
+git -C "$repo" rm -q removed.md
+printf 'one\ntwo\nthree\n' > "$repo/added.md"
+git -C "$repo" add added.md
+out=$(cd "$repo" && "$SCRIPT" added.md)
+assert_eq "staged new file unrelated to a deleted file reports every line" "$(printf '1\n2\n3')" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]
