@@ -12,7 +12,15 @@ Step 7's reply mechanics - templates, the `gh api` call per reply-target kind, a
 _via Claude Code (`address-pr-comments`)_
 ```
 
-**Answer** - the user-supplied answer text, in the user's voice, no signature (see "Signature rule" below).
+**Answer** - the drafted answer the user accepted (`answer_source: draft`), signed:
+
+```
+<draft answer>
+
+_via Claude Code (`address-pr-comments`)_
+```
+
+Or the text the user typed via "Other" (`answer_source: user`), in their own voice, no signature (see "Signature rule" below):
 
 ```
 <answer_body>
@@ -50,8 +58,7 @@ That `@<author> re: <link>` prefix pings the commenter and preserves thread cont
 
 ## Signature rule
 
-`apply` and `drop` replies carry the AI signature **mandatorily**; `answer` replies carry **none** - an answer is the user's reasoning in the user's voice, and an AI tag
-dilutes that ownership (see "Answer replies - no signature" below).
+Every reply Claude wrote carries the AI signature **mandatorily** - `apply`, `drop`, and an accepted drafted answer. Only an answer the user typed carries **none**: it is their reasoning in their own voice, and an AI tag dilutes that ownership (see "Answer replies" below).
 
 The inverse case - a comment addressed to Claude, answered in Claude's own voice - belongs to `gh-answer-claude-mentions`, not here.
 
@@ -72,11 +79,13 @@ Reviewer wrote what they wrote. Acknowledge it landed, link the proof, move on. 
 
 Ack is optional - bare URL works.
 
-## Answer replies - no signature
+## Answer replies - signed only when Claude drafted them
 
-Observed: user stripped the AI signature on cluster C3 of PR #2030 for an `answer` reply.
+Observed: user stripped the AI signature on cluster C3 of PR #2030 for an `answer` reply they wrote themselves.
 
-Tagging an `answer` as AI-assisted dilutes ownership; the reviewer discounts it. That's why `answer` replies omit the signature.
+Tagging a user-written answer as AI-assisted dilutes ownership; the reviewer discounts it. That's why a typed answer omits the signature.
+
+A drafted answer is Claude's wording, even once the user accepts it, so it keeps the signature like any other reply Claude wrote - a reviewer should know which words came from the AI.
 
 ## Ownership rationale (inline threads)
 
