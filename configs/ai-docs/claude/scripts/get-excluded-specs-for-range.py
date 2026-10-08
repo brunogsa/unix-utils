@@ -43,6 +43,12 @@ IMPORT_SPECIFIER_PATTERN = re.compile(
 
 PATH_WILDCARD = "*"
 
+# A string literal is matched first so a "//" inside a path
+# value is kept, not read as a comment.
+JSONC_COMMENT_OR_STRING_PATTERN = re.compile(r'"(?:\\.|[^"\\])*"|//[^\n]*|/\*.*?\*/', re.DOTALL)
+
+JSONC_TRAILING_COMMA_PATTERN = re.compile(r",(\s*[}\]])")
+
 
 def run_git(repo_root, *args):
     return subprocess.run(
@@ -90,10 +96,9 @@ def get_nearest_tsconfig_paths(repo_root, spec_path, cache):
     """Return (base_dir, paths) from the nearest tsconfig.json above
     the spec that declares compilerOptions.paths, or None.
 
-    A tsconfig that is not plain JSON (comments, trailing commas) is
-    skipped rather than parsed loosely, so its aliases go unresolved
-    and the specs using them go unlisted - a missed spec, never a
-    wrong one."""
+    A tsconfig that still fails to parse after comments and trailing
+    commas are stripped is skipped with a stderr warning, so its
+    aliases go unresolved and the specs using them go unlisted."""
     directory = posixpath.dirname(spec_path)
     while True:
         if directory not in cache:
@@ -110,7 +115,8 @@ def read_tsconfig_paths(repo_root, directory):
     if not tsconfig_file.is_file():
         return None
     try:
-        compiler_options = json.loads(tsconfig_file.read_text(encoding="utf-8")).get("compilerOptions", {})
+        tsconfig_text = get_plain_json(tsconfig_file.read_text(encoding="utf-8"))
+        compiler_options = json.loads(tsconfig_text).get("compilerOptions", {})
     except json.JSONDecodeError as error:
         print(f"warning: skipping unparseable {tsconfig_file}: {error}", file=sys.stderr)
         return None
@@ -120,6 +126,16 @@ def read_tsconfig_paths(repo_root, directory):
         return None
     base_dir = posixpath.normpath(posixpath.join(directory, compiler_options.get("baseUrl", ".")))
     return base_dir, paths
+
+
+def get_plain_json(tsconfig_text):
+    """Return tsconfig text with the comments and trailing commas
+    tsc accepts removed, leaving string literals untouched."""
+    without_comments = JSONC_COMMENT_OR_STRING_PATTERN.sub(
+        lambda match: match.group(0) if match.group(0).startswith('"') else "",
+        tsconfig_text,
+    )
+    return JSONC_TRAILING_COMMA_PATTERN.sub(r"\1", without_comments)
 
 
 def get_alias_targets(specifier, tsconfig_paths):

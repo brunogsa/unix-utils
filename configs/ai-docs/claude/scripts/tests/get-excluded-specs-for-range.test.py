@@ -101,6 +101,32 @@ class TestFinderListsSpecsReferencingAChangedFile:
         assert result.returncode == 0, result.stderr
         assert result.stdout.splitlines() == [spec]
 
+    def test_should_list_an_alias_importing_spec_when_the_tsconfig_carries_comments_and_trailing_commas(
+        self, tmp_path
+    ):
+        _init_incident_shaped_repo(tmp_path)
+        _write(
+            tmp_path,
+            "core/tsconfig.json",
+            '{\n'
+            '  // module aliases shared by src and test\n'
+            '  "compilerOptions": {\n'
+            '    "baseUrl": "./",\n'
+            '    /* one alias per module */\n'
+            '    "paths": { "@orders/*": ["src/modules/orders/*"], },\n'
+            '  },\n'
+            '}\n',
+        )
+        spec = "core/test/modules/orders/consumers/x.consumer.integration.spec.ts"
+        _write(tmp_path, spec, "import { CreateX } from '@orders/create-x';\n")
+        _commit_all(tmp_path, "baseline")
+        _change_use_case(tmp_path, CHANGED_USE_CASE)
+
+        result = _run(tmp_path, "HEAD~1..HEAD")
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [spec]
+
     def test_should_list_an_e2e_spec_that_imports_the_changed_use_case_by_relative_path(
         self, tmp_path
     ):
