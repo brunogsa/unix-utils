@@ -35,6 +35,10 @@
 # extension the prose checkers do not handle, and any target
 # the guard cannot resolve to a literal path.
 #
+# The one closed failure: when lib/prose-format-extensions.sh
+# cannot be read, every extension is guarded, since that is a
+# broken install rather than a command the guard cannot parse.
+#
 # Also allowed: a bare system `cat` copying only literal,
 # existing files into a guarded path, such as
 # `cat /tmp/batch.md >> notes.md`, once every source passes the
@@ -69,6 +73,12 @@ printf '%s' "$CMD" \
 CLAUDE_HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export CLAUDE_HOOKS_DIR
 export CLAUDE_BASH_WRITE_CMD="$CMD"
+
+# why: the prose-format hook routes these same extensions to its
+# checkers, so one list keeps the two hooks from drifting.
+# shellcheck source=lib/prose-format-extensions.sh
+. "$CLAUDE_HOOKS_DIR/lib/prose-format-extensions.sh" 2>/dev/null
+export CLAUDE_GUARDED_EXTENSIONS="${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-} ${PROSE_FORMAT_COMMENT_EXTENSIONS:-}"
 python3 - <<'PYEOF'
 import importlib.util
 import json
@@ -94,7 +104,13 @@ split_into_pipelines = _parse_shell_command.split_into_pipelines
 # The extensions the PostToolUse prose-format hook routes to a
 # checker. Any other extension has no checker to bypass, so a
 # Bash write to it costs nothing.
-GUARDED_EXTENSIONS = {'md', 'ts', 'tsx', 'js', 'jsx', 'sh', 'bash', 'py'}
+#
+# An empty set means the shared list could not be read; the
+# guard then treats every extension as guarded, since the
+# list's absence is a broken install, not a command it cannot
+# resolve.
+EXTENSION_LIST_PATH = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'prose-format-extensions.sh')
+GUARDED_EXTENSIONS = set(os.environ.get('CLAUDE_GUARDED_EXTENSIONS', '').split())
 
 # Scratch homes the environment tells every session to write
 # into. A session scratchpad lives under one of these.
@@ -211,6 +227,8 @@ def guarded_extension(path):
     name = os.path.basename(path)
     if '.' not in name:
         return False
+    if not GUARDED_EXTENSIONS:
+        return True
     return name.rsplit('.', 1)[-1].lower() in GUARDED_EXTENSIONS
 
 
@@ -338,6 +356,10 @@ def format_report(source, destination):
     # The temp copy carries the destination's extension, since
     # the hook picks its checkers by extension, and the scratch
     # flag stops the hook skipping a file under temp.
+    if not GUARDED_EXTENSIONS:
+        # why: the hook reads the same missing list, so it would
+        # check nothing and pass every source.
+        return 'could not check {}: no shared extension list\n'.format(source)
     extension = destination.rsplit('.', 1)[-1]
     payload_env = dict(os.environ, CLAUDE_PROSE_FORMAT_CHECK_SCRATCH='1')
     with tempfile.TemporaryDirectory() as directory:
@@ -397,6 +419,8 @@ for path in blocked:
     message.append('  - ' + path)
 message.append('A Bash write skips the PostToolUse prose-format checker, so its violations surface later as a red suite.')
 message.append('Scratch under /tmp, git-ignored paths, and anything outside a git work tree are allowed.')
+if not GUARDED_EXTENSIONS:
+    message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
 if format_reports:
     message.append('A `cat` copy of existing files passes only when every source passes the destination format checker; these did not:')
     message.extend(format_reports)

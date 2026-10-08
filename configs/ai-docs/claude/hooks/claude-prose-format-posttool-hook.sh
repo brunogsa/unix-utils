@@ -50,6 +50,9 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 doc_scripts_dir="$script_dir/../skills/doc-standards/scripts"
 
+# shellcheck source=lib/prose-format-extensions.sh
+. "$script_dir/lib/prose-format-extensions.sh" 2>/dev/null
+
 VIOLATION_THRESHOLD=10
 
 INPUT=$(cat)
@@ -108,25 +111,20 @@ check_file() {
 ext="${FILE_PATH##*.}"
 base="$(basename -- "$FILE_PATH")"
 
-# The comment-format arm lists its extensions literally: this
-# runs on every write, and asking the checker for them would
-# cost a node startup each time. A test pins the list to
-# check-comment-format.js --list-extensions.
-#
 # checker_names holds the checker basenames for this file's
 # extension, in the fixed order they run and report in.
 checker_names=()
-case "$ext" in
-  md)
+case " ${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-} " in
+  *" $ext "*)
     checker_names=(check-density.sh check-hard-wrap.py check-bullet-gap.py check-bullet-structure.py)
     ;;
-  ts|tsx|mts|cts|js|jsx|mjs|cjs|sh|bash|zsh|ksh|py|pyi|jsonc|go|yaml|yml|awk|tf|tfvars|lua|css|html|htm)
+esac
+case " ${PROSE_FORMAT_COMMENT_EXTENSIONS:-} " in
+  *" $ext "*)
     checker_names=(check-comment-format.js)
     ;;
-  *)
-    return 0
-    ;;
 esac
+[ "${#checker_names[@]}" -eq 0 ] && return 0
 
 # label_for_tag - normalize a checker's own violation tag
 # (the first token of its output line) to this hook's

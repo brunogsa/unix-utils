@@ -142,6 +142,49 @@ it_should_allow_a_redirect_onto_an_extension_the_prose_checkers_ignore() {
   assert_eq "should allow a redirect onto an extension the prose checkers ignore" "0" "$HOOK_EXIT"
 }
 
+it_should_block_a_redirect_onto_a_yaml_file_the_comment_checker_handles() {
+  run_hook "printf 'retries: 3' > config.yaml"
+  assert_eq "should block a redirect onto a yaml file, which the prose-format hook routes to the comment checker" "2" "$HOOK_EXIT"
+}
+
+# run_guard_copy_without_extension_list - runs a copy of the
+# guard from a hooks dir that lacks the shared extension list,
+# capturing HOOK_EXIT and HOOK_STDERR.
+#
+# The copy keeps lib/parse-shell-command.py: without it the
+# python import dies first, which proves nothing about the list.
+run_guard_copy_without_extension_list() {
+  local copy_dir="$fixture_base/hooks-without-extension-list" stdin_json
+  mkdir -p "$copy_dir/lib"
+  cp "$SCRIPT" "$copy_dir/"
+  cp "$script_dir/lib/parse-shell-command.py" "$copy_dir/lib/"
+  stdin_json=$(jq -n --arg c "$1" '{tool_input: {command: $c}}')
+  HOOK_STDERR=$(
+    cd "$sandbox_dir" || exit 1
+    printf '%s' "$stdin_json" | "$bash_bin" "$copy_dir/claude-bash-write-guard.sh" 2>&1 >/dev/null
+  )
+  HOOK_EXIT=$?
+}
+
+it_should_block_any_extension_when_the_shared_extension_list_is_missing() {
+  run_guard_copy_without_extension_list "printf '{}' > data.json"
+  assert_eq "should block even a json redirect when the shared extension list cannot be read" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_cat_copy_when_the_shared_extension_list_is_missing() {
+  run_guard_copy_without_extension_list "cat $outside_dir/batch.md >> README.md"
+  assert_eq "should block a cat copy it cannot format-check because the shared extension list is missing" "2" "$HOOK_EXIT"
+}
+
+it_should_name_the_missing_extension_list_when_it_blocks_for_lack_of_it() {
+  run_guard_copy_without_extension_list "printf '{}' > data.json"
+  local named="no"
+  case "$HOOK_STDERR" in
+    *prose-format-extensions.sh*) named="yes" ;;
+  esac
+  assert_eq "should name the missing extension list file in the denial" "yes" "$named"
+}
+
 it_should_allow_a_redirect_onto_a_gitignored_path() {
   run_hook "printf 'compiled' > build/bundle.js"
   assert_eq "should allow a redirect onto a git-ignored path" "0" "$HOOK_EXIT"
@@ -320,6 +363,10 @@ it_should_block_an_in_place_sed_using_the_attached_backup_suffix_form
 it_should_allow_reading_a_repo_file
 it_should_allow_a_redirect_into_tmp
 it_should_allow_a_redirect_onto_an_extension_the_prose_checkers_ignore
+it_should_block_a_redirect_onto_a_yaml_file_the_comment_checker_handles
+it_should_block_any_extension_when_the_shared_extension_list_is_missing
+it_should_block_a_cat_copy_when_the_shared_extension_list_is_missing
+it_should_name_the_missing_extension_list_when_it_blocks_for_lack_of_it
 it_should_allow_a_redirect_onto_a_gitignored_path
 it_should_allow_git_checkout_restoring_a_tracked_source_file
 it_should_allow_git_stash_even_though_it_rewrites_the_work_tree

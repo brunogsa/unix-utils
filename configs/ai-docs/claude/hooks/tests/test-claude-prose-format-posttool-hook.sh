@@ -898,8 +898,9 @@ it_should_ignore_an_empty_or_root_tmpdir() {
   assert_eq "should exit 2 when TMPDIR is / (it would exempt every file)" "2" "$HOOK_EXIT"
 }
 
-# The hook keeps a literal extension list in its `case` so the
-# `*)` arm returns without a node startup on every write.
+# The hook reads a literal extension list from
+# lib/prose-format-extensions.sh so an unhandled extension
+# returns without a node startup on every write.
 #
 # This pins that literal to the checker's own
 # --list-extensions, so widening one without the other fails
@@ -908,8 +909,11 @@ it_should_gate_exactly_the_extensions_the_checker_lists() {
   local checker="$script_dir/../skills/doc-standards/scripts/check-comment-format.js"
   local checker_set hook_set
   checker_set=$(node "$checker" --list-extensions | sed 's/^\.//' | sort)
-  hook_set=$(grep -B1 -F 'checker_names=(check-comment-format.js)' "$SCRIPT" \
-    | head -n1 | tr -d ' )' | tr '|' '\n' | sort)
+  hook_set=$(
+    # shellcheck source=../lib/prose-format-extensions.sh
+    . "$script_dir/lib/prose-format-extensions.sh"
+    printf '%s\n' $PROSE_FORMAT_COMMENT_EXTENSIONS | sort
+  )
   assert_eq "should gate exactly the extensions check-comment-format.js lists" "$checker_set" "$hook_set"
 }
 
