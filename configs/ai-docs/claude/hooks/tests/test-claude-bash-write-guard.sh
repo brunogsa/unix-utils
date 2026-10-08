@@ -283,6 +283,18 @@ it_should_block_cat_with_a_flag_that_rewrites_the_copied_content() {
   assert_eq "should block cat with a flag such as -n, which adds text the source file never held" "2" "$HOOK_EXIT"
 }
 
+it_should_block_a_copy_run_through_a_local_script_named_cat() {
+  printf '#!/bin/sh\necho typed text\n' > "$outside_dir/cat"
+  run_hook_in "$outside_dir" "./cat batch.md >> $sandbox_dir/README.md"
+  rm -f "$outside_dir/cat"
+  assert_eq "should block a copy run through a local script named cat, which can write any text" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_copy_through_cat_with_a_rewritten_search_path() {
+  run_hook "PATH=/tmp:\$PATH cat $outside_dir/batch.md >> README.md"
+  assert_eq "should block a cat copy run with a rewritten PATH, which can pick any program named cat" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -321,6 +333,8 @@ it_should_block_cat_appending_its_standard_input_named_as_a_dash
 it_should_block_cat_appending_a_source_file_that_does_not_exist
 it_should_block_cat_appending_a_source_named_by_command_substitution
 it_should_block_cat_with_a_flag_that_rewrites_the_copied_content
+it_should_block_a_copy_run_through_a_local_script_named_cat
+it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

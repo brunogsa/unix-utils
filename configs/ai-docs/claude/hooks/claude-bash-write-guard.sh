@@ -99,6 +99,11 @@ REDIRECT_TOKEN = re.compile(r'^(?:[0-9]*|&)(>>?)(.*)$')
 
 WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 
+# The only spellings a file-to-file copy may start with. A
+# `./cat`, a `PATH=` prefix or a wrapper can run any program
+# named cat, which can write any text it likes.
+SYSTEM_CAT_EXECUTABLES = ('cat', '/bin/cat', '/usr/bin/cat')
+
 IN_PLACE_EDITORS = ('sed', 'gsed', 'perl')
 
 cmd = os.environ.get('CLAUDE_BASH_WRITE_CMD', '')
@@ -296,7 +301,9 @@ def is_copy_of_existing_files(exe, tokens, cwd, is_piped_into):
     # A pipe, a heredoc or here-string (`<<`), stdin (`-`), a
     # flag that rewrites the text (`-n`) or a source the guard
     # cannot see on disk all let typed or generated text in.
-    if exe != 'cat' or is_piped_into:
+    if not tokens or tokens[0] not in SYSTEM_CAT_EXECUTABLES:
+        return False
+    if is_piped_into:
         return False
     arguments = arguments_after(exe, tokens)
     if any(token.startswith(('-', '<')) for token in arguments):
