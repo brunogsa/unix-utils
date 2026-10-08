@@ -197,6 +197,36 @@ it_should_report_a_wall_of_text_write_with_an_uppercase_extension() {
   assert_contains "should name the file in the report" "NOTES.MD" "$HOOK_OUT"
 }
 
+# tasklist.md bodies are TaskGet text the sweeper keeps
+# verbatim, so the hook exempts that exact basename only.
+it_should_skip_a_wall_of_text_in_a_file_named_tasklist_md() {
+  local dir long_line
+  dir=$(new_repo_fixture)
+  long_line=$(python3 -c "print('word ' * 120)")
+  {
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+  } > "$dir/tasklist.md"
+  run_hook "Write" "$dir/tasklist.md"
+  assert_eq "should exit 0 on a tasklist.md wall of text" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a tasklist.md wall of text" "" "$HOOK_OUT"
+}
+
+it_should_still_report_a_wall_of_text_in_a_file_that_only_ends_in_tasklist_md() {
+  local dir long_line
+  dir=$(new_repo_fixture)
+  long_line=$(python3 -c "print('word ' * 120)")
+  {
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+    printf '%s\n\n' "$long_line"
+  } > "$dir/my-tasklist.md"
+  run_hook "Write" "$dir/my-tasklist.md"
+  assert_eq "should exit 2 on a my-tasklist.md wall of text" "2" "$HOOK_EXIT"
+  assert_contains "should name the file in the report" "my-tasklist.md" "$HOOK_OUT"
+}
+
 it_should_use_the_counts_regime_over_the_threshold() {
   local dir long_line i
   dir=$(new_repo_fixture)
@@ -948,6 +978,8 @@ it_should_ignore_an_empty_or_root_tmpdir
 it_should_stay_silent_on_a_bash_payload_even_when_the_work_tree_holds_a_fresh_wall_of_text
 it_should_report_a_wall_of_text_markdown_write
 it_should_report_a_wall_of_text_write_with_an_uppercase_extension
+it_should_skip_a_wall_of_text_in_a_file_named_tasklist_md
+it_should_still_report_a_wall_of_text_in_a_file_that_only_ends_in_tasklist_md
 it_should_use_the_counts_regime_over_the_threshold
 it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
 it_should_use_the_line_number_regime_under_the_threshold

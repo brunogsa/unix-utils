@@ -114,6 +114,10 @@ check_file() {
 ext="$(printf '%s' "${FILE_PATH##*.}" | tr '[:upper:]' '[:lower:]')"
 base="$(basename -- "$FILE_PATH")"
 
+# tasklist.md bodies are TaskGet text kept verbatim by the
+# sweeper, so no edit may fix them. Exact basename only.
+[ "$base" = "tasklist.md" ] && return 0
+
 # checker_names holds the checker basenames for this file's
 # extension, in the fixed order they run and report in.
 checker_names=()
