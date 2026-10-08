@@ -32,11 +32,12 @@
 #   calling tmux-window-title.sh -- handing it TO
 #   a subagent breaks the very rule it states.
 #
-#   session_id can't discriminate the two: a
-#   subagent inherits its parent's session_id, so
-#   only agent_id (agent_type is also set on a main session
-#   started with --agent) tells
-#   the orchestrator apart from the agents it spawned.
+#   session_id can't discriminate the two: a subagent
+#   inherits its parent's session_id.
+#
+#   Only agent_id tells the orchestrator apart from the agents
+#   it spawned, because agent_type is also set on a main
+#   session started with --agent.
 #
 #   Same precedent as claude-tmux-title-compact-reminder.sh.
 #

@@ -87,10 +87,11 @@
 #   into its own compaction summary, risking a push
 #   of another session's unreviewed commits.
 #
-#   agent_id alone (agent_type is also set on a main session
-#   started with --agent) scopes
-#   the reminder to the owning session only. Same
-#   precedent as claude-explore-mandate-hook.sh and
+#   agent_id alone scopes the reminder to the owning session
+#   only, because agent_type is also set on a main session
+#   started with --agent.
+#
+#   Same precedent as claude-explore-mandate-hook.sh and
 #   claude-stopfailure-resume.sh.
 #
 # Safeguards (all silent no-ops - never break Claude on a
