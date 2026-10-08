@@ -226,6 +226,21 @@ Visible line after the fence."""
         assert _measure(tmp_path, body, "Reproduction") == 6
 
 
+class TestSummaryWrapping:
+    def test_should_charge_a_same_line_summary_longer_than_the_wrap_width_its_wrapped_lines(self, tmp_path):
+        summary = (
+            "Scenario 1 - kit-less collection against Oracle EBS on stage, "
+            "read back the collection total, then re-ran it with the retry "
+            "backoff enabled"
+        )
+        body = f"""## Evidences
+
+<details><summary>{summary}</summary>exit 0</details>"""
+
+        # Heading + the 139-char summary wrapped at 95 chars.
+        assert _measure(tmp_path, body, "Evidences") == 3
+
+
 class TestVerdictAndExitCode:
     def test_should_pass_with_exit_0_when_the_body_fits_well_under_the_page(self, tmp_path):
         result = _run(_write_body(tmp_path, f"## Summary\n\n{_text_lines('summary', 9)}"))

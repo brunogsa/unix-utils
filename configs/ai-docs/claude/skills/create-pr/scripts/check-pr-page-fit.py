@@ -80,6 +80,10 @@ EMPTY_ANCHOR = re.compile(r"^[ \t]*<a[ \t][^>]*></a>[ \t]*$")
 EXPANDED_DETAILS = re.compile(r"<details[ \t]+open")
 DETAILS_CLOSER_LINE = re.compile(r"^[ \t]*</details>")
 CLOSED_FENCE = (False, "", 0)
+
+# Only the summary text shows on a collapsed one-line block;
+# the body after </summary> stays hidden.
+SAME_LINE_SUMMARY = re.compile(r"<summary[^>]*>(.*?)(?:</summary>|$)")
 HEADING = re.compile(r"^#+[ \t]")
 HEADING_MARKER = re.compile(r"^#+[ \t]*")
 
@@ -205,6 +209,9 @@ class PageMeter:
             return 1
         return max(1, math.ceil(self.visible_widths[index] / self.wrap_width))
 
+    def get_text_cost(self, text):
+        return max(1, math.ceil(get_visible_width(text) / self.wrap_width))
+
     def charge(self, cost):
         """Add a cost to the total and to every heading still
         open above it, so a section includes its subsections."""
@@ -234,6 +241,10 @@ class PageMeter:
         width - a long summary costs the same collapsed or
         expanded."""
         lines = self.lines
+        same_line_summary = SAME_LINE_SUMMARY.search(lines[opener_index])
+        if same_line_summary:
+            self.charge(self.get_text_cost(same_line_summary.group(1)))
+            return
         index = opener_index + 1
         while index < len(lines):
             if "<summary" in lines[index] or "</details>" in lines[index]:
