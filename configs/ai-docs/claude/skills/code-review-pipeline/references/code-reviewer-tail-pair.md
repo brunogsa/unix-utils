@@ -120,8 +120,7 @@ Lens routing beats one generic applier because the `refactor` agent refuses beha
 
 Under `--report-only` that tail still reaches the same routing, carrying only the planned-test findings - `/quality-gate` applies those on every run, so `address-verdicts` gets a `tdd-coder` dispatch either way.
 
-One difference: the orchestrator names them in-run.
-It does not wait for a human to name them after seeing the package.
+One difference: the orchestrator names them in-run. It does not wait for a human to name them after seeing the package.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.
 

@@ -20,14 +20,14 @@ SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the on
 Delivered work reaches the remote before anything that can stall gets a turn - two audited batches once stalled unpushed for ~40 hours on this gap.
 
 1. **Push the branch - always, on every batch end, regardless of `pr.wanted`.**
-   Use `git push -u origin HEAD`, covering both a fresh PR branch with no upstream and a plain run's branch that already has one.
-   A pushed branch with no PR is this skill's ordinary outcome, not half-finished.
+   - Use `git push -u origin HEAD`, covering both a fresh PR branch with no upstream and a plain run's branch that already has one.
+   - A pushed branch with no PR is this skill's ordinary outcome, not half-finished.
    - **On a stacked run**, [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) replaces this step.
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** - no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further.
 
 2. **Record the branch, then open the draft PR** - mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and [`batch-end-pr.md`](batch-end-pr.md).
-   The `Branch:` clause and PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
+   - The `Branch:` clause and PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
    - Step 1 already pushed, so that dispatch must never push or force-push, only create the PR.
    - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
    - `pr.wanted: false` is not a failure - proceed to §8.2 with no PR outcome to report.
@@ -36,9 +36,7 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 ## The quality-gate tail (§8.2)
 
-**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).**
-On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request.
-No retroactive re-run; invoke `/quality-gate` manually later.
+**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request. No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.3's repo-green gate so that gate gets the last word, measuring a tree that already carries the `test-sdd` leg's written tests.
 
@@ -77,9 +75,7 @@ The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2
 
 ## Repo-green GATE, run by the repo-green-runner agent (§8.3)
 
-**Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).**
-On no, skip this entire section - go straight to Finalize (§8.4).
-Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
+**Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).** On no, skip this entire section - go straight to Finalize (§8.4). Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
 
 Dispatch ONE fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)`, handing it `mode: gate`, the repo's full lint + full test commands repo-wide, and the state file's `baseline.failures` + `baseline.log_path` + `baseline.inventory`.
 
@@ -173,8 +169,7 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 
 ## Finalize - the step order inside §8.4
 
-1. **Re-push and refresh the PR description - only when §8.2 or §8.3 landed commits.**
-   Decide from the tree, not from memory: `git rev-list --count @{u}..HEAD` above zero is the trigger.
+1. **Re-push and refresh the PR description - only when §8.2 or §8.3 landed commits.** Decide from the tree, not from memory: `git rev-list --count @{u}..HEAD` above zero is the trigger.
    - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
 
    - **Something landed → `git push` first**, so the remote carries the gate fixes before anything describes them.
@@ -186,8 +181,9 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 2. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
 
 3. **Finalize the phase.**
-   Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm` - it lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
-   The Stop hook releases on this phase; a presented batch is never resumed.
+   - Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
+   - It lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
+   - The Stop hook releases on this phase; a presented batch is never resumed.
    - **`presented` is written here and nowhere earlier.**
    - Written before the gates, it would let a run stop with its gates unrun and its PR already open - the state §8.1's early push otherwise makes reachable.
 </content>
