@@ -25,6 +25,18 @@ They're independent report-only passes with no ordering dependency between them.
 - **Correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps. Writes `./verdict_auto-review_<YYYY-MM-DD_HH:MM>.md`.
 - When `<SPEC_PLAN_PATHS>` is given, also checks spec conformance against it.
 
+Each lens prompt also tells the lens to:
+
+- Write every finding in the layout of `~/.claude/skills/code-review-pipeline/references/local-review-template.md`, following its worked example, in English.
+
+- Run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py <VERDICT_PATH>` after writing.
+  - On exit 1, rewrite only the flagged bodies to fit (cut prose, never drop Suggestion or Trade-off) and re-run, at most twice.
+  - Report any violations still remaining in the final message rather than looping.
+
+Without a named layout the lens falls back to its own Verdict/Reasoning/Evidence format, which neither `address-verdicts` nor the `pr-review` layout parses.
+
+Keep that layout instruction outside the preamble block below - `test-sdd` reuses the preamble verbatim with its own schema.
+
 Each prompt leads with this preamble verbatim, substituting `<VERDICT_PATH>`:
 
 ```
