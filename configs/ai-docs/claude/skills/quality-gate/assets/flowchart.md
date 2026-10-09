@@ -5,6 +5,7 @@
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
 words-budget: 4096
+lines-budget: 512
 ---
 
 # quality-gate - flow overview
@@ -70,11 +71,8 @@ def quality_gate(arg):
         # 8c · scoped by --tasks, and dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{branch}_{ts}.md"),
     ] if plans else [...])
-    # 8d · hook: check-reviewer-writes - approves verdict_*.md and
-    #      verdict_*.html, AND any write under /tmp; everything else denied.
-    #      Each leg is told the /tmp half too: a leg believing only
-    #      verdict_* is writable skips the $work_dir persistence its
-    #      compaction-resume depends on.
+    # 8d · hook: check-reviewer-writes. Each leg is told /tmp is writable,
+    #      or it skips the $work_dir persistence its compaction-resume needs.
 
     for leg in legs:                                         # 9 · Step 4
         if not present_and_non_empty(leg.verdict_path):
@@ -92,15 +90,18 @@ def quality_gate(arg):
     if not sources:                                          # 10 · either lens produced a file?
         pass                                                 # 10a · neither did - skip the step
     else:
+        run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")     # minted once, before the pass/fail branch
         merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')
-        # 10b · ONE fresh code-reviewer, foreground, given the source paths,
-        #       the merged path and references/merge-review-verdicts.md. It
-        #       merges reports only: never re-reviews, never adds a finding.
+        # 10b · ONE fresh code-reviewer, foreground, given exactly the source
+        #       paths recorded above (never a glob that could pick up a stale
+        #       file), the merged path and references/merge-review-verdicts.md.
+        #       It merges reports only: never re-reviews, never adds a finding.
         dispatch_foreground("code-reviewer", sources, merged_path, "merge-review-verdicts.md")
-        run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")
         if merge_verified(merged_path, sources):             # 10c · main checks, without reading the file
-            # 10c · non-empty, checker exit 0, finding count <= sum of the
-            #       inputs', every heading carries exactly one lens tag.
+            # 10c · non-empty, checker exit 0, finding count == per-lens input
+            #       counts minus the duplicates the agent reports collapsing,
+            #       every heading carries exactly one lens tag. Headings are
+            #       counted fence-aware: a finding may quote one in a fence.
             move(sources, run_dir)                           # 10d · never delete; record moved paths for the report
             merged = merged_path
         else:
@@ -197,7 +198,7 @@ flowchart TD
     n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
   end
 
-  n8d["8d. Hook: check-reviewer-writes - approves verdict_*.md<br/>and verdict_*.html, AND any write under /tmp; else denied.<br/>Each leg is told the /tmp half too: a leg believing only<br/>verdict_* is writable skips the $work_dir persistence<br/>its compaction-resume depends on"]:::hook
+  n8d["8d. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook
   n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
@@ -205,9 +206,9 @@ flowchart TD
     direction TB
     n10{"10. Did the refactor or auto-review<br/>leg produce a file?"}
     n10a["10a. Neither did - skip the merge"]
-    n10b["10b. Dispatch ONE code-reviewer (fresh context, foreground)<br/>with the source path(s), the minted merged path and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
-    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count ≤ sum of inputs,<br/>every heading has exactly one lens tag?"}
-    n10d["10d. Pass - MOVE (never delete) both source files into<br/>mktemp -d /tmp/quality-gate.XXXXXX so address-verdicts<br/>cannot apply a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
+    n10b["10b. Record the resolved source paths; mint the run directory<br/>(mktemp -d /tmp/quality-gate.XXXXXX) and the merged path.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
+    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count == input counts<br/>minus collapsed duplicates, every heading has exactly<br/>one lens tag (headings counted fence-aware)?"}
+    n10d["10d. Pass - MOVE (never delete) both source files into<br/>the run directory so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
     n10e["10e. Fail - the two source files stay in CWD as this run's<br/>output; move the failed merged file into the run directory<br/>instead, and say so in the report"]:::gate
     n10 -->|"no"| n10a
     n10 -->|"yes"| n10b --> n10c
