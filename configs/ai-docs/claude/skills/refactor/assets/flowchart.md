@@ -38,7 +38,7 @@ def refactor(arg):
     #     other basename at exit 2 - and it beats report_/findings_
     #     because the harness intercepts those before any hook runs.
     #     One file per invocation; never reuse a prior run's path.
-    VERDICT_PATH = sh('date "+verdict_refactor_%Y-%m-%d_%H:%M.md"')
+    VERDICT_PATH = sh('date "+verdict_refactor_$(git branch --show-current | tr \'/\' \'-\')_%Y-%m-%d_%H:%M.md"')
 
     # ---- 6 · Step 2 - dispatch the reviewer. Report-only by
     #      construction: subAgent=refactor would silently turn this
@@ -94,7 +94,7 @@ flowchart TD
   n3["3. Step 1 · Mint work_dir = mktemp -d<br/>/tmp/refactor.XXXXXX, then run<br/>prep-refactor-context.sh work_dir [path...].<br/>Resolves base via @{upstream}, falling back to<br/>resolve-base-ref.sh - all a fresh /implement branch<br/>has, its tail running before the first push.<br/>Diffs -U20 from the merge-base to the working tree;<br/>writes diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt into work_dir"]:::state
   n4{"4. Script exited 0 (found target files)?"}
   n4a["4a. Inform the user and stop - script exited 1:<br/>not a git repo, no resolvable base ref, or nothing<br/>changed/untracked in the given scope (reason on<br/>stderr). Collapsed: the script's own reason, not a<br/>branch this skill's flow makes"]:::gate
-  n5["5. Step 2 · Mint VERDICT_PATH =<br/>date +verdict_refactor_&lt;ts&gt;.md, in CWD not /tmp<br/>- the user reads it beside the diff in their editor.<br/>The verdict_ prefix is mandatory: the write guard<br/>denies every other basename at exit 2, and it beats<br/>report_/findings_ because the harness intercepts<br/>those before any hook runs. One file per invocation"]:::state
+  n5["5. Step 2 · Mint VERDICT_PATH =<br/>date +verdict_refactor_&lt;branch&gt;_&lt;ts&gt;.md, in CWD not /tmp<br/>- the user reads it beside the diff in their editor.<br/>The verdict_ prefix is mandatory: the write guard<br/>denies every other basename at exit 2, and it beats<br/>report_/findings_ because the harness intercepts<br/>those before any hook runs. One file per invocation"]:::state
   n6["6. Step 2 · Dispatch code-reviewer<br/>(agent-pinned, background) - report-only by<br/>construction; subAgent=refactor would silently<br/>make this an editing leg.<br/>Hands it work_dir plus the four files step 3 wrote<br/>(diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt), told to read them from disk,<br/>not re-run git commands - ~12.5x cheaper than<br/>admitting a fresh tool result into context.<br/>Prompt also carries the analysis constraints and<br/>per-finding schema verbatim, plus<br/>write-only-to-VERDICT_PATH"]:::dispatch
   n6a["6a. Hook: check-reviewer-writes<br/>- backs the report-only contract at the tool layer"]:::hook
   n7{"7. VERDICT_PATH present and non-empty?"}
