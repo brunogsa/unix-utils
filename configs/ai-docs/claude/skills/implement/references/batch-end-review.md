@@ -61,7 +61,7 @@ All three legs run regardless - the tail never skips one, it only never applies 
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 
-What `/quality-gate` owns, and this skill does not restate: the three verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
+What `/quality-gate` owns, and this skill does not restate: the two verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
 
 What this skill does with the result:
 
@@ -112,7 +112,7 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Per-task outcomes** - every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks** (only when §8.3 was skipped) - any plan-declared full-suite/repo-wide command §4.1 stripped from a task's dispatch that the gate would otherwise have re-covered.
 
-- **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<branch>_<ts>.md`, `verdict_auto-review_<branch>_<ts>.md`, `verdict_test-sdd_<branch>_<ts>.md`).
+- **Every verdict file path** `/quality-gate` produced (the merged `verdict_quality-gate_<branch>_<ts>.md` and `verdict_test-sdd_<branch>_<ts>.md`).
   - Plus any leg it flagged as failed.
 
 - **The quality-gate outcome** - one line per finding, never a bare id or count, in the form `<lens>#N (<file>:<lines>) - <one-line recap>`, plus its outcome.
