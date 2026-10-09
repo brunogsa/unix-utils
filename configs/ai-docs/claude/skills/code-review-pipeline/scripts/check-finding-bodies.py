@@ -6,8 +6,7 @@
 # Usage:
 #   check-finding-bodies.py <verdict.md> [<verdict.md> ...]
 #
-# stdout: "<path>: finding <N>: <reason>" per violation, or
-#   "<path>: line <L>: <reason>" for a misplaced finding heading
+# stdout: "<path>: <finding N|line L>: <reason>" per violation
 # stderr: a usage message, or the path that could not be read
 # exit: 0 when every finding passes, 1 on any violation,
 #       2 on a usage error or an unreadable file
