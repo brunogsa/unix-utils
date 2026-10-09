@@ -39,7 +39,7 @@ The third leg runs only when a plan resolves.
 
 See [`references/more-examples.md`](references/more-examples.md) for example invocations, opened only when the flags above leave a case unclear.
 
-`/implement`'s batch-end tail runs this, passing `--auto-solve` only when its own interview asked for it.
+`/implement`'s batch-end tail runs this, always with `--report-only`.
 
 ## 1. Ask about auto-solve - first, before anything else
 
