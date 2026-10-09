@@ -92,16 +92,20 @@ def quality_gate(arg):
     else:
         run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")     # minted once, before the pass/fail branch
         merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')
+        # 10b · main counts each source's findings itself, fence-aware (awk),
+        #       BEFORE dispatching; the agent's own input counts are never trusted.
+        input_counts = {s: count_findings_fence_aware(s) for s in sources}
         # 10b · ONE fresh code-reviewer, foreground, given exactly the source
         #       paths recorded above (never a glob that could pick up a stale
         #       file), the merged path and references/merge-review-verdicts.md.
         #       It merges reports only: never re-reviews, never adds a finding.
         dispatch_foreground("code-reviewer", sources, merged_path, "merge-review-verdicts.md")
         if merge_verified(merged_path, sources):             # 10c · main checks, without reading the file
-            # 10c · non-empty, checker exit 0, finding count == per-lens input
-            #       counts minus the duplicates the agent reports collapsing,
-            #       every heading carries exactly one lens tag. Headings are
-            #       counted fence-aware: a finding may quote one in a fence.
+            # 10c · non-empty, checker exit 0, finding count == main's
+            #       input_counts minus findings absorbed (a group of k
+            #       duplicates absorbs k-1), and an awk gsub count finds no
+            #       heading with != 1 lens tag. Headings are counted
+            #       fence-aware: a finding may quote one in a fence.
             move(sources, run_dir)                           # 10d · never delete; record moved paths for the report
             merged = merged_path
         else:
@@ -206,8 +210,8 @@ flowchart TD
     direction TB
     n10{"10. Did the refactor or auto-review<br/>leg produce a file?"}
     n10a["10a. Neither did - skip the merge"]
-    n10b["10b. Record the resolved source paths; mint the run directory<br/>(mktemp -d /tmp/quality-gate.XXXXXX) and the merged path.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
-    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count == input counts<br/>minus collapsed duplicates, every heading has exactly<br/>one lens tag (headings counted fence-aware)?"}
+    n10b["10b. Record the resolved source paths; mint the run directory<br/>(mktemp -d /tmp/quality-gate.XXXXXX) and the merged path.<br/>Main counts each source's findings itself (fence-aware awk).<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
+    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count == main's input counts<br/>minus findings absorbed (k duplicates absorb k-1), no heading<br/>with other than one lens tag (counted fence-aware)?"}
     n10d["10d. Pass - MOVE (never delete) both source files into<br/>the run directory so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
     n10e["10e. Fail - the two source files stay in CWD as this run's<br/>output; move the failed merged file into the run directory<br/>instead, and say so in the report"]:::gate
     n10 -->|"no"| n10a

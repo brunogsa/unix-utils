@@ -22,7 +22,7 @@ Write the merged file in the layout of [`local-review-template.md`](../../code-r
 
 - Keep every other tag the source heading had, with the lens tag right after the severity and before any of them: `### N. [MEDIUM][refactor][LINTER GAP] <title>`.
 
-- Under the header, write one line of counts: findings taken from each lens, duplicates collapsed, findings written.
+- Under the header, write one line of counts: findings taken from each lens, findings absorbed by duplicate groups, findings written.
 
 ## Duplicates
 
@@ -52,6 +52,7 @@ Return exactly this:
 
 - The merged path.
 - Per-lens input counts.
-- Duplicates collapsed, each as `refactor#A + auto-review#B → #N`.
+- Duplicate groups collapsed, each listing every member: `refactor#A + auto-review#B + refactor#C → #N`.
+- Total findings absorbed: a group of k findings collapsed into one absorbs k-1, so sum k-1 over all groups.
 - Output finding count.
 - The checker's exit code.

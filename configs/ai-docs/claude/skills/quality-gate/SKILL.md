@@ -16,7 +16,7 @@ Three legs, each a fresh-context reviewer writing a timestamped verdict file in 
 | `auto-review` | correctness, edge cases, contract and spec conformance | merged `verdict_quality-gate_<branch>_<ts>.md` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `verdict_test-sdd_<branch>_<ts>.md` |
 
-The third leg runs only when a plan resolves - without a plan there are no planned tests to check.
+The third leg runs only when a plan resolves.
 
 ## Usage
 
@@ -69,7 +69,7 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess which spec or plan was meant.
 
 - **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind and say so, exactly as a zero match resolves.
-  - Either flag marks a run with nobody standing by, so a prompt would stall it; see [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
+  - Either flag means nobody is standing by; see [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
 
 Also resolve `<BASE_REF>` for the `auto-review` leg:
 
@@ -77,11 +77,11 @@ Also resolve `<BASE_REF>` for the `auto-review` leg:
 ~/.claude/scripts/resolve-base-ref.sh
 ```
 
-The script falls back from `origin/HEAD` to local `main` to local `master`; a failed detection means none of the three exist.
+The script falls back from `origin/HEAD` to local `main` to local `master`.
 
 If detection fails, ask which branch to diff against rather than guessing - but under either flag, stop and print what failed, since a missing base has no safe default.
 
-A caller may pass its own base ref via `--base-ref` instead - `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
+`/implement`'s batch-end tail passes `BATCH_BASE_SHA` via `--base-ref`.
 
 ## 3. Dispatch the legs in parallel
 
@@ -93,7 +93,7 @@ Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens
 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
-**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** It already *is* the fresh-context reviewer those skills would otherwise dispatch.
+**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 
 Tell each leg this explicitly, since the skills it invokes describe dispatching a reviewer. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why nesting is ruled out.
 
@@ -109,7 +109,7 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty.
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on.
   - Never retry twice - a twice-failed leg is for the human.
 
-- **Never report from a leg's return message** - messages are capped and truncate long finding lists; the file is the source of truth.
+- **Never report from a leg's return message** - messages truncate long lists; the file is the source of truth.
 
 ### 4.1. Merge the `refactor` and `auto-review` files into one verdict
 
@@ -117,17 +117,18 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty.
 
 Record the resolved source paths. Mint the run directory `mktemp -d /tmp/quality-gate.XXXXXX` once, and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`.
 
-Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths, never a glob that could pick up a stale file from an earlier run, plus the merged path and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md), which holds its rules. It merges reports only, never re-reviewing.
+Before dispatching, count each source file's findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
+
+Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths, never a glob that could pick up a stale file, plus the merged path and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md), which holds its rules. It merges reports only.
 
 Verify without reading the file into main:
 
 - It exists and is non-empty, and main's own run of `check-finding-bodies.py` on it exits 0.
 
-- The finding count equals the per-lens input counts minus the duplicates the agent reports collapsing; an upper bound would let dropped findings pass, and they vanish once the sources move.
+- The finding count, counted the same way, equals main's per-lens input counts minus the findings absorbed (a group of k duplicates collapses into one and absorbs k-1).
+  - An upper bound would let dropped findings pass, and the agent's own input counts would let it hide one; both vanish once the sources move.
 
-- Every finding heading carries exactly one `[auto-review]` or `[refactor]` tag, counted the same way.
-
-Count headings fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
+- Every finding heading carries exactly one `[auto-review]` or `[refactor]` tag, so this prints 0: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /{if(gsub(/\[(auto-review|refactor)\]/,"&")!=1)b++} END{print b+0}' <file>``.
 
 **Pass** → move (never delete) both source files into the run directory, so `/address-verdicts` can't apply one finding from both the merged file and its source. Record the moved paths for §7.
 
@@ -135,7 +136,7 @@ Count headings fence-aware, since a finding may quote a `### 1.` line inside a c
 
 ## 5. Assemble the apply list
 
-Compose the whole list, and print it, before applying anything.
+Compose the whole list, and print it, before applying anything. The two groups below enter the list on different terms.
 
 ### 5.1. Every `test-sdd` finding goes in, without triage
 
@@ -145,13 +146,13 @@ Each names a test the plan declared and the repo lacks, so the human's plan appr
 
 One exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
 
-It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`; plan approval cannot justify a test that may not exist.
+It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`.
 
 With no plan resolved (§2), this sub-step contributes nothing.
 
 ### 5.2. `refactor` and `auto-review` findings go in only on an auto-solve run
 
-**Report-only** (§1 resolved to it, or `--report-only`) → neither lens contributes anything, including trivially-safe-looking findings - the opt-in came from §1, and its absence is an answer.
+**Report-only** (§1 resolved to it, or `--report-only`) → neither lens contributes anything, including trivially-safe-looking findings - the opt-in came from §1.
 
 **Auto-solve** (§1 resolved to it, or `--auto-solve`) → read the merged file **in full** (the two source files on §4.1's fallback path), never the legs' return summaries, sorting each finding into addressable or not.
 
@@ -193,7 +194,7 @@ It returns the ledger §7 reports from: applied findings with SHAs, skipped find
 
 ## 7. Close with a report
 
-Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files:
+Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files. A human reading the report should never have to open a verdict file to know what was decided.
 
 - Every verdict file path this run produced: the merged file, the source paths §4.1 moved, and the fallback when it happened.
   - Also any leg that failed to produce a file, and the `test-sdd` leg when §2 resolved no plan.
