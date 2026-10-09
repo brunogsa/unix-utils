@@ -4,7 +4,7 @@
 # its size is fixed by the skill's step count, and trimming to the bundled default
 # would drop steps from the flow audit or drop a whole rendering.
 # Parked in assets/ and never loaded by the model, so its words cost no context.
-words-budget: 2048
+words-budget: 4096
 ---
 
 # quality-gate - flow overview
@@ -83,39 +83,66 @@ def quality_gate(arg):
                 flag(leg)   # 9a · the other legs still stand
         # 9a · never report from a capped return message - always from the file
 
-    # ---- 10 · Step 5 - assemble the apply list. Compose the whole list
+    # ---- 10 · Step 4.1 - merge the refactor and auto-review files into
+    #      ONE verdict. Runs on report-only and auto-solve alike, and over a
+    #      single surviving file too, so the shape and lens tags are uniform. ----
+    sources = [l.verdict_path for l in (refactor_leg, auto_review_leg)
+               if present_and_non_empty(l.verdict_path)]
+    merged = None
+    if not sources:                                          # 10 · either lens produced a file?
+        pass                                                 # 10a · neither did - skip the step
+    else:
+        merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')
+        # 10b · ONE fresh code-reviewer, foreground, given the source paths,
+        #       the merged path and references/merge-review-verdicts.md. It
+        #       merges reports only: never re-reviews, never adds a finding.
+        dispatch_foreground("code-reviewer", sources, merged_path, "merge-review-verdicts.md")
+        run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")
+        if merge_verified(merged_path, sources):             # 10c · main checks, without reading the file
+            # 10c · non-empty, checker exit 0, finding count <= sum of the
+            #       inputs', every heading carries exactly one lens tag.
+            move(sources, run_dir)                           # 10d · never delete; record moved paths for the report
+            merged = merged_path
+        else:
+            move(merged_path, run_dir)                       # 10e · fallback: the two source files stay in CWD
+            # 10e · as this run's output, and the report says so.
+
+    # ---- 11 · Step 5 - assemble the apply list. Compose the whole list
     #      before invoking or printing anything; the two groups below enter
     #      on different terms. ----
     apply_list = []
     if plans and present_and_non_empty(test_sdd_leg.verdict_path):
-        # 10a · Step 5.1 - every test-sdd finding enters unconditionally,
+        # 11a · Step 5.1 - every test-sdd finding enters unconditionally,
         #       on a report-only run exactly as on an auto-solve one. No
         #       triage runs: the plan already declared the test, and the
         #       human already approved the plan.
         apply_list += read_in_full(test_sdd_leg.verdict_path)
 
-    if mode == "auto-solve":                                 # 10b · Step 5.2
-        # 10b2 · Read BOTH verdict files IN FULL, never the legs' return
-        #        summaries; sort every finding addressable vs not;
-        #        print both lists with reasons BEFORE applying.
+    if mode == "auto-solve":                                 # 11b · Step 5.2
+        # 11b2 · Read the MERGED file IN FULL (the two source files on the
+        #        fallback path), never the legs' return summaries; sort
+        #        every finding addressable vs not; print both lists with
+        #        reasons BEFORE applying. Findings are named
+        #        quality-gate#N [<lens>] (<file>:<lines>), or <lens>#N (...)
+        #        for test-sdd and on the fallback path.
         addressable, not_addressable = sort_findings(
-            read_in_full(refactor_leg.verdict_path),
-            read_in_full(auto_review_leg.verdict_path),
+            read_in_full(merged) if merged else
+            read_in_full(sources),
         )
         print(addressable, not_addressable)
         apply_list += addressable
     else:
-        # 10b1 · Report-only - neither lens contributes anything, including
+        # 11b1 · Report-only - neither lens contributes anything, including
         #        findings that look trivially safe. The opt-in came from
         #        §1, and its absence is an answer.
         pass
 
-    if not apply_list:                                       # 11 · apply list empty?
+    if not apply_list:                                       # 12 · apply list empty?
         # a report-only run that resolved no plan has nothing to apply -
         # skip §6 entirely and close straight from what this run resolved.
         return report(ledger=None)
 
-    # ---- 12 · Step 6 - hand the WHOLE apply list to /address-verdicts in
+    # ---- 13 · Step 6 - hand the WHOLE apply list to /address-verdicts in
     #      ONE invocation, never one call per lens. APPLYING IS NOT THIS
     #      SKILL'S JOB - that skill is the one apply step for every
     #      verdict_*.md on disk; this skill only decides WHICH findings
@@ -124,17 +151,18 @@ def quality_gate(arg):
     #      render in the main session), and its per-finding apply agents
     #      are already fresh-context subagents, so wrapping it would spend
     #      one of three nesting levels on a layer that decides nothing. ----
-    test_cmd = resolve_test_command()                        # 12a · nothing left for the callee to guess
-    ledger = skill("address-verdicts",                       # 12b · invoked in this session
-                   findings=apply_list,                       # 12c · explicit ids, never a severity floor
-                   no_ask=True,                                # 12d · nobody is standing by, on either mode
-                   test_cmd=test_cmd)                          # 12e · nothing left to infer
-    # 12f · it owns the TaskList seeding, the lens routing, the per-finding
+    test_cmd = resolve_test_command()                        # 13a · nothing left for the callee to guess
+    ledger = skill("address-verdicts",                       # 13b · invoked in this session
+                   findings=apply_list,                       # 13c · explicit ids plus file paths (the merged file's for merged findings), never a severity floor
+                   no_ask=True,                                # 13d · nobody is standing by, on either mode
+                   test_cmd=test_cmd)                          # 13e · nothing left to infer
+    # 13f · it owns the TaskList seeding, the lens routing, the per-finding
     #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
 
-    # 13 · Step 7 - close with a report: every verdict path (+ any leg that
-    #      failed to produce one), applied findings with SHAs, §5.2's
-    #      not-addressable findings, /address-verdicts' skipped/failed
+    # 14 · Step 7 - close with a report: every verdict path (the merged
+    #      file, the moved source paths, the fallback if it happened, + any
+    #      leg that failed to produce one), applied findings with SHAs,
+    #      §5.2's not-addressable findings, /address-verdicts' skipped/failed
     #      findings, and - on a report-only run - every refactor and
     #      auto-review finding listed under a heading naming them as NEVER
     #      TRIAGED, closing with the two ways to work them: /address-verdicts,
@@ -173,31 +201,45 @@ flowchart TD
   n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
-  subgraph applylist["10. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
+  subgraph merge["10. Step 4.1 · Merge the refactor and auto-review files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md - on report-only and auto-solve runs alike."]
     direction TB
-    n10a["10a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty -<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan"]
-    n10b{"10b. Step 5.2 · Mode == auto-solve?"}
-    n10b1["10b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
-    n10b2["10b2. Auto-solve - read BOTH verdict files IN FULL, never<br/>the legs' return summaries; sort every finding addressable<br/>vs not; print both lists with reasons BEFORE applying"]
-    n10a --> n10b
-    n10b -->|"report-only"| n10b1
-    n10b -->|"auto-solve"| n10b2
+    n10{"10. Did the refactor or auto-review<br/>leg produce a file?"}
+    n10a["10a. Neither did - skip the merge"]
+    n10b["10b. Dispatch ONE code-reviewer (fresh context, foreground)<br/>with the source path(s), the minted merged path and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
+    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count ≤ sum of inputs,<br/>every heading has exactly one lens tag?"}
+    n10d["10d. Pass - MOVE (never delete) both source files into<br/>mktemp -d /tmp/quality-gate.XXXXXX so address-verdicts<br/>cannot apply a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
+    n10e["10e. Fail - the two source files stay in CWD as this run's<br/>output; move the failed merged file into the run directory<br/>instead, and say so in the report"]:::gate
+    n10 -->|"no"| n10a
+    n10 -->|"yes"| n10b --> n10c
+    n10c -->|"yes"| n10d
+    n10c -->|"no"| n10e
   end
 
-  n11{"11. Step 6 · Apply list empty?"}
-
-  subgraph delegate["12. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
+  subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
     direction TB
-    n12a["12a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
-    n12b["12b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>three nesting levels on nothing"]:::skill
-    n12c["12c. Pass the apply list as EXPLICIT ids,<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
-    n12d["12d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
-    n12e["12e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
-    n12f["12f. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
-    n12a --> n12b --> n12c --> n12d --> n12e --> n12f
+    n11a["11a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty -<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan"]
+    n11b{"11b. Step 5.2 · Mode == auto-solve?"}
+    n11b1["11b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
+    n11b2["11b2. Auto-solve - read the MERGED file IN FULL (the two source<br/>files on the fallback path), never the legs' return summaries;<br/>sort every finding addressable vs not; print both lists with<br/>reasons BEFORE applying, each finding as<br/>quality-gate#N [lens] (file:lines), or lens#N (...) for<br/>test-sdd and on the fallback path"]
+    n11a --> n11b
+    n11b -->|"report-only"| n11b1
+    n11b -->|"auto-solve"| n11b2
   end
 
-  n13(["13. Step 7 · Close with a report: every verdict path<br/>(+ any leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n12{"12. Step 6 · Apply list empty?"}
+
+  subgraph delegate["13. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
+    direction TB
+    n13a["13a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
+    n13b["13b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>three nesting levels on nothing"]:::skill
+    n13c["13c. Pass the apply list as EXPLICIT ids with their<br/>verdict file paths (the merged file's for merged findings),<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
+    n13d["13d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
+    n13e["13e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
+    n13f["13f. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
+    n13a --> n13b --> n13c --> n13d --> n13e --> n13f
+  end
+
+  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the moved source paths, the fallback if it happened, + any<br/>leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
@@ -225,13 +267,16 @@ flowchart TD
   n8a --> n9
   n8b --> n9
   n8c --> n9
-  n9 -->|"yes"| n10a
-  n9 -->|"no"| n9a --> n10a
-  n10b1 --> n11
-  n10b2 --> n11
-  n11 -->|"yes"| n13
-  n11 -->|"no"| n12a
-  n12f --> n13
+  n9 -->|"yes"| n10
+  n9 -->|"no"| n9a --> n10
+  n10a --> n11a
+  n10d --> n11a
+  n10e --> n11a
+  n11b1 --> n12
+  n11b2 --> n12
+  n12 -->|"yes"| n14
+  n12 -->|"no"| n13a
+  n13f --> n14
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
