@@ -14,7 +14,7 @@ disable-model-invocation: false
 
 - `all` - every finding in every located verdict file. Default when the arg is empty.
 - A lens name, `refactor`, `auto-review`, `test-sdd`, or `quality-gate` - every finding in that lens's file only.
-  - `quality-gate` selects every finding in the merged file. `refactor` and `auto-review` also select the findings tagged with that lens in the newest merged file.
+  - `quality-gate` selects every finding in the newest merged file. `refactor` and `auto-review` select the findings of whichever source §1 picks for that lens, merged or standalone.
 
 - A severity floor, e.g. `high`/`high+` - every finding at or above it, only when the report labels severity (see §2).
 
@@ -28,8 +28,7 @@ disable-model-invocation: false
 
 ## What this is
 
-This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run that produced all three - the only
-place the apply loop lives.
+This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run - the only place the apply loop lives.
 
 `/quality-gate` decides *which* findings are worth applying and calls this skill to apply them, so the routing, commit, and annotation rules have one home.
 
@@ -44,13 +43,23 @@ Two ways in; only who picks the findings differs:
 ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md 2>/dev/null
 ```
 
-Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`; `quality-gate` is one more lens. Pick the
-newest generation per lens by modification time (`ls -t verdict_<lens>_*.md | head -1`), not a lexical sort.
+Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`; `quality-gate` is one more lens.
 
-- **Default**: the newest generation of each lens - the most recently modified file.
+A `verdict_quality-gate_*.md` counts as a source for both `refactor` and `auto-review`. Per lens, the newest source by modification time (`ls -t`, not a lexical sort) wins, never both:
+
+- The newest merged file's findings tagged with that lens.
+- Or the newest standalone `verdict_<lens>_*.md`, whichever was modified later.
+
+Why: `/quality-gate` moves its own standalone files away, so an older one left in CWD would be worked beside the merged file. `test-sdd` has only standalone files.
+
+- **Default**: the winning source of each lens. Under `all`, the merged file contributes only for the lenses it wins.
+
 - **To work an older generation instead**: name its exact file path inside `<which ones>`.
-- **A lens has no file at all**: proceed with the lens that does have one, saying so in the closing report (§6). If `<which ones>` explicitly named
-the missing lens, stop instead - say no report exists for it. Never fabricate one by re-running the reviewer; that isn't this skill's job.
+
+- **A lens has no source at all**: proceed with the others, saying so in the closing report (§6). A lens only a merged file covers is not missing.
+  - If `<which ones>` explicitly named it, stop instead - say no report exists for it.
+  - Never fabricate one by re-running the reviewer.
+
 - **No lens has any file**: stop with a clear message - nothing to address yet, run `/quality-gate` or a single lens (`/refactor`, `/auto-review`, `/test-sdd`) first.
 
 ## 2. Resolve `<which ones>`, and the test command
@@ -167,7 +176,7 @@ Why two marks, and why lens by lens: [`references/design-rationale.md`](referenc
 
 ## 6. Close with a report
 
-One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding's id is `quality-gate#N`.
+One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding reads `quality-gate#N [<lens>] (<file>:<lines>) - ...`.
 
 The recap is mandatory even when the finding is already annotated on disk.
 

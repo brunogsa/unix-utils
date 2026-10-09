@@ -24,8 +24,9 @@ Python-shaped for readability only; nothing here runs, and the function names st
 #     A human invokes it, or a skill dispatches it - /quality-gate passes an
 #     explicit finding list plus --no-ask, having already triaged.
 def address_verdicts(arg):
-    # 2 · Step 1 - several timestamped generations can exist per lens, and the
-    #     timestamp is embedded in the filename, so it sorts lexically.
+    # 2 · Step 1 - several timestamped generations can exist per lens. A
+    #     verdict_quality-gate_*.md counts as a source for both refactor and
+    #     auto-review.
     files = glob("verdict_refactor_*.md", "verdict_auto-review_*.md",
                  "verdict_test-sdd_*.md", "verdict_quality-gate_*.md")
 
@@ -35,16 +36,18 @@ def address_verdicts(arg):
         #      this skill only consumes reports already on disk.
         return stop("no verdict file for any lens")        # 3a
 
-    for lens in lenses_with_no_file(files):                # 4
+    for lens in lenses_with_no_source(files):              # 4
         if arg.names_explicitly(lens):
             return stop(f"no report exists for the {lens} lens")   # 4a
-        # 4 · Otherwise proceed with the lenses that DO have a file,
-        #     and say which one was missing in step 6's report.
+        # 4 · Otherwise proceed with the lenses that DO have a source,
+        #     and say which one was missing in step 6's report. A lens only
+        #     a merged file covers is not missing.
 
-    # 5 · Step 1 - the newest generation per lens by default (the last name
-    #     after a sort); a verdict file path inside <which ones> pins an
-    #     older generation instead.
-    selected_files = newest_per_lens(files, pinned=arg.paths)
+    # 5 · Step 1 - per lens, the newest source by mtime wins: the newest
+    #     merged file's findings tagged with that lens, or the newest
+    #     standalone file, never both. A verdict file path inside
+    #     <which ones> pins an older generation instead.
+    selected_files = newest_source_per_lens(files, pinned=arg.paths)
 
     # 6 · Step 2 - match in this order: all (the default when the arg is
     #     empty), a lens name, a severity floor, then an explicit list of
@@ -214,12 +217,12 @@ def address_verdicts(arg):
 ```mermaid
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
-  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (one more lens).<br/>Several timestamped generations can exist per lens,<br/>and the timestamp sorts lexically"]
+  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for both refactor<br/>and auto-review). Several timestamped generations<br/>can exist per lens"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
-  n4{"4. Step 1 · A lens has no file - did &lt;which ones&gt;<br/>name that lens explicitly?"}
+  n4{"4. Step 1 · A lens has no source (a merged file covers<br/>refactor and auto-review) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
   n4a(["4a. STOP - say no report exists for that lens"])
-  n5["5. Step 1 · Take the newest generation per lens (the last<br/>name after a sort); a verdict file path inside<br/>&lt;which ones&gt; pins an older generation instead.<br/>A lens with no file is dropped, and named in step 6"]
+  n5["5. Step 1 · Per lens, the newest source by mtime wins: the<br/>newest merged file's findings tagged with that lens, or<br/>the newest standalone file, never both. A verdict file<br/>path inside &lt;which ones&gt; pins an older generation.<br/>A lens with no source is dropped, and named in step 6"]
   n6["6. Step 2 · Match &lt;which ones&gt; in this order: all (the<br/>default when empty), a lens name, a severity floor,<br/>then an explicit list of finding identifiers"]
   n7["7. Step 2 · Resolve the test command, needed to run<br/>RED-then-GREEN in step 4: --test-cmd if given, else<br/>infer from a package.json script, a Makefile target,<br/>or the repo's own CLAUDE.md"]
   n8{"8. Step 2 · Any ambiguity left? An identifier matching<br/>more than one finding, a severity floor the report<br/>never labels, a lens name that looks like a typo,<br/>or a test command that would not infer"}
