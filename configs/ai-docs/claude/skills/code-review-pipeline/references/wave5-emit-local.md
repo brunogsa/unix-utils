@@ -10,3 +10,10 @@ user runs several reviews in one CWD.
 - The output follows the template at `references/local-review-template.md` - read it and expand its placeholders.
 
 - Keep the template file as the single source of truth for the output shape; do not inline the template here.
+
+- Each finding's body is the Wave-4 JSON `body` copied verbatim - never re-composed or annotated at emit.
+  - Provenance, counts, drop logs, and deviations belong in the Wave 6 terminal summary ([`wave6-summary-template.md`](wave6-summary-template.md)), not in the verdict file.
+
+- After writing `${out_file}`, run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py "${out_file}"`.
+  - On exit 1, rewrite only the flagged bodies to fit (cut prose, never drop Suggestion or Trade-off) and re-run, at most twice.
+  - Report any violations still remaining in Wave 6 rather than looping.

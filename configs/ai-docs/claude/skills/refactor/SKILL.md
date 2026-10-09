@@ -105,7 +105,7 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 
 - The report file at `$VERDICT_PATH` is the source of truth (overwrite if exists).
 - The subagent's return must contain only: total count, file path, and one title line per finding.
-  - Format: `1. <file>:<lines> - <one-line title>`. No code blocks, no Before/After in the return.
+  - Format: `1. <file>:<lines> - <one-line title>`. No code blocks in the return.
 
 - If the file is missing or empty after the agent returns, treat the run as failed and re-invoke (do not proceed from the truncated return alone).
 
@@ -119,35 +119,24 @@ When the finding is also `mechanical`, `[LINTER GAP]` follows the severity tag: 
 
 The resulting order, top to bottom: `[Done]` (if applied), then `[SEVERITY]`, then `[LINTER GAP]` (if mechanical), then the title -- e.g. `### 5. [Done][HIGH][LINTER GAP] <title>`.
 
-Inside, use these labeled blocks -- no field may be omitted. Empty / N/A is allowed but must be stated explicitly.
+The title is the `` `path:start_line-line` `` anchor, same as auto-review: `### N. [SEVERITY] \`path:start_line-line\``.
 
-- **File**: absolute or repo-relative path
-- **Lines**: precise line range (e.g. `42-67`), not approximate
-- **Severity**: `HIGH` / `MEDIUM` / `LOW` -- how much it matters if the change is never made, stamped into the title right after the number.
+The body follows `~/.claude/skills/code-review-pipeline/references/local-review-template.md` exactly - bold priority tag, one-sentence summary, **Suggestion**, **Trade-off of not doing it** - so point at its worked example rather than re-deriving the shape.
 
-  - Distinct from **Risk** and **Effort** below: Risk is the danger of *making* the change, Effort is the change's *size*.
-  - Severity is the cost of *never making it* -- a finding can be low-risk, trivial-effort, and still `LOW` severity.
-  - `HIGH` -- if never done, a real defect ships or persists: wrong behavior, misleading code, or a violated MUST-level standard.
-  - `MEDIUM` -- if never done, the code stays correct but harder to maintain, or drifts from convention -- cost compounds on the next touch.
-  - `LOW` -- if never done, no practical cost ever accrues; this is pure polish.
+- Tag per the "Priority tags" section of `~/.claude/skills/code-review-pipeline/references/review-principles.md`: HIGH -> MANDATORY, MEDIUM -> RECOMMENDED, LOW -> NITPICK.
+- Prefer a `diff` block in **Suggestion** for a multi-file move.
+- Write in English.
 
-- **Classification**: `subjective` or `mechanical` (prefix `[LINTER GAP]` on the title, after the severity tag, when mechanical)
-- **Category**: suggested TaskList category for the eventual commit -- `[Refactor]`, `[Debt]`, `[Drift]`, `[Scout]`, `[Sub-Step]` (see CLAUDE.md "Prefix every task subject with a category")
-- **What**: 2-4 sentences on the change. Name the construct (function, variable, type, test), what it does now, what it should become.
-  - Avoid pronouns without antecedents ("it", "this") -- spell out the target.
+Severity is how much it matters if the change is never made, stamped into the heading right after the number:
 
-- **Why**: which principle, skill rule, or smell this addresses. Quote the exact bullet from `~/.claude/CLAUDE.md` or a `*-standards` skill.
-  - Example: `CLAUDE.md › "Centralize repeated artifacts"`. Generic "improves readability" is not acceptable.
+- `HIGH` -- if never done, a real defect ships or persists: wrong behavior, misleading code, or a violated MUST-level standard.
+- `MEDIUM` -- if never done, the code stays correct but harder to maintain, or drifts from convention -- cost compounds on the next touch.
+- `LOW` -- if never done, no practical cost ever accrues; this is pure polish.
 
-- **Before** (fenced code block): the full current code with ≥3 lines of surrounding context above and below.
-  - The reader shouldn't need to open the file. Mark target lines with a `// ← target` comment when helpful.
+After writing `$VERDICT_PATH`, run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py "$VERDICT_PATH"`.
 
-- **After** (fenced code block): the **full** proposed code with the same surrounding context, so a side-by-side compare is trivial.
-- **Impact**: 1-2 sentences -- callers affected, tests that may need updating, blast radius. If isolated, say `isolated`.
-- **Risk**: `low` / `medium` / `high` plus a 1-sentence reason (e.g. `medium - touches a public export; downstream callers in 3 packages`).
-- **Effort**: rough size -- `trivial` (one-liner), `small` (single file, < 20 lines), `medium` (multi-file, < 100 lines), `large` (cross-cutting). If `large`, suggest splitting into sub-findings.
-
-A finding that cannot fill every field above is not ready to surface -- the agent should either gather more context or drop it.
+- On exit 1, rewrite only the flagged bodies to fit (cut prose, never drop Suggestion or Trade-off) and re-run, at most twice.
+- Report any violations still remaining in the chat index rather than looping.
 
 ### 3. Present the report - report only, stop here
 
@@ -155,9 +144,9 @@ After the agent returns:
 
 1. `Read` `$VERDICT_PATH` end-to-end - do **not** rely on the return summary, it is truncated by design.
 2. Present a **compact index** in chat: numbered list, one line per finding.
-   - Format: `<file>:<lines> - <one-line title> [classification, risk, effort]`.
+   - Format: `<file>:<lines> - <one-line title>`.
 
-   - Do not inline Before/After -- the user has the full file open.
+   - Do not inline the Suggestion -- the user has the full file open.
 
 3. Tell the user the full report is at `$VERDICT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
 

@@ -29,3 +29,53 @@ The guide only exists to post as a standalone PR comment in github mode.
 ```
 
 No signature footer needed - the file belongs to the user.
+
+This template is also the shared shape for the `refactor` lens's verdict file.
+
+## Body parts
+
+Each finding's body holds exactly four parts: the bold priority tag, a one-sentence summary, **Suggestion**, **Trade-off of not doing it**.
+
+- Leave out verification labels (CONFIRMED/PLAUSIBLE), "How it happens"/"Scenario"/"Spec gap" sections, a fix-or-skip prior, and scope or Scout notes.
+  - Out-of-diff or pre-existing items go in the Wave 6 terminal summary instead, or become their own OPTIONAL finding when they sit in the diff.
+
+## Worked example
+
+````markdown
+### 1. [HIGH] `src/billing/fees.ts:42-42`
+
+**[MANDATORY]**
+
+Fees come out 100x too high because `ratePercent` (e.g. `3.11`) is multiplied as if it were a fraction.
+
+**Suggestion**
+
+```suggestion
+  const fee = subtotal * (ratePercent / 100);
+```
+
+**Trade-off of not doing it**
+
+- [-] A R$200 subtotal at 3.11% charges R$622 instead of R$6.22.
+  - [-] Every invoice built since this change carries the same factor.
+- [+] None - a one-line fix with no caller change.
+
+### 2. [MEDIUM] `src/orders/validate.ts:18-31`
+
+**[RECOMMENDED]**
+
+`validateOrder` re-implements the postal-code check that `isValidPostalCode` in `src/shared/address.ts:12` already owns.
+
+**Suggestion**
+
+```diff
+-  const ok = /^\d{5}-?\d{3}$/.test(order.zip);
+-  if (!ok) throw new InvalidZipError(order.zip);
++  if (!isValidPostalCode(order.zip)) throw new InvalidZipError(order.zip);
+```
+
+**Trade-off of not doing it**
+
+- [-] The two regexes drift on the next format change, so one flow accepts what the other rejects.
+- [+] No behavior change today - both regexes match the same inputs.
+````

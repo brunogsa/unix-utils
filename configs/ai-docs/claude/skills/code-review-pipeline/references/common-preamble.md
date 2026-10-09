@@ -123,6 +123,10 @@ JSON. Each finding object:
   "scope_tag": "<current lens name>"     // e.g. "security"; used for dedup
 }
 
+`body` holds only the tag, summary, Suggestion, and Trade-off parts - no
+verification labels, fix priors, or scope notes, because the verdict file
+and GitHub comment post it verbatim.
+
 Body follows the severity-tag → summary line → Sugestão → Trade-off de não
 fazer structure from `review-principles.md`. Write for a **low-context
 reviewer** - someone reading the comment as their first exposure to the

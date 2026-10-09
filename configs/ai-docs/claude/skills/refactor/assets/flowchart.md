@@ -68,9 +68,8 @@ def refactor(arg):
     #     count, the path, and one title line per finding, by design.
     findings = read_in_full(VERDICT_PATH)
 
-    # 9 · Step 3 - one line per finding: <file>:<lines> - <title>
-    #     [classification, risk, effort]. No Before/After inline; the
-    #     user already has the full file open.
+    # 9 · Step 3 - one line per finding: <file>:<lines> - <title>.
+    #     No Suggestion inline; the user already has the full file open.
     print(compact_index(findings))
 
     # 10 · Step 3 - name the report path and invite the user to open it.
@@ -101,7 +100,7 @@ flowchart TD
   n7{"7. VERDICT_PATH present and non-empty?"}
   n7a["7a. Treat the run as failed and re-invoke.<br/>Never proceed from the return message -<br/>it is capped and WILL truncate a long list"]:::dispatch
   n8["8. Step 3 · Read VERDICT_PATH end-to-end.<br/>The return carries only a count, the path, and<br/>one title line per finding, by design"]
-  n9["9. Step 3 · Print the compact index - one line per<br/>finding: &lt;file&gt;:&lt;lines&gt; - &lt;title&gt;<br/>[classification, risk, effort].<br/>No Before/After; the user has the file open"]
+  n9["9. Step 3 · Print the compact index - one line per<br/>finding: &lt;file&gt;:&lt;lines&gt; - &lt;title&gt;.<br/>No Suggestion inline; the user has the file open"]
   n10["10. Step 3 · Name the report path and invite<br/>the user to open it (tail -f or editor)"]
   n11(["11. STOP - report only. No finding is applied and<br/>no apply-task is seeded. /address-verdicts globs<br/>verdict_refactor_*.md and routes each finding to<br/>the refactor AGENT, which applies it under a<br/>test gate; this file is what that skill consumes"])
 
