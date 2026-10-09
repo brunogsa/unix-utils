@@ -74,16 +74,13 @@ Ask ONE clarifying question, with your recommended reading, on any of these:
 
 Never guess past an ambiguity like these - a wrong guess silently works the wrong finding.
 
-A severity floor compares the ordinal `HIGH`/`MEDIUM`/`LOW` tag each lens stamps in its finding headings, so all three filter alike. A `[QUESTION]` finding carries no ordinal, so no
-floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
+A severity floor compares the ordinal `HIGH`/`MEDIUM`/`LOW` tag each lens stamps in its finding headings, so all three filter alike. A `[QUESTION]` finding carries no ordinal, so no floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
 
-Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4). Infer it first - a `package.json` test script, a Makefile target, the repo's own CLAUDE.md -
-and ask only when it can't be inferred, bundling that ask into §2's clarifying question if one already fires.
+Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4). Infer it first - a `package.json` test script, a Makefile target, the repo's own CLAUDE.md - and ask only when it can't be inferred, bundling that ask into §2's clarifying question if one already fires.
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues.
 
-**Capture the rule behind a human choice the moment it lands**, on a human invocation only (`--no-ask` has no human choice to learn from): answering a clarifying question here
-in §2, or rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§5) or a subagent's fix (§4) before it's committed.
+**Capture the rule behind a human choice the moment it lands**, on a human invocation only (`--no-ask` has no human choice to learn from): answering a clarifying question here in §2, or rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§5) or a subagent's fix (§4) before it's committed.
 
 Follow CLAUDE.md's correction rule - infer the general rule behind the change, then sweep it across this run's remaining findings; skip it and the correction lands again on the next lens.
 
@@ -93,8 +90,7 @@ A missing test command under `--no-ask` skips only findings that need one - refa
 
 ## 3. Seed the whole TaskList upfront - one entry per lens, never one per finding
 
-Before applying anything, group §2's selection by lens and create one entry per lens that contributed at least one finding - the list is this run's whole timeline,
-nothing appears later, out of order, as it becomes relevant.
+Before applying anything, group §2's selection by lens and create one entry per lens that contributed at least one finding - the list is this run's whole timeline, nothing appears later, out of order, as it becomes relevant.
 
 ```
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
@@ -130,8 +126,10 @@ A lens whose findings are all non-code dispatches its own agent zero times, whic
 
 Each dispatch carries **all** findings assigned to it at once, each with the identifier, scope, and evidence its report gives, plus the test command from §2:
 
-- **`test-sdd` entry** (from `verdict_test-sdd_*.md`): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`. A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix -
-pass every planned title verbatim so each test lands under the name the plan declared.
+- **`test-sdd` entry** (from `verdict_test-sdd_*.md`): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
+  - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
+
+  - Pass every planned title verbatim so each test lands under the name the plan declared.
 
 - **`auto-review` entry** (from `verdict_auto-review_*.md`, or an `[auto-review]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=tdd-coder, title=Apply all auto-review findings)`.
   - Strict TDD, RED before GREEN, once per finding - same as any other `tdd-coder` dispatch.
@@ -152,21 +150,21 @@ For code findings, the refactor lens keeps its own agent, since a correctness fi
 **One commit per finding still holds inside a batched dispatch** - say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen the diff a human reviews.
 
 - `tdd-coder` commits its own work under `commit-standards` - confirm each reported SHA exists rather than re-committing.
+
 - The `refactor` agent leaves its changes uncommitted by design - commit them here, where the permission prompt renders, still one commit per finding, never one for the lens.
+
 - `direct-coder` commits its own work under `commit-standards`, so a `refactor`-lens finding routed to it needs no commit from main - unlike the `refactor` agent.
 
-Verify each subagent's result against the artifacts - diff, test run - before trusting its "done"; the summary describes intent, only the artifact shows what landed. A finding
-whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
+Verify each subagent's result against the artifacts - diff, test run - before trusting its "done"; the summary describes intent, only the artifact shows what landed. A finding whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
 
-**Score a partial batch per finding, never per lens.** A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never one
-failed lens, so six real commits are preserved in the ledger.
+**Score a partial batch per finding, never per lens.** A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never one failed lens, so six real commits are preserved in the ledger.
 
 ## 5. Annotate the verdict file, the moment each lens's dispatch returns
 
 Write every one of that lens's outcomes in place, next to its own finding - never held back until the last lens finishes. Two marks per finding, doing different jobs:
 
-- **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the same convention `plan-status-markers` defines for plan
-task headings. This is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
+- **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the same convention `plan-status-markers` defines for plan task headings.
+  - This is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
 
 - **In the finding's body**, the outcome and evidence:
   - `APPLIED (<sha>)` - the fix commit's SHA, pairs with a `[Done]` heading.
@@ -189,8 +187,7 @@ State plainly, every time:
 - Every finding not selected in §2 is untouched and carries no annotation.
 - This run never re-ran either reviewer - it only consumed their existing reports.
 
-Invoked by a skill, hand that same list back to the caller rather than only printing it - the caller composes the closing report the human reads, and
-can only name what it was told.
+Invoked by a skill, hand that same list back to the caller rather than only printing it - the caller composes the closing report the human reads, and can only name what it was told.
 
 ## Flowchart (human-facing)
 
