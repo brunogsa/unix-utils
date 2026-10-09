@@ -6,7 +6,8 @@
 # Usage:
 #   check-finding-bodies.py <verdict.md> [<verdict.md> ...]
 #
-# stdout: "<path>: finding <N>: <reason>" per violation
+# stdout: "<path>: finding <N>: <reason>" per violation, or
+#   "<path>: line <L>: <reason>" for a misplaced finding heading
 # stderr: a usage message, or the path that could not be read
 # exit: 0 when every finding passes, 1 on any violation,
 #       2 on a usage error or an unreadable file
@@ -16,6 +17,8 @@ import re
 import sys
 
 FINDING_HEADING = re.compile(r"^### (\d+)\. ((?:\[[^\]]*\])*)")
+MISPLACED_FINDING_HEADING = re.compile(r"^(?:#{1,2}|#{4,6}) \d+\. ")
+MISPLACED_HEADING_REASON = "numbered finding heading must be '### N.'"
 FINDING_BOUNDARY = re.compile(r"^(?:#{1,3} |---$)")
 FENCE_DELIMITER = re.compile(r"^\s*```")
 SEVERITY_TAG_LINE = re.compile(r"^\*\*\[([^\]]+)\]\*\*$")
@@ -71,13 +74,18 @@ def _build_parser():
 
 
 def parse_findings(text):
-    """Split a verdict into findings, ignoring headings inside code fences."""
+    """Split a verdict into findings, ignoring headings inside code
+    fences. Also return the line numbers of numbered findings filed
+    under a heading level other than ###."""
     findings = []
+    misplaced_heading_lines = []
     current = None
     is_in_fence = False
-    for line in text.splitlines():
+    for line_number, line in enumerate(text.splitlines(), start=1):
         is_delimiter = bool(FENCE_DELIMITER.match(line))
         if not is_in_fence and not is_delimiter:
+            if MISPLACED_FINDING_HEADING.match(line):
+                misplaced_heading_lines.append(line_number)
             heading = FINDING_HEADING.match(line)
             if heading:
                 tokens = BRACKET_TOKEN.findall(heading.group(2))
@@ -91,7 +99,7 @@ def parse_findings(text):
             is_in_fence = not is_in_fence
         if current is not None:
             current.lines.append((line, is_in_fence or is_delimiter))
-    return findings
+    return findings, misplaced_heading_lines
 
 
 def _reviewer_lines(finding):
@@ -209,7 +217,11 @@ def main():
     args = _build_parser().parse_args()
     has_violation = False
     for path, text in _read_all(args.paths).items():
-        for finding in parse_findings(text):
+        findings, misplaced_heading_lines = parse_findings(text)
+        for line_number in misplaced_heading_lines:
+            print(f"{path}: line {line_number}: {MISPLACED_HEADING_REASON}")
+            has_violation = True
+        for finding in findings:
             for reason in check_finding(finding):
                 print(f"{path}: finding {finding.number}: {reason}")
                 has_violation = True

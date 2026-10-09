@@ -291,6 +291,22 @@ class TestFindingBoundaries:
         assert lines[0].startswith(f"{path}: finding 2: ")
 
 
+class TestNumberedHeadingLevel:
+    @pytest.mark.parametrize("hashes", ["#", "##", "####", "######"])
+    def test_numbered_finding_under_a_heading_level_other_than_three_is_flagged_with_its_line(
+        self, tmp_path, hashes,
+    ):
+        text = "# Refactor review\n\n## Findings\n\n" + _finding().replace("###", hashes, 1)
+        path = _write(tmp_path, text)
+        lines = _violations(_run(path))
+        assert lines == [f"{path}: line 5: numbered finding heading must be '### N.'"]
+
+    def test_numbered_heading_inside_a_code_block_is_not_flagged(self, tmp_path):
+        suggestion = "```markdown\n## 1. [MEDIUM] title\n```"
+        body = _body(suggestion_text=suggestion)
+        _assert_passes(_check(tmp_path, _verdict(_finding(body=body))))
+
+
 class TestAddressVerdictsAnnotations:
     @pytest.mark.parametrize("annotation", [
         "APPLIED (fa169db4) - the rate is divided by 100 before billing.",
