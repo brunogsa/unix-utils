@@ -61,7 +61,7 @@ All three legs run regardless - the tail never skips one, it only never applies 
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 
-What `/quality-gate` owns, and this skill does not restate: the two verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
+What `/quality-gate` owns, and this skill does not restate: its verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
 
 What this skill does with the result:
 
@@ -112,10 +112,14 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Per-task outcomes** - every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks** (only when §8.3 was skipped) - any plan-declared full-suite/repo-wide command §4.1 stripped from a task's dispatch that the gate would otherwise have re-covered.
 
-- **Every verdict file path** `/quality-gate` produced (the merged `verdict_quality-gate_<branch>_<ts>.md` and `verdict_test-sdd_<branch>_<ts>.md`).
+- **Every verdict file path** `/quality-gate` produced (the merged `verdict_quality-gate_<branch>_<ts>.md`, or the separate refactor and auto-review files when its merge failed, plus `verdict_test-sdd_<branch>_<ts>.md` when a plan resolved).
   - Plus any leg it flagged as failed.
 
-- **The quality-gate outcome** - one line per finding, never a bare id or count, in the form `<lens>#N (<file>:<lines>) - <one-line recap>`, plus its outcome.
+- **The quality-gate outcome** - one line per finding, never a bare id or count, plus its outcome and a one-line recap.
+  - A merged finding reads `quality-gate#N [<lens>] (<file>:<lines>)`.
+
+  - A test-sdd finding, or any finding on the fallback path, reads `<lens>#N (<file>:<lines>)`.
+
   - Outcome is applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
 
 - **Missing planned tests** - the `test-sdd` leg's misses, called out on their own line, not buried in the finding list; the gap this batch exists to close, attempted every run.
