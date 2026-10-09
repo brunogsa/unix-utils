@@ -37,13 +37,7 @@ The third leg runs only when a plan resolves - without a plan there are no plann
 
   - Both flags at once is a contradiction, not a precedence puzzle - stop and say so.
 
-Inline examples: `/quality-gate` discovers spec/plan in CWD and asks before applying; `/quality-gate --tasks 1,2 --auto-solve` is how `/implement` scopes the `test-sdd` leg to its batch.
-
-See [`references/more-examples.md`](references/more-examples.md) for the explicit-path and `--base-ref --report-only` invocations, opened only when a case falls outside those two.
-
-## When to invoke
-
-Direct `/quality-gate` invocation, "review and fix what's safe", or dispatch from another skill's flow.
+See [`references/more-examples.md`](references/more-examples.md) for example invocations, opened only when the flags above leave a case unclear.
 
 `/implement`'s batch-end tail runs this, passing `--auto-solve` only when its own interview asked for it.
 
@@ -58,8 +52,6 @@ Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anyth
 - **Report only** (recommended default) - verdict files land in CWD, no refactor/auto-review finding is touched; the human decides later, by hand or via `/address-verdicts`.
 
 - **Auto-solve** - after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
-
-**The `test-sdd` lens is applied on every run that dispatches it, without triage** (§5.1).
 
 ## 2. Resolve the spec and the plan
 
@@ -87,13 +79,13 @@ Also resolve `<BASE_REF>` for the `auto-review` leg:
 
 The script falls back from `origin/HEAD` to local `main` to local `master`; a failed detection means none of the three exist.
 
-If detection fails, ask which branch to diff against rather than guessing - but under either flag, stop and print what failed, since proceeding would review the wrong range.
+If detection fails, ask which branch to diff against rather than guessing - but under either flag, stop and print what failed, since a missing base has no safe default.
 
 A caller may pass its own base ref via `--base-ref` instead - `/implement`'s batch-end tail passes `BATCH_BASE_SHA` that way.
 
 ## 3. Dispatch the legs in parallel
 
-Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg - all in the **same turn**, all in the background.
+Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens and auto-review legs, `test-reviewer` for the planned-test-presence leg - all in the **same turn**, all in the background. They are independent report-only passes with no ordering dependency.
 
 - `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool).
 
@@ -105,9 +97,11 @@ Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens
 
 Tell each leg this explicitly, since the skills it invokes describe dispatching a reviewer. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why nesting is ruled out.
 
-The `check-reviewer-writes.sh` hook backs the report-only contract at the tool layer - its exact terms live in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), the single home for that wording.
+The `check-reviewer-writes.sh` hook backs the report-only contract at the tool layer - its exact terms live in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md).
 
-Tell each leg the `/tmp` half too, or it skips the `$work_dir` persistence its compaction-resume depends on.
+Every leg mints its own `verdict_*.md` timestamp per its own skill, so repeated runs accumulate rather than collide.
+
+Tell each leg the `/tmp` half too: a leg that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
 ## 4. Collect the reports
 
@@ -115,29 +109,33 @@ When each leg returns, confirm its verdict file exists in CWD and is non-empty.
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary, let the other legs' reports stand, and move on.
   - Never retry twice - a twice-failed leg is for the human.
 
-- **Never report from a leg's return message** - messages are capped; the file is the source of truth.
+- **Never report from a leg's return message** - messages are capped and truncate long finding lists; the file is the source of truth.
 
 ### 4.1. Merge the `refactor` and `auto-review` files into one verdict
 
 **Neither file exists** → skip this step. **Only one exists** → still merge it, so the output shape and lens tags are uniform. It runs on report-only and auto-solve runs alike.
 
-Mint the path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`.
+Record the resolved source paths. Mint the run directory `mktemp -d /tmp/quality-gate.XXXXXX` once, and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`.
 
-Dispatch ONE `code-reviewer` (fresh context, foreground) with both source paths, the merged path, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md), which holds its rules. It merges reports only, never re-reviewing.
+Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths, never a glob that could pick up a stale file from an earlier run, plus the merged path and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md), which holds its rules. It merges reports only, never re-reviewing.
 
 Verify without reading the file into main:
 
 - It exists and is non-empty, and main's own run of `check-finding-bodies.py` on it exits 0.
-- `grep -c '^### [0-9]*\. '` is at most the sum of the inputs' finding counts.
-- Every finding heading carries exactly one `[auto-review]` or `[refactor]` tag.
 
-**Pass** → move (never delete) both source files into `mktemp -d /tmp/quality-gate.XXXXXX`, so `/address-verdicts`' newest-per-lens default can't apply one finding from both the merged file and its source. Record the moved paths for §7.
+- The finding count equals the per-lens input counts minus the duplicates the agent reports collapsing; an upper bound would let dropped findings pass, and they vanish once the sources move.
+
+- Every finding heading carries exactly one `[auto-review]` or `[refactor]` tag, counted the same way.
+
+Count headings fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
+
+**Pass** → move (never delete) both source files into the run directory, so `/address-verdicts` can't apply one finding from both the merged file and its source. Record the moved paths for §7.
 
 **Fail** → keep the source files in CWD as this run's output, move the failed merged file into the run directory instead, and say so in §7.
 
 ## 5. Assemble the apply list
 
-The two groups below enter the list on different terms. Compose the whole list before invoking anything, and print it before applying anything.
+Compose the whole list, and print it, before applying anything.
 
 ### 5.1. Every `test-sdd` finding goes in, without triage
 
@@ -164,7 +162,7 @@ Print the accepted list before applying anything, one line per finding: `quality
 
 Print the rejected list in the same shape, carrying the rejection reason instead.
 
-On the fallback path the reference is `<lens>#N (<file>:<lines>)`. The relevance call is judgment, so it gets shown, not just its result.
+On the fallback path use `<lens>#N (<file>:<lines>)`. The relevance call is judgment, so it gets shown, not just its result.
 
 ## 6. Hand the apply list to `/address-verdicts`
 
@@ -185,11 +183,11 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 - **`--no-ask` is mandatory here**, report-only or auto-solve alike.
   - §1 already asked this run's one question, so a prompt now would either re-ask it or stall a `/implement` tail with nobody standing by.
 
-- **`--test-cmd` is passed** so its inference step has nothing left to guess - the one thing it would otherwise prompt for.
+- **`--test-cmd` is passed** so its inference step has nothing left to prompt for.
 
 It runs in this session, never wrapped in a subagent, because it commits and a permission prompt only renders in main.
 
-See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why applying is its job and why it stays in the main session.
+See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why applying is its job.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, failures with retry needs.
 
@@ -201,8 +199,7 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
   - Also any leg that failed to produce a file, and the `test-sdd` leg when §2 resolved no plan.
 
 - **Every finding below carries its `quality-gate#N [<lens>] (<file>:<lines>)` reference (`<lens>#N (...)` for `test-sdd` and the fallback) plus a one-line recap - never a bare id, count, or SHA alone.**
-
-A human reading the report should never have to open a verdict file to know what was decided.
+  - §5.2 already composed this; reuse it.
 
 - Applied findings, with commit SHA.
 - Findings judged not addressable by §5.2, with the reason - they stay unmarked in their verdict files.

@@ -20,6 +20,8 @@ Write the merged file in the layout of [`local-review-template.md`](../../code-r
   - `### N. [MEDIUM][refactor] <title>`
   - Reason: `/address-verdicts` routes on this tag - `auto-review` to `tdd-coder`, `refactor` to the `refactor` agent - so a heading with no tag, or two, is a defect.
 
+- Keep every other tag the source heading had, with the lens tag right after the severity and before any of them: `### N. [MEDIUM][refactor][LINTER GAP] <title>`.
+
 - Under the header, write one line of counts: findings taken from each lens, duplicates collapsed, findings written.
 
 ## Duplicates
