@@ -71,10 +71,6 @@ It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.htm
 
 Tell each lens about the `/tmp` half - a lens that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 
-The subagent cannot physically touch repo source even if it tried.
-
-
-
 ## Failure handling
 
 - **Contract violation** (a mutation the hook didn't block, e.g. a `git commit` run through Bash) → abort the whole run; report it to the caller immediately.
@@ -115,12 +111,6 @@ Never do this as an unprompted default, and never as a repeating loop:
 **Callers may override this generic routing.** The `address-verdicts` skill routes by lens instead - refactor-lens findings to the `refactor` agent, auto-review-lens findings to `tdd-coder`.
 
 Lens routing beats one generic applier because the `refactor` agent refuses behavior changes by design, so a correctness finding has to reach `tdd-coder` to get a test written for it at all.
-
-`implement`'s batch end reaches this same routing indirectly. Its quality-gate tail (`implement/references/batch-end-review.md`) invokes `/quality-gate` with `--auto-solve`, whose triage step names the findings and hands them to `address-verdicts`.
-
-Under `--report-only` that tail still reaches the same routing, carrying only the planned-test findings - `/quality-gate` applies those on every run, so `address-verdicts` gets a `tdd-coder` dispatch either way.
-
-One difference: the orchestrator names them in-run. It does not wait for a human to name them after seeing the package.
 
 **Repeating this across rounds until the tails come back dry is `loop-auto-review`'s job, not this reference's**.
 
