@@ -27,7 +27,7 @@ def address_verdicts(arg):
     # 2 · Step 1 - several timestamped generations can exist per lens, and the
     #     timestamp is embedded in the filename, so it sorts lexically.
     files = glob("verdict_refactor_*.md", "verdict_auto-review_*.md",
-                 "verdict_test-sdd_*.md")
+                 "verdict_test-sdd_*.md", "verdict_quality-gate_*.md")
 
     if not files:                                          # 3
         # 3a · Nothing to address yet - run /quality-gate, or a single lens
@@ -81,7 +81,8 @@ def address_verdicts(arg):
     #     dispatch order - each stage hands the next a stronger test safety
     #     net). Shaped "Apply all N <lens> findings". First entry
     #     in_progress, every other one pending. A real run yields 30-50
-    #     findings but at most 3 entries.
+    #     findings but at most 3 entries. A merged-file finding joins the
+    #     entry its heading lens tag names, never a quality-gate entry.
     lens_entries = group_by_lens(findings,
                                   order=["test-sdd", "auto-review", "refactor"])
     tasklist.seed([f"[Task] Apply all {len(e.findings)} {e.lens} findings"
@@ -213,7 +214,7 @@ def address_verdicts(arg):
 ```mermaid
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
-  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md.<br/>Several timestamped generations can exist per lens,<br/>and the timestamp sorts lexically"]
+  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (one more lens).<br/>Several timestamped generations can exist per lens,<br/>and the timestamp sorts lexically"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
   n4{"4. Step 1 · A lens has no file - did &lt;which ones&gt;<br/>name that lens explicitly?"}
@@ -225,7 +226,7 @@ flowchart TD
   n8a{"8a. Was --no-ask passed?"}
   n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>the caller re-runs it by hand after reading the ledger,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one - refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity - a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
-  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries"]:::state
+  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>no tag is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
   n21{"21. Step 4 · Classify each finding in this entry by what it EDITS,<br/>not by which lens found it. The per-lens routing below is only<br/>the default for a code finding - a non-code target overrides it"}
   n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The one place this skill overrules /quality-gate's<br/>every-test-sdd-finding-applies rule - the forbidden test wins"]
@@ -233,8 +234,8 @@ flowchart TD
   n11{"11. Step 4 · Which lens does this seeded entry dispatch?<br/>Each dispatch carries ALL of that lens's selected<br/>findings at once, serially in the seeded order - NEVER<br/>in parallel, since every dispatch commits to the same<br/>branch. The refactor agent refuses any behavior change<br/>BY DESIGN, so a correctness fix or a missing test cannot<br/>route through it - both need tdd-coder's test-first<br/>discipline instead"}
 
   n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix - pass every planned title verbatim so<br/>each lands under the name the plan declared"]:::dispatch
-  n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings. Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
-  n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings. It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
+  n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings (from the auto-review<br/>file or [auto-review]-tagged merged findings). Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
+  n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings (from the refactor file<br/>or [refactor]-tagged merged findings). It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
 
   n12["12. Step 4 · Verify the dispatch's result against the<br/>artifacts - the diff, the test run - before trusting<br/>its done. One verify per dispatch, covering every<br/>finding in the batch; a summary describes intent,<br/>only the artifact shows what actually landed"]
   n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens - a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
@@ -245,7 +246,7 @@ flowchart TD
 
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes - a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
     direction TB
-    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before any severity tag. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked"]:::state
+    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before the severity and lens tags. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked"]:::state
     n16["16. In the finding's BODY, write the outcome and its<br/>evidence: APPLIED (sha), or SKIPPED (reason) with the<br/>heading left unmarked so a re-run reconsiders it.<br/>The heading alone cannot say WHY or point at the fix,<br/>and the body line alone is not greppable"]:::state
     n15 --> n16
   end

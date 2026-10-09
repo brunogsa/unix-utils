@@ -13,7 +13,9 @@ disable-model-invocation: false
 `<which ones>` selects which findings to work. It matches, in this order:
 
 - `all` - every finding in every located verdict file. Default when the arg is empty.
-- A lens name, `refactor`, `auto-review`, or `test-sdd` - every finding in that lens's file only.
+- A lens name, `refactor`, `auto-review`, `test-sdd`, or `quality-gate` - every finding in that lens's file only.
+  - `quality-gate` selects every finding in the merged file. `refactor` and `auto-review` also select the findings tagged with that lens in the newest merged file.
+
 - A severity floor, e.g. `high`/`high+` - every finding at or above it, only when the report labels severity (see §2).
 
 - An explicit list of finding identifiers - numbers, titles, or file:line, as the report names them.
@@ -39,10 +41,10 @@ Two ways in; only who picks the findings differs:
 ## 1. Locate the verdict files
 
 ```bash
-ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md 2>/dev/null
+ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md 2>/dev/null
 ```
 
-Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`. Pick the
+Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`; `quality-gate` is one more lens. Pick the
 newest generation per lens by modification time (`ls -t verdict_<lens>_*.md | head -1`), not a lexical sort.
 
 - **Default**: the newest generation of each lens - the most recently modified file.
@@ -89,6 +91,8 @@ nothing appears later, out of order, as it becomes relevant.
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
 ```
 
+A merged-file finding joins the `auto-review` or `refactor` entry its heading tag names (`### 1. [HIGH][refactor] <title>`), never a `quality-gate` entry. One with no lens tag is an ambiguity: ask, or under `--no-ask` annotate `SKIPPED (no lens tag)`.
+
 Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`** - each stage hands the next a stronger safety net.
 
 A lens with no finding gets no entry at all, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
@@ -120,9 +124,11 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - **`test-sdd` entry** (from `verdict_test-sdd_*.md`): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`. A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix -
 pass every planned title verbatim so each test lands under the name the plan declared.
 
-- **`auto-review` entry** (from `verdict_auto-review_*.md`): `agent(subAgent=tdd-coder, title=Apply all auto-review findings)`. Strict TDD, RED before GREEN, once per finding - same as any other `tdd-coder` dispatch.
+- **`auto-review` entry** (from `verdict_auto-review_*.md`, or an `[auto-review]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=tdd-coder, title=Apply all auto-review findings)`.
+  - Strict TDD, RED before GREEN, once per finding - same as any other `tdd-coder` dispatch.
 
-- **`refactor` entry** (from `verdict_refactor_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`. It applies the changes itself and confirms tests are green before and after.
+- **`refactor` entry** (from `verdict_refactor_*.md`, or a `[refactor]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`.
+  - It applies the changes itself and confirms tests are green before and after.
 
 **Size all three entries to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own.
 
@@ -150,7 +156,7 @@ failed lens, so six real commits are preserved in the ledger.
 
 Write every one of that lens's outcomes in place, next to its own finding - never held back until the last lens finishes. Two marks per finding, doing different jobs:
 
-- **In the finding's heading**, a `[Done]` prefix right after the number, before any severity tag: `### 1. [Done][HIGH] <title>` - the same convention `plan-status-markers` defines for plan
+- **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the same convention `plan-status-markers` defines for plan
 task headings. This is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
 
 - **In the finding's body**, the outcome and evidence:
@@ -161,7 +167,7 @@ Why two marks, and why lens by lens: [`references/design-rationale.md`](referenc
 
 ## 6. Close with a report
 
-One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`.
+One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding's id is `quality-gate#N`.
 
 The recap is mandatory even when the finding is already annotated on disk.
 
