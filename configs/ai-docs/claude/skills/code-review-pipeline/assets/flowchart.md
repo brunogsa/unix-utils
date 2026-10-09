@@ -177,7 +177,7 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
                 post_review_guide()
 
             case "local":
-                out_file = write(f"verdict_auto-review_{ts}", to=CWD)   # 17a
+                out_file = write(f"verdict_auto-review_{branch}_{ts}", to=CWD)   # 17a
 
     return terminal_summary()                                 # 22 · Wave 6, returned to the caller
 ```

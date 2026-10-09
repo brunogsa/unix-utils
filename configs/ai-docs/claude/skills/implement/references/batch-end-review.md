@@ -116,7 +116,7 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Per-task outcomes** - every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks** (only when §8.3 was skipped) - any plan-declared full-suite/repo-wide command §4.1 stripped from a task's dispatch that the gate would otherwise have re-covered.
 
-- **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<ts>.md`, `verdict_auto-review_<ts>.md`, `verdict_test-sdd_<ts>.md`).
+- **Every verdict file path** `/quality-gate` produced (`verdict_refactor_<branch>_<ts>.md`, `verdict_auto-review_<branch>_<ts>.md`, `verdict_test-sdd_<branch>_<ts>.md`).
   - Plus any leg it flagged as failed.
 
 - **The quality-gate outcome** - one line per finding, never a bare id or count, in the form `<lens>#N (<file>:<lines>) - <one-line recap>`, plus its outcome.

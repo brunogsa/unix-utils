@@ -20,10 +20,12 @@ Spawn both as `agent(subAgent=code-reviewer, title=Simplification-lens review)` 
 
 They're independent report-only passes with no ordering dependency between them.
 
-- **Simplification lens**: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code. Writes `./verdict_refactor_<YYYY-MM-DD_HH:MM>.md`.
+- **Simplification lens**: duplication, dead code, over-abstraction, unclear naming, missed extractions, needless indirection, idioms inconsistent with surrounding code. Writes `./verdict_refactor_<branch>_<YYYY-MM-DD_HH:MM>.md`.
 
-- **Correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps. Writes `./verdict_auto-review_<YYYY-MM-DD_HH:MM>.md`.
+- **Correctness lens**: bugs, missed edge cases, contract mismatches between what the batch produces and what its callers expect, test gaps. Writes `./verdict_auto-review_<branch>_<YYYY-MM-DD_HH:MM>.md`.
 - When `<SPEC_PLAN_PATHS>` is given, also checks spec conformance against it.
+
+In both names `<branch>` is the current branch with `/` replaced by `-`, matching `wave1-context-prep.md`.
 
 Each lens prompt also tells the lens to:
 

@@ -65,10 +65,10 @@ def quality_gate(arg):
     #      report-only passes, no ordering between them. Each leg IS the
     #      fresh-context reviewer, so none of them spawns a nested one. ----
     legs = dispatch_parallel(background=True, legs=[
-        ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{ts}.md"),      # 8a · leg dispatch
-        ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{ts}.md"),   # 8b · leg dispatch
+        ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 8a · leg dispatch
+        ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 8b · leg dispatch
         # 8c · scoped by --tasks, and dispatched ONLY when a plan resolved.
-        ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{ts}.md"),
+        ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{branch}_{ts}.md"),
     ] if plans else [...])
     # 8d · hook: check-reviewer-writes - approves verdict_*.md and
     #      verdict_*.html, AND any write under /tmp; everything else denied.
