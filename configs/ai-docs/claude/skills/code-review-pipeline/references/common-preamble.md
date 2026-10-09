@@ -127,8 +127,11 @@ JSON. Each finding object:
 verification labels, fix priors, or scope notes, because the verdict file
 and GitHub comment post it verbatim.
 
-Body follows the severity-tag → summary line → Sugestão → Trade-off de não
-fazer structure from `review-principles.md`. Write for a **low-context
+Body follows the structure, per-part rules, and length budget in
+`review-principles.md`, section "Feedback structure: severity tag → summary
+line → Sugestão → Trade-off de não fazer"; a worked example sits in
+`~/.claude/skills/code-review-pipeline/references/local-review-template.md`,
+"Worked example". Write for a **low-context
 reviewer** - someone reading the comment as their first exposure to the
 issue, without having read the full PR or surrounding code. The summary
 line plus the code block must be enough to act on without leaving the
@@ -143,38 +146,6 @@ reader does.
   in GH/PT-BR mode; `**[MANDATORY]**` / `**[RECOMMENDED]**` / `**[NITPICK]**` /
   `**[OPTIONAL]**` / `**[QUESTION]**` in LOCAL/English mode. Must match the
   `severity` field 1:1 - the visible tag and the JSON field can never disagree.
-- **Summary line** (second line, plain text, no bold label, no bullet): one
-  sentence naming the visible effect and its cause (e.g. *"Fees come out
-  100x too high because the rate unit is wrong."*). A reader who stops
-  here still knows whether this blocks them.
-- **Sugestão** / **Suggestion**: the fix, as code whenever possible.
-  - Prefer a `suggestion` fenced block whenever the replacement fits the
-    commented lines - GitHub renders it as an applyable before/after diff,
-    so no prose has to describe the current state. Fall back to a `diff`
-    fenced block with `-`/`+` when the change can't anchor there or touches
-    another file.
-  - Prose around it: 0-1 paragraph of 1-4 sentences, OR 2-5
-    bullets/sub-bullets of 1-2 sentences. Drop the prose entirely when the
-    code block speaks for itself.
-  - Omit the whole section only for a QUESTION finding with no concrete fix.
-- **Trade-off de não fazer** / **Trade-off of not doing it**: what leaving
-  it costs.
-  - Always bullets + sub-bullets, never a paragraph. 2-5 in total, 1-2
-    sentences each - pick the most important.
-  - Optional `[+]` / `[-]` marker per bullet, for the upside/downside of
-    skipping the fix.
-  - Name the concrete scenario being avoided; for numeric/unit issues use
-    real values (e.g. *"subtotal R$200 × 3.11% deveria dar R$6.22, mas a
-    função retorna 622"*).
-  - Never omitted.
-
-Length budget per body: **≤512 characters**. A MANDATORY finding may go to
-**≤1024 characters and ≤16 lines**. Fenced code blocks count toward neither -
-the visual diff is the point, and charging it against the budget pushes
-you back to prose.
-
-Never pad to reach the budget. A finding whose summary line and suggestion
-block already say everything is finished.
 
 Permalinks (GH mode only): when referencing *another* file inside a comment body,
 use `https://github.com/{repo}/blob/{commit_sha}/{path}#L{a}-L{b}`. Values for

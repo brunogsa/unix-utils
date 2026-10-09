@@ -45,14 +45,18 @@ Every review comment opens with a bold, bracketed severity tag on its own line, 
 
 - **Sugestão** / **Suggestion**: the fix, shown as code whenever possible.
   - Prefer a `suggestion` fenced block whenever the replacement fits the commented lines - GitHub renders it as an applyable before/after diff, so no prose has to describe the current state.
+
   - Fall back to a `diff` fenced block with `-`/`+` when the change can't anchor on the commented lines, or touches another file.
+
   - Prose around the block: 0-1 paragraph of 1-4 sentences, OR 2-5 bullets/sub-bullets of 1-2 sentences. Drop the prose entirely when the code block speaks for itself.
+
   - Omit the whole section only for a QUESTION finding with no concrete fix to propose.
 
 - **Trade-off de não fazer** / **Trade-off of not doing it**: what leaving it costs.
   - Always bullets + sub-bullets, never a paragraph. 2-5 in total, 1-2 sentences each - pick the most important.
   - Each bullet may carry an optional `[+]` / `[-]` marker, for the upside/downside of skipping the fix.
   - Name the concrete scenario being avoided; for numeric/unit issues use real values.
+  - Example: *"subtotal R$200 × 3.11% deveria dar R$6.22, mas a função retorna 622"*.
   - Never omitted.
 
 Why: the problem alone leaves the author guessing about severity, and the tag fixes that immediately.
@@ -66,6 +70,8 @@ Two sections instead of four because the summary line already states what is wro
 Length budget per body: **≤512 characters**. A MANDATORY finding may go to **≤1024 characters and ≤16 lines**.
 
 Fenced code blocks count toward neither - the visual diff is the point, and charging it against the budget pushes reviewers back to prose.
+
+Never pad to reach the budget. A finding whose summary line and suggestion block already say everything is finished.
 
 ## Priority tags - match severity to tone, and each tag to an ordinal rank
 
