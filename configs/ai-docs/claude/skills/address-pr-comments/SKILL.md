@@ -118,8 +118,6 @@ matches and stop - don't cluster.
 Return ONLY the proposal block - never the raw fetched JSON.
 ```
 
-Subsections 3a-3g live in `references/fetch-cluster-propose.md`; only the subagent reads them.
-
 ## Output: preview every cluster, then ask
 
 The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Load [`references/reply-patterns.md`](references/reply-patterns.md) now: the previews quote its reply templates and signature rule.
@@ -178,6 +176,8 @@ For each `apply` cluster, **in the order the user left them**:
 
    Its body lists the cluster's comment URLs under an `Addresses:` block and its edited sites under a `Sites:` block.
 
+   Leave a blank line between the `Addresses:` label and its first URL - commitlint reads a URL's `#discussion_r…` fragment as an issue reference that starts the footer, and warns `footer-leading-blank` when no blank line precedes it.
+
 4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 7's reply link needs it.
 
 If a cluster's edits touch files outside its scope (drift), never silently absorb it - ask whether to split it into a separate `[Drift]` commit per CLAUDE.md or bundle it if trivial. Either way the cluster's own flow then resumes.
@@ -203,8 +203,6 @@ On a permission denial, skip that reply and list it in step 8's report. On a `gh
 ### 7a. Reply mechanics - load before the first reply
 
 Templates per action, the `gh api` call per reply-target kind, and the signature rule (none only on an answer the user typed) are in [`references/reply-patterns.md`](references/reply-patterns.md) - reload it if a compaction dropped it. Main reads it directly, never a subagent.
-
-The inverse case - a comment addressed to Claude, answered in Claude's own voice - belongs to `gh-answer-claude-mentions`, not here.
 
 ### 7b. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
