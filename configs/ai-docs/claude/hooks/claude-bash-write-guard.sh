@@ -353,17 +353,17 @@ def format_report(source, destination):
     # why: the copy lands the source's text in the destination
     # unchanged, so the destination's checker must pass on it.
     #
-    # The temp copy carries the destination's extension, since
-    # the hook picks its checkers by extension, and the scratch
-    # flag stops the hook skipping a file under temp.
+    # The temp copy carries the destination's basename, since
+    # the hook picks its checkers by extension and exempts some
+    # files by basename (tasklist.md), and the scratch flag
+    # stops the hook skipping a file under temp.
     if not GUARDED_EXTENSIONS:
         # why: the hook reads the same missing list, so it would
         # check nothing and pass every source.
         return 'could not check {}: no shared extension list\n'.format(source)
-    extension = destination.rsplit('.', 1)[-1]
     payload_env = dict(os.environ, CLAUDE_PROSE_FORMAT_CHECK_SCRATCH='1')
     with tempfile.TemporaryDirectory() as directory:
-        copy = os.path.join(directory, 'copied.' + extension)
+        copy = os.path.join(directory, os.path.basename(destination))
         try:
             shutil.copyfile(source, copy)
         except OSError as error:

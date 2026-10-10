@@ -351,6 +351,15 @@ it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format
   assert_eq "should block copying a /tmp scratch file whose prose breaks the markdown format rules" "2" "$HOOK_EXIT"
 }
 
+# why: tasklist.md holds verbatim TaskGet text no edit may fix,
+# so the prose hook exempts it by basename; a cat copy onto it
+# must get the same exemption a Write does. The block test
+# above is the counterpart: the same text onto README.md.
+it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist() {
+  run_hook "cat $scratch_dir/batch.md >> docs/tasklist.md"
+  assert_eq "should allow copying a /tmp scratch file whose prose breaks the markdown format rules onto tasklist.md, which the format rules exempt" "0" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -396,6 +405,7 @@ it_should_block_cat_with_a_flag_that_rewrites_the_copied_content
 it_should_block_a_copy_run_through_a_local_script_named_cat
 it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
+it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
