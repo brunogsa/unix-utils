@@ -358,33 +358,6 @@ else
     echo "WARNING: PyYAML install failed; quick_validate.py will fail to import yaml" >&2
 fi
 
-# RTK (Rust Token Killer) - CLI proxy that compresses Bash
-# output to cut Claude Code token burn.
-#
-# Wired as a second PreToolUse Bash hook (rtk hook claude)
-# in settings.json. Usage rules live in the global
-# CLAUDE.md under "RTK command proxy".
-#
-# Verified to coexist with claude-git-guard/claude-rm-guard:
-# a hook exit-2 (deny) outranks rtk's "allow".
-#
-# If `rtk gain` errors after install, the wrong `rtk` is on
-# PATH - reachingforthejack/rtk (Rust Type Kit) shares the
-# name. Check with `rtk --version` and `which rtk`.
-if command -v rtk &> /dev/null; then
-    echo "rtk already installed, skipping"
-elif [[ "$OS" == "macos" ]]; then
-    brew install rtk
-elif [[ "$OS" == "linux" ]]; then
-    # Installs to ~/.local/bin (no sudo).
-    # Ensure it is on PATH so the hook can find rtk.
-    curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/master/install.sh | sh
-
-    # shellcheck disable=SC2016 # single quotes intentional:
-    # match literal string in ~/.zshrc
-    grep -q '.local/bin' ~/.zshrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-fi
-
 mkdir -p ~/.claude
 
 # commands/ has no matching `ln -sf` below by design: it was
@@ -392,10 +365,6 @@ mkdir -p ~/.claude
 # leftover dirs from machines set up before that migration.
 rm -fr ~/.claude/commands ~/.claude/skills ~/.claude/scripts ~/.claude/agents
 
-# RTK.md has no matching `ln -sf` below by design: its rules
-# now live inline in CLAUDE.md (see git log), so this only
-# clears the stale symlink on machines set up before that.
-rm -f ~/.claude/RTK.md
 ln -sf ~/unix-utils/configs/ai-docs/claude/CLAUDE.md ~/.claude/
 ln -sf ~/unix-utils/configs/ai-docs/claude/skills ~/.claude/
 

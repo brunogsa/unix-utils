@@ -69,7 +69,7 @@ GLOBAL_FLAG_OPTIONS = frozenset(
 )
 GLOBAL_VALUE_OPTIONS = frozenset({"--git-dir", "--work-tree", "--namespace", "--attr-source"})
 
-WRAPPER_COMMANDS =frozenset({"rtk", "command", "env"})
+WRAPPER_COMMANDS =frozenset({"command", "env"})
 CLEANUP_CONFIG_KEYS = frozenset({"core.commentchar", "core.commentstring"})
 CLEANUP_CONFIG_SECTION = "commit."
 GIT_CONFIG_ENV_PREFIX = "GIT_CONFIG"

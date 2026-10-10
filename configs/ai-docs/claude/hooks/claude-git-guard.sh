@@ -174,7 +174,7 @@ split_into_pipelines = _parse_shell_command.split_into_pipelines
 NON_EXECUTING_SINK_PATTERN = _parse_shell_command.NON_EXECUTING_SINK_PATTERN
 
 BLOCKED_BRANCHES = ('main', 'master')
-PREFIX_WRAPPERS = {'sudo', 'command', 'env', 'nice', 'nohup', 'time', 'rtk'}
+PREFIX_WRAPPERS = {'sudo', 'command', 'env', 'nice', 'nohup', 'time'}
 ENV_ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
 VALUE_OPTS = {'-o', '--push-option', '--receive-pack', '--exec'}
 

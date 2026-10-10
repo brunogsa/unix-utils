@@ -321,11 +321,6 @@ it_should_block_sh_dash_c_push_to_main() {
   assert_eq 'should block sh -c "git push origin main"' "2" "$HOOK_EXIT"
 }
 
-it_should_block_rtk_prefixed_push_to_main() {
-  run_hook "rtk git push origin main"
-  assert_eq "should block rtk git push origin main (transparent prefix)" "2" "$HOOK_EXIT"
-}
-
 it_should_block_env_prefixed_push_to_main() {
   run_hook "env FOO=1 git push origin main"
   assert_eq "should block env FOO=1 git push origin main" "2" "$HOOK_EXIT"
@@ -600,7 +595,6 @@ it_should_block_cd_then_bare_push_while_repo_on_master
 it_should_block_git_push_main_smuggled_through_bash_heredoc
 it_should_block_bash_dash_c_push_to_main
 it_should_block_sh_dash_c_push_to_main
-it_should_block_rtk_prefixed_push_to_main
 it_should_block_env_prefixed_push_to_main
 it_should_block_bare_env_assignment_push_to_main
 it_should_block_command_prefixed_push_to_main

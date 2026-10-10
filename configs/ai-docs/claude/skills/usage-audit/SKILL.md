@@ -73,7 +73,7 @@ $S/config-change-ledger.py --since <SINCE> --until <UNTIL>
 
 - **Read git history through `config-change-ledger.py`**, never an ad-hoc `git log` typed into chat.
 
-  - The script gets day grouping and surface classification for free, and runs git as a subprocess - sidestepping the `rtk` output cap.
+  - The script gets day grouping and surface classification for free, and runs git as a subprocess.
 
 - **Draft one candidate intent per commit or commit cluster**: the tweak, the surface it touched, and the KPI it could plausibly move.
 

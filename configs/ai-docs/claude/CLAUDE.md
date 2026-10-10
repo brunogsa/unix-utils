@@ -318,14 +318,6 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 - [Instruction] Treat a command slower than expected, or an unexpected timeout, as a symptom - check whether the machine is saturated before retrying or raising the timeout.
   - [Why] The two have opposite fixes - long work needs a bigger budget, a saturated machine needs load shed.
 
-### RTK command proxy
-
-- [Instruction] Never hand-prefix another tool's command with `rtk` - write the plain command and let the `PreToolUse` hook rewrite it.
-  - [Why] The hook rewrites every Bash call to `rtk` at zero overhead (60-90% on dev ops); a manual prefix only double-prefixes.
-
-- [Instruction] Pass an explicit `-n <count>` to every `git log` you run as a Bash tool call.
-  - [Why] rtk silently caps it at 10 commits (50 with `--pretty`), so a truncated head reads as the complete answer.
-
 ### Harness caveats & hygiene
 
 - [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.

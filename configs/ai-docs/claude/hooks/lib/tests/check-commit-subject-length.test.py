@@ -68,8 +68,8 @@ LANDED_COMMAND = (
 
 # Rows marked False cannot run against real git as written.
 #
-# rtk is a local proxy, a -m after -- names a missing path, and
-# the landed 1ac7104f command starts with a cd into this repo.
+# A -m after -- names a missing path, and the landed 1ac7104f
+# command starts with a cd into this repo.
 #
 # macOS /bin/bash 3.2 rejects an apostrophe inside the HEREDOC
 # form's body, which zsh and newer bash accept.
@@ -216,7 +216,6 @@ CHECKED_FORMS = [
         [SUBJECT_AT_CAP, SHORT_SUBJECT, SUBJECT_OVER_CAP],
         True,
     ),
-    ("the rtk wrapper", f'rtk git commit -m "{SUBJECT_OVER_CAP}" notes.txt', [SUBJECT_OVER_CAP], False),
     ("the command wrapper", f'command git commit -m "{SUBJECT_OVER_CAP}" notes.txt', [SUBJECT_OVER_CAP], True),
     (
         "the env wrapper with an assignment",

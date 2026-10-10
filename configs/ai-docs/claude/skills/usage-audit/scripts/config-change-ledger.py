@@ -36,22 +36,7 @@
 # cannot move a usage KPI.
 #
 # WHY A SCRIPT AND NOT AN INLINE `git log`: day grouping,
-# surface classification and the --json shape are reasons
-# enough, but rtk adds one more.
-#
-# `rtk git log` injects a default -n cap - 10 commits, 50 with
-# --pretty - and announces it on neither stdout nor stderr.
-#
-# The truncated head then reads as the complete answer for
-# whatever range was asked for, and since git orders newest
-# first, a multi-day range comes back looking like a single day.
-#
-# The range flags themselves survive: --since and --until pass
-# through untouched, and an explicit -n is honored exactly.
-# The cap is the entire defect.
-#
-# The hook rewrites Bash tool calls, not subprocesses, so the
-# git call below never meets the cap regardless.
+# surface classification and the --json shape.
 
 import argparse
 import json
