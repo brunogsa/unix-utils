@@ -93,6 +93,20 @@ it_should_pass_when_the_test_design_section_is_the_n_a_escape_with_a_reason() {
   assert_eq "should pass when the Test Design section is the N/A escape with a reason" "0" "$VERDICT_EXIT"
 }
 
+# The per-task `**Tests (planned)**:` field is dropped from the
+# plan shape (references/plan-tasks-and-appendix.md), so on an
+# N/A Test Design a task without the field plans no test.
+it_should_pass_when_the_test_design_is_the_n_a_escape_and_a_task_has_no_tests_planned_field() {
+  local fixture
+  fixture=$(write_plan "n-a-no-field" \
+    'N/A - no spec, terraform-only change.' \
+    '### 1. Add the dashboard widgets
+
+**Depends on**: none')
+  run_script "$fixture"
+  assert_eq "should pass when the Test Design section is the N/A escape and a task has no Tests (planned) field" "0" "$VERDICT_EXIT"
+}
+
 # Word-boundary guard: the escape is the literal "N/A", so a
 # section body that merely starts with those letters is still an
 # unusable Test Design.
@@ -306,6 +320,7 @@ describe("checkTestDistribution", () => {
 }
 
 it_should_pass_when_the_test_design_section_is_the_n_a_escape_with_a_reason
+it_should_pass_when_the_test_design_is_the_n_a_escape_and_a_task_has_no_tests_planned_field
 it_should_fail_when_the_test_design_is_the_n_a_escape_but_a_task_still_plans_a_real_test
 it_should_fail_when_the_test_design_lists_real_titles_but_every_task_is_n_a
 it_should_fail_when_the_test_design_body_starts_with_n_a_x_rather_than_the_escape

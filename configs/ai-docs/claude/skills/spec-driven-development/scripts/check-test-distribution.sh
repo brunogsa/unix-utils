@@ -74,9 +74,11 @@
 #        Design escape when no task plans a test either.
 #
 #   1  - annotated form: an it() has no T<n>, or a T<n> names a
-#        task Task Breakdown never defines. List form: A != B
-#        (diffs printed to stderr), or a task is missing its
-#        `**Tests (planned)**:` bullet.
+#        task Task Breakdown never defines.
+#
+#        List form: A != B (diffs printed to stderr), or a
+#        task is missing its `**Tests (planned)**:` bullet
+#        while the Test Design is not the "N/A" escape.
 #
 #   2  - usage error (wrong arg count, plan file not found,
 #        sibling script missing).
@@ -216,6 +218,17 @@ fi
 
 set_b=""
 for n in $task_nums; do
+  # The per-task field is dropped from the plan shape except
+  # as an "N/A - <reason>" opt-out (plan-tasks-and-appendix.md
+  # in this skill's references/), so under an N/A Test Design
+  # a task without it plans no test.
+  if [ "$is_design_na" = true ]; then
+    task_body=$("$section_slice" "$plan" "###" "^${n}[.]")
+    if ! printf '%s\n' "$task_body" | grep -qF '**Tests (planned)**:'; then
+      continue
+    fi
+  fi
+
   # extract exits 1 if a task lacks its
   # `**Tests (planned)**:` bullet - surface that as a plan
   # defect.
