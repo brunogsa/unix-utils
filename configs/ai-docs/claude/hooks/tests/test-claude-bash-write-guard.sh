@@ -58,16 +58,20 @@ setup_fixtures() {
     printf 'export const x = 1;\n' > src/index.ts
     printf 'build/\n' > .gitignore
     printf '# Readme\n' > README.md
-    git add src/index.ts .gitignore README.md
+    printf '{"name": "old-name"}\n' > config.json
+    printf '{"cache": "old-dir"}\n' > build/settings.json
+    git add src/index.ts .gitignore README.md config.json
     git commit -q -m "init"
   )
   printf '### 1. [Task] Offloaded task\n' > "$outside_dir/batch.md"
+  printf '{"name": "old-name"}\n' > "$outside_dir/config.json"
 
   # Scratch under /tmp, where a Bash write is never guarded and
   # the PostToolUse checker skips the file, so its content
   # reaches a copy unchecked unless the guard checks it.
   scratch_dir=$(mktemp -d /tmp/claude-bash-write-guard-scratch.XXXXXX)
   printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/batch.md"
+  printf '{"name": "old-name"}\n' > "$scratch_dir/config.json"
 }
 
 teardown_fixtures() {
@@ -360,6 +364,110 @@ it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_taskl
   assert_eq "should allow copying a /tmp scratch file whose prose breaks the markdown format rules onto tasklist.md, which the format rules exempt" "0" "$HOOK_EXIT"
 }
 
+# Script-shape cases: an in-place edit that is not one literal
+# replace-all over the whole file is blocked on any extension,
+# since Edit (replace_all, or a widened old_string) can always
+# make the same change with a diff and a mismatch error.
+#
+# config.json carries an extension the prose checkers ignore,
+# so these outcomes come from the script shape alone.
+
+# run_hook_capturing_stderr - same as run_hook, also capturing
+# the guard's denial text into HOOK_STDERR.
+run_hook_capturing_stderr() {
+  local stdin_json
+  stdin_json=$(jq -n --arg c "$1" '{tool_input: {command: $c}}')
+  HOOK_STDERR=$(
+    cd "$sandbox_dir" || exit 1
+    printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null
+  )
+  HOOK_EXIT=$?
+}
+
+it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit() {
+  run_hook "perl -0pi -e 's/old-name/new-name/g' README.md"
+  assert_eq "should block an in-place perl written as -0pi on a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_sed_limited_to_a_line_range() {
+  run_hook "sed -i '' '195,418s/old-name/new-name/' config.json"
+  assert_eq "should block an in-place sed limited to a line range, even on an extension the prose checkers ignore" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_perl_limited_to_a_line_range() {
+  run_hook "perl -i -pe '195..418 and s/old-name/new-name/' config.json"
+  assert_eq "should block an in-place perl limited to a line range" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_perl_whose_substitution_runs_under_a_condition() {
+  run_hook "perl -0pi -e 'if (\$. >= 195 && \$. <= 418) { s/old-name/new-name/ }' config.json"
+  assert_eq "should block an in-place perl whose substitution runs only when a line-number condition holds" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_perl_running_several_statements() {
+  run_hook "perl -pi -e 's/old-name/new-name/g; s/old-dir/new-dir/g' config.json"
+  assert_eq "should block an in-place perl running several statements in one script" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_sed_given_several_scripts() {
+  run_hook "sed -i '' -e 's/old-name/new-name/g' -e 's/old-dir/new-dir/g' config.json"
+  assert_eq "should block an in-place sed given several -e scripts" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_perl_substitution_that_evaluates_code() {
+  run_hook "perl -pi -e 's/(\\d+)/\$1+1/ge' config.json"
+  assert_eq "should block an in-place perl substitution whose /e flag evaluates the replacement as code" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_in_place_sed_whose_pattern_is_a_regex_rather_than_literal_text() {
+  run_hook "sed -i '' 's/^{.*\$/{}/g' config.json"
+  assert_eq "should block an in-place sed whose pattern uses regex anchors and wildcards instead of literal text" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_line_range_in_place_sed_on_a_gitignored_file() {
+  run_hook "sed -i '' '1,2s/old-dir/new-dir/' build/settings.json"
+  assert_eq "should block a line-range in-place sed on a git-ignored file inside the repo" "2" "$HOOK_EXIT"
+}
+
+it_should_tell_the_agent_to_use_the_edit_tool_when_it_blocks_a_line_range_edit() {
+  run_hook_capturing_stderr "sed -i '' '195,418s/old-name/new-name/' config.json"
+  local names_edit="no"
+  case "$HOOK_STDERR" in
+    *replace_all*old_string*) names_edit="yes" ;;
+  esac
+  assert_eq "should tell the agent to use Edit with replace_all, or an old_string widened to be unique" "yes" "$names_edit"
+}
+
+it_should_allow_an_in_place_sed_replacing_one_literal_text_across_the_whole_file() {
+  run_hook "sed -i '' 's/old-name/new-name/g' config.json"
+  assert_eq "should allow an in-place BSD sed replacing one literal text across the whole json file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_in_place_gnu_sed_replacing_one_literal_text_across_the_whole_file() {
+  run_hook "gsed -i 's/old-name/new-name/g' config.json"
+  assert_eq "should allow an in-place GNU sed, which takes no backup-suffix argument, replacing one literal text across the whole json file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_in_place_sed_whose_switch_cluster_ends_in_the_in_place_flag() {
+  run_hook "sed -Ei '' 's/old-name/new-name/g' config.json"
+  assert_eq "should allow an in-place BSD sed written as -Ei with an empty backup suffix, replacing one literal text across the whole file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_in_place_perl_replacing_one_literal_text_across_the_whole_file() {
+  run_hook "perl -pi -e 's/old-name/new-name/g' config.json"
+  assert_eq "should allow an in-place perl replacing one literal text across the whole json file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_line_range_in_place_sed_on_a_scratch_file() {
+  run_hook "sed -i '' '1,2s/old-name/new-name/' $scratch_dir/config.json"
+  assert_eq "should allow a line-range in-place sed on a /tmp scratch file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_line_range_in_place_sed_on_a_file_outside_any_git_work_tree() {
+  run_hook "sed -i '' '1,2s/old-name/new-name/' $outside_dir/config.json"
+  assert_eq "should allow a line-range in-place sed on a file outside any git work tree" "0" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -406,6 +514,22 @@ it_should_block_a_copy_run_through_a_local_script_named_cat
 it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
+it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit
+it_should_block_an_in_place_sed_limited_to_a_line_range
+it_should_block_an_in_place_perl_limited_to_a_line_range
+it_should_block_an_in_place_perl_whose_substitution_runs_under_a_condition
+it_should_block_an_in_place_perl_running_several_statements
+it_should_block_an_in_place_sed_given_several_scripts
+it_should_block_an_in_place_perl_substitution_that_evaluates_code
+it_should_block_an_in_place_sed_whose_pattern_is_a_regex_rather_than_literal_text
+it_should_block_a_line_range_in_place_sed_on_a_gitignored_file
+it_should_tell_the_agent_to_use_the_edit_tool_when_it_blocks_a_line_range_edit
+it_should_allow_an_in_place_sed_replacing_one_literal_text_across_the_whole_file
+it_should_allow_an_in_place_gnu_sed_replacing_one_literal_text_across_the_whole_file
+it_should_allow_an_in_place_sed_whose_switch_cluster_ends_in_the_in_place_flag
+it_should_allow_an_in_place_perl_replacing_one_literal_text_across_the_whole_file
+it_should_allow_a_line_range_in_place_sed_on_a_scratch_file
+it_should_allow_a_line_range_in_place_sed_on_a_file_outside_any_git_work_tree
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

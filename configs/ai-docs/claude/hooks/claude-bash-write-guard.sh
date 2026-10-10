@@ -35,6 +35,16 @@
 # extension the prose checkers do not handle, and any target
 # the guard cannot resolve to a literal path.
 #
+# An in-place sed/gsed/perl edit is also blocked on any
+# extension inside a git work tree, git-ignored files included,
+# unless its script is one `s/<literal>/<literal>/g` over the
+# whole file.
+#
+# A line range, condition, multi-statement or eval script can
+# rewrite the wrong lines with no diff or mismatch error, while
+# Edit's replace_all or a widened old_string makes the same
+# edit.
+#
 # The one closed failure: when lib/prose-format-extensions.sh
 # cannot be read, every extension is guarded, since that is a
 # broken install rather than a command the guard cannot parse.
@@ -218,7 +228,9 @@ def has_in_place_flag(tokens):
     for token in tokens:
         if token.startswith('--in-place'):
             return True
-        if re.match(r'^-[A-Za-z]*i', token):
+        # why: digits belong in the cluster, since perl's slurp
+        # switch spells `-0pi` / `-0777pi`.
+        if re.match(r'^-[A-Za-z0-9]*i', token):
             return True
     return False
 
@@ -302,6 +314,16 @@ def arguments_after(exe, tokens):
     return tokens
 
 
+def in_place_edit_targets(exe, arguments, cwd):
+    """The existing files an in-place sed/perl segment rewrites, or [] when the segment is no in-place edit."""
+    if exe not in IN_PLACE_EDITORS or not has_in_place_flag(arguments):
+        return []
+    # A sed/perl argument list mixes the edit script in with its
+    # files, and only the files exist on disk.
+    return [argument for argument in positional_arguments(arguments)
+            if os.path.isfile(absolute_path(cwd, argument))]
+
+
 def write_targets(exe, tokens, cwd):
     """Every path one parsed segment writes by a form this guard recognizes."""
     targets = list(redirect_targets(tokens))
@@ -310,13 +332,202 @@ def write_targets(exe, tokens, cwd):
     arguments = arguments_after(exe, tokens)
     if exe == 'tee':
         targets.extend(positional_arguments(arguments))
-    elif exe in IN_PLACE_EDITORS and has_in_place_flag(arguments):
-        # A sed/perl argument list mixes the edit script in with
-        # its files, and only the files exist on disk.
-        for argument in positional_arguments(arguments):
-            if os.path.isfile(absolute_path(cwd, argument)):
-                targets.append(argument)
+    else:
+        targets.extend(in_place_edit_targets(exe, arguments, cwd))
     return targets
+
+
+# Regex syntax that makes a pattern match more than its own
+# text; any of it unescaped means the edit is no literal
+# replace-all. `@` is here for perl, which interpolates arrays.
+PATTERN_METACHARACTERS = set('^$.*+?()[]{}|@')
+
+# The escapes every sed dialect and perl read as the literal
+# character. Others, such as `\(` in a basic sed regex or `\d`,
+# mean regex syntax in at least one of them.
+LITERAL_PATTERN_ESCAPES = set('.*[]^$\\/@')
+
+# Replacement syntax that inserts matched or computed text
+# instead of the typed text: sed's `&` and perl's `$1` / `@x`.
+SED_REPLACEMENT_SPECIALS = set('&')
+PERL_REPLACEMENT_SPECIALS = set('$@')
+
+# A cluster ending in a bare `i` (`-i`, `-Ei`) names its backup
+# suffix in the next token on BSD sed (`sed -i '' ...`,
+# `sed -Ei .bak ...`), and that token is not the edit script.
+BACKUP_SUFFIX_TOKEN = re.compile(r'^(?:|[.~][^/]*)$')
+
+# perl switches that take the rest of their cluster as an
+# argument, so no later letter in it is a switch.
+PERL_SWITCHES_TAKING_REST = set('MmIFCdDxV')
+
+
+def without_redirects(tokens):
+    """The tokens of an argument list with every redirect and its target removed."""
+    kept = []
+    index = 0
+    while index < len(tokens):
+        match = REDIRECT_TOKEN.match(tokens[index])
+        if match:
+            index += 1 if match.group(2) else 2
+            continue
+        kept.append(tokens[index])
+        index += 1
+    return kept
+
+
+def sed_scripts(arguments):
+    """The scripts an in-place sed runs, or None when they cannot be read off the command or `-n` drops lines."""
+    scripts = []
+    positionals = []
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
+        index += 1
+        if token in ('-e', '--expression'):
+            if index >= len(arguments):
+                return None
+            scripts.append(arguments[index])
+            index += 1
+            continue
+        if token.startswith('--expression='):
+            scripts.append(token.split('=', 1)[1])
+            continue
+        if token.startswith('--'):
+            if token in ('--file', '--quiet', '--silent') or token.startswith('--file='):
+                return None
+            continue
+        if token.startswith('-') and token != '-':
+            # why: `-n` makes the rewrite keep only printed lines,
+            # and `-e`/`-f` fused into a cluster hide the script.
+            switches_before_suffix = token[1:].split('i', 1)[0]
+            if set(switches_before_suffix) & set('nef'):
+                return None
+            ends_with_bare_in_place = token.endswith('i')
+            if ends_with_bare_in_place and index < len(arguments) and BACKUP_SUFFIX_TOKEN.match(arguments[index]):
+                index += 1
+            continue
+        positionals.append(token)
+    if not scripts and positionals:
+        scripts.append(positionals[0])
+    return scripts or None
+
+
+def perl_scripts(arguments):
+    """The `-e` scripts an in-place perl runs, or None when it reads a program file or lacks `-p` to print each line."""
+    scripts = []
+    prints_each_line = False
+    index = 0
+    while index < len(arguments):
+        token = arguments[index]
+        index += 1
+        if token == '--' or not token.startswith('-') or token == '-':
+            break
+        switches = token[1:]
+        position = 0
+        while position < len(switches):
+            switch = switches[position]
+            position += 1
+            if switch in 'eE':
+                code = switches[position:]
+                if not code:
+                    if index >= len(arguments):
+                        return None
+                    code = arguments[index]
+                    index += 1
+                scripts.append(code)
+                break
+            if switch == 'i' or switch in PERL_SWITCHES_TAKING_REST:
+                break
+            if switch in '0l':
+                while position < len(switches) and switches[position].isdigit():
+                    position += 1
+            elif switch == 'p':
+                prints_each_line = True
+    if not scripts or not prints_each_line:
+        return None
+    return scripts
+
+
+def split_substitution(script):
+    """(delimiter, pattern, replacement, flags) for a one-command `s` script, or None for any other script."""
+    if len(script) < 2 or script[0] != 's':
+        return None
+    delimiter = script[1]
+    if delimiter.isalnum() or delimiter in '\\\n ':
+        return None
+    parts = []
+    current = ''
+    index = 2
+    while index < len(script) and len(parts) < 2:
+        character = script[index]
+        if character == '\\' and index + 1 < len(script):
+            current += script[index:index + 2]
+            index += 2
+            continue
+        if character == delimiter:
+            parts.append(current)
+            current = ''
+        else:
+            current += character
+        index += 1
+    if len(parts) < 2:
+        return None
+    return (delimiter, parts[0], parts[1], script[index:])
+
+
+def is_literal_text(text, delimiter, specials, literal_escapes):
+    """True when `text` holds no unescaped special and every escape stands for its own character."""
+    index = 0
+    while index < len(text):
+        character = text[index]
+        if character == '\\':
+            escaped = text[index + 1:index + 2]
+            if escaped != delimiter and escaped not in literal_escapes:
+                return False
+            index += 2
+            continue
+        if character in specials:
+            return False
+        index += 1
+    return True
+
+
+def is_plain_replace_all(exe, arguments):
+    """True when an in-place sed/perl runs exactly one `s/<literal>/<literal>/g` over the whole file."""
+    arguments = without_redirects(arguments)
+    scripts = perl_scripts(arguments) if exe == 'perl' else sed_scripts(arguments)
+    if not scripts or len(scripts) != 1:
+        return False
+    script = scripts[0].strip()
+    if exe == 'perl' and script.endswith(';'):
+        script = script[:-1].rstrip()
+    substitution = split_substitution(script)
+    if substitution is None:
+        return False
+    delimiter, pattern, replacement, flags = substitution
+    if flags != 'g' or not pattern:
+        return False
+    replacement_specials = PERL_REPLACEMENT_SPECIALS if exe == 'perl' else SED_REPLACEMENT_SPECIALS
+    return (is_literal_text(pattern, delimiter, PATTERN_METACHARACTERS, LITERAL_PATTERN_ESCAPES)
+            and is_literal_text(replacement, delimiter, replacement_specials,
+                                replacement_specials | {'\\'}))
+
+
+def script_shape_block_reason(cwd, target):
+    """The path when an in-place edit of `target` must go through Edit for its script shape, else None."""
+    # why: unlike block_reason, every extension and git-ignored
+    # files count, since the risk is a script rewriting the wrong
+    # lines, not a skipped format checker.
+    path = absolute_path(cwd, target)
+    if is_under_scratch(path):
+        return None
+    directory = os.path.dirname(path)
+    if is_under_scratch(directory):
+        return None
+    if not git_succeeds(['rev-parse', '--is-inside-work-tree'], directory):
+        return None
+    return path
 
 
 def copied_source_paths(exe, tokens, cwd, is_piped_into):
@@ -377,6 +588,7 @@ def format_report(source, destination):
 
 
 blocked = []
+script_shape_blocked = []
 format_reports = []
 cwd = os.getcwd()
 
@@ -410,20 +622,36 @@ for segment, is_piped_into in split_segments(cmd):
             format_reports.extend(failing_reports)
         if reason not in blocked:
             blocked.append(reason)
+    arguments = arguments_after(exe, tokens) if exe else []
+    edited_files = in_place_edit_targets(exe, arguments, cwd)
+    if edited_files and not is_plain_replace_all(exe, arguments):
+        for target in edited_files:
+            reason = script_shape_block_reason(cwd, target)
+            if reason and reason not in script_shape_blocked:
+                script_shape_blocked.append(reason)
 
-if not blocked:
+if not blocked and not script_shape_blocked:
     sys.exit(0)
 
-message = ['bash write guard blocked this command - these paths must be written through the Edit or Write tool:']
-for path in blocked:
-    message.append('  - ' + path)
-message.append('A Bash write skips the PostToolUse prose-format checker, so its violations surface later as a red suite.')
-message.append('Scratch under /tmp, git-ignored paths, and anything outside a git work tree are allowed.')
-if not GUARDED_EXTENSIONS:
-    message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
-if format_reports:
-    message.append('A `cat` copy of existing files passes only when every source passes the destination format checker; these did not:')
-    message.extend(format_reports)
+message = []
+if blocked:
+    message.append('bash write guard blocked this command - these paths must be written through the Edit or Write tool:')
+    for path in blocked:
+        message.append('  - ' + path)
+    message.append('A Bash write skips the PostToolUse prose-format checker, so its violations surface later as a red suite.')
+    message.append('Scratch under /tmp, git-ignored paths, and anything outside a git work tree are allowed.')
+    if not GUARDED_EXTENSIONS:
+        message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
+    if format_reports:
+        message.append('A `cat` copy of existing files passes only when every source passes the destination format checker; these did not:')
+        message.extend(format_reports)
+if script_shape_blocked:
+    message.append('bash write guard blocked this in-place sed/perl edit - its script is not one literal text replaced across the whole file:')
+    for path in script_shape_blocked:
+        message.append('  - ' + path)
+    message.append('Line ranges, conditions, several statements, regex patterns and eval can silently change the wrong lines, with no diff or mismatch error.')
+    message.append('Use the Edit tool instead: replace_all for one text replaced everywhere, or an old_string extended with surrounding lines until it is unique.')
+    message.append('Only a single `s/<literal>/<literal>/g` passes; scratch under /tmp and files outside a git work tree are allowed.')
 sys.stderr.write('\n'.join(message) + '\n')
 sys.exit(2)
 PYEOF
