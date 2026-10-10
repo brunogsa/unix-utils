@@ -59,7 +59,7 @@ a Description line - the same contract `offload-tasklist` writes and
 - Named local ids: select exactly the entries whose leading id matches
   one of the given numbers. A named id absent from the file (already
   imported, or never existed) is skipped and reported, not an error.
-- Selection empty (file missing, or none of the named ids resolve):
+- Selection empty (file missing or empty, or none of the named ids resolve):
   report plainly and stop - no `TaskCreate`, no sweeper spawn.
 
 ## Steps
@@ -194,7 +194,7 @@ ambiguity that only affects id-based selection.
   more than one task matched, name every matching task id and ask the
   caller which one to attach the dependency to.
 
-- Missing file: report that there was nothing to import. No
+- Missing or empty file: report that there was nothing to import. No
   `TaskCreate` call was made, no sweeper was spawned.
 
 - Empty selection with the file present (named ids given, none
