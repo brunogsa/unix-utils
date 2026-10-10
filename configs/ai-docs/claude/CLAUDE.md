@@ -17,8 +17,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ## Foundations
 
-Architectural principles - auto-memory disabled, so knowledge persists only where you deliberately place it.
-
 - [Instruction] Place every rule by its scope - the narrowest surface that still reaches every reader who needs it.
   - [Why] The always-on CLAUDE.md, a lazy-loaded skill, and a repo file cost wildly different context for the same words.
 
@@ -101,6 +99,17 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
 - [Instruction] **Cut filler and hedges** -- no preambles, emojis, or vague words ("generally", "often"); give the number or exact condition instead of a hedge.
   - [Why] Filler burns budget on words that carry no decision, and a hedge is uncheckable where a number is verifiable.
+
+- [Instruction] **CRITICAL: Replace every vague word with the fact behind it** -- an amount gets its count, a judgment its measure, a claim its evidence and what you did not check.
+  - [Why] A vague word hands the measuring back to me: I must re-open the source to learn what "several" or "cheap" meant.
+
+  - [Example] Bad: "Several legs show the defect, so one fix closes several entries." Good: "3 legs show the defect, so one fix closes 3 of the 149 entries."
+
+  - [Example] Bad: "has 59 `.execute(` matches, mostly positional calls." Good: "has 59 `.execute(` matches; 41 are positional calls."
+
+  - [Example] Bad: "Effort: small", "Risk: low", "Prior: fix, cheap." Good: "Effort: 1 file, 12 lines", "Risk: no caller outside `sync/`", "Prior: fix - 1 file, 12 lines."
+
+  - [Example] Bad: "The SAS rule is very likely right for SAE too." Good: "Checked: SAS and SAE both call `AxiosHttpClient`. Not checked: SAE at runtime (no SAE spec matches `TIMEOUT`)."
 
 - [Instruction] **Say it the plainest way that still carries the rule** -- no clever, compressed, or packed phrasing, in rules, task subjects, or chat.
   - [Why] Compressed wording makes the reader decode it, and a rule they decode is a rule they apply wrong.
@@ -355,7 +364,7 @@ Architectural principles - auto-memory disabled, so knowledge persists only wher
 
 ### Subagents
 
-- [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
+- [Instruction] **Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
   - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks.
 
 - [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
