@@ -32,8 +32,10 @@ stderr: one `line <n>: T<k> lacks AC-<m>` per citation mismatch, one
         `Task <n> has no Task Details entry` or `Task Details entry for
         Task <n> names no existing task` per pairing mismatch, or a
         diagnostic
-exit: 0 consistent, 1 at least one mismatch, 2 usage error or a section
-      that is absent or holds nothing to check
+exit: 0 consistent, or a Test Design reading "N/A - <reason>" over
+      paired tasks; 1 at least one mismatch; 2 usage error, or a
+      section that is absent or holds neither it() rows nor the N/A
+      escape
 """
 
 import importlib.util
@@ -44,6 +46,7 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 EXTRACT_DESIGN_TESTS = SCRIPT_DIR / "extract-design-tests.sh"
+PLAN_SECTION = SCRIPT_DIR / "plan-section.sh"
 
 SECTION_HEADING = re.compile(r"^## ")
 DESIGN_HEADING = re.compile(r"^## Test Design[ \t]*$")
@@ -58,6 +61,13 @@ TASK_HEADING = re.compile(r"^### (\d+)\.")
 SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
+
+# The plan template's per-section escape, matched by the same
+# rule check-test-distribution.sh applies, so the two gates
+# agree on which Test Design designs no test.
+#
+# The word boundary keeps a typo like "N/Ax" from matching.
+NA_ESCAPE = re.compile(r"^N/A([^a-zA-Z]|$)", re.IGNORECASE | re.MULTILINE)
 
 # The fence rule is shared repo-wide, so a heading or
 # `<summary>Task N` line quoted as sample markup inside a fence
@@ -243,18 +253,33 @@ def find_pairing_mismatches(headings, detail_entries):
 
 def read_annotation_rows(plan):
     """The `<title>\tcrumb\t<ACs>\t<tasks>` rows of the plan's Test
-    Design, delegated to the single-source annotation parser."""
+    Design, delegated to the single-source annotation parser, or None
+    when it finds no it() row at all."""
     result = subprocess.run(
         [str(EXTRACT_DESIGN_TESTS), "--annotations", str(plan)],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        exit_with_usage_error(
-            f"no it(\"...\") rows to check in the '## Test Design' "
-            f"section of {plan}"
-        )
+        return None
     return [line.split("\t") for line in result.stdout.splitlines()]
+
+
+def reads_test_design_na(plan):
+    """Whether the plan's Test Design body is the "N/A - <reason>"
+    escape, sliced by the same plan-section.sh call
+    check-test-distribution.sh makes."""
+    result = subprocess.run(
+        [
+            str(PLAN_SECTION),
+            str(plan),
+            "##",
+            "^Test Design[[:space:]]*$",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return bool(NA_ESCAPE.search(result.stdout))
 
 
 def find_citation_mismatches(rows, row_lines, headings, declared):
@@ -316,6 +341,20 @@ def main():
         exit_with_usage_error(f"no '## Task Details' section in {plan}")
 
     rows = read_annotation_rows(plan)
+    is_design_na = False
+
+    # An N/A Test Design cites no AC, but its tasks still owe
+    # their Task Details pairing, so the run goes on with no
+    # rows rather than exiting early.
+    if rows is None:
+        if not reads_test_design_na(plan):
+            exit_with_usage_error(
+                f"no it(\"...\") rows to check in the '## Test Design' "
+                f"section of {plan}"
+            )
+        is_design_na = True
+        rows = []
+
     row_lines = find_design_row_lines(lines)
 
     if len(rows) != len(row_lines):
@@ -338,6 +377,14 @@ def main():
         for mismatch in mismatches:
             print(mismatch, file=sys.stderr)
         sys.exit(1)
+
+    if is_design_na:
+        print(
+            "OK: Test Design reads 'N/A - ...', so there are no "
+            "task-AC citations - nothing to check; every task is "
+            "paired with a Task Details entry."
+        )
+        return
 
     print(
         f"OK: {len(rows)} Test Design rows, {checked} task-AC citations "

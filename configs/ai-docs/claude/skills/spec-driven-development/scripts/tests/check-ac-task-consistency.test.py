@@ -504,10 +504,62 @@ def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
     assert result.returncode == 0, result.stderr
 
 
+def test_passes_with_nothing_to_check_when_the_test_design_reads_n_a(
+    tmp_path,
+):
+    plan = _write_plan(
+        tmp_path,
+        design_body="N/A - no spec, terraform-only change.\n",
+        task_body=CONSISTENT_TASKS,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+    assert "nothing to check" in result.stdout
+
+
+def test_still_fails_on_a_task_without_a_task_details_entry_when_the_test_design_reads_n_a(
+    tmp_path,
+):
+    details_missing_task_2 = (
+        "<details>\n"
+        "<summary>Task 1 - Export the plan PRs to Linear</summary>\n\n"
+        "**Testable Acceptance criteria**:\n"
+        "- AC-1\n\n"
+        "</details>\n"
+    )
+    plan = _write_plan(
+        tmp_path,
+        design_body="N/A - no spec, terraform-only change.\n",
+        task_body=CONSISTENT_TASKS,
+        details_body=details_missing_task_2,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 1
+    assert "Task 2 has no Task Details entry" in result.stderr
+
+
+# Word-boundary guard, the rule check-test-distribution.sh
+# applies too: the escape is the literal "N/A", so a typo
+# like "N/Ax" is not it.
+def test_exits_two_when_the_test_design_starts_with_n_a_x_rather_than_the_n_a_escape(
+    tmp_path,
+):
+    plan = _write_plan(
+        tmp_path,
+        design_body="N/Ax - a typo, not the template escape.\n",
+        task_body=CONSISTENT_TASKS,
+        details_body=CONSISTENT_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 2
+    assert "Test Design" in result.stderr
+
+
 def test_exits_two_when_the_test_design_section_holds_no_rows(tmp_path):
     plan = _write_plan(
         tmp_path,
-        design_body="N/A - nothing designed yet.\n",
+        design_body="We will list the tests once the refactor settles.\n",
         task_body=CONSISTENT_TASKS,
         details_body=CONSISTENT_DETAILS,
     )
