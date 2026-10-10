@@ -90,12 +90,20 @@ at the end of this skill.
        happen, since it enumerates every task) falls back to writing
        `task #<id>` as that reference's text, rather than failing the
        whole entry.
-   - `**Description**` line: `TaskGet`'s `description` field, written
-     verbatim starting right after the label, continuing unindented
-     across as many lines as it needs. The header regex (`### `,
-     digits, `. `, `[`) is precise enough that a description's own
-     text colliding with it is effectively impossible - the same
-     precision philosophy as the original single-space header marker.
+   - Before writing the batch, rewrite each description reference to a same-batch TaskList id (`#13`, `task 13`, `tasks 10 and 11`) as that task's quoted `<title>`.
+
+     - The title is stripped the way the `**Depends on**` line strips it (category dropped).
+
+     - A reference to an id not in the batch is left as-is.
+
+     - This is the one deliberate exception to "verbatim" below. TaskList ids do not survive the sweeper's renumbering, so a kept id would point at the wrong entry or at nothing.
+
+     - Titles do survive, the same reason `**Depends on**` uses titles.
+
+   - `**Description**` line: `TaskGet`'s `description` field, written verbatim (apart from the rewrite above) starting right after the label, continuing unindented across as many lines as it needs.
+
+     - The header regex (`### `, digits, `. `, `[`) is precise enough that a description's own text colliding with it is effectively impossible.
+
    - After the description text, write exactly one blank line before
      the next entry's header (or before EOF, for the batch's last
      entry) - never zero, never two or more. That fixed one-line
