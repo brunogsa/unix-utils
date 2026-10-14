@@ -1,20 +1,17 @@
 ---
 name: tech-debt-prioritizer
 description: >-
-  Classify and set the priority of Jira Tech Debt cards using the Integrations team's objective
-  rubric (Highest/High/Medium/Low/Lowest), then post a Portuguese rationale comment and apply a
-  label. Use this whenever the user asks to prioritize, triage, (re)classify, or "refine" one or
-  more Tech Debt tickets against the team's definition - even if they only say "set the priority on
-  these debts", "refina esses débitos", or paste tickets and ask which priority they should be.
-  Also use when a card's priority needs justification a reviewer can audit.
-compatibility: Requires the jira-cli skill (Jira REST API v3 helpers) and its env vars.
+  Prioritize, triage, or (re)classify issues in Jira OR Linear against the Integrations team's
+  objective rubric (Highest/High/Medium/Low/Lowest), set the priority, and post a PT-BR rationale
+  comment. Use for "prioriza", "triar", "refina esses débitos", "set the priority on these",
+  "review the priorities of this project", or pasted Jira keys / Linear issue ids or URLs. Covers
+  Tech Debt and also Support / Toil / Bug tickets.
+compatibility: Jira needs the jira-cli skill; Linear needs the Linear MCP plugin (mcp__plugin_linear_linear__*).
 ---
 
 # Tech Debt Prioritizer
 
-Turn a Tech Debt Jira card into a defensible, labeled priority decision. The output a human
-reviews is threefold: the **priority field**, a **Portuguese comment** explaining the call, and a
-**label** marking it as triaged.
+Turn an issue into a defensible, labeled priority decision, on Jira or Linear. The output a human reviews is threefold: the **priority field**, a **Portuguese comment** explaining the call, and a **triaged marker** (the `pre-refined-ai` label where the platform has it).
 
 ## Why this exists
 
@@ -102,6 +99,16 @@ pelo risco residual (normalmente regressão → Medium), não pela gravidade do 
 - Melhorar naming de variáveis em script de migração que já rodou.
 - Atualizar dependência em serviço legado que será substituído.
 
+## Applying the rubric to non-debt tickets (Support / Toil / Bug)
+
+Use the same criteria, reading "o débito" as "o problema que o ticket descreve". No new criteria beyond these:
+
+- Active production failure or incorrect data now → Highest.
+- Unmonitored failure, reliability or security risk, or a costly manual workaround → High.
+- Slows the team or is recurring toil → Medium.
+- One-off request with no stated deadline or impact, in a stable area → Low.
+- Obsolete system or no activity for more than 6 months → Lowest, and raise a `Dúvida` asking whether to cancel the ticket instead.
+
 ## The one judgment call that trips people up
 
 A debt that **already caused an incident** feels like Highest. But Highest requires the failure to
@@ -111,50 +118,38 @@ coupling/pattern will bite again on the next change here", which is Medium's reg
 not Highest. State this explicitly in the comment when it applies, because it's the most common
 place a reviewer will disagree.
 
+## Choosing the platform
+
+Decide by evidence, never by key shape: `ITGD-3160` (Jira) and `CDPI-399` (Linear) look the same.
+
+- A `linear.app` URL, or the user naming Linear → Linear.
+- An `*.atlassian.net` URL, or the user naming Jira → Jira.
+- A key whose team prefix was already resolved earlier in the session → that platform.
+- Otherwise, ask the user which platform.
+
+Then read only the matching reference file: `references/jira.md` or `references/linear.md`. Only one is needed per run, so never open the other.
+
 ## Workflow
 
-Assume one or more Jira card keys (e.g. `ITGD-3160`). For each card:
+Assume one or more issue keys or ids. Each step below names what to do; the platform reference holds the exact call. For each issue:
 
-1. **Read the card.** Pull its summary + description so the rationale is grounded in what the card
-   actually says, not a guess. Use the jira-cli skill:
-   ```bash
-   source ~/.claude/skills/jira-cli/scripts/jira-utilities.sh
-   get-jira-issue ITGD-3160 "summary,description,priority,labels"
-   ```
+1. **Read the issue and its comments.** Ground the rationale in what the issue actually says, not a guess. Use the platform reference for the exact call.
 
-2. **Classify** against the rubric above. Pick the level whose *objective criterion*
-   the card meets. Identify the adjacent level(s) you're ruling out - you'll justify against them.
+2. **Classify** against the rubric above. Pick the level whose *objective criterion* the issue meets. Name the adjacent level(s) you're ruling out - you'll justify against them.
 
-3. **Confirm the field values with the target Jira** before writing (priority names and the label
-   spelling can differ per instance):
-   ```bash
-   jira-api-request GET "/rest/api/3/priority"   # confirm Highest/High/Medium/Low/Lowest exist
-   ```
+3. **Confirm the priority values** with the target platform before writing, since names and numeric codes differ per platform. The platform reference holds the exact call and the level mapping.
 
-4. **Set the priority:**
-   ```bash
-   update-jira-issue ITGD-3160 '{"priority":{"name":"Medium"}}'
-   ```
+4. **Set the priority.** The platform reference holds the exact call.
 
-5. **Post the rationale comment (Portuguese).** Write the comment to a markdown file, convert to
-   ADF (Jira v3 needs ADF, not markdown), and POST it. See the comment structure below.
-   ```bash
-   adf=$(md-to-adf /tmp/comment.md)
-   body=$(python3 -c "import sys,json; print(json.dumps({'body': json.load(open(sys.argv[1]))}))" <(printf '%s' "$adf"))
-   jira-api-request POST "/rest/api/3/issue/ITGD-3160/comment" "$body"
-   ```
+5. **Post the rationale comment (Portuguese)** using the structure below. The platform reference holds the exact call and format.
 
-6. **Add the label last** (the user's convention is to label *after* the rationale is recorded, so
-   the label means "triaged with justification"). Default label: `pre-refined-ai`. Preserve existing
-   labels - read them in step 1 and re-send the full list, since `update` replaces the array:
-   ```bash
-   update-jira-issue ITGD-3160 '{"labels":["kit1:1","pre-refined-ai"]}'
-   ```
+6. **Mark as triaged**, last, so the marker means "triaged with justification". The platform reference holds the exact call and how to preserve existing labels.
 
-7. **Verify** priority + labels landed, and report each card's final state back to the user.
+7. **Verify** priority and marker landed, and report each issue's final state back to the user.
 
-When several cards are in play, do them in one pass and present a short table (key → priority →
-one-line reason) so the user can sanity-check the whole batch at a glance.
+When several issues are in play, do them in one pass and present a table (key → current → proposed → one-line reason) so the user can sanity-check the whole batch at a glance.
+
+In batch mode, add one step before any write (steps 4-6): present the proposals, changes first and unchanged issues listed compactly, and write only what the user approves.
 
 ## Comment structure
 
@@ -171,8 +166,10 @@ Portuguese, brief but complete. The shape that makes it auditable:
 
 **Por que <Nível> (critério objetivo):** <a evidência concreta do card que ancora a escolha>. SLA esperado: <do rubric>.
 
-_Referência: definição de prioridade de Débito Técnico (pré-refino AI)._
+_Referência: critérios de prioridade do Time de Integrações (pré-refino AI)._
 ```
+
+The heading shows the rubric level, plus the platform value when it differs, e.g. `## Prioridade: Lowest (Linear: Low)`.
 
 You don't always need both "por que não" blocks - include the boundary(ies) that are genuinely
 close. A Lowest call rarely needs "por que não Highest". Argue the neighbors that a reviewer might
@@ -180,11 +177,9 @@ actually propose instead.
 
 ## Notes
 
-- **Labels are literal.** This Jira accepts colons (`kit1:1`); other instances may reject colons or
-  spaces. If `update` errors on the label, report it and fall back to a hyphenated form rather than
-  silently dropping it.
-- **Spikes need a due date** in this project (Tech Spike / Functional Spike). Tech Debt does not -
-  but if you ever set priority on a Spike here and creation/edit fails on `duedate`, that's why.
 - **Don't invent evidence.** If the card doesn't state occurrence counts or production signals, say
   the classification is based on the described risk, and flag the missing evidence as a `Dúvida` for
   the user rather than fabricating a number.
+- Platform-specific notes live in the platform reference.
+
+`assets/flowchart.md` is a human-facing overview of this flow - do NOT load it.
