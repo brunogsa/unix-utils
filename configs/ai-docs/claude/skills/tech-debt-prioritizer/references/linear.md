@@ -38,6 +38,8 @@ Exact calls for each workflow step in `../SKILL.md`, using the Linear MCP plugin
 
 `get_issue` shows the new priority; `list_comments` shows the comment.
 
+- Trust the `get_issue` re-fetch, not the `save_issue` response: on 5 of 58 writes (2026-10-14) the response echoed the old priority although the write had landed.
+
 ## Batch over a project
 
 - `list_issues` with `project` and `includeArchived: true`.
