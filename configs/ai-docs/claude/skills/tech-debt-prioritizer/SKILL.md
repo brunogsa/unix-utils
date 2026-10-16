@@ -182,4 +182,4 @@ actually propose instead.
   the user rather than fabricating a number.
 - Platform-specific notes live in the platform reference.
 
-`assets/flowchart.md` is a human-facing overview of this flow - do NOT load it.
+[`assets/flowchart.md`](assets/flowchart.md) is a human-facing overview of this flow - do NOT load it.
