@@ -258,8 +258,23 @@ describe("AgreementSyncUseCase", () => {
     "$actual"
 }
 
+it_should_extract_the_title_from_a_parameterized_it_each_written_without_a_cases_list() {
+  local plan actual
+  plan=$(write_plan "it-each-no-cases" '```
+describe("SchoolSyncConsumer", () => {
+  // Failure scenarios
+  it.each("should not record the sync when the use case rethrows: %s"); // AC-3 T3
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should extract the title and annotation from a parameterized it.each() row written without a cases list" \
+    "$(printf 'should not record the sync when the use case rethrows: %%s\tSchoolSyncConsumer > failure > should not record the sync when the use case rethrows: %%s\tAC-3\tT3')" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
 it_should_extract_the_title_with_its_placeholder_from_a_single_line_parameterized_it_each
+it_should_extract_the_title_from_a_parameterized_it_each_written_without_a_cases_list
 it_should_extract_the_title_from_a_parameterized_it_each_whose_title_sits_on_the_next_line
 it_should_keep_extracting_plain_it_lines_that_follow_a_two_line_parameterized_it_each
 it_should_join_multiple_ac_and_t_tokens_space_separated_when_an_annotation_cites_several

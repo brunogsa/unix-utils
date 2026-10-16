@@ -62,6 +62,9 @@
 # the title sits on the `it.each(` line or wraps onto the
 # next one; an annotation must sit on the title's line.
 #
+# The cases-less `it.each("Title")` shorthand reads the same
+# way.
+#
 # The breadcrumb is DERIVED from Test Design's own structure -
 # the `describe("X")` name and the nearest `// Happy cases` /
 # `// Corner cases` / `// Failure scenarios` comment above the

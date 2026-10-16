@@ -1,6 +1,6 @@
 # extract-design-tests.awk - print each it("...") and
-# it.each(...)("...") title in a plan's Test Design section,
-# for extract-design-tests.sh.
+# it.each(...)("...") or it.each("...") title in a plan's Test
+# Design section, for extract-design-tests.sh.
 #
 # Run after parse-fences.awk, which supplies in_fence. Inputs:
 # -v pairs=<0|1> -v annotations=<0|1>.
@@ -61,6 +61,19 @@ match($0, /it\.each\(.*\)\("[^"]*"/) {
   t = substr($0, RSTART, RLENGTH)
   rest = substr($0, RSTART + RLENGTH)
   sub(/^it\.each\(.*\)\("/, "", t)
+  sub(/"$/, "", t)
+  print_row(t, rest)
+  next
+}
+
+# it.each("Title") with no cases list - plans write it this
+# way when the cases are not decided yet. It sits after the
+# cases form so a cases expression that is itself a string is
+# never read as the title.
+match($0, /it\.each\("[^"]*"/) {
+  t = substr($0, RSTART, RLENGTH)
+  rest = substr($0, RSTART + RLENGTH)
+  sub(/^it\.each\("/, "", t)
   sub(/"$/, "", t)
   print_row(t, rest)
   next

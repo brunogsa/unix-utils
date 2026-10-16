@@ -189,7 +189,30 @@ it_should_fail_when_the_task_heading_is_missing() {
   assert_eq "should fail when the task heading is missing" "1" "$VERDICT_EXIT"
 }
 
+it_should_print_a_parameterized_it_each_title_written_without_a_cases_list_when_it_carries_the_tasks_t_n() {
+  local fixture
+  fixture=$(write_plan "annotated-bare-it-each" '```
+describe("SchoolSyncConsumer", () => {
+  // Failure scenarios
+  it.each("should not record the sync when the use case rethrows: %s");   // T1
+  it("should ack the message after publishing the error callback");   // T2
+});
+```' \
+    '### 1. Route errors in the base consumer
+
+No Tests (planned) bullet needed - the T1 annotation above names this task.
+
+### 2. Ack business errors
+
+No Tests (planned) bullet needed - the T2 annotation above names this task.')
+  run_script "$fixture" "1"
+  assert_eq "should print a parameterized it.each() title written without a cases list when it carries the task's T<n>" \
+    "should not record the sync when the use case rethrows: %s" \
+    "$VERDICT_OUT"
+}
+
 it_should_filter_test_design_by_t_n_and_print_bare_titles_in_annotated_form
+it_should_print_a_parameterized_it_each_title_written_without_a_cases_list_when_it_carries_the_tasks_t_n
 it_should_filter_test_design_by_a_different_t_n_and_print_only_that_tasks_titles_in_annotated_form
 it_should_print_nothing_when_no_it_in_test_design_carries_the_tasks_t_n_token_in_annotated_form
 it_should_print_cleaned_titles_for_a_tasks_planned_test_list_in_list_form
