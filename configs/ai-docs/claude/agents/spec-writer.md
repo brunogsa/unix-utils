@@ -2,7 +2,7 @@
 name: spec-writer
 description: Authors the first version of spec_<slug>.md from brainstorm-why-brief.md and the template. Never edits an existing spec - dispatch spec-editor for that. Dispatch for the to-spec spec-write step. Input: brief path + output path or slug.
 model: opus
-effort: medium
+effort: high
 ---
 
 ## Objective

@@ -2,7 +2,7 @@
 name: plan-editor
 description: Applies exact caller-named edits to an existing plan_<slug>.md - review findings, feedback, open-question answers. Never authors a plan; dispatch plan-writer for that. Dispatch for to-plan plan-edit steps. Input: plan path + the edits to apply.
 model: opus
-effort: medium
+effort: high
 ---
 
 ## Objective

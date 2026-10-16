@@ -2,7 +2,7 @@
 name: plan-writer
 description: Authors the first version of plan_<slug>.md from the spec (full) or brief alone (light). Never edits a plan; dispatch plan-editor for that. Dispatch for the to-plan plan-write step. Input: brief path + optional spec path + output path.
 model: opus
-effort: medium
+effort: high
 ---
 
 ## Objective
