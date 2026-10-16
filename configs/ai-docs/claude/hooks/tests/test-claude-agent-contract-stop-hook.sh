@@ -24,10 +24,22 @@
 set -uo pipefail
 
 hooks_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-HOOK="$hooks_dir/claude-agent-contract-stop-hook.sh"
+HOOK_SOURCE="$hooks_dir/claude-agent-contract-stop-hook.sh"
 
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
+
+# The hook gates only agent files inside the git repo holding
+# the hook itself, so the cases run a copy of it from inside a
+# temp git repo standing in for unix-utils.
+#
+# Fixtures under $repo_dir are "inside unix-utils"; fixtures
+# anywhere else in $work_dir are "another repo".
+repo_dir="$work_dir/unix-utils"
+mkdir -p "$repo_dir/hooks"
+git init -q "$repo_dir"
+cp "$HOOK_SOURCE" "$repo_dir/hooks/"
+HOOK="$repo_dir/hooks/claude-agent-contract-stop-hook.sh"
 
 pass_count=0
 fail_count=0
@@ -85,7 +97,7 @@ run_hook() {
 }
 
 it_should_block_when_an_agent_file_this_session_edited_breaks_the_contract() {
-  local d="$work_dir/case-block"
+  local d="$repo_dir/case-block"
   write_agent "$d/agents" touched broken
   local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
   run_hook "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
@@ -103,7 +115,7 @@ it_should_block_when_an_agent_file_this_session_edited_breaks_the_contract() {
 # would block every stop in every session until someone fixed a
 # file they never touched.
 it_should_not_block_on_a_broken_agent_file_this_session_never_touched() {
-  local d="$work_dir/case-filter"
+  local d="$repo_dir/case-filter"
   write_agent "$d/agents" touched broken
   write_agent "$d/agents" untouched broken
   local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
@@ -117,7 +129,7 @@ it_should_not_block_on_a_broken_agent_file_this_session_never_touched() {
 # repeating its absolute path on each would inject the same long
 # string five times into the main context on every block.
 it_should_name_each_offending_path_once_with_its_reasons_grouped() {
-  local d="$work_dir/case-group"
+  local d="$repo_dir/case-group"
   write_agent "$d/agents" touched broken
   local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
   run_hook "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
@@ -129,7 +141,7 @@ it_should_name_each_offending_path_once_with_its_reasons_grouped() {
 }
 
 it_should_stay_silent_when_the_edited_agent_file_satisfies_the_contract() {
-  local d="$work_dir/case-clean"
+  local d="$repo_dir/case-clean"
   write_agent "$d/agents" touched valid
   local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
   run_hook "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
@@ -141,7 +153,7 @@ it_should_stay_silent_when_the_edited_agent_file_satisfies_the_contract() {
 # bow out on the stop its own block caused - otherwise an
 # always-on gate spins forever.
 it_should_stay_silent_when_its_own_block_caused_this_stop() {
-  local d="$work_dir/case-loop"
+  local d="$repo_dir/case-loop"
   write_agent "$d/agents" touched broken
   local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
   run_hook "{\"session_id\":\"s\",\"stop_hook_active\":true,\"transcript_path\":\"$t\"}"
@@ -157,7 +169,7 @@ it_should_stay_silent_when_the_transcript_is_missing() {
 }
 
 it_should_stay_silent_when_the_session_touched_no_agent_file() {
-  local d="$work_dir/case-scope"
+  local d="$repo_dir/case-scope"
   write_agent "$d/agents" touched broken
   mkdir -p "$d/docs"
   printf 'not an agent file\n' > "$d/docs/README.md"
@@ -167,7 +179,52 @@ it_should_stay_silent_when_the_session_touched_no_agent_file() {
   assert_eq "should stay silent when the session touched no agent file" "" "$HOOK_OUT"
 }
 
+# The contract is the user's personal convention: another
+# repo's agents follow their own, so a broken one there must
+# never block a stop.
+it_should_stay_silent_when_the_only_broken_agent_file_edited_lives_in_another_repo() {
+  local d="$work_dir/other-repo"
+  write_agent "$d/.claude/agents" bad broken
+  local t; t=$(write_transcript "$work_dir/transcript-other-repo.jsonl" "$d/.claude/agents/bad.md")
+  run_hook "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should stay silent when the only broken agent file edited lives in another repo" "" "$HOOK_OUT"
+}
+
+# ~/.claude/agents is a symlink into unix-utils, so an edit made
+# through it lands in the repo and must stay gated.
+it_should_block_when_a_broken_agent_file_is_edited_through_a_symlink_into_the_repo() {
+  local d="$repo_dir/case-symlink"
+  write_agent "$d/agents" touched broken
+  mkdir -p "$work_dir/home/.claude"
+  ln -s "$d/agents" "$work_dir/home/.claude/agents"
+  local t; t=$(write_transcript "$work_dir/transcript-symlink.jsonl" "$work_dir/home/.claude/agents/touched.md")
+  run_hook "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}"
+
+  assert_eq "should block when a broken agent file is edited through a symlink into the repo" \
+    "block" "$(printf '%s' "$HOOK_OUT" | jq -r '.decision // empty')"
+}
+
+# Without a repo root there is no way to tell the user's own
+# agents from anyone else's, so the gate must fail open rather
+# than gate every agent file on disk.
+it_should_stay_silent_when_the_hook_does_not_sit_inside_a_git_repo() {
+  local d="$work_dir/no-repo"
+  mkdir -p "$d/hooks"
+  cp "$HOOK_SOURCE" "$d/hooks/"
+  write_agent "$d/agents" touched broken
+  local t; t=$(write_transcript "$d/transcript.jsonl" "$d/agents/touched.md")
+  local out
+  out=$(printf '%s' "{\"session_id\":\"s\",\"stop_hook_active\":false,\"transcript_path\":\"$t\"}" \
+    | GIT_CEILING_DIRECTORIES="$work_dir" bash "$d/hooks/claude-agent-contract-stop-hook.sh" 2>/dev/null)
+
+  assert_eq "should stay silent when the hook does not sit inside a git repo" "" "$out"
+}
+
 it_should_block_when_an_agent_file_this_session_edited_breaks_the_contract
+it_should_stay_silent_when_the_only_broken_agent_file_edited_lives_in_another_repo
+it_should_block_when_a_broken_agent_file_is_edited_through_a_symlink_into_the_repo
+it_should_stay_silent_when_the_hook_does_not_sit_inside_a_git_repo
 it_should_not_block_on_a_broken_agent_file_this_session_never_touched
 it_should_name_each_offending_path_once_with_its_reasons_grouped
 it_should_stay_silent_when_the_edited_agent_file_satisfies_the_contract

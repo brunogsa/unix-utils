@@ -46,6 +46,14 @@
 #   A session that never touched one exits before doing any
 #   work, so the common case costs a single jq pass.
 #
+# - Repo filter: only agent files whose physical path sits
+#   inside the git repo holding this hook (unix-utils) are
+#   kept.
+#
+#   The contract is the user's personal convention; another
+#   repo's project-local .claude/agents follows its own, so
+#   gating it would block every stop in that repo.
+#
 # - Output filter: the checker validates a whole DIRECTORY, so
 #   it also reports agent files this session never opened.
 #   Those are filtered out of the block.
@@ -56,9 +64,9 @@
 #   gate's diff filter exists to prevent.
 #
 #   The directory is derived per touched file rather than
-#   hardcoded, so this works on the global ~/.claude/agents, on
-#   the unix-utils repo source, and on a project-local
-#   .claude/agents alike.
+#   hardcoded, so this works on the global ~/.claude/agents
+#   (a symlink into unix-utils) and on the unix-utils repo
+#   source alike.
 #
 # Enforcement vs. loop-safety:
 #   Honors stop_hook_active=true → bows out, so this can never
@@ -83,6 +91,10 @@
 #   scope to every agent file on disk).
 #
 # - No touched file under an agents/ directory → exit 0.
+#
+# - Repo root unresolvable (hook not inside a git repo), or no
+#   touched agent file inside it → exit 0.
+#
 # - Checker clean, or violations only in files this session
 #   never touched → exit 0.
 #
@@ -123,6 +135,26 @@ session_files=$(jq -r '
 # file merely mentioning "agents" in its own name never
 # qualifies.
 agent_files=$(printf '%s\n' "$session_files" | grep -E '/agents/[^/]+\.md$' || true)
+[ -n "$agent_files" ] || exit 0
+
+# Keep only agent files inside the repo holding this hook
+# (unix-utils), compared by physical path so an edit made
+# through the ~/.claude/agents symlink still counts as inside.
+#
+# The root comes from the hook's own resolved location rather
+# than a hardcoded home path, which differs per platform.
+hook_dir=$(dirname "$(realpath "${BASH_SOURCE[0]}" 2>/dev/null)")
+repo_root=$(git -C "$hook_dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
+repo_root=$(cd -P "$repo_root" 2>/dev/null && pwd -P) || exit 0
+
+in_repo_agent_files=""
+while IFS= read -r f; do
+  physical_dir=$(cd -P "$(dirname "$f")" 2>/dev/null && pwd -P) || continue
+  case "$physical_dir/" in
+    "$repo_root"/*) in_repo_agent_files+="$f"$'\n' ;;
+  esac
+done <<< "$agent_files"
+agent_files=$(printf '%s' "$in_repo_agent_files" | sed '/^$/d')
 [ -n "$agent_files" ] || exit 0
 
 # One checker run per distinct agents directory - a session may
