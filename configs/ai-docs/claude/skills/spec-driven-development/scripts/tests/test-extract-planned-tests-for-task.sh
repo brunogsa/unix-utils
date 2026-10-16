@@ -211,8 +211,28 @@ No Tests (planned) bullet needed - the T2 annotation above names this task.')
     "$VERDICT_OUT"
 }
 
+it_should_keep_printing_plain_it_titles_around_a_bare_title_it_each_in_test_design_order() {
+  local fixture
+  fixture=$(write_plan "annotated-it-around-bare-it-each" '```
+describe("SchoolSyncConsumer", () => {
+  // Failure scenarios
+  it("should throw the mapping error to the base consumer");   // T1
+  it.each("should not record the sync when the use case rethrows: %s");   // T1
+  it("should ack the message after publishing the error callback");   // T1
+});
+```' \
+    '### 1. Route errors in the base consumer
+
+No Tests (planned) bullet needed - the T1 annotations above name this task.')
+  run_script "$fixture" "1"
+  assert_eq "should keep printing the plain it() titles around a bare-title it.each() row, in Test Design order" \
+    "$(printf 'should throw the mapping error to the base consumer\nshould not record the sync when the use case rethrows: %%s\nshould ack the message after publishing the error callback')" \
+    "$VERDICT_OUT"
+}
+
 it_should_filter_test_design_by_t_n_and_print_bare_titles_in_annotated_form
 it_should_print_a_parameterized_it_each_title_written_without_a_cases_list_when_it_carries_the_tasks_t_n
+it_should_keep_printing_plain_it_titles_around_a_bare_title_it_each_in_test_design_order
 it_should_filter_test_design_by_a_different_t_n_and_print_only_that_tasks_titles_in_annotated_form
 it_should_print_nothing_when_no_it_in_test_design_carries_the_tasks_t_n_token_in_annotated_form
 it_should_print_cleaned_titles_for_a_tasks_planned_test_list_in_list_form
