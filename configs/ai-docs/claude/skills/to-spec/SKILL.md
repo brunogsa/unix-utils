@@ -1,6 +1,6 @@
 ---
 name: to-spec
-description: "Turn an already-held interview into spec_<slug>.md by dispatching spec-writer, then self-review it. USE when the user says 'write the spec' or 'to-spec', or brainstorm-why offers it. Never interviews; never for plans or code."
+description: "Turn an already-held interview into spec_<slug>.md by dispatching spec-writer, then self-review it. USE when the user says 'write the spec' or 'to-spec', or brainstorm-why offers it. Interviews only to settle open questions; never for plans or code."
 ---
 
 # To Spec
@@ -9,7 +9,7 @@ Write `spec_<slug>.md` from context that already exists, self-review it, and off
 
 This skill consumes context and never builds it.
 
-It runs no interview, writes no findings of its own, and appends nothing to any brief or to `notes.md`.
+It builds no context through an interview - it asks only to settle the written spec's open questions - writes no findings of its own, and appends nothing to any brief or to `notes.md`.
 
 Why: the skill that produced a finding owns persisting it, so a `to-spec` that had to append would be repairing an upstream skill's omission.
 
@@ -71,7 +71,23 @@ Offer nothing, not `brainstorm-how` and not a retry, and never present the faile
 
 Check the file on disk, never the agent's "done" message alone.
 
-### 4. Self-review the spec once, with fresh eyes
+### 4. Interview the user on every open question
+
+Read the spec's `## Open Questions` section. When it is empty, skip this step.
+
+Interview the user on every entry before any review runs, with `AskUserQuestion`: recommended answer first, each question self-contained - why it exists, what changes per option, and the thing decided quoted rather than named by id or line.
+
+Cluster every question open at the same moment into one call, at most 4 per call, and use more calls when there are more.
+
+Settle each question in the interview by default. Apply each answer through `agent(subAgent=spec-editor, title=Apply spec edits)`: remove the answered entry from `## Open Questions` and write the decision where it belongs in the spec.
+
+Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
+
+Why before the review: the reviewer judges the settled spec, so reviewing a spec with open questions reviews text the answers will change, and the review would run twice.
+
+Why settle by default: the common path is a spec with no open question left, and an entry the user never chose to keep is a decision this session skipped asking about.
+
+### 5. Self-review the spec once, with fresh eyes
 
 Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
 
@@ -92,7 +108,7 @@ This runs once per spec, never twice over the same text.
 
 Why fresh eyes: this session never wrote the spec, but it holds the interview and would read the spec as complete from memory.
 
-### 5. Offer `brainstorm-how`
+### 6. Offer `brainstorm-how`
 
 Give the user the spec's path and offer `brainstorm-how`. Do not run it in this session.
 
