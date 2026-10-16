@@ -25,7 +25,7 @@ Routing: `spec-reviewer` over a spec, `plan-reviewer` over a plan, and a check o
 Why never `spec-reviewer` over a plan: separate report rows, and a plan raises questions a spec never does - test design, task decomposition, AC tracing.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
-- Dispatch each at `effort=high`, overriding its `max` pin - both docs are lean, so `max` buys latency, not accuracy.
+- Dispatch each at `effort=xhigh`, matching its pin - every later step builds on the reviewed doc, while `max` buys latency, not accuracy.
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
 

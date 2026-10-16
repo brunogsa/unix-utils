@@ -68,7 +68,7 @@ def to_plan():
             #      never route it to plan-editor, never count the plan as gated
             return
 
-    # 10 · Dispatch plan-reviewer, effort high, in the background.
+    # 10 · Dispatch plan-reviewer, effort xhigh, in the background.
     #      Qualitative leg only when qualitative_pass is true;
     #      fail-closed judged checks run regardless
     findings = dispatch_plan_reviewer()
@@ -105,7 +105,7 @@ flowchart TD
   n9{"9. Runner exit code?"}
   n9a["9a. Exit 1 - a finding: fix each miss through plan-editor"]:::dispatch
   n9b(["9b. Exit 2 - a gate could not run. Report it to the user,<br/>never route it to plan-editor, never count the plan as gated"])
-  n10["10. Dispatch plan-reviewer, effort high, in the background.<br/>Qualitative leg only when qualitative_pass is true;<br/>fail-closed judged checks run regardless"]:::dispatch
+  n10["10. Dispatch plan-reviewer, effort xhigh, in the background.<br/>Qualitative leg only when qualitative_pass is true;<br/>fail-closed judged checks run regardless"]:::dispatch
   n11["11. Decide each finding yourself, dispatch plan-editor<br/>with the accepted ones. Runs once per plan, never twice"]:::dispatch
   n12["12. Report every finding in one block, applied or skipped<br/>with the reason, naming any check skipped by toggle"]
   n13(["13. Step 6 · Give the plan path and offer sdd-to-linear,<br/>free-text something-else always open. Do not run it"]):::done

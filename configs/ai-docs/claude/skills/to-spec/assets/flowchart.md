@@ -67,7 +67,7 @@ def to_spec():
             #      never route it to spec-editor, never count the spec as gated
             return
 
-    # 10 · Dispatch spec-reviewer, effort high, in the background.
+    # 10 · Dispatch spec-reviewer, effort xhigh, in the background.
     #      Always: how would this break?
     #      Only when qualitative_pass is true: the qualitative checklist
     findings = dispatch_spec_reviewer()
@@ -104,7 +104,7 @@ flowchart TD
   n9{"9. Runner exit code?"}
   n9a["9a. Exit 1 - a finding: fix each miss through spec-editor"]:::dispatch
   n9b(["9b. Exit 2 - a gate could not run. Report it to the user,<br/>never route it to spec-editor, never count the spec as gated"])
-  n10["10. Dispatch spec-reviewer, effort high, in the background.<br/>Always: how would this break?<br/>Only when qualitative_pass is true: the qualitative checklist"]:::dispatch
+  n10["10. Dispatch spec-reviewer, effort xhigh, in the background.<br/>Always: how would this break?<br/>Only when qualitative_pass is true: the qualitative checklist"]:::dispatch
   n11["11. Decide each finding yourself, dispatch spec-editor<br/>with the accepted ones. Runs once per spec, never twice"]:::dispatch
   n12["12. Report every finding in one block, applied or skipped<br/>with the reason, naming any check skipped by toggle"]
   n13(["13. Step 6 · Give the spec path and offer brainstorm-how.<br/>Do not run it in this session"]):::done

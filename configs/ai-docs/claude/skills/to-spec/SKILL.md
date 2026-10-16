@@ -95,7 +95,7 @@ Run the deterministic gates first with `~/.claude/skills/spec-driven-development
 
 A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `spec-editor`, and never count the spec as gated.
 
-Then dispatch `agent(subAgent=spec-reviewer, effort=high, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
+Then dispatch `agent(subAgent=spec-reviewer, effort=xhigh, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
 
 - **Always - "How would this break?"**: every boundary and failure-category row instantiated or opted out, and every AC carrying a surfaced failure mode.
 - **Only when `qualitative_pass` is true**, read back from `/tmp/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
