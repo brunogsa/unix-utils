@@ -28,6 +28,8 @@ Steps:
      git ls-files --others --exclude-standard    # untracked
      ```
 
+   - Drop every `verdict_*.md` from either list: an `[AI!]` there is a finding pick, which Mode D mines.
+
 3. Scan each file for the literal string `AI!`, regardless of comment syntax.
    - Catches `// AI!`, `# AI!`, `<!-- AI! ... -->`, and bare-text `AI!` in `.md` files alike.
    - Match `AI!` only - never the `AI?` question marker (that's the live-answer path `address-ai-comments` owns).
