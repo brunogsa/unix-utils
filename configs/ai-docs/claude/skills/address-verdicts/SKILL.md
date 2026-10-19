@@ -1,18 +1,24 @@
 ---
 name: address-verdicts
-description: "Apply findings from any verdict_*.md on disk, whichever review lens wrote it, marking each APPLIED/SKIPPED in place. Triggers: /address-verdicts, 'address the verdicts', 'apply the review findings', 'work through the refactor verdict'."
+description: "Apply findings from any verdict_*.md on disk, marking each APPLIED/SKIPPED in place. With no args, applies every [AI!]-marked finding across all verdict_quality-gate_* files, each on its own stacked branch/PR, then pushes and merges forward. Triggers: /address-verdicts, 'address the verdicts', 'apply the [AI!] findings', 'apply the review findings', 'work through the refactor verdict'."
 disable-model-invocation: false
 ---
 
 ## Usage
 
 ```
-/address-verdicts <which ones> [--no-ask] [--test-cmd <cmd>]
+/address-verdicts [<which ones>] [--no-ask] [--test-cmd <cmd>]
 ```
 
 `<which ones>` selects which findings to work. It matches, in this order:
 
-- `all` - every finding in every located verdict file. Default when the arg is empty.
+- Empty, or `marked` - **marked mode**: every finding whose heading the human tagged `[AI!]` (`### 3. [AI!][MEDIUM][refactor] ...`), across every `verdict_quality-gate_*.md`.
+  - `[AI!: <message>]` in the same slot selects the finding too, and its message is the human's instruction for the fix (§4).
+  - Each finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
+  - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
+  - A bare invocation used to mean `all` on the current branch; it now pushes, so pass `all` for that older run.
+
+- `all` - every finding in every located verdict file, on the current branch.
 - A lens name, `refactor`, `auto-review`, `test-sdd`, or `quality-gate` - every finding in that lens's file only.
   - `quality-gate` selects every finding in the newest merged file. `refactor` and `auto-review` select the findings of whichever source §1 picks for that lens, merged or standalone.
 
@@ -38,6 +44,13 @@ Two ways in; only who picks the findings differs:
 - **A skill invokes it** - the caller passes a triaged finding list plus `--no-ask`. Nothing prompts.
 
 ## 1. Locate the verdict files
+
+**Marked mode** (empty arg or `marked`): read [`references/stack-mode.md`](references/stack-mode.md) now and follow it.
+
+- It replaces the rest of this section - every `verdict_quality-gate_*.md` counts, not the newest per lens.
+- It wraps §2-§5 in a per-branch loop that merges, validates, pushes, and watches CI.
+
+Every other selection skips it, works only the current branch, and never pushes.
 
 ```bash
 ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md 2>/dev/null
@@ -71,6 +84,7 @@ Ask ONE clarifying question, with your recommended reading, on any of these:
 - An identifier that matches more than one finding.
 - A severity floor the report doesn't actually label.
 - A lens name that looks like a typo.
+- An `[AI!: <message>]` whose instruction still leaves a choice open, or contradicts the finding in a way the message does not settle.
 
 Never guess past an ambiguity like these - a wrong guess silently works the wrong finding.
 
@@ -102,7 +116,7 @@ Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`,
 
 A lens with no finding gets no entry at all, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
 
-**One entry per lens is the rule, whoever invoked this skill.**
+**One entry per lens is the rule, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
 Each entry names its own count, and §5 still annotates every finding individually in its verdict file. Why the grouping loses nothing: [`references/design-rationale.md`](references/design-rationale.md).
 
@@ -123,6 +137,12 @@ A `test-sdd` finding whose planned test covers prose is **not written at all**. 
 This overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally" - see [`references/design-rationale.md`](references/design-rationale.md).
 
 A lens whose findings are all non-code dispatches its own agent zero times, which is a correct outcome, not a failure. §3 still seeds its entry, and §5 still annotates every finding.
+
+**A finding tagged `[AI!: <message>]` carries its message into the dispatch verbatim, as the human's instruction.**
+
+- Where the message conflicts with the finding's suggested fix, the message wins.
+- Classify the finding by what the fix edits once the message is applied, so a message can move it to another agent.
+- A `[QUESTION]` finding whose message answers the question is dispatched with that answer, instead of being reported back.
 
 Each dispatch carries **all** findings assigned to it at once, each with the identifier, scope, and evidence its report gives, plus the test command from §2:
 
@@ -170,11 +190,19 @@ Write every one of that lens's outcomes in place, next to its own finding - neve
   - `APPLIED (<sha>)` - the fix commit's SHA, pairs with a `[Done]` heading.
   - `SKIPPED (<reason>)` - why not applied; heading stays unmarked, so a re-run reconsiders it.
 
+**An `[AI!]` tag is the human's selection mark, in the same slot `[Done]` takes.**
+
+- Applied: replace `[AI!]` with `[Done]` - `### 3. [Done][MEDIUM][refactor] ...` - never stack both.
+  - For `[AI!: <message>]`, keep the message in the body line: `APPLIED (<sha>) - per the note: <message>`.
+
+- Skipped or failed: keep the tag, message included, so the next marked run retries it; the human deletes the tag to drop the finding.
+  - A `[QUESTION]` finding whose tag carries no answer stays marked too, with `SKIPPED (needs an answer: <the question>)`.
+
 Why two marks, and why lens by lens: [`references/design-rationale.md`](references/design-rationale.md).
 
 ## 6. Close with a report
 
-One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding reads `quality-gate#N [<lens>] (<file>:<lines>) - ...`.
+One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding reads `quality-gate#N [<lens>] (<file>:<lines>) - ...`, plus its verdict file in marked mode.
 
 The recap is mandatory even when the finding is already annotated on disk.
 
@@ -186,6 +214,8 @@ State plainly, every time:
 
 - Every finding not selected in §2 is untouched and carries no annotation.
 - This run never re-ran either reviewer - it only consumed their existing reports.
+
+In marked mode, also report one line per stack branch, per [`references/stack-mode.md`](references/stack-mode.md).
 
 Invoked by a skill, hand that same list back to the caller rather than only printing it - the caller composes the closing report the human reads, and can only name what it was told.
 

@@ -5,8 +5,8 @@
 # would drop steps from the flow audit or drop a whole rendering.
 # The same two renderings also overrun the default line cap, so lines-budget is raised too.
 # Parked in assets/ and never loaded by the model, so its words and lines cost no context.
-words-budget: 4096
-lines-budget: 512
+words-budget: 8192
+lines-budget: 1024
 ---
 
 # address-verdicts - flow overview
@@ -24,6 +24,13 @@ Python-shaped for readability only; nothing here runs, and the function names st
 #     A human invokes it, or a skill dispatches it - /quality-gate passes an
 #     explicit finding list plus --no-ask, having already triaged.
 def address_verdicts(arg):
+    # 1a · Step 1 - an empty arg or `marked` selects MARKED MODE: only
+    #      findings the human tagged [AI!], across a whole PR stack. Every
+    #      other selection (all, a lens, a severity floor, an explicit list)
+    #      is the unchanged single-branch, no-push flow from 2 onward.
+    if arg.which_ones in ("", "marked"):                   # 1a
+        findings = run_marked_stack(arg)                   # 1b-1x
+        return close_with_report(arg, findings)            # 19
     # 2 · Step 1 - several timestamped generations can exist per lens. A
     #     verdict_quality-gate_*.md counts as a source for both refactor and
     #     auto-review.
@@ -185,7 +192,11 @@ def address_verdicts(arg):
                 #      grep counts it. Same prefix-after-the-number
                 #      convention /implement uses on plan task headings, so
                 #      one rule covers both surfaces. A skipped or failed
-                #      finding is left unmarked.
+                #      finding is left unmarked - except in marked mode,
+                #      where [AI!] or [AI!: msg] is REPLACED by [Done]
+                #      (never stacked; the msg moves to the APPLIED line)
+                #      and a skipped or failed finding KEEPS its tag, so the
+                #      next marked run retries it.
                 stamp_heading(f, "[Done]")                   # 15
             # 16 · The evidence. APPLIED pairs with a [Done] heading;
             #      SKIPPED leaves the heading unmarked, so a re-run
@@ -195,9 +206,19 @@ def address_verdicts(arg):
             write_body_line(f, f"APPLIED ({f.sha})" if f.sha
                                else f"SKIPPED ({f.reason})")   # 16
 
+    # 18a · Loop exit. Single-branch flow: straight to the report. In marked
+    #       mode the same loop body runs inside run_marked_stack (1q), and
+    #       control returns THERE (to 1r) instead of reaching 19.
+    return close_with_report(arg, findings)                 # 19
+
+
+def close_with_report(arg, findings):
     # 19 · Step 6 - applied findings with their SHAs, skipped findings with
     #      their reasons, and anything that failed to apply with exactly
-    #      what it needs to retry.
+    #      what it needs to retry. Each finding line names its verdict file
+    #      (quality-gate#N repeats across files). Marked mode adds one line
+    #      per chain branch: merged-from, applied/skipped counts, pushed sha,
+    #      CI result, plus every [AI!] tag ignored in a non-quality-gate file.
     ledger = compose_ledger(findings)                       # 19
 
     if arg.invoked_by_skill:                                # 20
@@ -208,8 +229,183 @@ def address_verdicts(arg):
 
     # 20a · Print it, and state plainly EVERY time: every finding step 2 did
     #       not select is untouched and carries no annotation, and this run
-    #       never re-ran a reviewer.
+    #       never re-ran a reviewer. Marked mode also says every finding
+    #       still tagged [AI!] is retried by the next marked run, and that
+    #       deleting the tag drops it.
     print(ledger, untouched_note(), never_re_ran_note())    # 20a
+
+
+class StopChain(Exception):
+    pass
+
+
+def halt(branch, step, cause):
+    # 24 · Many edges converge here, so it is one named helper. Any failure
+    #      stops the chain ON the stopped branch: no merge left in progress
+    #      (a conflicted merge is aborted first), branches already pushed
+    #      stay pushed, branches above stay untouched, and the repo is NEVER
+    #      returned to the starting branch - the human resumes from where it
+    #      broke. Raised as an exception so it propagates out of the helpers.
+    raise StopChain(f"{branch}: {step}: {cause}")           # 24
+
+
+def run_marked_stack(arg):
+    # 1b · Step 1 - read references/stack-mode.md and follow it. EVERY
+    #      verdict_quality-gate_*.md counts (not the newest per lens); other
+    #      verdict files never fire here. Headings listed fence-aware, since
+    #      a finding may quote a heading inside a code fence.
+    files = glob("verdict_quality-gate_*.md")               # 1b
+    marked = {f: awk_marked_headings(f) for f in files}     # 1b
+
+    if not any(marked.values()):                            # 1c
+        # 1c1 · NEVER fall back to `all` - tell the human to tag a heading
+        #       `### N. [AI!][...]` first.
+        return stop("nothing is marked")                    # 1c1
+
+    # 1d · Fetch once, FIRST, so every branch check and remote comparison is
+    #      fresh. Each file's branch comes from its first header line, never
+    #      its filename (the filename turned / into -), and must pass
+    #      `git rev-parse --verify origin/<branch>`. The stack comes from ONE
+    #      gh pr list (--limit 1000), never a gh pr view per branch: walk down
+    #      each PR's baseRefName to the trunk, walk up to the top. The chain is
+    #      the WHOLE stack, from the branch directly above the trunk to the
+    #      top, including branches below the lowest marked one, so a re-run
+    #      after a stop still carries forward what the stopped run pushed.
+    git("fetch", "origin")                                  # 1d
+    branch_of = {f: branch_from_header_line(f) for f in files}   # 1d
+    prs = gh_pr_list_once(limit=1000)                       # 1d
+    chain = build_chain(branch_of, prs)                     # 1d
+
+    # 1e · Stop on an unparsable header, a branch origin/<branch> rejects, a
+    #      PR count equal to the limit (a cut-off list can drop a middle PR),
+    #      a marked branch with no open PR, two open PRs sharing one base (a
+    #      fork, not a stack), or marked branches in two different stacks.
+    if not chain.is_one_valid_stack or len(prs) == 1000:    # 1e
+        halt("(preflight)", "resolve stack", chain.problem) # 1e
+
+    # 1f · git refuses a checkout of a branch held by another worktree.
+    if any(b in worktree_list() for b in chain.branches):   # 1f
+        halt("(preflight)", "worktree check", "branch checked out elsewhere")  # 1f
+
+    start_branch = current_branch()                         # 1g
+    # 1g · Record the tracked modifications as the NEVER-STAGE list: never
+    #      stash them (the stash stack is shared across worktrees), never
+    #      discard them, and every dispatch prompt carries the list since a
+    #      subagent's `git add -A` would sweep them in. Stage explicit file
+    #      paths only, never a directory holding a listed file.
+    never_stage = tracked_modifications()                   # 1g
+
+    # 1g1 · A listed file that differs between chain branches makes checkout
+    #       refuse to carry it.
+    if differs_between(chain.branches[0], chain.branches[-1], never_stage):   # 1g1
+        halt("(preflight)", "never-stage files", "differ between chain branches")  # 1g1
+
+    # 1g2 · The repo's documented pre-test setup (its CLAUDE.md names it, e.g.
+    #       starting and migrating a test DB), run once for the whole chain.
+    run_pre_test_setup()                                    # 1g2
+
+    # 1g3 · The gate workflow is the one whose on.pull_request.branches lists
+    #       the trunk. A workflow with no branches filter is never the gate -
+    #       it runs on every PR, so its pass says nothing about the full gate.
+    #       None found: CI is never watched, and the report says so.
+    gate = resolve_gate_workflow(trunk=chain.trunk)         # 1g3
+
+    # 1h · Step 2 - ALL questions for ALL marked findings, in one
+    #      AskUserQuestion: a question asked mid-chain blocks a run that has
+    #      already pushed half the stack.
+    answers = ask_all_questions_upfront(marked)             # 1h
+
+    # 1i · Step 3 - per chain branch, in chain order: "Merge forward <branch>",
+    #      then one entry per lens with marked findings on it (lens order),
+    #      then "Validate, push, watch CI <branch>" so it is not done before
+    #      the push it names; plus one closing [Reminder] for the report. The
+    #      count is only known at runtime, so it is a single node. Progress
+    #      (pre-merge SHA, branch-start SHA, pushed SHA, CI run id and result)
+    #      goes in task metadata the moment it happens, so a compaction
+    #      mid-chain loses nothing.
+    tasklist.seed(entries_per_branch(chain, marked))        # 1i
+
+    findings, i = [], 0
+    while True:                                             # 1w · loop-check, bottom-up
+        branch = chain.branches[i]
+        # 1j · Untracked verdict files survive the checkout, so step 5's
+        #      annotations keep landing in CWD.
+        git("checkout", branch)                             # 1j
+        # 1k · A diverged branch stops the chain.
+        if not git_ok("merge", "--ff-only", f"origin/{branch}"):    # 1k
+            halt(branch, "ff-only", "local branch diverged from origin")  # 1k
+        # 1j · Then the repo's documented build steps (its CLAUDE.md names
+        #      them, e.g. a library build and a generated client), since the
+        #      previous branch's build outputs do not match this one's sources.
+        run_build_steps()                                   # 1j
+
+        pre_merge_sha = head_sha()
+        if i > 0:                                           # 1l
+            # 1m · Merge forward: the chain branch below, on every branch
+            #      except the one directly above the trunk. The trunk is never
+            #      merged into the stack.
+            merged = git_ok("merge", "--no-edit", chain.branches[i - 1])   # 1m
+            if not merged:                                  # 1n
+                # 1n · Any merge failure, not only a conflict: a refusal over
+                #      local changes stops too.
+                if merge_in_progress():
+                    git("merge", "--abort")                 # 1n
+                halt(branch, "merge forward", "merge failed")   # 1n
+            # 1o · Re-run the build steps when the merge touched the paths
+            #      they cover.
+            run_build_steps_if_paths_changed(changed_since(pre_merge_sha))   # 1o
+            # 1p · Validate only when the merge changed anything: lint plus
+            #      the specs covering the merged diff. The apply agents need
+            #      a green start to tell their own RED from an inherited one.
+            if changed_since(pre_merge_sha) and not lint_and_specs_green(pre_merge_sha):   # 1p
+                halt(branch, "validate merge", "red")       # 1p
+
+        branch_start_sha = head_sha()
+        if marked_for(branch, marked):                      # 1q
+            # 1q · Steps 3-5 - the SAME lens loop as 21-18 above, run on this
+            #      branch's marked findings only, annotating each lens as it
+            #      returns. Control comes back here at 18a. Re-run the build
+            #      steps when an apply touched the paths they cover, before
+            #      the next dispatch.
+            findings += apply_lens_entries(branch, marked, never_stage, answers)   # 1q -> 21
+            # 1r · Validate the branch: lint plus the specs covering what
+            #      the apply commits changed.
+            if not lint_and_specs_green(branch_start_sha):  # 1r
+                halt(branch, "validate branch", "red")      # 1r
+
+        pushed = False
+        # 1s · Skip the push when HEAD already equals origin/<branch>.
+        if head_sha() != origin_sha(branch):                # 1s
+            # 1s1 · The tree must be clean apart from the never-stage list;
+            #       a change left by a failed apply stops the chain.
+            if not clean_apart_from(never_stage):           # 1s1
+                halt(branch, "clean tree", "change left by a failed apply")  # 1s1
+            # 1t · NEVER --force, and never asked in chat. A rejection
+            #      stops the chain.
+            if not git_ok("push"):                          # 1t
+                halt(branch, "push", "rejected")            # 1t
+            pushed = True
+
+        # 1u · Watch CI only when step 1t pushed and the PR's base is the
+        #      trunk the gate workflow triggers on (no gate workflow: never).
+        if pushed and gate and pr_base_is_gate_trunk(branch):   # 1u
+            # 1v · Poll `gh run list --workflow <gate> --commit <pushed sha>`
+            #      until it prints a run id, timing out after 10 minutes
+            #      (keying on the SHA keeps the previous commit's green run
+            #      from counting). Then `gh run watch <id> --exit-status` in
+            #      the background (a full gate outlives the Bash foreground
+            #      cap), and WAIT for it before the next branch. A failed run
+            #      or a poll timeout stops the chain.
+            if not watch_ci_in_background(gate, head_sha()):    # 1v
+                halt(branch, "CI", "failed run or poll timeout")  # 1v
+
+        i += 1
+        if i == len(chain.branches):                        # 1w
+            break
+
+    # 1x · Clean finish only: return to where the run started.
+    git("checkout", start_branch)                           # 1x
+    return findings
 ```
 
 ## Flowchart
@@ -217,6 +413,7 @@ def address_verdicts(arg):
 ```mermaid
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
+  n1a{"1a. Step 1 · Is &lt;which ones&gt; empty or 'marked'?<br/>Yes = MARKED MODE: only findings the human tagged [AI!],<br/>across a whole PR stack, with push. Any other selection<br/>(all, a lens, a severity floor, an explicit list) is the<br/>single-branch, no-push flow from node 2"}
   n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for both refactor<br/>and auto-review). Several timestamped generations<br/>can exist per lens"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
@@ -247,21 +444,92 @@ flowchart TD
   n14a["14a. tdd-coder and direct-coder commit their own work under<br/>commit-standards, so confirm the SHA exists rather than<br/>re-committing - even for a refactor-lens finding direct-coder took"]
   n14b["14b. The refactor agent leaves its change uncommitted<br/>by design, so commit it HERE, in this session,<br/>where the permission prompt can render"]:::gate
 
+  n1b["1b. Step 1 · Marked mode: read references/stack-mode.md and<br/>follow it. Read EVERY verdict_quality-gate_*.md (not the<br/>newest per lens; other verdict files never fire here) and<br/>list each file's [AI!] / [AI!: msg] headings, fence-aware since a finding<br/>may quote a heading inside a code fence"]
+  n1c{"1c. Step 1 · Is any finding marked [AI!] in any file?"}
+  n1c1(["1c1. STOP - nothing is marked; tag a heading<br/>### N. [AI!][...] first. NEVER fall back to all"])
+  n1d["1d. Step 1 · git fetch origin once, FIRST, so every check below is fresh.<br/>Resolve each file's branch from its first header line (never its<br/>filename, which turned / into -); git rev-parse --verify<br/>origin/&lt;branch&gt; must accept it. Build the stack from ONE<br/>gh pr list --limit 1000, never a gh pr view per branch: walk down<br/>each PR's base to the trunk, walk up to the top. The chain is the<br/>WHOLE stack, from the branch directly above the trunk to the top,<br/>including branches below the lowest marked one"]
+  n1e{"1e. Step 1 · Is it one valid stack? Stop on an unparsable<br/>header, a branch origin/&lt;branch&gt; rejects, a PR count equal to<br/>the limit (a cut-off list can drop a middle PR), a marked branch<br/>with no open PR, two open PRs sharing one base (a fork), or<br/>marked branches in two different stacks"}
+  n1f{"1f. Preflight · Is a chain branch checked out in another<br/>worktree? git refuses that checkout"}
+  n1g["1g. Preflight · Record the starting branch, and record the tracked<br/>modifications as the NEVER-STAGE list: never stash them (the stash<br/>stack is shared across worktrees), never discard them, stage explicit<br/>file paths only, and every dispatch prompt carries the list since<br/>a subagent's git add -A would sweep them in"]
+  n1g1{"1g1. Preflight · Does a never-stage file differ between the first and<br/>last chain branch? checkout refuses to carry it"}
+  n1g2["1g2. Preflight · Run the repo's documented pre-test setup once<br/>(its CLAUDE.md names it, e.g. start and migrate a test DB)"]
+  n1g3["1g3. Preflight · Resolve the gate workflow: the one whose<br/>on.pull_request.branches lists the trunk. A workflow with no<br/>branches filter is never the gate. None found = CI is never<br/>watched, and the report says so"]
+  n1h["1h. Step 2 · Ask ALL questions for ALL marked findings, upfront,<br/>in one AskUserQuestion - a question asked mid-chain blocks a<br/>run that has already pushed half the stack"]:::gate
+  n1i["1i. Step 3 · Add to TaskList, per chain branch in chain order:<br/>'Merge forward &lt;branch&gt;', then one entry per lens with marked<br/>findings (lens order), then 'Validate, push, watch CI &lt;branch&gt;';<br/>plus one closing [Reminder]. Runtime-sized, so one node.<br/>Progress (pre-merge SHA, branch-start SHA, pushed SHA, CI run id<br/>and result) goes in task metadata the moment it happens"]:::state
+
+  subgraph chain_loop["Per chain branch, bottom-up - any failure stops the chain on that branch"]
+    direction TB
+    n1j["1j. git checkout the branch, then git merge --ff-only<br/>origin/&lt;branch&gt;, then run the repo's documented build steps<br/>(its CLAUDE.md names them), since the previous branch's build<br/>outputs do not match this one's sources. Untracked verdict<br/>files survive the checkout, so step 5's annotations keep<br/>landing in CWD"]
+    n1k{"1k. Step 1 · Did the branch diverge from origin?"}
+    n1l{"1l. Step 1 · Is this the branch directly above the trunk?"}
+    n1m["1m. Merge forward: git merge --no-edit the chain branch below,<br/>on every branch except the one directly above the trunk.<br/>The trunk is never merged into the stack"]
+    n1n{"1n. Step 1 · Did the merge fail (a conflict, or a refusal<br/>over local changes)?"}
+    n1o["1o. Re-run the repo's documented build steps, only when<br/>the merge touched the paths they cover"]
+    n1p{"1p. Step 1 · Did the merge change anything, and is lint plus<br/>the specs covering the merged diff red? The apply agents<br/>need a green start to tell their own RED from an inherited one"}
+    n1q{"1q. Steps 3-5 · Does this branch have marked findings?<br/>Yes = apply them through the same lens loop (nodes 21-18),<br/>annotating each lens as it returns, re-running the build steps<br/>when an apply touched their paths. A branch with none still<br/>gets the merge, push and CI steps, so the fixes below<br/>reach every PR above them"}
+    n1r{"1r. Step 1 · Is lint plus the specs covering this branch's<br/>apply commits red?"}
+    n1s{"1s. Step 1 · Is HEAD already equal to origin/&lt;branch&gt;?"}
+    n1s1{"1s1. Step 1 · Is the tree clean apart from the never-stage list?<br/>A change left by a failed apply stops the chain"}
+    n1t{"1t. Step 1 · git push - NEVER --force, never asked in chat.<br/>Was it accepted?"}
+    n1u{"1u. Step 1 · Did 1t push, does a gate workflow exist, and is the PR's<br/>base the trunk it triggers on?"}
+    n1v{"1v. Step 1 · Poll gh run list --workflow &lt;gate&gt; --commit &lt;pushed sha&gt;<br/>until it prints a run id (10-minute timeout; keying on the SHA<br/>keeps the previous commit's green run from counting). Then<br/>gh run watch &lt;id&gt; --exit-status in the background (a full gate<br/>outlives the Bash foreground cap) and WAIT for it. Did it pass?"}
+    n1w{"1w. Step 1 · More chain branches left above this one?"}
+  end
+
+  n1x(["1x. Clean finish only: git checkout the starting branch,<br/>then go to the report"])
+  n24(["24. STOP the chain ON the stopped branch: abort a conflicted merge<br/>first, leave no merge in progress, name the branch, the step and<br/>the cause. Branches already pushed stay pushed, branches above<br/>stay untouched, and NEVER return to the starting branch -<br/>the human resumes from where it broke"])
+
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes - a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
     direction TB
-    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before the severity and lens tags. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked"]:::state
+    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before the severity and lens tags. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked. Marked mode:<br/>[AI!] or [AI!: msg] is REPLACED by [Done], never stacked, the msg<br/>kept in the APPLIED line; a skipped or failed finding KEEPS<br/>its tag so the next marked run retries it"]:::state
     n16["16. In the finding's BODY, write the outcome and its<br/>evidence: APPLIED (sha), or SKIPPED (reason) with the<br/>heading left unmarked so a re-run reconsiders it.<br/>The heading alone cannot say WHY or point at the fix,<br/>and the body line alone is not greppable"]:::state
     n15 --> n16
   end
 
   n17{"17. Step 4 · More findings left in this lens's batch?"}
   n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
-  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry"]
+  n18a{"18a. Step 4 · Running in marked mode?<br/>Yes = this branch's lens loop is done, so control<br/>returns to the stack loop; no = go straight to the report"}
+  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per chain branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, plus every [AI!]<br/>tag ignored in a non-quality-gate file"]
   n20{"20. Step 6 · Who invoked this run?"}
-  n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer"])
+  n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer.<br/>Marked mode also says every finding still tagged [AI!]<br/>is retried by the next marked run, and deleting the tag<br/>drops it"])
   n20b(["20b. Hand the same ledger back to the caller rather than<br/>only printing it - the caller composes the report the<br/>human actually reads, and can only name what it was told"])
 
-  n1 --> n2 --> n3
+  n1 --> n1a
+  n1a -->|"yes, marked mode"| n1b --> n1c
+  n1a -->|"no, any other selection"| n2
+  n1c -->|"no"| n1c1
+  n1c -->|"yes"| n1d --> n1e
+  n1e -->|"no"| n24
+  n1e -->|"yes"| n1f
+  n1f -->|"yes"| n24
+  n1f -->|"no"| n1g --> n1g1
+  n1g1 -->|"yes, differs"| n24
+  n1g1 -->|"no"| n1g2 --> n1g3 --> n1h --> n1i --> n1j --> n1k
+  n1k -->|"yes, diverged"| n24
+  n1k -->|"no"| n1l
+  n1l -->|"yes, first"| n1q
+  n1l -->|"no"| n1m --> n1n
+  n1n -->|"yes, git merge --abort when in progress"| n24
+  n1n -->|"no"| n1o --> n1p
+  n1p -->|"red"| n24
+  n1p -->|"green, or nothing merged"| n1q
+  n1q -->|"yes"| n21
+  n1q -->|"no"| n1s
+  n1r -->|"red"| n24
+  n1r -->|"green"| n1s
+  n1s -->|"yes, nothing to push"| n1w
+  n1s -->|"no"| n1s1
+  n1s1 -->|"no, dirty"| n24
+  n1s1 -->|"yes, clean"| n1t
+  n1t -->|"rejected"| n24
+  n1t -->|"accepted"| n1u
+  n1u -->|"no, CI not run"| n1w
+  n1u -->|"yes"| n1v
+  n1v -->|"run failed or poll timed out"| n24
+  n1v -->|"pass"| n1w
+  n1w -->|"yes, next branch up"| n1j
+  n1w -->|"no"| n1x --> n19
+  n2 --> n3
   n3 -->|"no file for any lens"| n3a
   n3 -->|"at least one"| n4
   n4 -->|"yes"| n4a
@@ -287,7 +555,9 @@ flowchart TD
   n17 -->|"yes, next finding in this batch"| n13
   n17 -->|"no"| n18
   n18 -->|"yes, next lens entry"| n21
-  n18 -->|"no"| n19
+  n18 -->|"no"| n18a
+  n18a -->|"no, single-branch flow"| n19
+  n18a -->|"yes, back to the stack loop"| n1r
   n19 --> n20
   n20 -->|"a human"| n20a
   n20 -->|"a skill"| n20b

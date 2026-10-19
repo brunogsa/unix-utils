@@ -54,3 +54,71 @@ Together they form the durable, on-disk ledger of fixed versus deferred.
 Annotating as each lens returns means a session killed mid-run still leaves an accurate ledger for the finished lenses.
 
 Holding every annotation to the end would lose all of them on an interrupted run.
+
+## Why marked mode selects only `[AI!]` findings, with no fallback
+
+Marked mode commits, pushes, and merges across a whole stack, so each finding it touches must be one the human read and chose.
+
+A fallback to `all` on an unmarked run would push findings nobody read to every PR in the stack.
+
+The `[AI!]` tag sits in the `[Done]` slot, so applying a finding swaps one tag for the other and a heading never carries both.
+
+## Why a skipped marked finding keeps its `[AI!]`
+
+The mark records the human's choice, and a skip does not change that choice, so the next marked run retries it.
+
+Deleting the tag is the human's way to drop it, since only they know whether the skip reason is permanent.
+
+## Why an `[AI!: <message>]` note wins over the finding's own fix
+
+The reviewer wrote the finding without the human's context, and the note is the human's answer after reading it.
+
+The note stays in the body after `[Done]` replaces the tag, so the ledger shows why the fix differs from what the finding suggested.
+
+## Why marked mode reads only `verdict_quality-gate_*` files
+
+The human chose this scope: each quality-gate file is one branch's merged review, and a standalone lens file can be an older generation of findings a merged file already carries.
+
+The filename replaces `/` with `-`, so the branch is read from the header, never from the filename.
+
+## Why the chain covers the whole stack, not just from the lowest marked branch
+
+A stopped run leaves pushed fixes on the branches below the stop, and their findings are now `[Done]`.
+
+A re-run starting at the lowest still-marked branch would never merge those fixes forward, and would report clean.
+
+## Why the CI watch keys on the pushed SHA
+
+A PR's check list updates some seconds after a push, so a watch started right away can read the previous commit's green checks as a pass.
+
+`gh run list --commit <sha>` names only runs for the pushed commit, so no earlier run can stand in for it.
+
+## Why merge forward, never rebase
+
+A rebase rewrites every upper branch, so each push becomes a force-push and review threads lose their anchors.
+
+A merge commit keeps the pushed history intact and needs no force.
+
+## Why CI is watched only on PRs its gate triggers on
+
+A workflow scoped to `pull_request: branches: [main]` never runs the full gate on a PR into another stack branch.
+
+Watching that PR would wait on the few unrelated checks that do run, and read their pass as the gate's.
+
+## Why one TaskList entry per branch and lens in marked mode
+
+The one-entry-per-lens rule assumes one branch; a stack applies each lens once per branch, at a different point in the timeline.
+
+One entry per branch and lens keeps the TaskList in the order the run actually works.
+
+## Why every question is asked before the first checkout
+
+A clarifying question asked mid-chain blocks a run that has already pushed the branches below.
+
+Asking all of them up front costs one round-trip, and the chain then runs unattended.
+
+## Why any failure stops the whole chain
+
+An upper branch that merges a red lower branch inherits the failure, and every push after it publishes the failure to another PR.
+
+Stopping on the failing branch leaves the human one place to fix, with nothing above it touched.

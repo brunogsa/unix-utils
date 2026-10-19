@@ -49,7 +49,7 @@ See [`references/more-examples.md`](references/more-examples.md) for example inv
 
 Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anything:
 
-- **Report only** (recommended default) - verdict files land in CWD, no refactor/auto-review finding is touched; the human decides later, by hand or via `/address-verdicts`.
+- **Report only** (recommended default) - verdict files land in CWD, no refactor/auto-review finding is touched; the human decides later, by hand or by tagging headings `[AI!]` for `/address-verdicts`.
 
 - **Auto-solve** - after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
 
@@ -207,11 +207,11 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 
 - **On a report-only run, every `refactor` and `auto-review` finding, under a heading naming them as never triaged.**
   - Nothing read them for addressability, so reporting them as "not addressable" would claim a judgment this run never made.
-  - Close that section by naming both ways to work them: `/address-verdicts`, or a re-run as `/quality-gate --auto-solve`.
+  - Close that section by naming both ways to work them: tag the chosen headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
 
 - Findings `/address-verdicts` skipped, with the reason - an ambiguity or a missing test command under `--no-ask`.
 - Findings whose apply failed, with what it needs to retry.
-- The plain statement that unmarked findings are untouched, and that a later `/address-verdicts` run - this time with a human answering - is how they get worked.
+- The plain statement that unannotated findings are untouched, and that tagging them `[AI!]` for a later `/address-verdicts` run - this time with a human answering - is how they get worked.
 
 ## Flowchart (human-facing)
 

@@ -23,6 +23,8 @@ Also triggers on natural phrasing: "raise/gather/check/find/see the AI? / AI! co
 
 `TODO`/`XXX` comments are a different, unrelated convention - don't sweep them into this flow, even when they sit next to an `AI?`/`AI!` marker.
 
+Skip every `verdict_*.md` file, even inside a named folder: an `[AI!]` tag in a verdict heading selects a finding for `/address-verdicts`, which owns applying it.
+
 ## Workflow
 
 This runs entirely inline in the main session - no subagent fan-out.
