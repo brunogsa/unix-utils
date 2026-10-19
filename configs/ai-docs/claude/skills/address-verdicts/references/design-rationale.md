@@ -111,6 +111,14 @@ The one-entry-per-lens rule assumes one branch; a stack applies each lens once p
 
 One entry per branch and lens keeps the TaskList in the order the run actually works.
 
+## Why the learn step runs before the first apply, over every file at once
+
+Applying a finding swaps its `[AI!]` for `[Done]`, and `/improve-from-user` skips `[Done]` as a prior run's output. So after the run, the applied picks no longer read as picks.
+
+One run over the whole stack lets `/improve-from-user` count a kind of finding picked on 3 branches as 3 pieces of evidence, where 8 separate runs would each see 1.
+
+On a re-run the question recommends skipping, since a still-`[AI!]` finding the first run skipped would be mined again. `/improve-from-user` would then read that repeat as the human raising it again and propose to strengthen a rule nobody re-asked for.
+
 ## Why every question is asked before the first checkout
 
 A clarifying question asked mid-chain blocks a run that has already pushed the branches below.

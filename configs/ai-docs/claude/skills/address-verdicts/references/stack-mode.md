@@ -59,7 +59,20 @@ Stop, naming the branches, on any of these:
 
 - `git worktree list` showing a chain branch checked out in another worktree → stop, since git refuses that checkout.
 
+- Ask every pre-flight question in one `AskUserQuestion`: §2's questions for every marked finding across every file, plus the learn question below.
+  - A question asked mid-chain blocks a run that has already pushed half the stack.
+
+- The learn question: run `/improve-from-user` over your marks before any of them is applied?
+  - Recommend learning first, except when any verdict file already carries a `[Done]` heading: that run's marks were likely mined already, so recommend skipping.
+
+- On yes, run `/improve-from-user verdict marks on <every verdict_quality-gate_*.md>` in this session, and finish its approve-and-apply loop before going on.
+  - One run over every file, so its clustering sees a kind of finding recur across branches.
+
+  - In this session, never a subagent, since it asks per-item approval and its edits need permission prompts.
+
 - Record `git status --porcelain`'s tracked modifications as the **never-stage list**.
+  - Record it after the learn step, so an edit that step landed in this repo's `CLAUDE.md` or `.claude/skills/` joins the list instead of failing step 7's clean-tree check.
+
   - Never stash them (the stash stack is shared across worktrees) and never discard them.
 
   - The list binds main and every dispatch prompt alike: stage explicit file paths only, never a directory such as `docs/` that holds a listed file.
@@ -72,9 +85,6 @@ Stop, naming the branches, on any of these:
   - A workflow with no `branches` filter is never the gate - it runs on every PR, so its pass says nothing about the full gate.
 
   - No such workflow → CI is never watched; say so in the report.
-
-- Run §2 for every marked finding across every file now, in one `AskUserQuestion` when any question fires.
-  - A question asked mid-chain blocks a run that has already pushed half the stack.
 
 - Seed the TaskList per chain branch, in chain order, replacing §3's one-entry-per-lens rule:
   - `Merge forward <branch>`, then one entry per lens with marked findings on that branch, in §3's lens order.

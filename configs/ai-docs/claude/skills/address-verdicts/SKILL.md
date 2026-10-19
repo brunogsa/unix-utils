@@ -15,6 +15,7 @@ disable-model-invocation: false
 - Empty, or `marked` - **marked mode**: every finding whose heading the human tagged `[AI!]` (`### 3. [AI!][MEDIUM][refactor] ...`), across every `verdict_quality-gate_*.md`.
   - `[AI!: <message>]` in the same slot selects the finding too, and its message is the human's instruction for the fix (§4).
   - Each finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
+  - Before the first apply, it offers to run `/improve-from-user` once over the `[AI!]` marks and notes of every file, one file or many.
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
   - A bare invocation used to mean `all` on the current branch; it now pushes, so pass `all` for that older run.
 
