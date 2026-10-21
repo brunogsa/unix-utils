@@ -32,7 +32,7 @@ Examples: `/address-pr-comments 169`, `/address-pr-comments 169 by alice, bob in
 
 ## Scope
 
-One live PR on the current repo's GitHub remote, self-comments included (labeled `(yours)`). Never resolves threads, requests re-review, dismisses reviews, or touches another PR.
+One live PR on the current repo's GitHub remote, self-comments included (labeled `(yours)`). Never resolves threads, requests re-review, dismisses reviews, or touches another PR; the user closes threads.
 
 ## Execution (Hybrid)
 
@@ -122,7 +122,7 @@ Return ONLY the proposal block - never the raw fetched JSON.
 
 ## Step 4: Create the TaskList (main)
 
-The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format. Right after it returns, before any chat or edit, create the TaskList so the ledger survives compaction.
+The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Right after it returns, before any chat or edit, create the TaskList so the ledger survives compaction.
 
 - One parent `[Task]` per cluster, titled with the cluster's short title.
 - Under it, one `[Sub-Step]` per marker, with `metadata.kind` = `command` or `question` from the proposal's `[kind: ...]` tag.
