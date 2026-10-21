@@ -115,6 +115,10 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles -
 
 ## Standalone doc files
 
+- [Instruction] Call a technical reader "engineers" or "on-call" - never "ops", which in my team means the non-engineering operations team.
+  - [Why] A comment that says "ops" points the reader at the wrong team.
+  - [Example] Bad: `// why: ops find error callbacks by category`. Good: `// why: on-call engineers find error callbacks by category`.
+
 Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`design-docs`** skill for which doc to write, its template, a worked example, and the ownership + altitude rules.
 
 - [Instruction] Locate and update related documentation inline with the change.

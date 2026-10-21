@@ -343,7 +343,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Before carving that exception, implement the compliant version and show it fails - an exception is never the first response to a rule your own code broke.
   - [Why] Documenting a deviation costs less than restructuring code, so without this gate the exception wins by default.
 
-- [Instruction] **Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
+- [Instruction] **CRITICAL: Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
   - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
 
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
@@ -356,6 +356,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Execute every `[Harness]` task through the `tdd-coder` agent dispatched with `model=opus`, the override its file declares above the sonnet default.
   - [Why] A rule must fire on cases nobody has written yet: opus judgment, plus a RED proof that blocks a wrong-but-green check.
+  - [Example] Bad: a new spec opening with `// eslint-disable-next-line import/order` because 119 sibling specs do. Good: order the imports and let the linter confirm it.
 
 - [Instruction] On this machine's Bash tool (zsh, not bash), never rely on an unquoted `$VAR` to split a space-separated path list - use an array or literal paths instead.
   - [Why] zsh has word-splitting off by default, so an unquoted multi-path variable collapses to one argument.

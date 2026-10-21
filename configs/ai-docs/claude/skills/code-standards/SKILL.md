@@ -214,6 +214,14 @@ work anywhere. Keep the chain synchronous.
   - [Why] A log-only branch buys observability an inline log already gives, and charges every future reader for the extra path.
   - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }` - the branch exists only to gate the log. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
 
+- [Instruction] When a log field has no value, log it as `null` - never leave the key out.
+  - [Why] `null` tells on-call the field was checked and empty; a missing key might mean an old deploy or code that never ran.
+  - [Example] Bad: `...(category && { category })`. Good: `category: category ?? null`. In JS, `category: undefined` also drops the key.
+
+- [Instruction] Name a log key the way the codebase already logs that value - grep for it before adding a new key.
+  - [Why] Two keys for one value split every log search in two.
+  - [Example] Bad: `extendContext({ cnpj: CNPJ })`. Good: `extendContext({ schoolDocNumber: CNPJ })`, the name the rest of the code already logs.
+
 - [Instruction] Logs must never crash the flow - every reducer/accessor/template expression must tolerate undefined or empty inputs.
   - [Why] Telemetry that crashes the flow removes the very thing meant to help you debug.
 
