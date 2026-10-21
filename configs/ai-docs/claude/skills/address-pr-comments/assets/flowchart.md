@@ -93,6 +93,7 @@ def address_pr_comments(pr, filters):
         elif reply.names_a_conclusion:                     # 15b
             # "change X" / "tell the reviewer Y" / "drop it" - no GitHub round-trip
             record_planned_command_or_reply(reply)         # 15b1
+            TaskCreate("[Sub-Step] <conclusion>", parent=c.task)  # 15b1 · its own sub-step
         if reply.says_question_is_clear:                   # 15c
             mark_sub_step_done(reply.question)             # 15c1
 
@@ -133,6 +134,7 @@ def address_pr_comments(pr, filters):
         TaskUpdate(c.task, metadata={"action": c.action, "commit_sha": sha,
                                      "status": "done"})
         state.write(c)
+        mark_done(c.command_sub_steps)                     # 19f · after capturing the SHA
 
         if touched_files_outside(c.scope):                 # 19g
             # 19g1 · no one to ask, so the split is always made and
@@ -166,11 +168,14 @@ def address_pr_comments(pr, filters):
         #       the user dictated verbatim. Loop, never batch.
         #       inline -> GraphQL addPullRequestReviewThreadReply(thread_id)
         #       top-level / review-summary -> REST issue comment
+        #       cluster also holds an AI? -> append the answer summary after the commit URL
         result = post_reply(next_target())                 # 23a
         if result.gh_api_failed:                           # 23b
             retry = retry_gh_api_once()                    # 23b1
             if not retry.succeeded:                        # 23b2
                 skip_and_list_in_final_report()            # 23b3 · loop never stops
+        if cluster_done_or_no_reply(target):               # 23c
+            mark_done(cluster.task, cluster.open_sub_steps)  # 23c · last reply posted, or plan said "no reply"
 
     if tails_on:                                           # 24 · Step 9b
         # 24a · tail pair per opt-in-gates.md: 2x code-reviewer, parallel,
@@ -178,8 +183,8 @@ def address_pr_comments(pr, filters):
         #       Report-only: the check-reviewer-writes.sh hook enforces it.
         dispatch_parallel("code-reviewer", base_ref=batch_base_sha)  # 24a
 
-    # 25 · Step 10 - applied / sites skipped / answered / dropped / left out
-    #      per debate / drift commits / reply failures / open threads link,
+    # 25 · Step 10 - applied / sites skipped / answered / dropped / no reply
+    #      (per plan) / drift commits / reply failures / open threads link,
     #      plus the repo-green verdict (when it ran) and tails report paths.
     return print(final_summary())
 ```
@@ -217,7 +222,7 @@ flowchart TD
   n15a{"15a. Bare ok while<br/>several items are open?"}
   n15a1["15a1. Ask which open items it closes<br/>(never guess)"]:::gate
   n15b{"15b. User names a conclusion?<br/>(change X / tell reviewer Y / drop it)"}
-  n15b1["15b1. Record as a planned command or reply<br/>(no GitHub round-trip)"]:::state
+  n15b1["15b1. Record as a planned command or reply<br/>(no GitHub round-trip)<br/>+ its own [Sub-Step] under the cluster's [Task]"]:::state
   n15c{"15c. User says a question<br/>is clear?"}
   n15c1["15c1. Mark that question's sub-step done"]:::state
   n16["16. Step 6: Load reply-patterns.md, EnterPlanMode<br/>plan per cluster: intent apply / answer / drop;<br/>apply: Rule + Sites as the debate amended them;<br/>one-line reply preview, or explicit no reply - reason"]:::gate
@@ -233,7 +238,7 @@ flowchart TD
   n19c["19c. Stage only files relevant to the cluster"]
   n19d["19d. Load commit-standards<br/>(Skill tool)"]:::skill
   n19e["19e. Commit: type(scope): cluster title<br/>body: blank line, then Addresses: (comment URLs)<br/>+ Sites: (edited sites)"]
-  n19f["19f. Update cluster's [Task] metadata<br/>+ run-state file<br/>(action, commit_sha, status)"]:::state
+  n19f["19f. Update cluster's [Task] metadata<br/>+ run-state file<br/>(action, commit_sha, status)<br/>then mark the cluster's command sub-steps done"]:::state
   n19g{"19g. Edits touched files<br/>outside cluster scope?"}
   n19g1["19g1. Always split them into a separate [Drift] commit<br/>(user is away, so no question)<br/>listed in the final report"]
   n20{"20. Repo-green gate<br/>toggle on (step 0)?"}
@@ -244,14 +249,15 @@ flowchart TD
   n22{"22. Push rejected<br/>remote moved?"}
   n22a["22a. Abort: surface to user<br/>commits stand, never auto-rebase<br/>user resolves; only the push is re-attempted"]
   n23{"23. Step 9 &middot; More reply targets in<br/>clusters with a planned reply?<br/>(target = one thread_id, top-level, or review-summary)"}
-  n23a["23a. Post reply per reply-patterns.md templates<br/>apply / answer / drop<br/>signature none only on user-dictated text<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment"]:::gate
+  n23a["23a. Post reply per reply-patterns.md templates<br/>apply / answer / drop<br/>signature none only on user-dictated text<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>cluster also holds an AI? &rarr; append the answer summary after the commit URL"]:::gate
   n23b{"23b. gh api<br/>call failed?"}
   n23b1["23b1. Retry gh api once"]
   n23b2{"23b2. Retry<br/>succeeded?"}
   n23b3["23b3. Skip reply;<br/>list in final report"]
+  n23c["23c. Cluster's last reply posted, or plan said no reply:<br/>mark its parent [Task] and any open sub-steps done"]:::state
   n24{"24. Step 9b &middot; Tails toggle on<br/>(step 1d)?"}
   n24a["24a. Dispatch code-reviewer tail pair per opt-in-gates.md<br/>2x code-reviewer, parallel, background<br/>BASE_REF = BATCH_BASE_SHA, no spec/plan<br/>report-only (check-reviewer-writes.sh hook enforces it)"]:::dispatch
-  n25["25. Step 10: Print final summary<br/>applied / sites skipped / answered / dropped /<br/>left out per debate / drift commits /<br/>reply failures / open-threads link<br/>+ repo-green verdict (if it ran)<br/>+ tails report paths and top findings (if they ran)"]
+  n25["25. Step 10: Print final summary<br/>applied / sites skipped / answered / dropped /<br/>no reply (per plan) / drift commits /<br/>reply failures / open-threads link<br/>+ repo-green verdict (if it ran)<br/>+ tails report paths and top findings (if they ran)"]
 
   n1 --> n2
   n2 --> n3
@@ -322,12 +328,13 @@ flowchart TD
   n22 -->|"no"| n23
   n23 -->|"yes"| n23a
   n23a --> n23b
-  n23b -->|"no"| n23
+  n23b -->|"no"| n23c
   n23b -->|"yes"| n23b1
   n23b1 --> n23b2
-  n23b2 -->|"yes"| n23
+  n23b2 -->|"yes"| n23c
   n23b2 -->|"no"| n23b3
-  n23b3 --> n23
+  n23b3 --> n23c
+  n23c --> n23
   n23 -->|"no - all replied"| n24
   n24 -->|"yes"| n24a
   n24a --> n25
