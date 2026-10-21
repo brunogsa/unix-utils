@@ -36,7 +36,7 @@ A candidate item - inline thread, top-level comment, or review-summary body - pr
 
 - **Self-flagged.** At least one comment in the item is authored by `ME` (`is_self == true`).
   - Its body has a line whose first non-blank, non-list-marker token starts with `AI!`, `AI?` or `AI:`.
-  - The match is case-insensitive, colon optional.
+  - The match is case-insensitive; the colon is optional after `AI!`/`AI?` and required on `AI:`, so "AI-generated" or "AIM" never matches.
 
 Tag each such marker `command` for `AI!` and the legacy `AI:` alias, `question` for `AI?`. A comment holding several marked lines yields one tagged marker per line, since each gets its own TaskList sub-step and its own reply decision.
 
