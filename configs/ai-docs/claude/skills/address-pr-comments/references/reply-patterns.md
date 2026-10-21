@@ -1,6 +1,6 @@
 # Reply Patterns: templates, API, and observed behaviors
 
-Step 7's reply mechanics - templates, the `gh api` call per reply-target kind, and the signature rule - plus the real user edits that justify them.
+Step 9's reply mechanics - templates, the `gh api` call per reply-target kind, and the signature rule - plus the real user edits that justify them.
 
 ## Templates, by action
 
@@ -12,26 +12,26 @@ Step 7's reply mechanics - templates, the `gh api` call per reply-target kind, a
 _via Claude Code (`address-pr-comments`)_
 ```
 
-**Answer** - the drafted answer the user accepted (`answer_source: draft`), signed:
+**Answer** (an `AI?` cluster) - a PT-BR summary written for the reviewer, signed.
+
+**Drop** (a command dropped in the debate) - the same summary format, explaining why the command was not applied.
+
+**Summary format** for answer and drop - at most 2 paragraphs of 1-4 sentences each, covering what was decided, what was considered, why, and the consequence for the PR. A reviewer who never saw the debate must be able to act on it.
+
+A no-debate `AI?` answer needs only 1-2 sentences.
 
 ```
-<draft answer>
+<paragraph 1: decision and what was considered>
+
+<optional paragraph 2: why, and the consequence>
 
 _via Claude Code (`address-pr-comments`)_
 ```
 
-Or the text the user typed via "Other" (`answer_source: user`), in their own voice, no signature (see "Signature rule" below):
+When the user dictated the reply text verbatim in the debate, post it as typed, unsigned (see "Signature rule" below):
 
 ```
-<answer_body>
-```
-
-**Drop** - minimal drop reason.
-
-```
-Dropping this one - <drop_reason>
-
-_via Claude Code (`address-pr-comments`)_
+<dictated text>
 ```
 
 ## API call, by reply-target kind
@@ -58,7 +58,7 @@ That `@<author> re: <link>` prefix pings the commenter and preserves thread cont
 
 ## Signature rule
 
-Every reply Claude wrote carries the AI signature **mandatorily** - `apply`, `drop`, and an accepted drafted answer. Only an answer the user typed carries **none**: it is their reasoning in their own voice, and an AI tag dilutes that ownership (see "Answer replies" below).
+Every reply Claude wrote carries the AI signature **mandatorily** - `apply`, `drop`, and every answer Claude composed. Only text the user dictated verbatim in the debate carries **none**: it is their reasoning in their own voice, and an AI tag dilutes that ownership (see "Answer replies" below).
 
 The inverse case - a comment addressed to Claude, answered in Claude's own voice - belongs to `gh-answer-claude-mentions`, not here.
 
@@ -83,9 +83,9 @@ Ack is optional - bare URL works.
 
 Observed: user stripped the AI signature on cluster C3 of PR #2030 for an `answer` reply they wrote themselves.
 
-Tagging a user-written answer as AI-assisted dilutes ownership; the reviewer discounts it. That's why a typed answer omits the signature.
+Tagging a user-written answer as AI-assisted dilutes ownership; the reviewer discounts it. That's why text the user dictated verbatim omits the signature.
 
-A drafted answer is Claude's wording, even once the user accepts it, so it keeps the signature like any other reply Claude wrote - a reviewer should know which words came from the AI.
+A summary Claude composed from the debate is Claude's wording, even once the user approves the plan, so it keeps the signature like any other reply Claude wrote - a reviewer should know which words came from the AI.
 
 ## Ownership rationale (inline threads)
 

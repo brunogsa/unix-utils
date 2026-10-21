@@ -26,7 +26,7 @@ If multiple or no markers matched, use the persisted step-0 answer instead. Run 
 
 If either is red, abort - fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
 
-## Repo-green gate - step 5's baseline + gate
+## Repo-green gate - step 7's baseline + gate
 
 Runs only on a yes to step 0 row 4 - a single toggle covering both the internal baseline dispatch below and the pre-push gate; the user is asked
 about the pre-push outcome only, never about the baseline capture separately. This is a distinct mechanism from row 2 / 1c above, not a rerun of it:
@@ -35,7 +35,7 @@ introduced, then blocks the push until the repo is green. A "no" to row 2 has no
 
 Unlike 1c's file-scoped discovery, both dispatches below use the repo's **full**, repo-wide lint + test commands - the same ones you'd run before opening a PR, not just this batch's files.
 
-**Baseline - dispatched at the start of step 5, before the first cluster edit.**
+**Baseline - dispatched at the start of step 7, before the first cluster edit.**
 
 Dispatch one fresh-context `agent(subAgent=repo-green-runner, title=Repo-green baseline)` in the background, handing it `mode: baseline` plus the repo-wide lint + test commands.
 
@@ -43,7 +43,7 @@ It fixes nothing in this mode - the run only gives the gate below evidence to di
 
 Record its **Log path** (never the log content), **Failure signatures**, and **Suite inventory** into the run-state file's `repo_green.baseline`.
 
-**Gate - dispatched after all `apply` clusters are committed, before step 6's push.**
+**Gate - dispatched after all `apply` clusters are committed, before step 8's push.**
 
 Dispatch one fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)` in the background, handing it `mode: gate`, the same repo-wide lint + test commands, and `repo_green.baseline`'s failures/log_path/inventory.
 
@@ -51,17 +51,19 @@ Dispatch one fresh-context `agent(subAgent=repo-green-runner, title=Repo-green g
 
 Never hand-fix a failure the runner handed back.
 
-What step 5 does with the verdict:
+What step 7 does with the verdict:
 
-- `GREEN` - proceed to step 6's push.
-- `GREEN-WITH-EXCEPTIONS` - proceed to step 6's push, carrying the runner's Scout and Unclassifiable lists into step 8's report so nothing it declined to fix, or couldn't classify, disappears.
-- `HALT` - stop before step 6; surface the runner's surviving red set and let the user resolve it. Never push broken commits, never retry the gate automatically.
+- `GREEN` - proceed to step 8's push.
+
+- `GREEN-WITH-EXCEPTIONS` - proceed to step 8's push, carrying the runner's Scout and Unclassifiable lists into step 10's report so nothing it declined to fix, or couldn't classify, disappears.
+
+- `HALT` - stop before step 8; surface the runner's surviving red set and let the user resolve it. Never push broken commits, never retry the gate automatically.
 
 If the baseline dispatch halted or timed out, the gate has nothing to diff against - treat that the same as `HALT` and stop before the push.
 
-## Refactor + auto-review tails - step 7b
+## Refactor + auto-review tails - step 9b
 
-Runs only on a yes to step 1d's persisted toggle. When it is off, skip straight to step 8.
+Runs only on a yes to step 1d's persisted toggle. When it is off, skip straight to step 10.
 
 Otherwise dispatch the shared code-reviewer tail pair - [`code-reviewer-tail-pair.md`](../../code-review-pipeline/references/code-reviewer-tail-pair.md).
 

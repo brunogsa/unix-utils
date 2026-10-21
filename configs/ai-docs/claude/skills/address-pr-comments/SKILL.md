@@ -1,6 +1,6 @@
 ---
 name: address-pr-comments
-description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → one-round selection → commit-per-cluster → batch push → AI-signed inline replies."
+description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → TaskList → Q&A debate → plan approval → commit-per-cluster → batch push → AI-signed inline replies."
 disable-model-invocation: false
 ---
 
@@ -36,9 +36,11 @@ One live PR on the current repo's GitHub remote, self-comments included (labeled
 
 ## Execution (Hybrid)
 
-Subagents can't post replies, commit, or push (permission UIs live in main). Main runs steps 0-2 and 4-7; step 3's read-only fetch and clustering goes to a background subagent that returns only the proposal block.
+Subagents can't post replies, commit, or push (permission UIs live in main). Main runs steps 0-2 and 4-10; step 3's read-only fetch and clustering goes to a background subagent that returns only the proposal block.
 
 If it reports zero candidate comments, stop before step 4.
+
+After step 6's plan approval the run asks the user nothing: they may be away, so every later fork is decided by a rule written in the steps below.
 
 ## Run-state file + TaskList state
 
@@ -54,11 +56,11 @@ Step 4 creates the TaskList. Put machine-checkable state (`action`, `commit_sha`
 
 Load each as its scope opens, not upfront:
 
-- `code-standards` - before production edits in step 5.
-- `test-standards` - when touching or adding tests (step 5).
-- `doc-standards` - before editing comments, docstrings, logs (step 5).
-- `debug-standards` - when lint/test fails in step 1c or 5.
-- `commit-standards` - at every commit boundary (steps 1b, 5).
+- `code-standards` - before production edits in step 7.
+- `test-standards` - when touching or adding tests (step 7).
+- `doc-standards` - before editing comments, docstrings, logs (step 7).
+- `debug-standards` - when lint/test fails in step 1c or 7.
+- `commit-standards` - at every commit boundary (steps 1b, 7).
 
 ## Step 0: Pre-flight interview (main - before any other step)
 
@@ -88,7 +90,7 @@ On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`
 
 ### 1d. Tails toggle
 
-Not a pass/fail check - read step 0's persisted tails answer (consumed by step 7b). Default no if unanswered.
+Not a pass/fail check - read step 0's persisted tails answer (consumed by step 9b). Default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 
@@ -130,15 +132,45 @@ A parent with no commit of its own (an answer-only cluster) still gets a `[Task]
 
 This step ends only once every marker has its sub-step.
 
-## Step 5: Per-cluster commits (main, applied clusters only)
+## Step 5: Q&A + debate (main, in chat)
 
-If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below - step 7b's tails review this range. If step 0's "Repo-green gate after changes?" is on, capture the repo-green baseline now, before the first cluster edit - see [`references/opt-in-gates.md`](references/opt-in-gates.md).
+Send one message (the order `address-ai-comments` step 4 uses) that answers **every** `AI?` first, from its `Draft answer`, then challenges each `AI!` you disagree with, seeded by its `Concern:`. Tie each item to its `path:line`.
 
-For each `apply` cluster, **in the order the user left them**:
+The user wants to be challenged: a command that looks wrong, over-reaching, or already handled gets named out loud, never quietly queued.
+
+Debate follows in chat. Rules:
+
+- Mark a question's sub-step done only when the user says it is clear, because an unread answer left open is the one the reply later misstates.
+
+- A bare "ok" while several items are open gets a clarifying question naming the open items - never a guess at which one it closes.
+
+- A conclusion the user names ("change X", "tell the reviewer Y", "drop it") becomes a planned command or reply right away, with no GitHub round-trip.
+
+- Leave this step only when every question is done and no challenge is open.
+
+## Step 6: Plan Mode (main)
+
+Call `EnterPlanMode`, then write a plan listing, per cluster:
+
+- Its intent: `apply`, `answer`, or `drop`.
+
+- For `apply`: the Rule and Sites, from the proposal as the debate amended them.
+
+- A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every `AI?` cluster gets a proposed reply, or an explicit "no reply - <reason>".
+
+`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt of its own.
+
+Rejection feedback edits the plan and re-submits it - it never restarts the debate, because the debate's conclusions are already in the plan.
+
+## Step 7: Per-cluster commits (main, applied clusters only)
+
+If step 1d's toggle is on, capture `BATCH_BASE_SHA=$(git rev-parse HEAD)` before the first commit below - step 9b's tails review this range. If step 0's "Repo-green gate after changes?" is on, capture the repo-green baseline now, before the first cluster edit - see [`references/opt-in-gates.md`](references/opt-in-gates.md).
+
+For each `apply` cluster, **in the plan's order**:
 
 1. Edit every entry of the cluster's `sites`, not only the commented lines. Locate each by its content, not its line number - earlier cluster commits shift lines.
 
-   A site whose content no longer matches is skipped and listed in step 8.
+   A site whose content no longer matches is skipped and listed in step 10.
 
 2. Stage **only** files relevant to this cluster - see `commit-standards` for the `git add` rules.
 
@@ -148,37 +180,37 @@ For each `apply` cluster, **in the order the user left them**:
 
    Leave a blank line between the `Addresses:` label and its first URL - commitlint reads a URL's `#discussion_r…` fragment as an issue reference that starts the footer, and warns `footer-leading-blank` when no blank line precedes it.
 
-4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 7's reply link needs it.
+4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 9's reply link needs it.
 
-If a cluster's edits touch files outside its scope (drift), never silently absorb it - ask whether to split it into a separate `[Drift]` commit per CLAUDE.md or bundle it if trivial. Either way the cluster's own flow then resumes.
+If a cluster's edits touch files outside its scope (drift), always split them into a separate `[Drift]` commit per CLAUDE.md and list it in step 10's report. The user is away after step 6, so there is no one to ask, and a separate commit stays revertable.
 
-### Repo-green gate (opt-in, after all apply clusters are committed, before step 6's push)
+### Repo-green gate (opt-in, after all apply clusters are committed, before step 8's push)
 
-Runs only when step 0's "Repo-green gate after changes?" is on - otherwise go straight to step 6. Load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the gate dispatch and verdict handling. On `HALT`, stop here - never push broken commits, and never hand-fix a failure the gate returned.
+Runs only when step 0's "Repo-green gate after changes?" is on - otherwise go straight to step 8. Load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the gate dispatch and verdict handling. On `HALT`, stop here - never push broken commits, and never hand-fix a failure the gate returned.
 
-## Step 6: Batch push (main)
+## Step 8: Batch push (main)
 
-After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 1a verified the branch and the user approved each cluster, so the push is the batch's completion, not a new decision.
+After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 1a verified the branch and step 6's approval covered the push, so it is the batch's completion, not a new decision.
 
-If the push is rejected (remote moved), abort and surface it - the commits stand. Ask the user to resolve the divergence manually (never auto-rebase), then re-attempt only the push, skipping step 5.
+If the push is rejected (remote moved), abort and surface it - the commits stand. Never auto-rebase: the user resolves the divergence manually, then only the push is re-attempted, skipping step 7.
 
-## Step 7: Post replies (main)
+## Step 9: Post replies (main)
 
-For **every reply target in every surviving cluster** (apply/answer/drop), post one reply. Loop, don't batch - each reply is permission-gated.
+For **every reply target in every cluster with a planned reply** (apply/answer/drop), post one reply, skipping a cluster the plan marked "no reply". Loop, don't batch - one failure must not block the rest.
 
 A reply target is one entry of the cluster's `thread_ids`, one top-level comment, or one review-summary body - never an individual comment inside an inline thread, or the same body posts several times.
 
-On a permission denial, skip that reply and list it in step 8's report. On a `gh api` failure, retry once, then skip and list it too - the loop never stops.
+On a `gh api` failure, retry once, then skip and list it in step 10's report - the loop never stops.
 
-### 7a. Reply mechanics - load before the first reply
+### 9a. Reply mechanics - load before the first reply
 
-Templates per action, the `gh api` call per reply-target kind, and the signature rule (none only on an answer the user typed) are in [`references/reply-patterns.md`](references/reply-patterns.md) - reload it if a compaction dropped it. Main reads it directly, never a subagent.
+Templates per action, the `gh api` call per reply-target kind, and the signature rule (none only on text the user dictated verbatim) are in [`references/reply-patterns.md`](references/reply-patterns.md) - reload it if a compaction dropped it. Main reads it directly, never a subagent.
 
-### 7b. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
+### 9b. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
-When the toggle is off, skip to step 8. Otherwise load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the tail-pair dispatch and its arguments.
+When the toggle is off, skip to step 10. Otherwise load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the tail-pair dispatch and its arguments.
 
-## Step 8: Final report (main)
+## Step 10: Final report (main)
 
 Print:
 
@@ -188,12 +220,13 @@ PR <n> address summary
 - Sites skipped (content no longer matched): <path:line list, or none>
 - Answered: <count> clusters → <count> replies
 - Dropped:  <count> clusters → <count> replies
-- Skipped (deleted from proposal): <count> clusters
+- Left out per debate: <count> clusters
+- Drift commits: <SHA list, or none>
 - Reply failures (permission/API skip): <count> targets
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 
-When step 5's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 7b ran, append its two report paths and top findings so the user sees them in the same pass.
+When step 7's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 9b ran, append its two report paths and top findings so the user sees them in the same pass.
 
 ## Flowchart (human-facing)
 
