@@ -225,7 +225,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Permission UIs are the asking. NEVER pre-ask in chat** -- issue the decided call directly, UNLESS it's an irreversible remote mutation that may be allowlisted, then confirm once in chat.
   - [Why] Pre-show + run = double-prompt; an allowlisted irreversible action fires no UI, so the chat confirm is the only gate.
 
-  - [Example] DO NOT pre-show + ask: no "does this look good?", "confirm and I'll run it". UNLESS: the batch `git push` in `address-pr-comments` - irreversible, commonly allowlisted.
+  - [Example] DO NOT pre-show + ask "does this look good?" or "confirm and I'll run it". UNLESS: the `address-pr-comments` batch `git push` - irreversible, so its plan-mode approval is that confirm.
 
 - [Instruction] **CRITICAL: Never delete or overwrite an existing artifact without explicit instruction.**
   - [Why] Each step up the destruction ladder risks losing unrecoverable context the user can't undo.
