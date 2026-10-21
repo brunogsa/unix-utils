@@ -237,6 +237,15 @@
             "command": "bash ~/.claude/hooks/claude-prose-format-posttool-hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/.claude/hooks/check-lint-suppressions.py"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
