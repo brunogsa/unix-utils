@@ -14,6 +14,8 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative - the
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
+The user is asked questions only up to step 6's plan approval. After it, every fork is decided by a rule in the steps, so the run can finish while the user is away.
+
 ## Pseudo-code
 
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
@@ -23,180 +25,162 @@ Python-shaped for readability only; nothing here runs, and the function names st
 def address_pr_comments(pr, filters):
     state = create(f"/tmp/address-pr-comments_{session_id}_{ts}.json")   # 2
 
-    # 3 · Seed the TaskList ONCE, before Step 0 runs - one [Reminder] per
-    #     remaining step (global CLAUDE.md rule). Each is updated as it
-    #     completes; the TaskList survives compaction, so nothing is re-seeded.
-    TaskCreate("[Reminder] Step 0: Pre-flight interview")                # 3a
-    TaskCreate("[Reminder] Step 1: Validate preconditions (1a-1d)")      # 3b
-    TaskCreate("[Reminder] Step 2: Resolve repo + own login")            # 3c
-    TaskCreate("[Reminder] Step 3: Fetch, filter, cluster, rank, propose")  # 3d
-    TaskCreate("[Reminder] Step 4: Parse the AskUserQuestion answers")   # 3e
-    TaskCreate("[Reminder] Step 5: Per-cluster commits + repo-green gate")  # 3f
-    TaskCreate("[Reminder] Step 6: Batch push")                          # 3g
-    TaskCreate("[Reminder] Step 7: Post replies (7a-7b)")                # 3h
-    TaskCreate("[Reminder] Step 8: Final report")                       # 3i
-
-    # 4 · Step 0 - read-only probing: is the tree dirty, and which runners exist?
+    # 3 · Step 0 - read-only probing: is the tree dirty, and which runners exist?
     dirty = git("status", "--porcelain")
     runners = probe_lint_and_test_markers()
 
-    # 5 · Step 0 - ONE message, asking only the conditions that actually hold.
+    # 4 · Step 0 - ONE AskUserQuestion, asking only the conditions that hold.
     answers = ask_together(
         "Dirty tree - commit now?" if dirty else None,
-        "Green baseline check?",              # default no - 1c precondition
+        "Green baseline check?",              # default no - step 1c
         "Which runner?" if ambiguous(runners) else None,
-        "Repo-green gate after changes?",     # default no - step 5 baseline+gate
-        "Tails after this batch?",            # default no
+        "Repo-green gate after changes?",     # default no - step 7 baseline + gate
+        "Tails after this batch?",            # default no - step 9b
     )
-    state.write(answers)   # 6 · persisted, so the answers survive compaction
+    state.write(answers)   # 5 · persisted, so the answers survive compaction
 
     # ---- Step 1 · 1a-1d run sequentially, fail-fast on the first failure ----
-    if not on_pr_branch(pr):                               # 7 · Step 1a
-        return abort("not on the PR branch - run gh pr checkout")        # 7a
+    if not on_pr_branch(pr):                               # 6 · Step 1a
+        return abort("not on the PR branch - run gh pr checkout")        # 6a
 
-    if state.answers.tree_is_dirty:                        # 8 · Step 1b
-        load_skill("commit-standards")                     # 8a
-        user_commits_or_stashes()                          # 8b
-        return rerun_from_step_0()                         # 8c
+    # 7 · Step 1b - the persisted step-0 answer decides.
+    if state.answers.tree_is_dirty:
+        if state.answers.dirty == "commit_now":            # 7a
+            load_skill("commit-standards")                 # 7a1
+            commit_dirty_files()                           # 7a2
+        elif state.answers.dirty == "stop_here":           # 7b
+            return abort("dirty tree - user chose to stop")              # 7b1
+        # proceed_without_committing falls through
 
-    if state.answers.baseline_check:                       # 9 · Step 1c
-        lint_result, test_result = run_lint(), run_test()  # 9a
-        if not both_green(lint_result, test_result):       # 9b
-            load_skill("debug-standards")                  # 9b1
-            return abort("fix the pre-existing breakage first")          # 9b2
+    if state.answers.baseline_check:                       # 8 · Step 1c
+        lint_result, test_result = run_lint(), run_test()  # 8a
+        if not both_green(lint_result, test_result):       # 8b
+            load_skill("debug-standards")                  # 8b1
+            return abort("fix the pre-existing breakage first")          # 8b2
 
-    owner_repo, my_login = resolve_repo_and_login()        # 10 · Step 2
+    tails_on = state.answers.tails                         # 9 · Step 1d (not a pass/fail check)
 
-    # 11 · Step 3 - ONE subagent, general-purpose · sonnet · high, background,
-    #      serial. It reads fetch-cluster-propose.md + review-principles.md and
-    #      does the fetch, filter, cluster, rank, and propose. Per apply cluster
-    #      it generalizes the AI: note into a PR-wide Rule, runs `gh pr diff`
-    #      once, sweeps every added line, and returns Sites (each with a
-    #      before -> after or pseudo-code preview); a site matching several
-    #      rules is tied to the highest-ranked cluster. Per answer cluster it
-    #      returns a Draft answer.
+    owner_repo, me = resolve_repo_and_login()              # 10 · Step 2
+
+    # 11 · Step 3 - ONE subagent, general-purpose · sonnet · high, background.
+    #      Fetch, filter, cluster, rank, propose. Self-AI gate: only unresolved
+    #      items where ME left an AI!/AI?/AI: note. Per AI! it generalizes the
+    #      note into a PR-wide Rule and sweeps every added line for Sites; per
+    #      AI? it returns a Draft answer. Returns only the proposal block.
     clusters = dispatch("general-purpose · sonnet · high", background=True)
 
     if not clusters:                                       # 12
-        return stop("no clusters to address")              # 12a
+        return stop("no candidate comments")               # 12a
 
-    # 13 · Output step - main reads reply-patterns.md (the previews quote its
-    #      templates + signature rule), then PRINTS one preview block per
-    #      cluster in chat BEFORE the first AskUserQuestion: comment lines,
-    #      Apply -> Rule + code sites + reply, Answer -> Draft answer (signed),
-    #      Drop -> drop reply, Skip -> nothing happens.
+    # 13 · Step 4 - TaskList BEFORE any chat or edit, so it survives compaction.
+    #      One parent [Task] per cluster, one [Sub-Step] per marker with
+    #      metadata.kind = command | question. Parent metadata holds
+    #      comment_ids, thread_ids, urls. An answer-only cluster still gets a [Task].
+    for c in clusters:
+        parent = TaskCreate(f"[Task] {c.title}", metadata=c.ids_and_urls)
+        for marker in c.markers:
+            TaskCreate(f"[Sub-Step] {marker}", metadata={"kind": marker.kind})
+
+    # 14 · Step 5 - ONE chat message: answer EVERY AI? from its Draft answer
+    #      first, then challenge each AI! that looks wrong, over-reaching, or
+    #      already handled (seeded by its Concern:). Each tied to path:line.
+    send_qa_message(clusters)
+
+    while open_questions() or open_challenges():           # 15 · debate in chat
+        reply = read_user()
+        if is_bare_ok(reply) and len(open_items()) > 1:    # 15a
+            ask_which_items_it_closes()                    # 15a1
+        elif reply.names_a_conclusion:                     # 15b
+            # "change X" / "tell the reviewer Y" / "drop it" - no GitHub round-trip
+            record_planned_command_or_reply(reply)         # 15b1
+        if reply.says_question_is_clear:                   # 15c
+            mark_sub_step_done(reply.question)             # 15c1
+
+    # 16 · Step 6 - EnterPlanMode; the plan lists per cluster: intent
+    #      (apply / answer / drop), for apply the Rule + Sites as the debate
+    #      amended them, and a one-line reply preview per reply-patterns.md
+    #      (loaded now). Every AI? cluster: a reply, or "no reply - <reason>".
     load_reference("reply-patterns.md")
-    print_previews(clusters)                               # 13
+    plan = enter_plan_mode(clusters)
+    while not exit_plan_mode(plan).approved:               # 17
+        # 17a · feedback edits the plan and re-submits it; the debate is not
+        #       restarted. Approval gates every commit, the push, and every reply.
+        plan = edit_plan(plan, feedback)                   # 17a
 
-    # 14 · ONE unbroken round: one question per cluster, 4 per call; each
-    #      option's preview shows that option's own lines from the block above.
-    #      "Other" overrides: answer_body (unsigned), rule/planned_change, drop_reason.
-    answers = ask_per_cluster(clusters)                    # 14
+    # ---- Step 7 · from here on, no questions to the user ----
+    if tails_on:                                           # 18 · Step 7 opening captures
+        batch_base_sha = git("rev-parse", "HEAD")          # 18a
+    if state.answers.repo_green_gate:                      # 18b
+        # 18b1 · mode=baseline: fixes nothing, records evidence to diff against later.
+        dispatch("repo-green-runner", mode="baseline", background=True)  # 18b1
 
-    parsed = parse(answers)                                # 15 · Step 4
-    # 15 · per cluster: action, comment_ids, thread_ids, urls; apply adds
-    #      planned_change + rule + sites; answer records answer_source
-    #      ("draft" for a plain Answer, "user" for typed-via-Other).
-
-    # 16 · only a cluster with NO Draft answer needs the user's text.
-    if any_plain_answer_without_draft(parsed):             # 16
-        ask_for_answer_texts(parsed)    # 16a · one follow-up round, 4 per call
-
-    for c in parsed.applied_clusters:                      # 17
-        TaskCreate(f"[Task] {c.title}")
-
-    # 18 · Step 5 - repo-green BASELINE, opt-in, before any cluster edit.
-    if state.answers.repo_green_gate:                      # 18
-        # 18a · mode=baseline: fixes nothing, just records evidence to diff
-        #       against later. Log path/failures/inventory -> state.repo_green.baseline.
-        dispatch("repo-green-runner", mode="baseline", background=True)  # 18a
-
-    # ---- Step 5 · one commit per cluster ----
-    while apply_clusters_remaining():                      # 19
+    while apply_clusters_remaining():                      # 19 · in the plan's order
         c = next_apply_cluster()
         load_skill("code-standards", "test-standards", "doc-standards")  # 19a
         for site in c.sites:                               # 19b
             # 19b · located by CONTENT, not line number - earlier cluster
-            #       commits shift lines. No match -> skip it, list in Step 8.
+            #       commits shift lines. No match -> skip, list in Step 10.
             if not content_still_matches(site):
                 sites_skipped.append(site)
                 continue
             edit(site)                      # every site, not only commented lines
-        git("add", only_files_in_scope_of(c))              # 19b
-        load_skill("commit-standards")                     # 19c
-        # 19d · body carries an `Addresses:` block (comment URLs) and a
-        #       `Sites:` block (edited sites).
-        sha = git("commit")                                # 19d
-        # 19e · both surfaces updated: the [Task]'s metadata and the scratchpad.
+        git("add", only_files_in_scope_of(c))              # 19c
+        load_skill("commit-standards")                     # 19d
+        # 19e · subject `type(scope): cluster title`; body: blank line, then
+        #       `Addresses:` (comment URLs) and `Sites:` (edited sites).
+        sha = git("commit")                                # 19e
+        # 19f · both surfaces updated: the [Task]'s metadata and the run-state file.
         TaskUpdate(c.task, metadata={"action": c.action, "commit_sha": sha,
                                      "status": "done"})
         state.write(c)
 
-        if touched_files_outside(c.scope):                 # 19f
-            # 19f1 · the answer resumes the CURRENT cluster, then moves on.
-            ask("a separate Drift commit, or bundle it?")  # 19f1
+        if touched_files_outside(c.scope):                 # 19g
+            # 19g1 · no one to ask, so the split is always made and
+            #        reported in Step 10; a separate commit stays revertable.
+            drift_sha = git("commit", files=outside_scope)  # 19g1 · [Drift] commit
 
-    # 20 · Step 5 - repo-green GATE, opt-in, after all clusters committed,
-    #      before the push. Fixes only batch-caused red; never touches
-    #      pre-existing red; own 3-cycle-per-signature budget.
+    # 20 · repo-green GATE, opt-in, after all apply clusters, before the push.
+    #      Fixes only batch-caused red; never touches pre-existing red.
     if state.answers.repo_green_gate:                      # 20
         dispatch("repo-green-runner", mode="gate", background=True)  # 20a
-        verdict = read_gate_verdict()                       # 20b
-        if verdict == "HALT":                               # 20b
+        verdict = read_gate_verdict()                      # 20b
+        if verdict == "HALT":                              # 20b
             # 20b1 · never push broken commits; never hand-fix what the
             #        runner already handed back.
             return abort("repo-green gate HALT - surface surviving red")  # 20b1
 
-    # 21 · Step 6 - no push confirmation: the user already approved every cluster
-    while True:
-        git("push")                                        # 22 · single batch push
-        if not push_rejected_remote_moved():               # 23
-            break
-        # 23a · stop and surface it. The per-cluster commits stand, and the user
-        #       resolves the divergence manually - never auto-rebase. Retrying
-        #       re-enters the push ONLY, never step 5's commit logic.
-        return abort("remote moved")                       # 23a
+    # 21 · Step 8 - single batch push, no confirmation: step 1a verified the
+    #      branch and step 6's approval covered the push.
+    git("push")                                            # 21
+    if push_rejected_remote_moved():                       # 22
+        # 22a · the commits stand; never auto-rebase. The user resolves the
+        #       divergence, then only the push is re-attempted, skipping step 7.
+        return abort("remote moved")                       # 22a
 
-    # ---- Step 7 · one reply per surviving reply target ----
+    # ---- Step 9 · one reply per reply target, skipping "no reply" clusters ----
     # A target is one thread_id, one top-level comment, or one review-summary -
     # never a single comment inside a thread, which would post duplicates.
-    while targets_remaining_in_surviving_clusters():       # 24
-        # 24a · per reply-patterns.md templates (apply / answer / drop; reload
-        #       it if a compaction dropped it). Signature on apply, drop, and an
-        #       accepted drafted answer; none only on a user-typed answer
-        #       (answer_source == "user"). Each reply is permission-gated.
+    while targets_remaining_in_planned_clusters():         # 23
+        # 23a · per reply-patterns.md templates (apply / answer / drop; reload
+        #       it if a compaction dropped it). Signature none only on text
+        #       the user dictated verbatim. Loop, never batch.
         #       inline -> GraphQL addPullRequestReviewThreadReply(thread_id)
         #       top-level / review-summary -> REST issue comment
-        result = post_reply(next_target())                 # 24a
-        if result.permission_denied:                       # 24b
-            skip_and_list_in_final_report()                # 24b1
-            continue
-        if result.gh_api_failed:                            # 24b2
-            retry = retry_gh_api_once()                    # 24b2a
-            if not retry.succeeded:                        # 24b2b
-                skip_and_list_in_final_report()             # 24b2b1
+        result = post_reply(next_target())                 # 23a
+        if result.gh_api_failed:                           # 23b
+            retry = retry_gh_api_once()                    # 23b1
+            if not retry.succeeded:                        # 23b2
+                skip_and_list_in_final_report()            # 23b3 · loop never stops
 
-    if state.answers.tails:                                # 25 · Step 7b
-        # 25a · Step 7b - 2x code-reviewer · agent-pinned, parallel (∥),
-        #       background, reading code-reviewer-tail-pair.md.
-        #       Lens A simplification → verdict_refactor_*.md
-        #       Lens B correctness   → verdict_auto-review_*.md
-        tails = dispatch_parallel("code-reviewer", lenses=["A", "B"])
-        # 25b · PreToolUse hook: check-reviewer-writes.sh auto-approves
-        #       writes to verdict_*.md or /tmp, and denies everything else.
+    if tails_on:                                           # 24 · Step 9b
+        # 24a · tail pair per opt-in-gates.md: 2x code-reviewer, parallel,
+        #       background, BASE_REF = batch_base_sha, no spec/plan.
+        #       Report-only: the check-reviewer-writes.sh hook enforces it.
+        dispatch_parallel("code-reviewer", base_ref=batch_base_sha)  # 24a
 
-        # 25c · read BOTH reports, synthesize a prioritized summary,
-        #       and offer to apply - report-only by default.
-        summary = synthesize(read_all(tails))
-        if user_names_specific_findings():                 # 25d
-            for f in named_findings():
-                # 25d1 · a FRESH subagent per finding, general-purpose · sonnet ·
-                #        medium, serial. Test-first: confirm RED, apply, confirm GREEN.
-                dispatch("general-purpose · sonnet · medium", finding=f)
-
-    # 26 · Step 8 - applied / sites skipped / answered / dropped / skipped
-    #      counts, plus the repo-green gate verdict (when it ran) and the
-    #      tails findings.
+    # 25 · Step 10 - applied / sites skipped / answered / dropped / left out
+    #      per debate / drift commits / reply failures / open threads link,
+    #      plus the repo-green verdict (when it ran) and tails report paths.
     return print(final_summary())
 ```
 
@@ -206,119 +190,127 @@ def address_pr_comments(pr, filters):
 flowchart TD
   n1(["1. /address-pr-comments PR# [filters]"]):::start
   n2["2. Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
-
-  subgraph seedReminders["3. Seed the TaskList once, before Step 0 runs - one [Reminder] per remaining step (global CLAUDE.md rule).<br/>Update each as it completes; the TaskList survives compaction, so nothing is ever re-seeded."]
-    direction TB
-    n3a["3a. Add to TaskList a [Reminder] for Step 0:<br/>Pre-flight interview"]:::state
-    n3b["3b. Add to TaskList a [Reminder] for Step 1:<br/>Validate preconditions (1a-1d)"]:::state
-    n3c["3c. Add to TaskList a [Reminder] for Step 2:<br/>Resolve repo + own login"]:::state
-    n3d["3d. Add to TaskList a [Reminder] for Step 3:<br/>Fetch, filter, cluster, rank, propose"]:::state
-    n3e["3e. Add to TaskList a [Reminder] for Step 4:<br/>Parse the AskUserQuestion answers"]:::state
-    n3f["3f. Add to TaskList a [Reminder] for Step 5:<br/>Per-cluster commits + repo-green gate"]:::state
-    n3g["3g. Add to TaskList a [Reminder] for Step 6:<br/>Batch push"]:::state
-    n3h["3h. Add to TaskList a [Reminder] for Step 7:<br/>Post replies (7a-7b)"]:::state
-    n3i["3i. Add to TaskList a [Reminder] for Step 8:<br/>Final report"]:::state
-    n3a --> n3b --> n3c --> n3d --> n3e --> n3f --> n3g --> n3h --> n3i
-  end
-  n4["4. Step 0: git status --porcelain;<br/>probe lint/test runner markers (read-only)"]
-  n5["5. Step 0: Ask in ONE message<br/>(only conditions that hold)<br/><br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Repo-green gate after changes? (default no)<br/>- Tails after this batch? (default no)"]:::gate
-  n6["6. Persist step-0 answers to<br/>run-state file - survives compaction"]:::state
-  n7{"7. Step 1a &middot; On PR's branch?<br/>(1a-1d run sequentially, fail-fast<br/>on first failure)"}
-  n7a["7a. Abort: not on PR branch<br/>run gh pr checkout"]
-  n8{"8. Step 1b &middot; Working tree clean?<br/>(persisted step-0 answer)"}
-  n8a["8a. Load commit-standards<br/>(Skill tool)"]:::skill
-  n8b["8b. User commits or stashes<br/>the dirty files"]
-  n8c["8c. Re-run skill from Step 0"]
-  n9{"9. Step 1c &middot; Baseline check<br/>opted in (step 0)?"}
-  n9a["9a. Step 1c &middot; Run lint then test"]
-  n9b{"9b. Step 1c &middot; Lint and test green?"}
-  n9b1["9b1. Load debug-standards<br/>(Skill tool)"]:::skill
-  n9b2["9b2. Abort: fix pre-existing<br/>breakage first"]
+  n3["3. Step 0: git status --porcelain;<br/>probe lint/test runner markers (read-only)"]
+  n4["4. Step 0: ONE AskUserQuestion<br/>(only conditions that hold)<br/><br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Repo-green gate after changes? (default no)<br/>- Tails after this batch? (default no)"]:::gate
+  n5["5. Persist step-0 answers to<br/>run-state file - survives compaction"]:::state
+  n6{"6. Step 1a &middot; On PR's branch?<br/>(1a-1d run sequentially, fail-fast<br/>on first failure)"}
+  n6a["6a. Abort: not on PR branch<br/>run gh pr checkout"]
+  n7{"7. Step 1b &middot; Working tree clean?<br/>(persisted step-0 answer decides)"}
+  n7a["7a. Answer commit_now"]
+  n7a1["7a1. Load commit-standards<br/>(Skill tool)"]:::skill
+  n7a2["7a2. Commit the dirty files"]
+  n7b["7b. Answer stop_here"]
+  n7b1["7b1. Abort: user chose to stop"]
+  n8{"8. Step 1c &middot; Baseline check<br/>opted in (step 0)?"}
+  n8a["8a. Step 1c &middot; Run lint then test"]
+  n8b{"8b. Step 1c &middot; Lint and test green?"}
+  n8b1["8b1. Load debug-standards<br/>(Skill tool)"]:::skill
+  n8b2["8b2. Abort: fix pre-existing<br/>breakage first"]
+  n9["9. Step 1d: read persisted tails answer<br/>(not a pass/fail check; default no)"]:::state
   n10["10. Step 2: Resolve owner/repo<br/>and own gh login"]
-  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background (single, serial)<br/><br/>Reads fetch-cluster-propose.md<br/>+ review-principles.md<br/>fetch, filter, cluster, rank, propose<br/><br/>Apply cluster: generalizes the AI: note into a PR-wide Rule;<br/>runs gh pr diff once, sweeps every added line;<br/>returns Sites, each with a before -&gt; after or pseudo-code preview<br/>(a site matching several rules goes to the highest-ranked cluster)<br/>Answer cluster: returns a Draft answer"]:::dispatch
-  n12{"12. Subagent found<br/>zero matching comments?"}
-  n12a["12a. Stop - no clusters to address"]
-  n13["13. Output step: load reply-patterns.md, then PRINT in chat<br/>one preview block per cluster, BEFORE the first AskUserQuestion<br/><br/>- comment lines<br/>- Apply -&gt; Rule + code sites (before -&gt; after) + apply reply<br/>- Answer -&gt; Draft answer, signed<br/>- Drop -&gt; drop reply with proposed reason<br/>- Skip -&gt; no commit, no reply, thread stays open"]
-  n14["14. Ask via AskUserQuestion: one question per cluster<br/>one unbroken round, 4 clusters per call<br/>options Apply / Answer / Drop / Skip, default first (Recommended)<br/>each option's preview = comment lines + that option's own lines<br/><br/>Other overrides: typed text becomes answer_body (unsigned),<br/>rule / planned_change, or drop_reason"]:::gate
-  n15["15. Step 4: Parse the answers<br/>per cluster: action (skip = no task, no reply),<br/>comment_ids, thread_ids, urls<br/>apply adds planned_change, rule, sites<br/>answer records answer_source: draft (plain Answer)<br/>or user (typed via Other)"]
-  n16{"16. Plain Answer on a cluster<br/>with no Draft answer?"}
-  n16a["16a. Ask for those answer texts<br/>one follow-up AskUserQuestion round, 4 per call"]:::gate
-  n17["17. Create one [Task] per applied cluster<br/>(TaskList)"]:::state
-  n18{"18. Step 5 &middot; Repo-green gate<br/>toggle on (step 0)?"}
-  n18a["18a. Dispatch repo-green-runner<br/>mode=baseline (background)<br/><br/>Fixes nothing; records log path,<br/>failure signatures, suite inventory<br/>for the gate below to diff against"]:::dispatch
-  n19{"19. Step 5 &middot; More apply<br/>clusters to commit?"}
+  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background<br/><br/>Fetch, filter, cluster, rank, propose<br/>Self-AI gate: unresolved items where ME left an AI!/AI?/AI: note<br/><br/>AI! cluster: generalizes the note into a PR-wide Rule,<br/>sweeps every added line, returns Sites (before -&gt; after previews)<br/>AI? cluster: returns a Draft answer<br/>Returns only the proposal block"]:::dispatch
+  n12{"12. Subagent found zero<br/>candidate comments?"}
+  n12a["12a. Stop - no candidate comments"]
+  n13["13. Step 4: Create the TaskList (before any chat or edit)<br/>one parent [Task] per cluster<br/>one [Sub-Step] per marker, metadata.kind = command | question<br/>parent metadata: comment_ids, thread_ids, urls<br/>(an answer-only cluster still gets a [Task])"]:::state
+  n14["14. Step 5: ONE chat message<br/>answer EVERY AI? from its Draft answer first,<br/>then challenge each AI! that looks wrong, over-reaching,<br/>or already handled (seeded by its Concern:)<br/>each tied to path:line"]:::gate
+  n15{"15. Debate: any question<br/>or challenge still open?"}
+  n15a{"15a. Bare ok while<br/>several items are open?"}
+  n15a1["15a1. Ask which open items it closes<br/>(never guess)"]:::gate
+  n15b{"15b. User names a conclusion?<br/>(change X / tell reviewer Y / drop it)"}
+  n15b1["15b1. Record as a planned command or reply<br/>(no GitHub round-trip)"]:::state
+  n15c{"15c. User says a question<br/>is clear?"}
+  n15c1["15c1. Mark that question's sub-step done"]:::state
+  n16["16. Step 6: Load reply-patterns.md, EnterPlanMode<br/>plan per cluster: intent apply / answer / drop;<br/>apply: Rule + Sites as the debate amended them;<br/>one-line reply preview, or explicit no reply - reason"]:::gate
+  n17{"17. ExitPlanMode<br/>approved?<br/>(gates every commit, the push, every reply)"}
+  n17a["17a. Rejection feedback edits the plan<br/>and re-submits it<br/>(debate is not restarted)"]
+  n18{"18. Step 7 &middot; Tails toggle on?"}
+  n18a["18a. Capture BATCH_BASE_SHA = git rev-parse HEAD<br/>before the first commit"]:::state
+  n18b{"18b. Repo-green gate<br/>toggle on (step 0)?"}
+  n18b1["18b1. Dispatch repo-green-runner<br/>mode=baseline (background)<br/><br/>Fixes nothing; records log path,<br/>failure signatures, suite inventory<br/>for the gate below to diff against"]:::dispatch
+  n19{"19. Step 7 &middot; More apply clusters<br/>to commit? (plan's order)"}
   n19a["19a. Load code-standards / test-standards /<br/>doc-standards as applicable<br/>(Skill tool)"]:::skill
-  n19b["19b. Edit every site of the cluster (not only the commented lines),<br/>each located by content, not line number;<br/>a site whose content no longer matches is skipped<br/>and listed in the final report;<br/>stage only relevant files"]
-  n19c["19c. Load commit-standards<br/>(Skill tool)"]:::skill
-  n19d["19d. Commit the cluster's staged changes<br/>body: Addresses: (comment URLs)<br/>+ Sites: (edited sites)"]
-  n19e["19e. Update cluster's [Task] metadata<br/>+ scratchpad file<br/>(action, commit_sha, status)"]:::state
-  n19f{"19f. Edits touched files<br/>outside cluster scope?"}
-  n19f1["19f1. Ask user: a separate<br/>Drift commit, or bundle"]
-  n20{"20. Step 5 &middot; Repo-green gate<br/>toggle on (step 0)?"}
+  n19b["19b. Edit every site of the cluster (not only the commented lines),<br/>each located by content, not line number;<br/>a site whose content no longer matches is skipped<br/>and listed in the final report"]
+  n19c["19c. Stage only files relevant to the cluster"]
+  n19d["19d. Load commit-standards<br/>(Skill tool)"]:::skill
+  n19e["19e. Commit: type(scope): cluster title<br/>body: blank line, then Addresses: (comment URLs)<br/>+ Sites: (edited sites)"]
+  n19f["19f. Update cluster's [Task] metadata<br/>+ run-state file<br/>(action, commit_sha, status)"]:::state
+  n19g{"19g. Edits touched files<br/>outside cluster scope?"}
+  n19g1["19g1. Always split them into a separate [Drift] commit<br/>(user is away, so no question)<br/>listed in the final report"]
+  n20{"20. Repo-green gate<br/>toggle on (step 0)?"}
   n20a["20a. Dispatch repo-green-runner<br/>mode=gate (background)<br/><br/>Fixes only batch-caused red<br/>(own 3-cycle/signature budget);<br/>never touches pre-existing red"]:::dispatch
   n20b{"20b. Gate verdict?<br/>GREEN / GREEN-WITH-EXCEPTIONS / HALT"}
   n20b1["20b1. Abort: stop before push<br/>surface surviving red set<br/>never hand-fix, never auto-retry"]
-  n21["21. Step 6: push without confirmation<br/>(every cluster already approved)"]
-  n22["22. git push - single batch push"]
-  n23{"23. Push rejected<br/>remote moved?"}
-  n23a["23a. Abort: stop, surface to user<br/>per-cluster commits stand<br/>user resolves divergence manually<br/>(never auto-rebase)"]
-  n24{"24. Step 7 &middot; More reply targets<br/>in surviving clusters?<br/>(target = one thread_id, top-level, or review-summary)"}
-  n24a["24a. Post reply per reply-patterns.md templates<br/>apply/answer/drop<br/>signature on apply, drop, and accepted drafted answer;<br/>none only on a user-typed answer<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>(permission-gated per target)"]:::gate
-  n24b{"24b. Permission<br/>denied?"}
-  n24b1["24b1. Skip reply;<br/>list in final report"]
-  n24b2{"24b2. gh api<br/>call failed?"}
-  n24b2a["24b2a. Retry gh api once"]
-  n24b2b{"24b2b. Retry<br/>succeeded?"}
-  n24b2b1["24b2b1. Skip reply;<br/>list in final report"]
-  n25{"25. Step 7b &middot; Tails toggle on<br/>step 0 answer?"}
-  n25a["25a. Step 7b: Dispatch code-reviewer tail pair<br/>2x code-reviewer &middot; agent-pinned<br/>parallel (∥), background<br/><br/>Reads code-reviewer-tail-pair.md<br/>Lens A simplification -&gt; verdict_refactor_*.md<br/>Lens B correctness -&gt; verdict_auto-review_*.md"]:::dispatch
-  n25b["25b. PreToolUse hook:<br/>check-reviewer-writes.sh<br/><br/>Auto-approves writes to verdict_*.md or /tmp;<br/>denies all other writes/mutations"]:::hook
-  n25c["25c. Read both verdict reports;<br/>synthesize prioritized summary;<br/>offer to apply (report-only by default)"]
-  n25d{"25d. User names specific<br/>findings to apply?"}
-  n25d1["25d1. Dispatch a fresh subagent per named finding<br/>general-purpose &middot; sonnet &middot; medium<br/>serial per named finding<br/><br/>test-first: confirm RED, apply fix, confirm GREEN"]:::dispatch
-  n26["26. Step 8: Print final summary<br/>applied / sites skipped (content no longer matched)<br/>/ answered / dropped / skipped counts<br/>+ repo-green gate verdict (if it ran)<br/>+ tails findings (if they ran)"]
+  n21["21. Step 8: git push - single batch push<br/>no confirmation (step 6 approval covered it)"]
+  n22{"22. Push rejected<br/>remote moved?"}
+  n22a["22a. Abort: surface to user<br/>commits stand, never auto-rebase<br/>user resolves; only the push is re-attempted"]
+  n23{"23. Step 9 &middot; More reply targets in<br/>clusters with a planned reply?<br/>(target = one thread_id, top-level, or review-summary)"}
+  n23a["23a. Post reply per reply-patterns.md templates<br/>apply / answer / drop<br/>signature none only on user-dictated text<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment"]:::gate
+  n23b{"23b. gh api<br/>call failed?"}
+  n23b1["23b1. Retry gh api once"]
+  n23b2{"23b2. Retry<br/>succeeded?"}
+  n23b3["23b3. Skip reply;<br/>list in final report"]
+  n24{"24. Step 9b &middot; Tails toggle on<br/>(step 1d)?"}
+  n24a["24a. Dispatch code-reviewer tail pair per opt-in-gates.md<br/>2x code-reviewer, parallel, background<br/>BASE_REF = BATCH_BASE_SHA, no spec/plan<br/>report-only (check-reviewer-writes.sh hook enforces it)"]:::dispatch
+  n25["25. Step 10: Print final summary<br/>applied / sites skipped / answered / dropped /<br/>left out per debate / drift commits /<br/>reply failures / open-threads link<br/>+ repo-green verdict (if it ran)<br/>+ tails report paths and top findings (if they ran)"]
 
   n1 --> n2
-  n2 --> n3a
-  n3i --> n4
+  n2 --> n3
+  n3 --> n4
   n4 --> n5
   n5 --> n6
-  n6 --> n7
-  n7 -->|"no"| n7a
-  n7 -->|"yes"| n8
-  n8 -->|"dirty"| n8a
+  n6 -->|"no"| n6a
+  n6 -->|"yes"| n7
+  n7 -->|"clean / proceed_without_committing"| n8
+  n7 -->|"dirty"| n7a
+  n7a --> n7a1
+  n7a1 --> n7a2
+  n7a2 --> n8
+  n7 -->|"dirty"| n7b
+  n7b --> n7b1
+  n8 -->|"no / unanswered"| n9
+  n8 -->|"yes"| n8a
   n8a --> n8b
-  n8b --> n8c
-  n8 -->|"clean"| n9
-  n9 -->|"no / unanswered"| n10
-  n9 -->|"yes"| n9a
-  n9a --> n9b
-  n9b -->|"red"| n9b1
-  n9b1 --> n9b2
-  n9b -->|"green"| n10
+  n8b -->|"red"| n8b1
+  n8b1 --> n8b2
+  n8b -->|"green"| n9
+  n9 --> n10
   n10 --> n11
   n11 --> n12
   n12 -->|"yes"| n12a
   n12 -->|"no"| n13
   n13 --> n14
   n14 --> n15
-  n15 --> n16
-  n16 -->|"yes"| n16a
-  n16a --> n17
-  n16 -->|"no"| n17
-  n17 --> n18
+  n15 -->|"yes"| n15a
+  n15a -->|"yes"| n15a1
+  n15a1 --> n15
+  n15a -->|"no"| n15b
+  n15b -->|"yes"| n15b1
+  n15b1 --> n15c
+  n15b -->|"no"| n15c
+  n15c -->|"yes"| n15c1
+  n15c1 --> n15
+  n15c -->|"no"| n15
+  n15 -->|"no - all done, none open"| n16
+  n16 --> n17
+  n17 -->|"no"| n17a
+  n17a --> n16
+  n17 -->|"yes"| n18
   n18 -->|"yes"| n18a
-  n18a --> n19
-  n18 -->|"no"| n19
+  n18a --> n18b
+  n18 -->|"no"| n18b
+  n18b -->|"yes"| n18b1
+  n18b1 --> n19
+  n18b -->|"no"| n19
   n19 -->|"yes"| n19a
   n19a --> n19b
   n19b --> n19c
   n19c --> n19d
   n19d --> n19e
   n19e --> n19f
-  n19f -->|"yes"| n19f1
-  n19f1 -->|"resumes current cluster,<br/>then next"| n19
-  n19f -->|"no"| n19
+  n19f --> n19g
+  n19g -->|"yes"| n19g1
+  n19g1 --> n19
+  n19g -->|"no"| n19
   n19 -->|"no - all committed"| n20
   n20 -->|"yes"| n20a
   n20a --> n20b
@@ -326,35 +318,24 @@ flowchart TD
   n20b -->|"HALT"| n20b1
   n20 -->|"no"| n21
   n21 --> n22
-  n22 --> n23
+  n22 -->|"yes"| n22a
+  n22 -->|"no"| n23
   n23 -->|"yes"| n23a
-  n23a -.->|"retry push only,<br/>not step-5 commit logic"| n22
-  n23 -->|"no"| n24
+  n23a --> n23b
+  n23b -->|"no"| n23
+  n23b -->|"yes"| n23b1
+  n23b1 --> n23b2
+  n23b2 -->|"yes"| n23
+  n23b2 -->|"no"| n23b3
+  n23b3 --> n23
+  n23 -->|"no - all replied"| n24
   n24 -->|"yes"| n24a
-  n24a --> n24b
-  n24b -->|"yes"| n24b1
-  n24b1 --> n24
-  n24b -->|"no"| n24b2
-  n24b2 -->|"no"| n24
-  n24b2 -->|"yes"| n24b2a
-  n24b2a --> n24b2b
-  n24b2b -->|"yes"| n24
-  n24b2b -->|"no"| n24b2b1
-  n24b2b1 --> n24
-  n24 -->|"no - all replied"| n25
-  n25 -->|"yes"| n25a
-  n25a --> n25b
-  n25b --> n25c
-  n25c --> n25d
-  n25d -->|"yes, named findings"| n25d1
-  n25d1 --> n26
-  n25d -->|"no / not asked"| n26
-  n25 -->|"no"| n26
+  n24a --> n25
+  n24 -->|"no"| n25
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
   classDef dispatch fill:#dbeafe,stroke:#2563eb,stroke-width:2px
   classDef state fill:#dcfce7,stroke:#16a34a,stroke-width:2px
   classDef skill fill:#f3e8ff,stroke:#9333ea,stroke-width:2px
-  classDef hook fill:#e5e7eb,stroke:#4b5563,stroke-width:2px
 ```
