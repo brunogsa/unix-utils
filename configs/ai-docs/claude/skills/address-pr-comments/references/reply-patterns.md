@@ -4,7 +4,7 @@ Step 9's reply mechanics - templates, the `gh api` call per reply-target kind, a
 
 ## Templates, by action
 
-**Apply** - optional one-word ack + commit URL, nothing more. No praise, no re-explaining, no double-anchoring the SHA.
+**Apply** - optional one-word ack + commit URL, nothing more. No praise, no re-explaining, no double-anchoring the SHA. When the cluster also holds an `AI?` marker, append that question's answer in the summary format after the commit URL - the commit alone never answers a question.
 
 ```
 <optional one-word ack> https://github.com/<OWNER_REPO>/pull/<n>/commits/<FULL_SHA>
@@ -16,7 +16,7 @@ _via Claude Code (`address-pr-comments`)_
 
 **Drop** (a command dropped in the debate) - the same summary format, explaining why the command was not applied.
 
-**Summary format** for answer and drop - at most 2 paragraphs of 1-4 sentences each, covering what was decided, what was considered, why, and the consequence for the PR. A reviewer who never saw the debate must be able to act on it.
+**Summary format** for answer and drop, in PT-BR - at most 2 paragraphs of 1-4 sentences each, covering what was decided, what was considered, why, and the consequence for the PR. A reviewer who never saw the debate must be able to act on it.
 
 A no-debate `AI?` answer needs only 1-2 sentences.
 

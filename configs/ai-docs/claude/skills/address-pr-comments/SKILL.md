@@ -32,7 +32,7 @@ Examples: `/address-pr-comments 169`, `/address-pr-comments 169 by alice, bob in
 
 ## Scope
 
-One live PR on the current repo's GitHub remote, self-comments included (labeled `(yours)`). Never resolves threads, requests re-review, dismisses reviews, or touches another PR - the user closes threads after reviewing the replies.
+One live PR on the current repo's GitHub remote, self-comments included (labeled `(yours)`). Never resolves threads, requests re-review, dismisses reviews, or touches another PR.
 
 ## Execution (Hybrid)
 
@@ -90,7 +90,7 @@ On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`
 
 ### 1d. Tails toggle
 
-Not a pass/fail check - read step 0's persisted tails answer (consumed by step 9b). Default no if unanswered.
+Not a pass/fail check - read step 0's persisted tails answer. Default no if unanswered.
 
 ## Step 2: Resolve repo + own login (main)
 
@@ -122,7 +122,7 @@ Return ONLY the proposal block - never the raw fetched JSON.
 
 ## Step 4: Create the TaskList (main)
 
-The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Right after it returns, before any chat or edit, create the TaskList so the debate and the plan share one durable ledger that survives compaction.
+The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format. Right after it returns, before any chat or edit, create the TaskList so the ledger survives compaction.
 
 - One parent `[Task]` per cluster, titled with the cluster's short title.
 - Under it, one `[Sub-Step]` per marker, with `metadata.kind` = `command` or `question` from the proposal's `[kind: ...]` tag.
@@ -146,6 +146,8 @@ Debate follows in chat. Rules:
 
 - A conclusion the user names ("change X", "tell the reviewer Y", "drop it") becomes a planned command or reply right away, with no GitHub round-trip.
 
+- That conclusion also gets its own `[Sub-Step]` under the cluster's `[Task]`.
+
 - Leave this step only when every question is done and no challenge is open.
 
 ## Step 6: Plan Mode (main)
@@ -156,11 +158,11 @@ Call `EnterPlanMode`, then write a plan listing, per cluster:
 
 - For `apply`: the Rule and Sites, from the proposal as the debate amended them.
 
-- A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every `AI?` cluster gets a proposed reply, or an explicit "no reply - <reason>".
+- A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every cluster holding an `AI?` gets a proposed reply, or an explicit "no reply - <reason>".
 
-`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt of its own.
+`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt of its own. Approve with the option that returns to bypass permissions; the others prompt again for the push and replies while the user is away.
 
-Rejection feedback edits the plan and re-submits it - it never restarts the debate, because the debate's conclusions are already in the plan.
+Rejection feedback edits the plan and re-submits it - it never restarts the debate, whose conclusions the plan holds.
 
 ## Step 7: Per-cluster commits (main, applied clusters only)
 
@@ -180,9 +182,9 @@ For each `apply` cluster, **in the plan's order**:
 
    Leave a blank line between the `Addresses:` label and its first URL - commitlint reads a URL's `#discussion_r…` fragment as an issue reference that starts the footer, and warns `footer-leading-blank` when no blank line precedes it.
 
-4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 9's reply link needs it.
+4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 9's reply link needs it. Mark the cluster's command sub-steps done.
 
-If a cluster's edits touch files outside its scope (drift), always split them into a separate `[Drift]` commit per CLAUDE.md and list it in step 10's report. The user is away after step 6, so there is no one to ask, and a separate commit stays revertable.
+If a cluster's edits touch files outside its scope (drift), always split them into a separate `[Drift]` commit per CLAUDE.md and list it in step 10's report. The user is away, and a separate commit stays revertable.
 
 ### Repo-green gate (opt-in, after all apply clusters are committed, before step 8's push)
 
@@ -190,17 +192,19 @@ Runs only when step 0's "Repo-green gate after changes?" is on - otherwise go st
 
 ## Step 8: Batch push (main)
 
-After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 1a verified the branch and step 6's approval covered the push, so it is the batch's completion, not a new decision.
+After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 6's approval covered the push.
 
 If the push is rejected (remote moved), abort and surface it - the commits stand. Never auto-rebase: the user resolves the divergence manually, then only the push is re-attempted, skipping step 7.
 
 ## Step 9: Post replies (main)
 
-For **every reply target in every cluster with a planned reply** (apply/answer/drop), post one reply, skipping a cluster the plan marked "no reply". Loop, don't batch - one failure must not block the rest.
+For **every reply target in every cluster with a planned reply** (apply/answer/drop), post one reply, skipping a cluster the plan marked "no reply". Loop, don't batch.
 
 A reply target is one entry of the cluster's `thread_ids`, one top-level comment, or one review-summary body - never an individual comment inside an inline thread, or the same body posts several times.
 
 On a `gh api` failure, retry once, then skip and list it in step 10's report - the loop never stops.
+
+Once a cluster's last reply posts, or the plan marked it "no reply", mark its parent `[Task]` and any still-open sub-steps done.
 
 ### 9a. Reply mechanics - load before the first reply
 
@@ -220,13 +224,13 @@ PR <n> address summary
 - Sites skipped (content no longer matched): <path:line list, or none>
 - Answered: <count> clusters → <count> replies
 - Dropped:  <count> clusters → <count> replies
-- Left out per debate: <count> clusters
+- No reply (per plan): <count> clusters
 - Drift commits: <SHA list, or none>
 - Reply failures (permission/API skip): <count> targets
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 
-When step 7's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 9b ran, append its two report paths and top findings so the user sees them in the same pass.
+When step 7's repo-green gate ran, append its verdict (`GREEN` / `GREEN-WITH-EXCEPTIONS` + Scout/Unclassifiable lists / `HALT` + surviving red). When step 9b ran, append its two report paths and top findings.
 
 ## Flowchart (human-facing)
 
