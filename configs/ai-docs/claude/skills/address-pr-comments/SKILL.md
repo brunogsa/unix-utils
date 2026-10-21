@@ -20,13 +20,13 @@ disable-model-invocation: false
 
 **Ownership** (what `by` matches) is the author of an inline thread's **first comment** (replies never transfer it), of a top-level comment, or of a review for its summary body. Rationale: `references/reply-patterns.md`.
 
-**Self-AI gate (always applied, never a filter you pass):** an item is a candidate only if unresolved AND you (`ME`) already replied with `AI:` somewhere in it - your own marker for a promised follow-up.
+**Self-AI gate (always applied, never a filter you pass):** an item is a candidate only if unresolved AND you (`ME`) already left a marked note in it. `AI!: <msg>` is a command and `AI?: <msg>` is a question; a bare legacy `AI:` is an alias of `AI!`.
 
-The marker is `AI:`, not `TODO:`, so humans read it as a note to your AI. The skill executes those follow-ups, never replying to untriaged comments. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
+Match the prefix case-insensitively, colon optional - the same semantics as `address-ai-comments`' "Marker semantics". The marker is not `TODO:`, so humans read it as a note to your AI, and untriaged comments never get a reply. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
 
-**CRITICAL - an `AI:` note is a PR-wide rule.** You leave it once, on one spot, and it binds every line this PR adds or changes - never just the thread it sits in.
+**CRITICAL - an `AI!` note is a PR-wide rule.** You leave it once, on one spot, and it binds every line this PR adds or changes - never just the thread it sits in.
 
-Applying a cluster fixes every site with the same problem: step 3's subagent finds them (`references/fetch-cluster-propose.md#pr-wide-sweep-apply-clusters`), step 5 edits them all.
+Applying a cluster fixes every site with the same problem: step 3's subagent finds them (`references/fetch-cluster-propose.md#pr-wide-sweep-apply-clusters`), step 7 edits them all. An `AI?` is answered, never swept.
 
 Examples: `/address-pr-comments 169`, `/address-pr-comments 169 by alice, bob in src/auth`.
 
@@ -44,11 +44,11 @@ If it reports zero candidate comments, stop before step 4.
 
 At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` as this run's working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`).
 
-Persist as produced, never at the end: pre-flight answers, then each cluster's action, planned change (apply), drop/skip reason, and commit SHA.
+Persist as produced, never at the end: pre-flight answers, then each cluster's action, planned change (apply), drop reason, reply text, and commit SHA.
 
 When the repo-green gate is on, also persist its baseline and final verdict - never log content - per `references/opt-in-gates.md`.
 
-Once step 4 approves the clusters, create one TaskList task per **applied** cluster (only those produce a commit). Put machine-checkable state (`action`, `commit_sha`, `status`) in the task's `metadata`; keep narrative rationale in the run-state file.
+Step 4 creates the TaskList. Put machine-checkable state (`action`, `commit_sha`, `status`, `kind`) in each task's `metadata`; keep narrative rationale in the run-state file.
 
 ## Standards loaded on demand
 
@@ -118,47 +118,17 @@ matches and stop - don't cluster.
 Return ONLY the proposal block - never the raw fetched JSON.
 ```
 
-## Output: preview every cluster, then ask
+## Step 4: Create the TaskList (main)
 
-The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Load [`references/reply-patterns.md`](references/reply-patterns.md) now: the previews quote its reply templates and signature rule.
+The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Right after it returns, before any chat or edit, create the TaskList so the debate and the plan share one durable ledger that survives compaction.
 
-**Preview first.** Before the first `AskUserQuestion`, print this block in chat for every cluster, so the user sees what each choice does to the code and the thread:
+- One parent `[Task]` per cluster, titled with the cluster's short title.
+- Under it, one `[Sub-Step]` per marker, with `metadata.kind` = `command` or `question` from the proposal's `[kind: ...]` tag.
+- Put the cluster's `comment_ids` (`databaseId`), `thread_ids` (the deduped `Threads` line) and `urls` in the parent's `metadata`: `thread_ids` drives the reply step, `comment_ids`/`urls` feed the commit body and top-level reply prefix.
 
-```
-### Cluster N: <short title> (default: <action>)
-- (<author>) <path:line> - <comment gist>, one line per comment
-- Apply → <Rule>
-  - <path:line> - <before → after, or short pseudocode>, one line per site
-  - reply: <apply template, with <commit-url> as placeholder>
-- Answer → reply: <Draft answer, signed>
-- Drop → reply: <drop template with the proposed reason>
-- Skip → no commit, no reply, thread stays open
-```
+A parent with no commit of its own (an answer-only cluster) still gets a `[Task]`: it is the one handle the reply and the final report hang on.
 
-A cluster with no `Planned change` (a question) shows `Apply → no change proposed - describe one via Other`.
-
-**Then ask.** One question per cluster: `header` = `Cluster N`; `question` = the cluster's short title plus a one-line summary. Four options, always in this order, default first and labeled "(Recommended)". Each option's `preview` is the comment lines plus that option's own lines from the block above:
-
-- **Apply** - description: the subagent's one-line `Planned change`.
-- **Answer** - description: "post the drafted answer, signed - or type your own via Other, posted unsigned."
-- **Drop** - description: the subagent's proposed one-line drop reason.
-- **Skip** - description: "leave this cluster out entirely - no commit, no reply, thread stays open."
-
-`AskUserQuestion` caps at 4 per call - batch clusters 4 at a time, in back-to-back calls until every cluster is asked, as one unbroken round.
-
-The built-in "Other" overrides a default: typed text becomes the `answer_body` (`answer`, posted unsigned), a replacement `planned_change` or `rule` (`apply`), or a custom `drop_reason` (`drop`) - infer which from the text's shape; ask a one-line clarification only when genuinely ambiguous.
-
-## Step 4: Parse the AskUserQuestion answers, then create TaskList tasks (main)
-
-For each cluster, map its answer to an `action` (`apply`/`answer`/`drop`; `skip` clusters get no task, no reply) plus `comment_ids` (`databaseId`), `thread_ids` (the deduped `Threads` line), and `urls`. `thread_ids` drives step 7's replies; `comment_ids`/`urls` feed the commit body and top-level reply prefix.
-
-Add `planned_change`, `rule`, and `sites` on apply clusters (they guide step 5's edit), plus the `drop_reason` or `answer_body` the action needs, from the subagent's default or the user's "Other" text.
-
-On an `answer` cluster, record `answer_source`: `draft` when the user picked plain "Answer", `user` when they typed via "Other" - step 7's signature rule reads it.
-
-A plain "Answer" on a cluster with no `Draft answer` leaves nothing to post - ask for those texts in one follow-up `AskUserQuestion` round, 4 per call.
-
-**Before touching any code in step 5**, create one TaskList task per applied cluster - see "Run-state file + TaskList state". This step ends only once every applied cluster has its task.
+This step ends only once every marker has its sub-step.
 
 ## Step 5: Per-cluster commits (main, applied clusters only)
 

@@ -34,7 +34,11 @@ A candidate item - inline thread, top-level comment, or review-summary body - pr
 
 - **Not resolved.** Inline threads: `isResolved == false` (3a). Top-level comments and review-summary bodies have no resolved concept, so they pass this half.
 
-- **Self-flagged.** At least one comment in the item is authored by `ME` (`is_self == true`) and its body has a line whose first non-blank, non-list-marker token is `AI:` (case-insensitive).
+- **Self-flagged.** At least one comment in the item is authored by `ME` (`is_self == true`).
+  - Its body has a line whose first non-blank, non-list-marker token starts with `AI!`, `AI?` or `AI:`.
+  - The match is case-insensitive, colon optional.
+
+Tag each such marker `command` for `AI!` and the legacy `AI:` alias, `question` for `AI?`. A comment holding several marked lines yields one tagged marker per line, since each gets its own TaskList sub-step and its own reply decision.
 
 Drop anything failing either check - silently, before clustering, and not as a dropped cluster: no reply is owed and no cluster entry exists.
 
@@ -65,19 +69,21 @@ Inline comments carry one more: `thread_id`, the thread's `PRRT_...` node id fro
 - Semantic-cluster: group comments addressing one logical change. Same-file is a hint, not a rule; cross-file comments can share a cluster.
 - Rank: severity (CHANGES_REQUESTED > general > nit) → cluster size → file recency (most recent first).
 - Default action per cluster:
-  - `answer` if every comment is a question (ends in "?", or starts with why/what/how/when/could/would/should/can/is/are/does, no actionable request).
-  - `apply` otherwise.
-  - Never default to `drop` - that's always an explicit user choice.
+  - `apply` if it holds at least one `command` marker.
+  - `answer` otherwise.
+  - Never default to `drop` - a drop only comes out of the debate in SKILL.md.
 
-- Per cluster, propose a one-line drop reason - honest and specific (not "out of scope").
+- For `apply` clusters, synthesize a one-line **Planned change** - the concrete edit that resolves the self-flagged `AI!` note. Paraphrase or quote that note's own wording; don't invent scope it didn't state.
 
-- For `apply` clusters, synthesize a one-line **Planned change** - the concrete edit that resolves the self-flagged `AI:` note. Paraphrase or quote that note's own wording; don't invent scope it didn't state.
+- Rule + Sites exist only for `command` markers; a `question` marker is never swept.
 
 #### PR-wide sweep (`apply` clusters)
 
-An `AI:` note is a rule for the whole PR, not a fix for the one line it sits on - the user leaves it once and never repeats it. So per `apply` cluster:
+An `AI!` note is a rule for the whole PR, not a fix for the one line it sits on - the user leaves it once and never repeats it. So per `apply` cluster:
 
-1. Write the note's general rule as a one-line `Rule:` - the class of problem, not this one line. The user corrects an over- or under-reaching rule via "Other" before any edit.
+1. Write the note's general rule as a one-line `Rule:` - the class of problem, not this one line.
+
+   The user corrects an over- or under-reaching rule in the debate or the plan's review, before any edit.
 
 2. Run `gh pr diff <n>` once per run, shared by every cluster. The sweep universe is exactly its added lines: lines starting with `+`, minus the `+++` file headers.
 
@@ -97,7 +103,7 @@ An `AI:` note is a rule for the whole PR, not a fix for the one line it sits on 
 
 ### 3g. Emit the proposal block
 
-Return this single block as your final message - one `### Cluster N` section per cluster, nothing else. Main renders each section into a chat preview plus one `AskUserQuestion` question (SKILL.md's "Output: preview every cluster, then ask") and cannot ask follow-ups, so fill every field unambiguously.
+Return this single block as your final message - one `### Cluster N` section per cluster, nothing else. Main turns each section into TaskList entries and a chat Q&A (SKILL.md's steps 4 and 5) and cannot ask follow-ups, so fill every field unambiguously.
 
 ```
 ## PR <n> - <total> candidate comments in <K> clusters
@@ -105,7 +111,7 @@ Return this single block as your final message - one `### Cluster N` section per
 ### Cluster 1: <short title> [action: apply]
 - Files: src/auth/login.ts, src/auth/session.ts
 - Threads: PRRT_kwDOAbc123, PRRT_kwDOAbc456
-- Planned change: <one-line synthesis of the `AI:` note's promised fix>
+- Planned change: <one-line synthesis of the `AI!` note's promised fix>
 - Rule: <the general rule behind the note, applied PR-wide>
 - Sites:
   - src/auth/login.ts:44 - `limit(req)` → `limit(req, user)`
@@ -113,12 +119,21 @@ Return this single block as your final message - one `### Cluster N` section per
 - Comments:
   - [c12345] (alice) src/auth/login.ts:42 - "the rate limit should also..."
     <url>
-  - [c12389] (yours) src/auth/login.ts:44 - "AI: <what you promised to fix>"
+  - [c12389] (yours) [kind: command] src/auth/login.ts:44 - "AI!: <what you promised to fix>"
     <url>
-- Proposed drop reason (if flipped): rate-limit lives in the gateway, not the app
+    Concern: <optional - why this command looks wrong, e.g. rate-limit lives in the gateway, not the app>
+  - [c12401] (yours) [kind: question] src/auth/login.ts:60 - "AI?: <what you asked>"
+    <url>
+    Draft answer: <answer to the user, in English, with path:line evidence>
 ```
 
-`[action: answer]` clusters carry `Draft answer: <the reply text>` in place of `Planned change`/`Rule`/`Sites`. Draft it from the `AI:` note's own instruction (the user already triaged what to say).
+Every comment authored by `ME` that holds a marker carries its `[kind: command|question]` tag, one per marker line.
+
+Each `question` marker carries a `Draft answer` addressed to the user, in English, citing `path:line` evidence - never a GitHub reply, since the reply text is composed later in the debate.
+
+Each `command` marker may carry a `Concern:` where it looks wrong or over-reaching, naming the evidence - it seeds the challenge in SKILL.md's step 5. Omit it when the command looks right.
+
+An `[action: answer]` cluster has no `Planned change`/`Rule`/`Sites`.
 
 Top-level comments use `(top-level)` in `Files`; self-authored ones are labeled `(yours)`.
 
