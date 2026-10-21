@@ -40,7 +40,7 @@ Subagents can't post replies, commit, or push (permission UIs live in main). Mai
 
 If it reports zero candidate comments, stop before step 4.
 
-After step 6's plan approval the run asks the user nothing: they may be away, so every later fork is decided by a rule written in the steps below.
+After step 6's plan approval the run asks the user nothing: they may be away, so a rule in the steps below decides every later fork.
 
 ## Run-state file + TaskList state
 
@@ -86,7 +86,7 @@ Step 0's persisted answer decides (`commit_now`, `proceed_without_committing`, `
 
 ### 1c. Green baseline (lint + test - opt-in)
 
-On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the runner table and abort rule. Otherwise skip to 1d.
+On a yes to step 0's "Green baseline check?", load [`references/opt-in-gates.md`](references/opt-in-gates.md) for the runner table and abort rule.
 
 ### 1d. Tails toggle
 
@@ -160,7 +160,7 @@ Call `EnterPlanMode`, then write a plan listing, per cluster:
 
 - A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every cluster holding an `AI?` gets a proposed reply, or an explicit "no reply - <reason>".
 
-`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt of its own. Approve with the option that returns to bypass permissions; the others prompt again for the push and replies while the user is away.
+`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt. Approve with the option that returns to bypass permissions; the others prompt again for the push and replies while the user is away.
 
 Rejection feedback edits the plan and re-submits it - it never restarts the debate, whose conclusions the plan holds.
 
@@ -202,7 +202,7 @@ For **every reply target in every cluster with a planned reply** (apply/answer/d
 
 A reply target is one entry of the cluster's `thread_ids`, one top-level comment, or one review-summary body - never an individual comment inside an inline thread, or the same body posts several times.
 
-On a `gh api` failure, retry once, then skip and list it in step 10's report - the loop never stops.
+On a `gh api` failure, retry once, then skip it, keep its `[Task]` open, and list it in step 10's report - the loop never stops.
 
 Once a cluster's last reply posts, or the plan marked it "no reply", mark its parent `[Task]` and any still-open sub-steps done.
 
@@ -226,7 +226,7 @@ PR <n> address summary
 - Dropped:  <count> clusters → <count> replies
 - No reply (per plan): <count> clusters
 - Drift commits: <SHA list, or none>
-- Reply failures (permission/API skip): <count> targets
+- Reply failures: <target URL + unposted reply text, or none>
 - Open threads remaining for you to resolve: <link to PR's "Files changed">
 ```
 

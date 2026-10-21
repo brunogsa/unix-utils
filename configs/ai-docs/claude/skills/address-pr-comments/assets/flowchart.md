@@ -173,7 +173,8 @@ def address_pr_comments(pr, filters):
         if result.gh_api_failed:                           # 23b
             retry = retry_gh_api_once()                    # 23b1
             if not retry.succeeded:                        # 23b2
-                skip_and_list_in_final_report()            # 23b3 · loop never stops
+                skip_and_list_in_final_report()            # 23b3 · target URL + unposted text
+                continue                                   # 23b3 · cluster's [Task] stays open; loop never stops
         if cluster_done_or_no_reply(target):               # 23c
             mark_done(cluster.task, cluster.open_sub_steps)  # 23c · last reply posted, or plan said "no reply"
 
@@ -184,7 +185,8 @@ def address_pr_comments(pr, filters):
         dispatch_parallel("code-reviewer", base_ref=batch_base_sha)  # 24a
 
     # 25 · Step 10 - applied / sites skipped / answered / dropped / no reply
-    #      (per plan) / drift commits / reply failures / open threads link,
+    #      (per plan) / drift commits / reply failures (target URL + unposted
+    #      text) / open threads link,
     #      plus the repo-green verdict (when it ran) and tails report paths.
     return print(final_summary())
 ```
@@ -253,11 +255,11 @@ flowchart TD
   n23b{"23b. gh api<br/>call failed?"}
   n23b1["23b1. Retry gh api once"]
   n23b2{"23b2. Retry<br/>succeeded?"}
-  n23b3["23b3. Skip reply;<br/>list in final report"]
+  n23b3["23b3. Skip reply; cluster's [Task] stays open<br/>list target URL + unposted text in final report"]
   n23c["23c. Cluster's last reply posted, or plan said no reply:<br/>mark its parent [Task] and any open sub-steps done"]:::state
   n24{"24. Step 9b &middot; Tails toggle on<br/>(step 1d)?"}
   n24a["24a. Dispatch code-reviewer tail pair per opt-in-gates.md<br/>2x code-reviewer, parallel, background<br/>BASE_REF = BATCH_BASE_SHA, no spec/plan<br/>report-only (check-reviewer-writes.sh hook enforces it)"]:::dispatch
-  n25["25. Step 10: Print final summary<br/>applied / sites skipped / answered / dropped /<br/>no reply (per plan) / drift commits /<br/>reply failures / open-threads link<br/>+ repo-green verdict (if it ran)<br/>+ tails report paths and top findings (if they ran)"]
+  n25["25. Step 10: Print final summary<br/>applied / sites skipped / answered / dropped /<br/>no reply (per plan) / drift commits /<br/>reply failures (target URL + unposted text) / open-threads link<br/>+ repo-green verdict (if it ran)<br/>+ tails report paths and top findings (if they ran)"]
 
   n1 --> n2
   n2 --> n3
@@ -333,7 +335,7 @@ flowchart TD
   n23b1 --> n23b2
   n23b2 -->|"yes"| n23c
   n23b2 -->|"no"| n23b3
-  n23b3 --> n23c
+  n23b3 --> n23
   n23c --> n23
   n23 -->|"no - all replied"| n24
   n24 -->|"yes"| n24a
