@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# get-changed-lines.sh - Print changed line numbers vs HEAD
-# to enable --changed-only scoping in doc-standards checkers.
+# get-changed-lines.sh - Print the line numbers new vs HEAD and,
+# during a merge, vs every merged commit too, to enable
+# --changed-only scoping in doc-standards checkers.
 #
 # Usage:
 #   get-changed-lines.sh <file>
