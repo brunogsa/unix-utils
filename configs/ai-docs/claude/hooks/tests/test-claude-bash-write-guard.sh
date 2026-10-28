@@ -513,6 +513,45 @@ it_should_block_a_node_one_liner_appending_to_a_tracked_markdown_file() {
   assert_eq "should block a node one-liner whose fs appendFileSync targets a tracked markdown file" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_a_python_write_into_a_scratch_directory() {
+  run_hook "python3 -c \"open('$scratch_dir/new.ts', 'w').write('x')\""
+  assert_eq "should allow a python write onto a typescript file under /tmp scratch" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_write_onto_a_file_outside_any_git_work_tree() {
+  run_hook "python3 -c \"import pathlib; pathlib.Path('$outside_dir/new.md').write_text('x')\""
+  assert_eq "should allow a python write onto a markdown file outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_write_onto_a_gitignored_path() {
+  run_hook "python3 -c \"open('build/bundle.js', 'w').write('compiled')\""
+  assert_eq "should allow a python write onto a git-ignored path inside the repo" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_write_onto_an_extension_the_prose_checkers_ignore() {
+  run_hook "python3 -c \"open('config.json', 'w').write('{}')\""
+  assert_eq "should allow a python write onto a json file, which no prose checker handles" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_node_write_into_a_scratch_directory() {
+  run_hook "node -e \"require('fs').writeFileSync('$scratch_dir/new.ts', 'x')\""
+  assert_eq "should allow a node write onto a typescript file under /tmp scratch" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_script_that_only_reads_and_prints_a_repo_file() {
+  run_hook "python3 -c \"import json; print(json.load(open('config.json')))\""
+  assert_eq "should allow a python script that only loads a repo json file and prints it" "0" "$HOOK_EXIT"
+}
+
+it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpreter_write() {
+  run_hook_capturing_stderr "python3 -c \"open('src/new.ts', 'w').write('x')\""
+  local names_tools="no"
+  case "$HOOK_STDERR" in
+    *Edit\ or\ Write*) names_tools="yes" ;;
+  esac
+  assert_eq "should name the Edit or Write tool when it blocks a python write to a repo file" "yes" "$names_tools"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -584,6 +623,13 @@ it_should_block_a_python_pathlib_write_text_onto_a_repo_source_file
 it_should_block_a_python_path_write_bytes_onto_a_repo_markdown_file_after_importing_path
 it_should_block_a_node_one_liner_writing_a_repo_source_file
 it_should_block_a_node_one_liner_appending_to_a_tracked_markdown_file
+it_should_allow_a_python_write_into_a_scratch_directory
+it_should_allow_a_python_write_onto_a_file_outside_any_git_work_tree
+it_should_allow_a_python_write_onto_a_gitignored_path
+it_should_allow_a_python_write_onto_an_extension_the_prose_checkers_ignore
+it_should_allow_a_node_write_into_a_scratch_directory
+it_should_allow_a_python_script_that_only_reads_and_prints_a_repo_file
+it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpreter_write
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
