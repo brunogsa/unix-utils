@@ -2,7 +2,7 @@
 name: commit-standards
 description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
 user-invocable: false
-instructions-budget: 13
+instructions-budget: 14
 ---
 
 # Commit Standards
@@ -19,6 +19,10 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 - [Instruction] **CRITICAL: Ensure every commit builds and passes its tests on its own.**
   - [Why] A commit that doesn't build breaks `git bisect` and any rollback that lands on it.
   - [Example] A migration's move + update-refs + delete must land in one commit - split apart, the intermediate commits don't build.
+
+- [Instruction] In a stacked PR series, never land an interim shape that a later PR in the series removes - move that later change down the stack instead.
+  - [Why] Each PR can merge alone, so an interim shape runs in production until the later PR lands, which can take weeks.
+  - [Example] Bad: PR 3 adds an optional `routing?` param that PR 6 makes required, deleting its guard. Good: PR 3 makes it required; non-using consumers skip the base class.
 
 - [Instruction] **Bundle the related tests, code, docs, and IaC for a change into that one commit.**
   - [Why] Splitting them strands a reviewer who can't see the test that proves the code, or the doc that explains it.

@@ -155,6 +155,10 @@ only - translation and business rules belong in their own named steps.
 - [Instruction] **Keep backward compatibility unless told otherwise** -- changing shared code, APIs, schemas, or configs must not break existing callers without explicit approval.
   - [Why] Shared code's blast radius is every consumer; a silent breaking change ships failures you can't see from the diff.
 
+- [Instruction] Never add a dependency as optional only so callers that don't use it keep compiling.
+  - [Why] Every use of an optional dependency must branch on "not configured", a mode the callers it protects never need.
+  - [Example] Bad: `routing?: Routing` plus `if (!this.routing) throw`, kept so a bare `super(logger)` compiles. Good: `deps: Deps` required, and that consumer implements its handler interface with its own check.
+
 - [Instruction] Drive optional behavior with an explicit flag the consumer sets, not a heuristic that infers intent from incidental state.
   - [Why] An inferred trigger couples behavior to a data coincidence, firing where never meant, costing the consumer the choice.
 
