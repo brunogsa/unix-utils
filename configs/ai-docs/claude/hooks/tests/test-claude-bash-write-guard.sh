@@ -468,6 +468,31 @@ it_should_allow_a_line_range_in_place_sed_on_a_file_outside_any_git_work_tree() 
   assert_eq "should allow a line-range in-place sed on a file outside any git work tree" "0" "$HOOK_EXIT"
 }
 
+it_should_block_a_python_one_liner_opening_a_repo_source_file_for_writing() {
+  run_hook "python3 -c \"open('src/new.ts', 'w').write('export const y = 2;')\""
+  assert_eq "should block a python one-liner that opens a repo typescript file for writing" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_one_liner_appending_to_a_tracked_markdown_file() {
+  run_hook "python3 -c \"open('README.md', mode='a').write('one more line')\""
+  assert_eq "should block a python one-liner that opens a tracked markdown file for appending" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_heredoc_script_rewriting_a_repo_file_named_by_a_variable() {
+  run_hook "$(printf "python3 - <<'EOF'\np = 'src/index.ts'\ns = open(p).read()\nopen(p, 'w').write(s.replace('const', 'let'))\nEOF\n")"
+  assert_eq "should block a python heredoc script that reads a repo file through a variable and writes it back" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_one_liner_that_only_reads_a_repo_source_file() {
+  run_hook "python3 -c \"print(open('src/index.ts').read(), open('src/index.ts', 'r').read())\""
+  assert_eq "should allow a python one-liner that opens a repo file only for reading" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_write_whose_target_path_is_built_at_runtime() {
+  run_hook "python3 -c \"import os; open(os.path.join('src', 'new.ts'), 'w').write('x')\""
+  assert_eq "should allow a python write whose path is computed at runtime, since the guard cannot read it off the script" "0" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -530,6 +555,11 @@ it_should_allow_an_in_place_sed_whose_switch_cluster_ends_in_the_in_place_flag
 it_should_allow_an_in_place_perl_replacing_one_literal_text_across_the_whole_file
 it_should_allow_a_line_range_in_place_sed_on_a_scratch_file
 it_should_allow_a_line_range_in_place_sed_on_a_file_outside_any_git_work_tree
+it_should_block_a_python_one_liner_opening_a_repo_source_file_for_writing
+it_should_block_a_python_one_liner_appending_to_a_tracked_markdown_file
+it_should_block_a_python_heredoc_script_rewriting_a_repo_file_named_by_a_variable
+it_should_allow_a_python_one_liner_that_only_reads_a_repo_source_file
+it_should_allow_a_python_write_whose_target_path_is_built_at_runtime
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -60,6 +60,16 @@
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
+# An inline python program (`python3 -c`, a `python3 -`
+# heredoc) writing a guarded path is also blocked.
+#
+# Python writes through `open(<path>, 'w'|'a'|...)`.
+#
+# It is the same skipped checker behind an interpreter call, so
+# the same allow-list applies; a path not built only from string
+# literals, a non-literal mode, a script file or a `chdir` all
+# fail open.
+#
 # Examples (pipe JSON, check exit code):
 #   echo '{"tool_input":{"command":"echo hi > notes.md"}}' \
 #     | bash claude-bash-write-guard.sh   # blocks.
@@ -74,7 +84,7 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 # and naming none of the in-place writers can reach no write
 # form this guard knows, so it skips the Python parse.
 printf '%s' "$CMD" \
-  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl)([^A-Za-z0-9_-]|$)' \
+  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
 # Resolved via BASH_SOURCE (never `$0`, which breaks under
@@ -90,6 +100,7 @@ export CLAUDE_BASH_WRITE_CMD="$CMD"
 . "$CLAUDE_HOOKS_DIR/lib/prose-format-extensions.sh" 2>/dev/null
 export CLAUDE_GUARDED_EXTENSIONS="${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-} ${PROSE_FORMAT_COMMENT_EXTENSIONS:-}"
 python3 - <<'PYEOF'
+import ast
 import importlib.util
 import json
 import os
@@ -145,6 +156,41 @@ cmd = os.environ.get('CLAUDE_BASH_WRITE_CMD', '')
 if not cmd.strip():
     sys.exit(0)
 
+HEREDOC_OPENER = _parse_shell_command.HEREDOC_OPENER
+
+PYTHON_EXECUTABLE = re.compile(r'^python(?:[0-9]+(?:\.[0-9]+)?)?$')
+
+# The flags that hand each interpreter its program inline.
+INLINE_PROGRAM_FLAGS = {'python': ('-c',)}
+
+# Any of these in an `open()` mode makes it write, append,
+# create or update the file.
+WRITE_MODE_CHARACTERS = set('wax+')
+
+
+def heredoc_bodies(text):
+    """The body of each line's first heredoc, in command order - the bodies strip_heredoc_bodies drops."""
+    lines = text.split('\n')
+    bodies = []
+    index = 0
+    while index < len(lines):
+        opener = HEREDOC_OPENER.search(lines[index])
+        index += 1
+        if not opener:
+            continue
+        dash, _quote, delimiter = opener.groups()
+        body = []
+        while index < len(lines):
+            line = lines[index]
+            index += 1
+            if (line.lstrip('\t') if dash else line) == delimiter:
+                break
+            body.append(line)
+        bodies.append('\n'.join(body))
+    return bodies
+
+
+heredoc_body_queue = heredoc_bodies(cmd)
 cmd = strip_heredoc_bodies(cmd)
 
 
@@ -587,13 +633,119 @@ def format_report(source, destination):
     return '{}:\n{}'.format(source, result.stderr)
 
 
+def interpreter_program(exe, arguments, stdin_bodies):
+    """(language, program text) an inline python segment runs, or None for a script file or text off the command line."""
+    language = 'python' if PYTHON_EXECUTABLE.match(exe) else exe
+    if language not in INLINE_PROGRAM_FLAGS:
+        return None
+    script_arguments = [token for token in without_redirects(arguments) if not token.startswith('<')]
+    for index, token in enumerate(script_arguments):
+        if token in INLINE_PROGRAM_FLAGS[language]:
+            if index + 1 >= len(script_arguments):
+                return None
+            return (language, script_arguments[index + 1])
+        if token == '-':
+            break
+        if not token.startswith('-'):
+            # A script file, or a flag's argument such as
+            # `-m <module>`: the program is not on the
+            # command line.
+            return None
+    if len(stdin_bodies) != 1:
+        return None
+    return (language, stdin_bodies[0])
+
+
+def literal_python_path(node, bindings):
+    """The path a python expression names when it is built only from string literals, else None."""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return node.value
+    if isinstance(node, ast.Name):
+        return bindings.get(node.id)
+    return None
+
+
+def python_literal_bindings(tree):
+    """The names a python program assigns exactly once, each to a path built only from string literals."""
+    # why: a name stored twice, or by a loop or `with`, could
+    # hold any path at the write, so only one plain assignment
+    # resolves.
+    store_counts = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            store_counts[node.id] = store_counts.get(node.id, 0) + 1
+    bindings = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if not isinstance(target, ast.Name) or store_counts[target.id] != 1:
+            continue
+        path = literal_python_path(node.value, {})
+        if path is not None:
+            bindings[target.id] = path
+    return bindings
+
+
+def python_call_write_target(call, bindings):
+    """The literal path one python call writes, or None when it only reads or its path or mode is not literal."""
+    function = call.func
+    if not (isinstance(function, ast.Name) and function.id == 'open'):
+        return None
+    keywords = {keyword.arg: keyword.value for keyword in call.keywords}
+    path = call.args[0] if call.args else keywords.get('file')
+    mode = call.args[1] if len(call.args) > 1 else keywords.get('mode')
+    is_literal_mode = isinstance(mode, ast.Constant) and isinstance(mode.value, str)
+    if path is None or not is_literal_mode or not set(mode.value) & WRITE_MODE_CHARACTERS:
+        return None
+    return literal_python_path(path, bindings)
+
+
+def interpreter_write_targets(exe, tokens, stdin_bodies):
+    """Every literal path an inline python program writes, or [] when the guard cannot read it off the program."""
+    if exe is None:
+        return []
+    program = interpreter_program(exe, arguments_after(exe, tokens), stdin_bodies)
+    if program is None:
+        return []
+    language, code = program
+    if 'chdir' in code:
+        # The program's cwd is unknown from here on, the same
+        # reason a failed `cd` stops the segment loop.
+        return []
+    try:
+        tree = ast.parse(code)
+    except (SyntaxError, ValueError):
+        return []
+    bindings = python_literal_bindings(tree)
+    targets = [python_call_write_target(node, bindings)
+               for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    return [target for target in targets if target]
+
+
 blocked = []
 script_shape_blocked = []
 format_reports = []
 cwd = os.getcwd()
+segments = split_segments(cmd)
 
-for segment, is_piped_into in split_segments(cmd):
+# why: a body is matched to its segment by opener order, so
+# any count mismatch, such as two heredocs on one line, could
+# hand a script another command's body; the heredocs are then
+# not read at all.
+opener_count = sum(len(HEREDOC_OPENER.findall(segment)) for segment, _piped in segments)
+if opener_count != len(heredoc_body_queue):
+    heredoc_body_queue = [''] * opener_count
+
+for segment, is_piped_into in segments:
     exe, tokens = parse_segment(segment)
+    segment_opener_count = len(HEREDOC_OPENER.findall(segment))
+    stdin_bodies = [body for body in heredoc_body_queue[:segment_opener_count] if body]
+    heredoc_body_queue = heredoc_body_queue[segment_opener_count:]
+    for target in interpreter_write_targets(exe, tokens, stdin_bodies):
+        reason = block_reason(cwd, target)
+        if reason and reason not in blocked:
+            blocked.append(reason)
     if exe == 'cd':
         arguments = positional_arguments(arguments_after(exe, tokens))
         if not arguments:
