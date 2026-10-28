@@ -95,17 +95,18 @@ if [ -n "$untracked" ]; then
   exit 0
 fi
 
-# rename_source - prints the HEAD path rel_file was renamed
-# from, or nothing when rel_file is not a rename.
+# rename_source <commit> - prints the path at <commit> that
+# rel_file was renamed from, or nothing when rel_file is not a
+# rename against it.
 #
-# Without it, a renamed file is absent at HEAD, so every line
-# reads as changed and a pure rename of a legacy file gets
+# Without it, a renamed file is absent at that commit, so every
+# line reads as changed and a pure rename of a legacy file gets
 # blocked over violations it never touched.
 #
 # -z keeps paths with spaces or quotes intact; a rename record
 # is status, source, destination, each NUL-terminated.
 rename_source() {
-  git diff -M -z --name-status HEAD 2>/dev/null |
+  git diff -M -z --name-status "$1" 2>/dev/null |
     while IFS= read -r -d '' status; do
       IFS= read -r -d '' path_a
       case $status in
@@ -119,8 +120,6 @@ rename_source() {
       esac
     done || true
 }
-
-src_file=$(rename_source)
 
 # print_added_lines - reads a -U0 diff on stdin and prints
 # each working-tree line number its hunks add, once.
@@ -145,16 +144,29 @@ if [ -f "$merge_head_file" ]; then
 fi
 line_set_count=$((1 + ${#merge_heads[@]}))
 
+# print_added_lines_vs <commit> - prints the working-tree line
+# numbers new against <commit>, pairing rel_file with the path
+# it was renamed from there.
+#
+# Each parent pairs its own rename: a merged branch that still
+# holds the old path would otherwise read every line as new, so
+# its own edits would land on the committer.
+#
 # Listing both paths keeps git's rename pairing, so the hunks
 # compare the rename source against rel_file.
-#
+print_added_lines_vs() {
+  local src_file
+  src_file=$(rename_source "$1")
+  git diff -U0 -M "$1" -- ${src_file:+"$src_file"} "$rel_file" 2>/dev/null |
+    print_added_lines
+}
+
 # Every diff numbers lines in the same working-tree file, so a
 # line printed by all of them is new against every parent.
 {
-  git diff -U0 -M HEAD -- ${src_file:+"$src_file"} "$rel_file" 2>/dev/null |
-    print_added_lines
+  print_added_lines_vs HEAD
   for merge_head in "${merge_heads[@]}"; do
-    git diff -U0 "$merge_head" -- "$rel_file" 2>/dev/null | print_added_lines
+    print_added_lines_vs "$merge_head"
   done
 } | sort -n | uniq -c |
   awk -v sets="$line_set_count" '$1 == sets { print $2 }'

@@ -213,6 +213,99 @@ git -C "$repo" add added.md
 out=$(cd "$repo" && "$SCRIPT" added.md)
 assert_eq "staged new file unrelated to a deleted file reports every line" "$(printf '1\n2\n3')" "$out"
 
+# new_repo_with_base_file - a repo whose single base commit
+# holds an 8-line file at $2, the shared ancestor every merge
+# case below branches from.
+new_repo_with_base_file() {
+  local repo
+  repo=$(new_repo "$1")
+  printf 'alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n' > "$repo/$2"
+  git -C "$repo" add -- "$2"
+  git -C "$repo" commit -q -m base
+  printf '%s' "$repo"
+}
+
+# --- Case 15: merge into a branch that renamed the file, from
+# a branch that edited it under the old name -> only the line
+# written during the merge.
+#
+# The merged branch holds the file under its old path only, so
+# without pairing that rename every line reads as new against
+# it, and its own edit gets blamed on the committer.
+#
+# The path carries a space, which a word-split path would break.
+repo=$(new_repo_with_base_file repo15 'old name.md')
+git -C "$repo" checkout -q -b incoming
+printf 'alpha\nBRAVO incoming\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n' > "$repo/old name.md"
+git -C "$repo" commit -q -am "edit on incoming"
+git -C "$repo" checkout -q -
+git -C "$repo" mv 'old name.md' 'new name.md'
+printf 'alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\nGOLF current\nhotel\n' > "$repo/new name.md"
+git -C "$repo" commit -q -am "rename and edit on current"
+git -C "$repo" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+printf 'india written during the merge\n' >> "$repo/new name.md"
+out=$(cd "$repo" && "$SCRIPT" 'new name.md')
+assert_eq "merge onto a rename reports only the line written during the merge, not the merged branch's edit" "9" "$out"
+
+# --- Case 16: merge into a branch that only renamed the file,
+# from a branch that edited it under the old name -> nothing.
+repo=$(new_repo_with_base_file repo16 old-name.md)
+git -C "$repo" checkout -q -b incoming
+printf 'alpha\nBRAVO incoming\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n' > "$repo/old-name.md"
+git -C "$repo" commit -q -am "edit on incoming"
+git -C "$repo" checkout -q -
+git -C "$repo" mv old-name.md new-name.md
+git -C "$repo" commit -q -m "rename on current"
+git -C "$repo" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+out=$(cd "$repo" && "$SCRIPT" new-name.md)
+assert_eq "merge onto a pure rename reports nothing when every changed line came from the merged branch" "" "$out"
+
+# --- Case 17: octopus merge of two branches, where only the
+# second still holds the file under its old name -> only the
+# line written during the merge.
+#
+# Octopus merges detect no renames, so the second branch's edit
+# to the old path stops as a conflict; the committer resolves it
+# by carrying that edit into the renamed file.
+repo=$(new_repo_with_base_file repo17 old-name.md)
+git -C "$repo" checkout -q -b second
+printf 'alpha\nBRAVO second\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n' > "$repo/old-name.md"
+git -C "$repo" commit -q -am "edit on second"
+git -C "$repo" checkout -q -
+git -C "$repo" mv old-name.md new-name.md
+git -C "$repo" commit -q -m "rename on current"
+git -C "$repo" checkout -q -b first
+printf 'unrelated\n' > "$repo/other.md"
+git -C "$repo" add other.md
+git -C "$repo" commit -q -m "unrelated file on first"
+git -C "$repo" checkout -q -
+git -C "$repo" merge -q --no-ff --no-commit first second >/dev/null 2>&1
+git -C "$repo" rm -q old-name.md
+printf 'alpha\nBRAVO second\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\nindia written during the merge\n' > "$repo/new-name.md"
+git -C "$repo" add new-name.md
+out=$(cd "$repo" && "$SCRIPT" new-name.md)
+assert_eq "octopus merge onto a rename reports only the line written during the merge, not the old-path branch's edit" "9" "$out"
+
+# --- Case 18: merge from a branch that renamed the file into
+# one that edited it under the old name -> only the line written
+# during the merge.
+#
+# The merged branch already holds the new path here, so this
+# case passes without rename pairing against it; it guards that
+# path while the pairing logic changes.
+repo=$(new_repo_with_base_file repo18 old-name.md)
+git -C "$repo" checkout -q -b incoming
+git -C "$repo" mv old-name.md new-name.md
+printf 'alpha\nBRAVO incoming\ncharlie\ndelta\necho\nfoxtrot\ngolf\nhotel\n' > "$repo/new-name.md"
+git -C "$repo" commit -q -am "rename and edit on incoming"
+git -C "$repo" checkout -q -
+printf 'alpha\nbravo\ncharlie\ndelta\necho\nfoxtrot\nGOLF current\nhotel\n' > "$repo/old-name.md"
+git -C "$repo" commit -q -am "edit on current"
+git -C "$repo" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+printf 'india written during the merge\n' >> "$repo/new-name.md"
+out=$(cd "$repo" && "$SCRIPT" new-name.md)
+assert_eq "merge of a renaming branch reports only the line written during the merge" "9" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]
