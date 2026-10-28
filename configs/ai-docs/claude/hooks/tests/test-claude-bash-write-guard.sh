@@ -493,6 +493,26 @@ it_should_allow_a_python_write_whose_target_path_is_built_at_runtime() {
   assert_eq "should allow a python write whose path is computed at runtime, since the guard cannot read it off the script" "0" "$HOOK_EXIT"
 }
 
+it_should_block_a_python_pathlib_write_text_onto_a_repo_source_file() {
+  run_hook "python3 -c \"import pathlib; pathlib.Path('src/new.ts').write_text('export const y = 2;')\""
+  assert_eq "should block a python pathlib write_text onto a repo typescript file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_path_write_bytes_onto_a_repo_markdown_file_after_importing_path() {
+  run_hook "python3 -c \"from pathlib import Path; Path('docs/new.md').write_bytes(b'# Title')\""
+  assert_eq "should block a python Path write_bytes, imported from pathlib, onto a repo markdown file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_node_one_liner_writing_a_repo_source_file() {
+  run_hook "node -e \"require('fs').writeFileSync('src/new.ts', 'export const y = 2;')\""
+  assert_eq "should block a node one-liner whose fs writeFileSync targets a repo typescript file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_node_one_liner_appending_to_a_tracked_markdown_file() {
+  run_hook "node -e \"const fs = require('fs'); fs.appendFileSync('README.md', 'one more line')\""
+  assert_eq "should block a node one-liner whose fs appendFileSync targets a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -560,6 +580,10 @@ it_should_block_a_python_one_liner_appending_to_a_tracked_markdown_file
 it_should_block_a_python_heredoc_script_rewriting_a_repo_file_named_by_a_variable
 it_should_allow_a_python_one_liner_that_only_reads_a_repo_source_file
 it_should_allow_a_python_write_whose_target_path_is_built_at_runtime
+it_should_block_a_python_pathlib_write_text_onto_a_repo_source_file
+it_should_block_a_python_path_write_bytes_onto_a_repo_markdown_file_after_importing_path
+it_should_block_a_node_one_liner_writing_a_repo_source_file
+it_should_block_a_node_one_liner_appending_to_a_tracked_markdown_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

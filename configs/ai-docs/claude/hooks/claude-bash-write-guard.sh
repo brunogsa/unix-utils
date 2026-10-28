@@ -60,10 +60,13 @@
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
-# An inline python program (`python3 -c`, a `python3 -`
-# heredoc) writing a guarded path is also blocked.
+# An inline python or node program (`python3 -c`, a
+# `python3 -` heredoc, `node -e`) writing a guarded path is
+# also blocked.
 #
-# Python writes through `open(<path>, 'w'|'a'|...)`.
+# Python writes through `open(<path>, 'w'|'a'|...)` or
+# `Path(<path>).write_text` / `write_bytes`, node through
+# `fs.writeFileSync` / `fs.appendFileSync`.
 #
 # It is the same skipped checker behind an interpreter call, so
 # the same allow-list applies; a path not built only from string
@@ -84,7 +87,7 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 # and naming none of the in-place writers can reach no write
 # form this guard knows, so it skips the Python parse.
 printf '%s' "$CMD" \
-  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*)([^A-Za-z0-9_-]|$)' \
+  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
 # Resolved via BASH_SOURCE (never `$0`, which breaks under
@@ -161,11 +164,20 @@ HEREDOC_OPENER = _parse_shell_command.HEREDOC_OPENER
 PYTHON_EXECUTABLE = re.compile(r'^python(?:[0-9]+(?:\.[0-9]+)?)?$')
 
 # The flags that hand each interpreter its program inline.
-INLINE_PROGRAM_FLAGS = {'python': ('-c',)}
+INLINE_PROGRAM_FLAGS = {'python': ('-c',), 'node': ('-e', '--eval')}
 
 # Any of these in an `open()` mode makes it write, append,
 # create or update the file.
 WRITE_MODE_CHARACTERS = set('wax+')
+
+PATHLIB_CONSTRUCTORS = ('Path', 'PurePath', 'PosixPath')
+PATHLIB_WRITERS = ('write_text', 'write_bytes')
+
+# why: literal paths only - a template literal or a variable
+# could name any file, so those fail open.
+NODE_FS_WRITE = re.compile(
+    r'''(?:\bfs|require\(\s*['"](?:node:)?fs['"]\s*\))\s*\.\s*(?:writeFileSync|appendFileSync)'''
+    r'''\s*\(\s*(['"])([^'"\\$`]+)\1''')
 
 
 def heredoc_bodies(text):
@@ -634,7 +646,7 @@ def format_report(source, destination):
 
 
 def interpreter_program(exe, arguments, stdin_bodies):
-    """(language, program text) an inline python segment runs, or None for a script file or text off the command line."""
+    """(language, program text) an inline python/node segment runs, or None for a script file or text off the command line."""
     language = 'python' if PYTHON_EXECUTABLE.match(exe) else exe
     if language not in INLINE_PROGRAM_FLAGS:
         return None
@@ -656,13 +668,30 @@ def interpreter_program(exe, arguments, stdin_bodies):
     return (language, stdin_bodies[0])
 
 
+def is_pathlib_constructor(function):
+    if isinstance(function, ast.Name):
+        return function.id in PATHLIB_CONSTRUCTORS
+    return (isinstance(function, ast.Attribute)
+            and function.attr in PATHLIB_CONSTRUCTORS
+            and isinstance(function.value, ast.Name)
+            and function.value.id == 'pathlib')
+
+
 def literal_python_path(node, bindings):
     """The path a python expression names when it is built only from string literals, else None."""
     if isinstance(node, ast.Constant) and isinstance(node.value, str):
         return node.value
     if isinstance(node, ast.Name):
         return bindings.get(node.id)
-    return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        parts = [literal_python_path(node.left, bindings), literal_python_path(node.right, bindings)]
+    elif isinstance(node, ast.Call) and is_pathlib_constructor(node.func) and node.args and not node.keywords:
+        parts = [literal_python_path(argument, bindings) for argument in node.args]
+    else:
+        return None
+    if None in parts:
+        return None
+    return os.path.join(*parts)
 
 
 def python_literal_bindings(tree):
@@ -690,6 +719,8 @@ def python_literal_bindings(tree):
 def python_call_write_target(call, bindings):
     """The literal path one python call writes, or None when it only reads or its path or mode is not literal."""
     function = call.func
+    if isinstance(function, ast.Attribute) and function.attr in PATHLIB_WRITERS:
+        return literal_python_path(function.value, bindings)
     if not (isinstance(function, ast.Name) and function.id == 'open'):
         return None
     keywords = {keyword.arg: keyword.value for keyword in call.keywords}
@@ -702,7 +733,7 @@ def python_call_write_target(call, bindings):
 
 
 def interpreter_write_targets(exe, tokens, stdin_bodies):
-    """Every literal path an inline python program writes, or [] when the guard cannot read it off the program."""
+    """Every literal path an inline python or node program writes, or [] when the guard cannot read it off the program."""
     if exe is None:
         return []
     program = interpreter_program(exe, arguments_after(exe, tokens), stdin_bodies)
@@ -713,6 +744,8 @@ def interpreter_write_targets(exe, tokens, stdin_bodies):
         # The program's cwd is unknown from here on, the same
         # reason a failed `cd` stops the segment loop.
         return []
+    if language == 'node':
+        return [match.group(2) for match in NODE_FS_WRITE.finditer(code)]
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
