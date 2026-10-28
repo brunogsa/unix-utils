@@ -272,7 +272,23 @@ describe("SchoolSyncConsumer", () => {
     "$actual"
 }
 
+it_should_print_no_designed_test_row_for_a_prose_ac_direct_coder_review_marker() {
+  local plan actual
+  plan=$(write_plan "prose-marker" '```
+describe("ReminderHook", () => {
+  // Happy cases
+  it("should print the retry reminder when the session resumes");   // AC-1 T2
+  // AC-2 - prose, verified by direct-coder diff review, no test
+});
+```')
+  actual=$(bash "$SCRIPT" --annotations "$plan")
+  assert_eq "should print no designed test row for a prose AC direct-coder review marker" \
+    "$(printf 'should print the retry reminder when the session resumes\tReminderHook > happy > should print the retry reminder when the session resumes\tAC-1\tT2')" \
+    "$actual"
+}
+
 it_should_print_the_bare_title_breadcrumb_and_ac_and_t_tokens_for_an_annotated_it_line
+it_should_print_no_designed_test_row_for_a_prose_ac_direct_coder_review_marker
 it_should_extract_the_title_with_its_placeholder_from_a_single_line_parameterized_it_each
 it_should_extract_the_title_from_a_parameterized_it_each_written_without_a_cases_list
 it_should_extract_the_title_from_a_parameterized_it_each_whose_title_sits_on_the_next_line

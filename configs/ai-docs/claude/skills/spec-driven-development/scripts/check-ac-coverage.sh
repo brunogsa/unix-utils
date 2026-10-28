@@ -19,6 +19,9 @@
 #   Acceptance Criteria section is cited by >=1 it() annotation
 #   in Test Design (catches a silently-dropped AC).
 #
+#   A standalone prose-marker line in Test Design also counts;
+#   PROSE_AC_MARKER_RE below holds its exact text.
+#
 # The HONESTY check this script used to run (every cited
 # breadcrumb exists verbatim among Test Design's breadcrumbs) is
 # DELETED for this form, not merely skipped.
@@ -157,6 +160,15 @@ is_annotated=$(printf '%s\n' "$annotation_rows" | awk -F'\t' '$3 != "" || $4 != 
 
 fail=0
 
+# A spec AC whose deliverable is prose (hook or reminder
+# wording) is built by direct-coder with no test, because
+# tests over prose cost more than the regressions they catch.
+#
+# This exact standalone line is the only form that excuses
+# such an AC from an it() citation; any looser comment still
+# fails completeness.
+PROSE_AC_MARKER_RE='^[[:space:]]*// AC-[0-9]+ - prose, verified by direct-coder diff review, no test$'
+
 if [ "$is_annotated" = "yes" ]; then
   # ANNOTATED form: COMPLETENESS only, checked against the
   # union of `// AC-N` tokens across every it() annotation.
@@ -164,7 +176,20 @@ if [ "$is_annotated" = "yes" ]; then
   # HONESTY is deleted here (see header comment), not skipped:
   # there is no second citation list left for a
   # `...`-truncated or invented reference to hide behind.
-  annotated_acs=$(printf '%s\n' "$annotation_rows" | cut -f3 | tr ' ' '\n' | grep -v '^$' | sort -u || true)
+  it_acs=$(printf '%s\n' "$annotation_rows" | cut -f3 | tr ' ' '\n' | grep -v '^$' || true)
+
+  # Read straight from the section, never via the
+  # extractor, so a prose marker never becomes a designed
+  # test that the distribution and task-consistency checks
+  # would then count.
+  design_heading_re='^Test Design[[:space:]]*$'
+  design_section=$("$script_dir/plan-section.sh" \
+    "$plan" "##" "$design_heading_re")
+  prose_acs=$(printf '%s\n' "$design_section" \
+    | grep -E "$PROSE_AC_MARKER_RE" \
+    | grep -oE 'AC-[0-9]+' || true)
+
+  annotated_acs=$(printf '%s\n%s\n' "$it_acs" "$prose_acs" | grep -v '^$' | sort -u || true)
 
   spec_only=$(comm -23 <(printf '%s\n' "$spec_acs") <(printf '%s\n' "$annotated_acs"))
 

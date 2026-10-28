@@ -250,6 +250,64 @@ describe("check-thing", () => {
   assert_contains "should fail in annotated form when a spec AC has no annotation (names the uncovered AC)" "$VERDICT_ERR" "AC-2"
 }
 
+# write_prose_marker_plan - writes an annotated plan whose
+# Test Design cites AC-1 on an it() line and carries the
+# caller's extra lines for AC-2, plus an optional tail placed
+# after a later `## ` heading.
+write_prose_marker_plan() {
+  local name="$1" ac2_line="$2" tail="${3:-}"
+  write_annotated_plan "$name" '```
+describe("check-thing", () => {
+  // Happy cases
+  it("should accept a valid path");   // AC-1 T1
+'"$ac2_line"'
+});
+```'"$tail"
+}
+
+PROSE_SPEC_BODY='### AC-1: The checker accepts a valid path
+
+### AC-2: The reminder text tells the operator to retry'
+
+it_should_pass_in_annotated_form_when_a_prose_ac_carries_the_direct_coder_review_marker_in_test_design() {
+  local plan spec
+  plan=$(write_prose_marker_plan "prose-marker" '  // AC-2 - prose, verified by direct-coder diff review, no test')
+  spec=$(write_spec "prose-marker" "$PROSE_SPEC_BODY")
+  run_script "$plan" "$spec"
+  assert_eq "should pass in annotated form when a prose AC carries the direct-coder review marker in Test Design" "0" "$VERDICT_EXIT"
+}
+
+it_should_fail_when_a_prose_ac_has_only_a_free_comment_instead_of_the_full_marker() {
+  local plan spec
+  plan=$(write_prose_marker_plan "prose-free-comment" '  // AC-2 reminder wording, reviewed by hand')
+  spec=$(write_spec "prose-free-comment" "$PROSE_SPEC_BODY")
+  run_script "$plan" "$spec"
+  assert_eq "should fail when a prose AC has only a free comment instead of the full marker (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should fail when a prose AC has only a free comment instead of the full marker (names the uncovered AC)" "$VERDICT_ERR" "AC-2"
+}
+
+it_should_fail_when_a_prose_ac_carries_a_truncated_marker() {
+  local plan spec
+  plan=$(write_prose_marker_plan "prose-truncated" '  // AC-2 - prose')
+  spec=$(write_spec "prose-truncated" "$PROSE_SPEC_BODY")
+  run_script "$plan" "$spec"
+  assert_eq "should fail when a prose AC carries a truncated marker (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should fail when a prose AC carries a truncated marker (names the uncovered AC)" "$VERDICT_ERR" "AC-2"
+}
+
+it_should_fail_when_the_prose_marker_sits_outside_the_test_design_section() {
+  local plan spec
+  plan=$(write_prose_marker_plan "prose-outside" '' '
+
+## Task Breakdown
+
+// AC-2 - prose, verified by direct-coder diff review, no test')
+  spec=$(write_spec "prose-outside" "$PROSE_SPEC_BODY")
+  run_script "$plan" "$spec"
+  assert_eq "should fail when the prose marker sits outside the Test Design section (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should fail when the prose marker sits outside the Test Design section (names the uncovered AC)" "$VERDICT_ERR" "AC-2"
+}
+
 it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker() {
   local plan spec
   plan=$(write_plan "fenced-spec-heading" '- **AC-1** valid path accepted
@@ -372,6 +430,10 @@ it_should_report_a_usage_error_when_a_named_file_is_missing
 it_should_report_a_usage_error_when_given_the_wrong_argument_count
 it_should_pass_in_annotated_form_when_every_spec_ac_appears_in_at_least_one_annotation
 it_should_fail_in_annotated_form_when_a_spec_ac_has_no_annotation_naming_the_uncovered_ac
+it_should_pass_in_annotated_form_when_a_prose_ac_carries_the_direct_coder_review_marker_in_test_design
+it_should_fail_when_a_prose_ac_has_only_a_free_comment_instead_of_the_full_marker
+it_should_fail_when_a_prose_ac_carries_a_truncated_marker
+it_should_fail_when_the_prose_marker_sits_outside_the_test_design_section
 it_should_keep_reading_spec_acs_after_a_fenced_line_that_starts_with_a_heading_marker
 it_should_keep_reading_spec_acs_after_a_longer_fence_quoting_an_inner_opener
 it_should_keep_reading_spec_acs_after_an_inner_bare_line_inside_a_longer_fence
