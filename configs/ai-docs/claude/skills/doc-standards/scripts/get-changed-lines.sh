@@ -33,6 +33,10 @@
 #   content comes back as changed - same result as the
 #   untracked case, with no separate branch needed.
 #
+# - During a merge (MERGE_HEAD present) -> only the lines new
+#   against HEAD and against every merged commit, so a line one
+#   parent already holds is not the committer's.
+#
 # This is the one hunk-parser every doc-standards script and
 # stop hook needs.
 #
@@ -117,12 +121,39 @@ rename_source() {
 
 src_file=$(rename_source)
 
-# Listing both paths keeps git's rename pairing, so the hunks
-# compare the rename source against rel_file.
-git diff -U0 -M HEAD -- ${src_file:+"$src_file"} "$rel_file" 2>/dev/null | awk '
+# print_added_lines - reads a -U0 diff on stdin and prints
+# each working-tree line number its hunks add, once.
+print_added_lines() {
+  awk '
     /^@@ / {
       plus = $3; sub(/^\+/, "", plus);
       n = split(plus, a, ",");
       start = a[1] + 0; cnt = (n > 1 ? a[2] + 0 : 1);
       for (i = 0; i < cnt; i++) print start + i;
     }' | sort -un
+}
+
+# A stopped `git merge` lists one merged commit per line, and
+# --git-path finds a linked worktree's own MERGE_HEAD.
+merge_head_file=$(git rev-parse --git-path MERGE_HEAD)
+merge_heads=()
+if [ -f "$merge_head_file" ]; then
+  while IFS= read -r merge_head; do
+    [ -n "$merge_head" ] && merge_heads+=("$merge_head")
+  done < "$merge_head_file"
+fi
+line_set_count=$((1 + ${#merge_heads[@]}))
+
+# Listing both paths keeps git's rename pairing, so the hunks
+# compare the rename source against rel_file.
+#
+# Every diff numbers lines in the same working-tree file, so a
+# line printed by all of them is new against every parent.
+{
+  git diff -U0 -M HEAD -- ${src_file:+"$src_file"} "$rel_file" 2>/dev/null |
+    print_added_lines
+  for merge_head in "${merge_heads[@]}"; do
+    git diff -U0 "$merge_head" -- "$rel_file" 2>/dev/null | print_added_lines
+  done
+} | sort -n | uniq -c |
+  awk -v sets="$line_set_count" '$1 == sets { print $2 }'

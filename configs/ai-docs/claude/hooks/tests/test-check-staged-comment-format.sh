@@ -1281,6 +1281,85 @@ it_should_block_a_merge_commit_dash_a_whose_unstaged_edit_differs_from_the_merge
     1 "$GATE_EXIT"
 }
 
+# write_typescript_module - a TypeScript module with an
+# optional leading comment and a trailing constant, so two
+# branches can edit regions ten lines apart and git merges
+# them cleanly.
+write_typescript_module() {
+  local path="$1" leading_comment="$2" retry_limit="$3"
+  {
+    if [ -n "$leading_comment" ]; then
+      printf '%s\n' "$leading_comment"
+    fi
+    printf 'export interface ErpHubConfig {\n'
+    printf '  erpName: string;\n'
+    printf '  baseUrl: string;\n'
+    printf '  timeoutMs: number;\n'
+    printf '  clientId: string;\n'
+    printf '  deliveryAddressEnabled: boolean;\n'
+    printf '  schoolSyncEnabled: boolean;\n'
+    printf '}\n'
+    printf '\n'
+    printf 'export const retryLimit = %s;\n' "$retry_limit"
+  } > "$path"
+}
+
+# make_clean_three_way_merge_fixture - a repo stopped in a
+# `git merge --no-commit` where both sides edited one file:
+# the merged branch added an over-width comment at its top,
+# the current branch changed its last line.
+#
+# The merged result then equals neither side's blob, so
+# the gate's whole-file match against the merged branch
+# cannot skip it.
+make_clean_three_way_merge_fixture() {
+  THREE_WAY_REPO=$(new_repo "$1")
+  THREE_WAY_PATH='erp-hub-config.ts'
+  write_typescript_module "$THREE_WAY_REPO/$THREE_WAY_PATH" '' 3
+  commit_tracked_file "$THREE_WAY_REPO" "$THREE_WAY_PATH"
+  git -C "$THREE_WAY_REPO" checkout -q -b incoming
+  write_typescript_module "$THREE_WAY_REPO/$THREE_WAY_PATH" \
+    '// the merged branch wrote this comment line well past the sixty-four character cap' 3
+  git_as_suite "$THREE_WAY_REPO" commit -qam 'document the config on incoming'
+  git -C "$THREE_WAY_REPO" checkout -q -
+  git -C "$THREE_WAY_REPO" checkout -q -b current
+  write_typescript_module "$THREE_WAY_REPO/$THREE_WAY_PATH" '' 5
+  git_as_suite "$THREE_WAY_REPO" commit -qam 'raise the retry limit on current'
+  git_as_suite "$THREE_WAY_REPO" merge -q --no-ff --no-commit incoming >/dev/null 2>&1
+}
+
+# A line the merged branch wrote is unchanged from that
+# parent even when the file as a whole matches no parent,
+# so it is not the committer's to fix.
+it_should_allow_a_clean_three_way_merge_whose_only_violation_the_merged_branch_wrote() {
+  make_clean_three_way_merge_fixture merge-three-way-clean
+
+  run_gate "$THREE_WAY_REPO" 'git commit -m "merge incoming"'
+
+  assert_eq "should allow a clean three-way merge whose only violating line arrives from the merged branch" \
+    0 "$GATE_EXIT"
+  assert_eq "should report nothing for a clean three-way merge whose only violation the merged branch wrote" \
+    '' "$GATE_STDERR"
+}
+
+# A line new against every parent was written during the
+# merge, so it stays the committer's to fix.
+it_should_block_a_clean_three_way_merge_whose_resolution_adds_a_violation() {
+  make_clean_three_way_merge_fixture merge-three-way-resolution
+  printf '// the committer wrote this resolution note well past the sixty-four cap\n' \
+    >> "$THREE_WAY_REPO/$THREE_WAY_PATH"
+  git -C "$THREE_WAY_REPO" add -- "$THREE_WAY_PATH"
+
+  run_gate "$THREE_WAY_REPO" 'git commit -m "merge incoming"'
+
+  assert_eq "should block a three-way merge whose committer adds a violating line during the resolution" \
+    1 "$GATE_EXIT"
+  assert_contains "should report the line the committer added during the resolution" \
+    'WIDTH 12:' "$GATE_STDERR"
+  assert_not_contains "should not report the line the merged branch wrote" \
+    'WIDTH 1:' "$GATE_STDERR"
+}
+
 # Matching another branch is not enough on its own: with no
 # merge in progress, a file brought over by
 # `git checkout <branch> -- <path>` is a change the
@@ -1366,6 +1445,8 @@ it_should_allow_an_octopus_merge_whose_staged_violation_matches_the_second_merge
 it_should_block_a_merge_whose_staged_violation_differs_from_the_merged_branch
 it_should_block_a_merge_whose_new_staged_violation_is_absent_from_the_merged_branch
 it_should_block_a_merge_commit_dash_a_whose_unstaged_edit_differs_from_the_merged_branch
+it_should_allow_a_clean_three_way_merge_whose_only_violation_the_merged_branch_wrote
+it_should_block_a_clean_three_way_merge_whose_resolution_adds_a_violation
 it_should_block_a_violation_copied_from_another_branch_without_a_merge_in_progress
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
