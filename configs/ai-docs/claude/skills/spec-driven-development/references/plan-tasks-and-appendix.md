@@ -20,6 +20,9 @@ Test titles designed before implementation - bodies come during each RED-GREEN c
 
 Annotate every `it()` with a trailing `// AC-<n>… T<n>… [on-demand]` comment: the ACs it proves, the tasks that write it, and `[on-demand]` when pulled mid-cycle. This section is the single source - the annotation replaces the AC-coverage list, so no test title is ever written twice.
 
+- Cover a prose AC (hook or reminder wording) with no `it()`, only a standalone Test Design line: `// AC-<n> - prose, verified by direct-coder diff review, no test`.
+  - Prose goes to `direct-coder`, never TDD, since tests over prose cost more than they catch; `check-ac-coverage.sh` accepts only this exact line.
+
 Group each `describe()` block by scenario class, one comment per class:
 
 ```
