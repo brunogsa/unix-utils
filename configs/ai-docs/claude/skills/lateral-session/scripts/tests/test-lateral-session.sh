@@ -99,6 +99,21 @@ test_opens_window_running_claude_with_double_dash_and_prompt() {
       -p '#{automatic-rename}')"
 }
 
+# should exit 2 with a `lateral-session: refused` stderr prefix
+# and open no window when TMUX is unset
+test_refuses_when_tmux_unset() {
+  local before err rc
+  before=$(windows)
+  err=$(env -u TMUX bash "$SCRIPT" "$REPO_DIR" "$PROMPT_FILE" \
+    2>&1 >/dev/null)
+  rc=$?
+  check "exit code when TMUX unset" "2" "$rc"
+  check "stderr prefix when TMUX unset" \
+    "lateral-session: refused" "${err:0:24}"
+  check "no window opened when TMUX unset" "$before" "$(windows)"
+}
+
+test_refuses_when_tmux_unset
 test_opens_window_running_claude_with_double_dash_and_prompt
 
 echo "lateral-session: $PASS passed, $FAIL failed"
