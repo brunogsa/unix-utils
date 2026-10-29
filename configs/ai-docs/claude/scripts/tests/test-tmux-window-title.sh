@@ -1369,6 +1369,85 @@ JSON
   stop_server
 }
 
+# assert_new_first_title_after_reset - a session titled
+# `billing` that took one main compaction, reset with the given
+# SessionStart source, must accept a new first title.
+#
+# No refusal note may appear: the spent first-title flag of the
+# old session must not carry over.
+assert_new_first_title_after_reset() {
+  local source=$1
+  start_server
+
+  title "billing"
+  title --bump-counter
+  title --reset-counter <<JSON
+{"source":"$source"}
+JSON
+
+  local err status=0
+  err=$(title "ledger" 2>&1 >/dev/null) || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should allow a new first title after a reset with source $source" \
+    "ledger|0|" "$(window_name)|$status|$err"
+  stop_server
+}
+
+it_should_allow_a_new_first_title_after_a_reset_with_source_startup() {
+  assert_new_first_title_after_reset startup
+}
+
+it_should_allow_a_new_first_title_after_a_reset_with_source_clear() {
+  assert_new_first_title_after_reset clear
+}
+
+it_should_allow_a_new_first_title_after_a_reset_with_source_resume() {
+  assert_new_first_title_after_reset resume
+}
+
+it_should_allow_a_new_first_title_after_a_reset_with_source_fork() {
+  assert_new_first_title_after_reset fork
+}
+
+it_should_render_ledger_bare_after_a_reset_with_source_resume_inside_a_rooted_session() {
+  start_server
+
+  title "billing"
+  title --bump-counter
+  title "ledger"
+  title --reset-counter <<'JSON'
+{"source":"resume"}
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should render ledger bare after a reset with source resume inside a rooted session" \
+    "ledger" "$(window_name)"
+  stop_server
+}
+
+it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_billing_and_counter_3() {
+  start_server
+
+  title "billing"
+  title --bump-counter
+  title --bump-counter
+  title --bump-counter
+  title --reset-counter <<'JSON'
+{"source":"resume"}
+JSON
+  title "ledger"
+  local after_title
+  after_title=$(window_name)
+  title --bump-counter
+  title "x"
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should render ledger then ledger/x[1] after a resume on a pane left with root billing and counter 3" \
+    "ledger|ledger/x[1]" "$after_title|$(window_name)"
+  stop_server
+}
+
 if ! command -v tmux >/dev/null 2>&1; then
   echo "tmux not installed - cannot exercise tmux-window-title.sh" >&2
   exit 1
@@ -1449,6 +1528,12 @@ it_should_clear_root_and_first_title_flag_without_renaming_on_source_clear
 it_should_store_zsh_as_the_last_title_after_a_reset_with_source_clear_on_a_never_titled_zsh_0_plus_1
 it_should_keep_each_existing_reset_label_and_leave_last_title_set_and_first_title_unset
 it_should_take_the_non_clear_path_when_stdin_is_malformed
+it_should_allow_a_new_first_title_after_a_reset_with_source_startup
+it_should_allow_a_new_first_title_after_a_reset_with_source_clear
+it_should_allow_a_new_first_title_after_a_reset_with_source_resume
+it_should_allow_a_new_first_title_after_a_reset_with_source_fork
+it_should_render_ledger_bare_after_a_reset_with_source_resume_inside_a_rooted_session
+it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_billing_and_counter_3
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
