@@ -670,6 +670,12 @@ case "$MODE" in
       fi
     fi
 
+    # A window past its first main compaction with no root yet
+    # (the bump found only the pre-Claude name) roots this
+    # title.
+    if [ -z "$(root_title)" ] && [ "$(has_no_main_compaction "$existing")" = no ]; then
+      tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$clean"
+    fi
     capture_prev_state
     apply_title "$(render_title "$clean" "$existing" "$(root_title)")"
     ;;

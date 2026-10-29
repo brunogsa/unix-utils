@@ -892,6 +892,26 @@ it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_not
   stop_server
 }
 
+it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root() {
+  start_server
+
+  # The window still shows its pre-Claude name at the bump, so
+  # the bump freezes nothing.
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+  title --bump-counter
+
+  title "billing"
+  title "retry-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze the first title after a rootless first main compaction as root (stored root)" \
+    "billing" "$(root_option)"
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze the first title after a rootless first main compaction as root (window name)" \
+    "billing/retry-fix[1]" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -1081,6 +1101,7 @@ it_should_freeze_city_code_as_root_at_the_first_main_compaction
 it_should_freeze_a_dotted_pre_claude_name_as_root_despite_the_pre_claude_name_guard
 it_should_freeze_a_lone_dot_as_root_and_render_dot_slash_retry_fix
 it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_note
+it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
