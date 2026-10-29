@@ -454,9 +454,13 @@ freeze_root_title() {
   # window name, which capture_prev_state has just recorded.
   # Anchoring to that would prefix every later title with
   # something like "zsh/", so skip: no root, plain behavior.
+  #
+  # A dotted label is exempt: Claude never writes a leading dot,
+  # so it is always the user's deliberate name, and it freezes
+  # even when it equals the pre-Claude name.
   local prev_name
   prev_name=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name" 2>/dev/null || true)
-  if [ "$base" = "$prev_name" ]; then
+  if [ "$base" = "$prev_name" ] && [[ $base != .* ]]; then
     return 0
   fi
 
@@ -665,6 +669,7 @@ case "$MODE" in
         tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$(adopt_root_name "$current")"
       fi
     fi
+
     capture_prev_state
     apply_title "$(render_title "$clean" "$existing" "$(root_title)")"
     ;;

@@ -819,6 +819,79 @@ it_should_keep_deps_7_as_root_and_render_the_counter_after_the_tail() {
   stop_server
 }
 
+it_should_freeze_city_code_as_root_at_the_first_main_compaction() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".city-code"
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "zsh"
+  set_last_title ".city-code"
+
+  title --bump-counter
+  title "retry-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze .city-code as root at the first main compaction (window name)" \
+    ".city-code/retry-fix[1]" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze .city-code as root at the first main compaction (stored root)" \
+    ".city-code" "$(root_option)"
+  stop_server
+}
+
+it_should_freeze_a_dotted_pre_claude_name_as_root_despite_the_pre_claude_name_guard() {
+  start_server
+
+  # The pre-Claude name IS the dotted label, the exact case the
+  # guard against rooting to "zsh/" would otherwise swallow.
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".city-code"
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" ".city-code"
+  set_last_title ".city-code"
+
+  title --bump-counter
+  title "retry-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze a dotted pre-Claude name as root despite the pre-Claude-name guard" \
+    ".city-code/retry-fix[1]" "$(window_name)"
+  stop_server
+}
+
+it_should_freeze_a_lone_dot_as_root_and_render_dot_slash_retry_fix() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "."
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "."
+  set_last_title "."
+
+  title --bump-counter
+  title "retry-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze a lone dot as root and render ./retry-fix[1] (window name)" \
+    "./retry-fix[1]" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > stored state > should freeze a lone dot as root and render ./retry-fix[1] (stored root)" \
+    "." "$(root_option)"
+  stop_server
+}
+
+it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_note() {
+  start_server
+  seed_rooted_window "billing" "billing/retry-fix[1]"
+
+  local first_err second_err
+  first_err=$(title "ledger-fix" 2>&1 >/dev/null)
+  assert_eq \
+    "TmuxWindowTitle > stored state > should set the first new tail after a main compaction" \
+    "billing/ledger-fix[1]" "$(window_name)"
+  second_err=$(title "audit" 2>&1 >/dev/null)
+  assert_eq \
+    "TmuxWindowTitle > stored state > should set the second new tail after a main compaction" \
+    "billing/audit[1]" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > stored state > should write no refusal note on either tail after a main compaction" \
+    "" "${first_err}${second_err}"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -1004,6 +1077,10 @@ it_should_fold_a_slash_and_cap_the_root_at_sixteen_chars_counting_a_leading_dot
 it_should_keep_a_sixteen_char_root_whole_and_cut_a_seventeen_char_root_to_sixteen
 it_should_take_a_whole_hand_set_name_with_a_slash_as_root_after_a_main_compaction
 it_should_keep_deps_7_as_root_and_render_the_counter_after_the_tail
+it_should_freeze_city_code_as_root_at_the_first_main_compaction
+it_should_freeze_a_dotted_pre_claude_name_as_root_despite_the_pre_claude_name_guard
+it_should_freeze_a_lone_dot_as_root_and_render_dot_slash_retry_fix
+it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_note
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
