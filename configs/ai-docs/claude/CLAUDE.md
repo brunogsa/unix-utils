@@ -374,7 +374,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
   - [Why] Main session is capped at 200k tokens; inline exploration dumps every touched file into it, forcing compactions.
 
-- [Instruction] Execute any TaskList item whose goal diverges from the main session's goal (e.g. `[Side]`/`[Scout]` entries) through a subagent - never inline in the main session.
+- [Instruction] Execute any TaskList item whose goal diverges from main's (e.g. `[Side]`/`[Scout]`) through a subagent, or `lateral-session` only if I ask for a new session, window or tmux - never inline.
   - [Why] Inline execution pulls the off-goal task's files into the main context, taxing the budget the actual goal needs.
 
 - [Instruction] Route a change to `tdd-coder` when you can name an input for which the pre- and post-change versions behave differently, and to `direct-coder` when you cannot.
