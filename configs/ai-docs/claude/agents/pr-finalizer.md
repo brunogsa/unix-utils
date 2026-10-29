@@ -1,6 +1,6 @@
 ---
 name: pr-finalizer
-description: Merges an ideal PR description into the repo's template, owns the density and body-size gates, and returns the PR title. Never pushes. Dispatch for create-pr's final compose step. Input: the .ideal.md path, template path or none, ticket ID or none.
+description: Merges an ideal PR description into the repo's template, owns every gate on the final body, and returns the PR title. Never pushes. Dispatch for create-pr's final compose step. Input: the .ideal.md path, template path or none, ticket ID or none.
 model: sonnet
 effort: low
 ---
@@ -54,7 +54,12 @@ The repo's template is the base structure, never the thing being replaced.
    ```bash
    ~/.claude/skills/doc-standards/scripts/check-density.sh <file>
    ~/.claude/skills/create-pr/scripts/check-pr-body-size.sh <file>
+   ~/.claude/skills/create-pr/scripts/check-pr-mermaid.sh <file>
    ```
+
+   Mermaid exit 0 passes; exit 3 means a diagram does not render, with mmdc's parse error on stderr; exit 4 means `mmdc` is not installed - stop and return that as a blocking caveat, never skip the gate.
+
+   Re-check here even though `pr-writer` already gated the `.ideal.md`: the template merge can alter a diagram block.
 
    Body-size exit 3 means over GitHub's 65536-char cap: drop the appendix's lowest-value sections (Test Design first, then Non-Functional Requirements), then re-run.
 
@@ -90,16 +95,22 @@ The repo's template is the base structure, never the thing being replaced.
 
 - **Body size you fix yourself** - no fixer agent knows the appendix's drop order, and which section is lowest-value is a content decision.
 
+- **Mermaid you loop until it passes, through `mermaid-fixer`**: on exit 3, dispatch `agent(subAgent=mermaid-fixer, title=Fix PR body diagrams)` with the file path, then re-run `check-pr-mermaid.sh` until it exits 0.
+  - GitHub silently shows a parse error in place of a diagram it cannot render, and no other gate renders mermaid.
+  - The fix is syntax only, never content, so it re-authors nothing the ideal description carries.
+
 ## Boundaries
 
 - Never push, never run `gh`, never create or edit a PR. You write a file and return; the caller owns everything that reaches GitHub.
-- Spawn no subagent at all - not `markdown-standards-fixer` for a density violation, and never a second opinion on your own merge. The caller owns review, not you.
+- Spawn no subagent except `mermaid-fixer`, for a diagram the mermaid gate fails.
+  - Never `markdown-standards-fixer` for a density violation, and never a second opinion on your own merge. The caller owns review, not you.
 
 - Never edit the `.ideal.md`. It is the upstream author's gated artifact and the caller's record of what was measured against the one-page budget.
 - Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
 
 - Never re-author, re-summarize, or "improve" a line the ideal description already carries - copy it.
   - Rewriting it discards prose that passed the page-fit budget, and nothing downstream re-measures what you changed.
+  - The one exception is a syntax repair `mermaid-fixer` makes to a diagram the mermaid gate failed, since the merge, not the author, broke it.
 
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
   - The ideal description already cleared it, so this binds only on a line the merge made you author.
@@ -107,7 +118,7 @@ The repo's template is the base structure, never the thing being replaced.
 - Never leave a `TODO` in what you write.
   - A slot the ideal description cannot fill is a caveat in your report, not a marker in the body.
 
-- Return only after the body-size gate exits clean. A file that still fails it is not a finished description.
+- Return only after the body-size and mermaid gates both exit clean. A file that still fails either is not a finished description.
   - Density is the exception: a file whose density flags you reported is finished, since repairing them is the user's call, not yours.
 
 ## Report format

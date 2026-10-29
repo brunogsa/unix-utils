@@ -48,6 +48,9 @@ Author against the locally-installed `mmdc` (`mmdc --version`); validate every d
 - **Special characters in node display text** - `:` `(` `)` `&` `/` are usually fine inside `["..."]` but break inside bare `[...]`.
   - When in doubt, wrap node text in double quotes: `node["Foo: Bar (v2)"]`.
 
+- **`;` inside a `sequenceDiagram` message** - `B-->>Q: rethrown as is; the consumer deletes it` fails: the sequence parser reads `;` as the end of the statement.
+  - Fix: use a comma or a parenthetical - `B-->>Q: rethrown as is (the consumer deletes it)`.
+
 - **Reserved words as participant ids** - `end`, `note`, `loop` confuse the parser. Alias them: `participant E as end-state`.
 - **`<br/>` line breaks** - only work inside quoted strings. Bare `[Foo<br/>Bar]` fails; `["Foo<br/>Bar"]` works.
 - **Bare `%%` separator lines spawn a phantom node** - a line that is *only* `%%` renders as a stray node labelled `%%`, and passes `mmdc` with exit 0 (no error).

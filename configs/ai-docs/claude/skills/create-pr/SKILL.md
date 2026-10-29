@@ -92,11 +92,11 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 - `agent(subAgent=pr-writer, title=Compose ideal PR description)` in the background, waiting for it - step 3 reads the file it writes.
   - Give it the changes digest, the resolved spec/plan paths, the manual-evidence path and ticket ID (each "none" when unresolved), the appendix section list, the output path `./pr_<slug>_pr<N>.ideal.md`, and any resolved `<parent>`.
 
-  - It loads this skill and `doc-standards` itself, runs the extractors, and runs all three gates before returning - none of that belongs in the dispatch prompt.
+  - It loads this skill and `doc-standards` itself, runs the extractors, and runs all four gates before returning - none of that belongs in the dispatch prompt.
 
-**All three gates belong to the agent - never re-run them here, and never hand-fix its prose.**
+**All four gates belong to the agent - never re-run them here, and never hand-fix its prose.**
 
-- It loops `check-pr-page-fit.py` and `check-pr-evidence.sh` until both pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
+- It loops `check-pr-page-fit.py`, `check-pr-evidence.sh` and `check-pr-mermaid.sh` until all pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
 - **Density is the one gate it reports instead of fixing** -- a file whose density flags it named IS finished, so never send it back for them.
   - File those flags as a `[Scout]` from its report; a subagent cannot, its TaskList write never reaching the user who triages it.
@@ -128,7 +128,7 @@ The reviewer hasn't read your spec, plan, ticket, or commits - anything referenc
 
 What to write, how to evidence it, and how to format it: [`references/writing-style.md`](references/writing-style.md) - read it before drafting any section's prose; `pr-writer` loads it every dispatch.
 
-### 3. Compose the repo description - density and body size
+### 3. Compose the repo description - density, body size and mermaid
 
 **Never pause for user review** -- the agent returns a gated file, so continue straight on.
 
@@ -143,10 +143,10 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
 - No template found → say so instead of naming one; the agent copies the ideal description verbatim into the final body.
 
-- **Never copy the file here instead** -- the body-size gate runs only inside the agent.
+- **Never copy the file here instead** -- the body-size and mermaid gates run only inside the agent.
   - A `cp` in the main session would push a `.final.md` no gate ever measured, on the path most repos take.
 
-- It re-reads the merge rules itself, and owns the density and body-size gates end to end - same as step 2, they are never re-run.
+- It re-reads the merge rules itself, and owns the density, body-size and mermaid gates end to end - same as step 2, they are never re-run.
 
 - **It also returns the PR title**, `[<ID>] `-prefixed when a ticket resolved.
   - Carry that line to step 4's `--title`; the body file is the only other thing this step hands forward.
@@ -163,7 +163,7 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
   - Missing or empty means step 3's agent never finished; re-dispatch it, never compose a replacement body here.
 
-  - Its density and body-size gates already ran inside that agent; a failure still announces itself.
+  - Its density, body-size and mermaid gates already ran inside that agent; a failure still announces itself.
     - An over-budget body shows in the rendered PR; an over-cap one makes `gh pr create` fail loudly at the API.
 
 - **Push the branch here, never earlier** -- `git push -u origin <branch>` when it has no upstream.

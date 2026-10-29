@@ -90,8 +90,10 @@ def create_pr():
     # 10 · Step 2 - pr-writer · agent-pinned · background. No mode argument:
     #      this agent only ever writes the ideal description now. Main
     #      orchestrates and never composes the prose. The agent loads
-    #      doc-standards itself, loops check-pr-page-fit.py and
-    #      check-pr-evidence.sh until both pass, and only REPORTS what
+    #      doc-standards itself, loops check-pr-page-fit.py,
+    #      check-pr-evidence.sh and check-pr-mermaid.sh until all pass
+    #      (a mermaid failure goes to mermaid-fixer, since GitHub shows a
+    #      parse error in place of a broken diagram), and only REPORTS what
     #      check-density.sh flagged - a file whose density flags it named is
     #      finished, and main files them as a [Scout] rather than sending it
     #      back. The evidence gate is why the artifact path travels with the
@@ -112,7 +114,9 @@ def create_pr():
     #      from step 2's pr-writer, deliberately: this step re-derives nothing,
     #      and effort is frontmatter-only, so the cheaper stage needs its own
     #      agent file rather than a mode argument on pr-writer. Dispatched
-    #      either way, because it owns density and body size end to end: with no
+    #      either way, because it owns density, body size and mermaid end to
+    #      end - check-pr-mermaid.sh re-runs here, failures going to
+    #      mermaid-fixer, since the template merge can alter a diagram. With no
     #      template it copies the ideal verbatim, and once the trim order is
     #      exhausted it returns a blocking caveat rather than cutting into body
     #      content. Also returns the PR title (carrying `[<ID>] ` when a ticket
@@ -207,11 +211,11 @@ flowchart TD
   n8["8. Derive the appendix's section list - never ask for it:<br/>the resolved spec/plan MINUS every section the body renders.<br/>The list is handed to step 2's agent, which extracts sections with<br/>extract-md-sections.sh and diagrams with extract-mermaid-blocks.sh -<br/>a re-summarized section or re-drawn diagram diverges silently"]
   n9["9. Step 1's last act · Collect the changes-gatherer digest - step 2<br/>cannot start without it, so wait here if it's still running. By this point<br/>it has had the whole interview to run in, so a wait that used to cost its<br/>full duration usually costs nothing"]
 
-  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background - the resolved evidence artifact<br/>and the resolved ticket ID (or 'none') travel with the dispatch, since<br/>with nothing to paste from a manual scenario must be dropped rather than<br/>narrated, and with no ticket the Jira link section names none<br/>it loads doc-standards itself and loops check-pr-page-fit.py and<br/>check-pr-evidence.sh until both pass, but only REPORTS what<br/>check-density.sh flagged - main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
+  n10[["10. Step 2 · Dispatch: Compose ideal PR description<br/>pr-writer · agent-pinned · background - the resolved evidence artifact<br/>and the resolved ticket ID (or 'none') travel with the dispatch, since<br/>with nothing to paste from a manual scenario must be dropped rather than<br/>narrated, and with no ticket the Jira link section names none<br/>it loads doc-standards itself and loops check-pr-page-fit.py,<br/>check-pr-evidence.sh and check-pr-mermaid.sh until all pass<br/>(a mermaid failure goes to mermaid-fixer, since GitHub shows a parse<br/>error in place of a broken diagram), but only REPORTS what<br/>check-density.sh flagged - main files those as a [Scout], re-runs<br/>nothing, and never hand-fixes its prose"]]:::dispatch
   n11["11. Ideal description written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.ideal.md<br/>in THIS skill's own format, ignoring any repo template -<br/>page-fit can only budget a section it recognizes"]:::state
 
   n12["12. Step 3 · Check .github/ for pull_request_template.md /<br/>PULL_REQUEST_TEMPLATE.md - the result is one of the agent's four inputs<br/>(with ideal_path, out, and the ticket ID), a template path or an explicit<br/>'no template', not a branch here"]
-  n13[["13. Dispatch: Compose repo PR description<br/>pr-finalizer · agent-pinned · background<br/>dispatched either way - a different, cheaper agent from step 2's pr-writer,<br/>since this step re-derives nothing: owns the density and body-size gates<br/>end to end, copies the ideal verbatim when no template, returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper, and also<br/>returns the PR title (carrying '[&lt;ID&gt;] ' when a ticket resolved),<br/>carried to step 4's --title"]]:::dispatch
+  n13[["13. Dispatch: Compose repo PR description<br/>pr-finalizer · agent-pinned · background<br/>dispatched either way - a different, cheaper agent from step 2's pr-writer,<br/>since this step re-derives nothing: owns the density, body-size and<br/>mermaid gates end to end (the template merge can alter a diagram, so<br/>check-pr-mermaid.sh re-runs here, failures going to mermaid-fixer), copies the ideal verbatim when no template, returns a blocking<br/>caveat once the trim order is exhausted instead of cutting deeper, and also<br/>returns the PR title (carrying '[&lt;ID&gt;] ' when a ticket resolved),<br/>carried to step 4's --title"]]:::dispatch
   n14["14. Final body written to ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md - the repo's<br/>template is the base structure, never the thing replaced.<br/>NEVER page-fit-checked, per pr-page-budget.md's 'Measure the ideal<br/>description, never the final body', which owns the reason"]:::state
 
   n15{"15. Step 4 · Does the .final.md exist and carry content?<br/>an artifact check, never a re-run of the agent's gates -<br/>an over-budget body shows in the rendered PR, and an<br/>over-cap one fails loudly at the gh pr create API"}
