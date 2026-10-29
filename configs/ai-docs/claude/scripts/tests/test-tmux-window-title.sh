@@ -742,6 +742,83 @@ it_should_render_payments_ledger_fix_when_the_hand_rename_drops_the_dot() {
   stop_server
 }
 
+it_should_fold_a_slash_and_cap_the_root_at_sixteen_chars_counting_a_leading_dot() {
+  start_server
+
+  # Claude titles the window first, so the script holds a last
+  # title; the hand rename then differs from it.
+  title "retry-fix"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "billing/payments-v2-migration"
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should fold a slash and cap the root at 16 chars for a hand-set name without a leading dot" \
+    "billing-payments" "$(root_option)"
+  stop_server
+
+  start_server
+  title "retry-fix"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".billing/payments-v2-migration"
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should fold a slash and cap the root at 16 chars counting the leading dot" \
+    ".billing-payment" "$(root_option)"
+  stop_server
+}
+
+it_should_keep_a_sixteen_char_root_whole_and_cut_a_seventeen_char_root_to_sixteen() {
+  start_server
+  title "retry-fix"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "billing-payments"
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should keep a 16-char hand-set root whole" \
+    "billing-payments" "$(root_option)"
+  stop_server
+
+  start_server
+  title "retry-fix"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "billing-payments2"
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should cut a 17-char hand-set root to 16" \
+    "billing-payments" "$(root_option)"
+  stop_server
+}
+
+it_should_take_a_whole_hand_set_name_with_a_slash_as_root_after_a_main_compaction() {
+  start_server
+  seed_rooted_window "billing" "billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "billing/payments"
+
+  title "ledger"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should take a whole hand-set name with a slash as root after a main compaction" \
+    "billing-payments/ledger[2]" "$(window_name)"
+  stop_server
+}
+
+it_should_keep_deps_7_as_root_and_render_the_counter_after_the_tail() {
+  start_server
+  seed_rooted_window "billing" "billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "deps[7]"
+
+  title "ledger"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should keep deps[7] as the stored root, since the last title and not the live name holds the count" \
+    "deps[7]" "$(root_option)"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render the counter after the tail as deps[7]/ledger[2]" \
+    "deps[7]/ledger[2]" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -923,6 +1000,10 @@ it_should_render_dot_payments_3_when_a_main_bump_follows_a_hand_rename_of_a_root
 it_should_render_dot_payments_2_plus_1_when_a_subagent_bump_follows_the_hand_rename
 it_should_render_dot_payments_ledger_fix_when_claude_sets_a_tail_after_the_hand_rename
 it_should_render_payments_ledger_fix_when_the_hand_rename_drops_the_dot
+it_should_fold_a_slash_and_cap_the_root_at_sixteen_chars_counting_a_leading_dot
+it_should_keep_a_sixteen_char_root_whole_and_cut_a_seventeen_char_root_to_sixteen
+it_should_take_a_whole_hand_set_name_with_a_slash_as_root_after_a_main_compaction
+it_should_keep_deps_7_as_root_and_render_the_counter_after_the_tail
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
