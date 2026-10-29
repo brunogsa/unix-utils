@@ -1203,6 +1203,20 @@ it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused() {
   stop_server
 }
 
+it_should_freeze_the_first_title_when_the_main_bump_lands_after_a_refused_retitle() {
+  start_server
+
+  title "billing"
+  title --bump-subagent-counter
+  title "retry-fix" >/dev/null 2>&1
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > first title > should freeze the first title when the main bump lands after a refused re-title" \
+    "billing|billing[1+1]" "$(root_option)|$(window_name)"
+  stop_server
+}
+
 it_should_treat_the_first_title_as_spent_on_a_window_titled_before_rollout() {
   start_server
 
@@ -1340,6 +1354,7 @@ it_should_set_the_first_title_after_a_dot_refused_call_once_the_user_drops_the_d
 it_should_render_dot_city_code_0_plus_1_when_a_subagent_bump_lands_on_a_dotted_name
 it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1
 it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused
+it_should_freeze_the_first_title_when_the_main_bump_lands_after_a_refused_retitle
 it_should_treat_the_first_title_as_spent_on_a_window_titled_before_rollout
 it_should_allow_the_first_title_with_no_note_when_the_live_name_equals_prev_on_a_pre_rollout_window
 
