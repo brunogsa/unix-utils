@@ -1119,6 +1119,22 @@ it_should_refuse_a_second_title_before_the_first_main_compaction_with_exit_0_and
   stop_server
 }
 
+it_should_leave_a_dotted_window_unchanged_and_exit_0_with_the_expected_refusal_note() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".city-code"
+
+  local err status=0
+  err=$(title "retry-fix" 2>&1 >/dev/null) || status=$?
+
+  local has_note=no
+  case "$err" in *"expected"*"Do not retry"*) has_note=yes ;; esac
+
+  assert_eq \
+    "TmuxWindowTitle > dotted window > should leave .city-code unchanged and exit 0 with the expected-refusal note" \
+    ".city-code|0|yes" "$(window_name)|$status|$has_note"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1213,6 +1229,7 @@ it_should_no_op_outside_tmux
 it_should_print_help_to_stdout
 it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre_claude_name
 it_should_refuse_a_second_title_before_the_first_main_compaction_with_exit_0_and_the_note
+it_should_leave_a_dotted_window_unchanged_and_exit_0_with_the_expected_refusal_note
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

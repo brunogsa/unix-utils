@@ -728,6 +728,15 @@ case "$MODE" in
         echo "tmux-window-title: title refused (expected, not an error): this session already set its first title and may not re-title before its first compaction. Do not retry." >&2
         exit 0
       fi
+
+      # A dotted window is the user's protection from this
+      # script. The refusal leaves the first-title flag
+      # unspent, so the first title still sets once the user
+      # drops the dot.
+      if [ "${current#.}" != "$current" ]; then
+        echo "tmux-window-title: title refused (expected, not an error): the window name starts with a dot, which protects it from re-titling. Do not retry." >&2
+        exit 0
+      fi
     fi
 
     capture_prev_state
