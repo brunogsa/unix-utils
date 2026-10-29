@@ -1203,6 +1203,43 @@ it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused() {
   stop_server
 }
 
+it_should_treat_the_first_title_as_spent_on_a_window_titled_before_rollout() {
+  start_server
+
+  # A pre-rollout window: the old script captured the pre-Claude
+  # name and renamed the window; it never wrote the new options.
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "zsh"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "ebs-report"
+
+  local err status=0
+  err=$(title "retry-fix" 2>&1 >/dev/null) || status=$?
+
+  local has_note=no
+  case "$err" in *"expected"*"Do not retry"*) has_note=yes ;; esac
+
+  assert_eq \
+    "TmuxWindowTitle > rollout shim > should treat the first title as spent on a window titled before rollout" \
+    "ebs-report|0|yes|1" "$(window_name)|$status|$has_note|$([ -n "$(first_title_flag)" ] && echo 1)"
+  stop_server
+}
+
+it_should_allow_the_first_title_with_no_note_when_the_live_name_equals_prev_on_a_pre_rollout_window() {
+  start_server
+
+  # A pre-rollout window the old script captured but never
+  # renamed: the live name still equals the captured one.
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "zsh"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+
+  local err status=0
+  err=$(title "retry-fix" 2>&1 >/dev/null) || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > rollout shim > should allow the first title with no note when the live name equals prev on a pre-rollout window" \
+    "retry-fix|0||1" "$(window_name)|$status|$err|$([ -n "$(first_title_flag)" ] && echo 1)"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1303,6 +1340,8 @@ it_should_set_the_first_title_after_a_dot_refused_call_once_the_user_drops_the_d
 it_should_render_dot_city_code_0_plus_1_when_a_subagent_bump_lands_on_a_dotted_name
 it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1
 it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused
+it_should_treat_the_first_title_as_spent_on_a_window_titled_before_rollout
+it_should_allow_the_first_title_with_no_note_when_the_live_name_equals_prev_on_a_pre_rollout_window
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

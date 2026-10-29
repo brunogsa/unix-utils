@@ -7,7 +7,9 @@
 # a glance.
 #
 # It overwrites the title outright -- no prefixes, no stacking
-# (that policy lives with the caller, not here).
+# (that policy lives with the caller, not here) -- except that
+# before the first main compaction only ONE title is allowed
+# (see First-title gate below).
 #
 # Usage:
 #   tmux-window-title.sh <title>       # set the base title
@@ -63,6 +65,27 @@
 #   shows its pre-Claude name), --bump-counter prints a note on
 #   stdout telling Claude to pass the session goal first; that
 #   title then becomes the root.
+#
+# First-title gate:
+#   Before the first main compaction a session gets ONE title.
+#   The pane option @claude_first_title_used records that it was
+#   spent.
+#
+#   A second title is refused: the window stays as it is, the
+#   script exits 0, and a note on stderr says the refusal is
+#   expected and not to retry. Exit 0 keeps the caller from
+#   reading it as a failure.
+#
+#   A live window name starting with "." is the user's
+#   protection marker: a title before the first main compaction
+#   is refused the same way (exit 0, stderr note).
+#
+#   The flag stays unspent, so the first title still sets once
+#   the user drops the dot.
+#
+#   A window titled before this gate existed carries no flag;
+#   a dated shim in the code seeds it as spent when the live
+#   name differs from the captured pre-Claude name.
 #
 # Root anchor:
 #   The title the user learned to recognize is the one the
@@ -718,6 +741,25 @@ case "$MODE" in
     # title.
     if [ -z "$(root_title)" ] && [ "$(has_no_main_compaction "$existing")" = no ]; then
       tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$clean"
+    fi
+
+    # Rollout shim -- remove after 2026-11-12, once no
+    # pre-rollout session is open.
+    #
+    # A window titled by the pre-rollout script already spent
+    # its first title but never recorded the flag, so seed it
+    # as spent.
+    #
+    # Only a window with no @claude_last_title, a captured prev
+    # name, and a live name that differs from it qualifies.
+    #
+    # The reset sets @claude_last_title on every source, so a
+    # cleared flag after /resume or /fork is not misread.
+    if [ "$(first_title_spent)" = no ] && [ -z "$last" ]; then
+      prev_seed=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name" 2>/dev/null || true)
+      if [ -n "$prev_seed" ] && [ "$current" != "$prev_seed" ]; then
+        tmux set-option -p -t "$TMUX_PANE" -- "@claude_first_title_used" 1
+      fi
     fi
 
     # Before the first main compaction a session gets ONE title.
