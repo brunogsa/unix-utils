@@ -161,10 +161,31 @@ test_delivers_hostile_30000_byte_prompt_from_awkward_path() {
   check "prompt arrives intact" "$expected" "$got"
 }
 
+# should exit non-zero with tmux's own error and no refusal
+# prefix when tmux new-window fails
+test_passes_through_tmux_failure() {
+  local err rc
+  err=$(TMUX="$WORK/missing-socket,0,0" \
+    TMUX_TMPDIR="$WORK/no-tmux-server" \
+    bash "$SCRIPT" "$REPO_DIR" "$PROMPT_FILE" 2>&1 >/dev/null)
+  rc=$?
+  check "exit code is tmux's own 1" "1" "$rc"
+  case "$err" in
+    "error connecting to"*) check "tmux's own error" ok ok ;;
+    *) check "tmux's own error" "error connecting to ..." "$err" ;;
+  esac
+  case "$err" in
+    *"lateral-session: refused"*)
+      check "no refusal prefix" "absent" "present" ;;
+    *) check "no refusal prefix" ok ok ;;
+  esac
+}
+
 test_refuses_when_tmux_unset
 test_refuses_when_repo_dir_missing
 test_opens_window_running_claude_with_double_dash_and_prompt
 test_delivers_hostile_30000_byte_prompt_from_awkward_path
+test_passes_through_tmux_failure
 
 echo "lateral-session: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
