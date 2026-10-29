@@ -76,6 +76,15 @@ session_end() {
   printf '{"reason":"%s"}' "$1" | bash "$HOOK_UNDER_TEST"
 }
 
+it_should_re_enable_automatic_rename_on_reason_clear_when_the_captured_state_is_on() {
+  start_server
+  claude_titled_window "zsh" "on" ".payments/ledger-fix[2]"
+  session_end clear
+  assert_eq "automatic-rename is back on after /clear" "on" "$(auto_rename)"
+  assert_eq "captured name is cleaned up after /clear" "" "$(pane_option @claude_prev_window_name)"
+  stop_server
+}
+
 it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other() {
   start_server
   claude_titled_window "zsh" "off" ".city-code/retry-fix[1]"
@@ -84,6 +93,7 @@ it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other() {
   stop_server
 }
 
+it_should_re_enable_automatic_rename_on_reason_clear_when_the_captured_state_is_on
 it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

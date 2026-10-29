@@ -17,12 +17,16 @@
 #   Claude isn't left with Claude's title.
 #
 #   Gated on the SessionEnd `reason` field to an allowlist --
-#   other, logout, prompt_input_exit -- the reasons that mean
-#   the session itself is ending.
+#   other, logout, prompt_input_exit, clear -- the reasons that
+#   mean the session ends or, for clear, restarts afresh.
 #
-#   `clear` and `resume` continue the same conceptual session
-#   (the title should stay), and `bypass_permissions_disabled`
-#   is deliberately left off the allowlist even though it also
+#   `clear` restores because the SessionStart reset on `clear`
+#   writes no window name, so this hook is the only name writer
+#   there (hook order is undocumented; hooks run in parallel).
+#
+#   `resume` continues the same conceptual session (the title
+#   should stay), and `bypass_permissions_disabled` is
+#   deliberately left off the allowlist even though it also
 #   ends the session.
 #
 #   This is because an allowlist is safe by construction: an
@@ -46,7 +50,6 @@
 #
 # Examples:
 #   echo '{"reason":"other"}' | claude-tmux-title-restore.sh
-#   # no-op:
 #   echo '{"reason":"clear"}' | claude-tmux-title-restore.sh
 
 set -euo pipefail
@@ -59,7 +62,7 @@ fi
 REASON=$(printf '%s' "$PAYLOAD" | jq -r '.reason // empty' 2>/dev/null || true)
 
 case "$REASON" in
-  other|logout|prompt_input_exit) ;;
+  other|logout|prompt_input_exit|clear) ;;
   *) exit 0 ;;
 esac
 
