@@ -113,7 +113,27 @@ test_refuses_when_tmux_unset() {
   check "no window opened when TMUX unset" "$before" "$(windows)"
 }
 
+# should exit 2, name the missing repo path on stderr and open
+# no window when the repo dir does not exist
+test_refuses_when_repo_dir_missing() {
+  local before err rc missing="$WORK/does-not-exist"
+  before=$(windows)
+  err=$(TMUX="$SOCKET_PATH,0,0" TMUX_PANE="$PANE" \
+    bash "$SCRIPT" "$missing" "$PROMPT_FILE" 2>&1 >/dev/null)
+  rc=$?
+  check "exit code when repo dir missing" "2" "$rc"
+  check "stderr prefix when repo dir missing" \
+    "lateral-session: refused" "${err:0:24}"
+  case "$err" in
+    *"$missing"*) check "stderr names the missing path" ok ok ;;
+    *) check "stderr names the missing path" "$missing" "$err" ;;
+  esac
+  check "no window opened when repo dir missing" \
+    "$before" "$(windows)"
+}
+
 test_refuses_when_tmux_unset
+test_refuses_when_repo_dir_missing
 test_opens_window_running_claude_with_double_dash_and_prompt
 
 echo "lateral-session: $PASS passed, $FAIL failed"

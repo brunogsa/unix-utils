@@ -5,7 +5,7 @@
 # Usage: lateral-session.sh <repo-dir> <prompt-file>.
 #
 # Exits 2 with a `lateral-session: refused` stderr prefix when
-# $TMUX is unset; no window opens.
+# $TMUX is unset or <repo-dir> does not exist; no window opens.
 #
 # Fire-and-forget: no stdout, and tmux's exit code and stderr
 # pass through on failure.
@@ -15,6 +15,11 @@ prompt_file="$2"
 
 if [ -z "${TMUX:-}" ]; then
   echo "lateral-session: refused - not inside tmux" >&2
+  exit 2
+fi
+
+if [ ! -d "$repo_dir" ]; then
+  echo "lateral-session: refused - no such dir: $repo_dir" >&2
   exit 2
 fi
 
