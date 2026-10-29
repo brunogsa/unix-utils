@@ -28,4 +28,4 @@ fi
 # environment, so its bytes never pass through tmux quoting.
 exec tmux new-window -c "$repo_dir" \
   -e "LATERAL_PROMPT_FILE=$prompt_file" \
-  'claude -- "$(cat "$LATERAL_PROMPT_FILE")"'
+  "claude -- \"\$(cat \"\$LATERAL_PROMPT_FILE\")\""

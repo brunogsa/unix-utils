@@ -64,8 +64,8 @@ printf -- '-- starts with dashes\nsecond line' > "$PROMPT_FILE"
 
 # wait_for <file> - polls up to 5s for the file to be non-empty.
 wait_for() {
-  local i
-  for i in $(seq 1 50); do
+  local _
+  for _ in $(seq 1 50); do
     [ -s "$1" ] && return 0
     sleep 0.1
   done
@@ -104,8 +104,10 @@ test_opens_window_running_claude_with_double_dash_and_prompt() {
 test_refuses_when_tmux_unset() {
   local before err rc
   before=$(windows)
-  err=$(env -u TMUX bash "$SCRIPT" "$REPO_DIR" "$PROMPT_FILE" \
-    2>&1 >/dev/null)
+  # TMUX_TMPDIR points at an empty dir so a regressed guard
+  # finds no server instead of reaching the user's live tmux.
+  err=$(env -u TMUX TMUX_TMPDIR="$WORK/no-tmux-server" \
+    bash "$SCRIPT" "$REPO_DIR" "$PROMPT_FILE" 2>&1 >/dev/null)
   rc=$?
   check "exit code when TMUX unset" "2" "$rc"
   check "stderr prefix when TMUX unset" \
@@ -132,9 +134,37 @@ test_refuses_when_repo_dir_missing() {
     "$before" "$(windows)"
 }
 
+# should deliver a 30,000-byte prompt with quotes, $HOME,
+# $(date), a backtick, a blank line, ação and a first line
+# starting with a dash, from a path holding a space and a
+# single quote, intact minus trailing newlines
+test_delivers_hostile_30000_byte_prompt_from_awkward_path() {
+  local dir="$WORK/dir with a 'quote" file expected got body
+  mkdir -p "$dir"
+  file="$dir/prompt file's.txt"
+  body="- starts with a dash"$'\n'
+  body+="say \"hi\" and 'bye' \$HOME \$(date) \`id\`"$'\n\n'
+  body+="ação: preço R\$ 10"$'\n'
+  while [ "${#body}" -lt 30000 ]; do
+    body+="0123456789abcdefghij ação 0123456789 \$X \"q\""$'\n'
+  done
+  printf '%s\n\n' "$body" > "$file"
+  expected="${body%$'\n'}"
+  rm -f "$OUT_DIR/arg1" "$OUT_DIR/arg2"
+  TMUX="$SOCKET_PATH,0,0" TMUX_PANE="$PANE" \
+    bash "$SCRIPT" "$REPO_DIR" "$file"
+  wait_for "$OUT_DIR/arg2"
+  got=$(cat "$OUT_DIR/arg2" 2>/dev/null)
+  check "prompt is at least 30000 bytes" "ok" \
+    "$([ "$(wc -c < "$file")" -ge 30000 ] && echo ok || echo short)"
+  check "first arg is --" "--" "$(cat "$OUT_DIR/arg1" 2>/dev/null)"
+  check "prompt arrives intact" "$expected" "$got"
+}
+
 test_refuses_when_tmux_unset
 test_refuses_when_repo_dir_missing
 test_opens_window_running_claude_with_double_dash_and_prompt
+test_delivers_hostile_30000_byte_prompt_from_awkward_path
 
 echo "lateral-session: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]
