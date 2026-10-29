@@ -197,7 +197,6 @@ it_should_render_two_subagent_bumps_as_zero_plus_two() {
 it_should_preserve_a_split_counter_across_a_retitle() {
   start_server
 
-  title "auth-fix"
   title --bump-subagent-counter
   title "db-store"
 
@@ -226,16 +225,15 @@ it_should_root_a_retitle_that_follows_a_compaction() {
 it_should_freeze_the_root_at_the_last_pre_compaction_title() {
   start_server
 
-  # Pre-compaction re-titles are refinements of the same
-  # session identity, so the LAST one is what the user has
+  # A session sets one title before its first compaction (a
+  # re-title is refused), so that title is what the user has
   # been reading when the first compaction lands.
-  title "auth"
   title "auth-fix"
   title --bump-counter
   title "db-store"
 
   assert_eq \
-    "TmuxWindowTitle > root > should freeze the last pre-compaction title, not the first" \
+    "TmuxWindowTitle > root > should freeze the one pre-compaction title as root" \
     "auth-fix/db-store[1]" "$(window_name)"
   stop_server
 }
@@ -353,11 +351,10 @@ it_should_not_root_a_pane_claude_never_titled() {
 it_should_freeze_the_root_at_the_title_current_when_the_main_bump_lands() {
   start_server
 
-  title "auth-fix"
   title --bump-subagent-counter
   title "db-store"
 
-  # A subagent bump never freezes a root, so the retitle above
+  # A subagent bump never freezes a root, so the title above
   # lands on a still-rootless pane and just carries the counter.
   assert_eq \
     "TmuxWindowTitle > root > should freeze no root from a subagent bump alone" \
@@ -366,11 +363,10 @@ it_should_freeze_the_root_at_the_title_current_when_the_main_bump_lands() {
   title --bump-counter
 
   # The main bump freezes whatever title is current AT THIS
-  # MOMENT ("db-store"), not the session's original title
-  # ("auth-fix") -- a bare render (no "auth-fix/" prefix) is
-  # only possible when the root equals "db-store" exactly.
+  # MOMENT ("db-store") -- a bare render is only possible
+  # when the root equals "db-store" exactly.
   assert_eq \
-    "TmuxWindowTitle > root > should freeze the root at the retitled base current when the main bump lands, not the session's original title" \
+    "TmuxWindowTitle > root > should freeze the root at the title current when the main bump lands" \
     "db-store[1+1]" "$(window_name)"
   stop_server
 }
@@ -1107,6 +1103,22 @@ it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre
   stop_server
 }
 
+it_should_refuse_a_second_title_before_the_first_main_compaction_with_exit_0_and_the_note() {
+  start_server
+
+  title "city-code"
+  local err status=0
+  err=$(title "retry-fix" 2>&1 >/dev/null) || status=$?
+
+  local has_note=no
+  case "$err" in *"expected"*"Do not retry"*) has_note=yes ;; esac
+
+  assert_eq \
+    "TmuxWindowTitle > first title > should refuse a second title before the first main compaction with exit 0 and the note" \
+    "city-code|0|yes" "$(window_name)|$status|$has_note"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1200,6 +1212,7 @@ it_should_reject_a_missing_title
 it_should_no_op_outside_tmux
 it_should_print_help_to_stdout
 it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre_claude_name
+it_should_refuse_a_second_title_before_the_first_main_compaction_with_exit_0_and_the_note
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

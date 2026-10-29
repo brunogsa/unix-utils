@@ -428,6 +428,19 @@ last_title() {
   tmux show-options -p -t "$TMUX_PANE" -v "@claude_last_title" 2>/dev/null || true
 }
 
+# Echo "yes" when this session already spent its one title
+# before the first main compaction, else "no".
+#
+# The pane option is the record: `show-options -v` exits
+# non-zero on an option that was never set.
+first_title_spent() {
+  if tmux show-options -p -t "$TMUX_PANE" -v "@claude_first_title_used" >/dev/null 2>&1; then
+    printf 'yes'
+  else
+    printf 'no'
+  fi
+}
+
 # Echo a hand-set window name as a root: "/" folded to "-" so it
 # cannot split into root and label, then cut to MAX_LEN_PLAIN
 # (a leading dot counts).
@@ -706,6 +719,17 @@ case "$MODE" in
     if [ -z "$(root_title)" ] && [ "$(has_no_main_compaction "$existing")" = no ]; then
       tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$clean"
     fi
+
+    # Before the first main compaction a session gets ONE title.
+    # A second one is refused with exit 0: the caller must not
+    # read it as a failure, so the note says to stop retrying.
+    if [ "$(has_no_main_compaction "$existing")" = yes ]; then
+      if [ "$(first_title_spent)" = yes ]; then
+        echo "tmux-window-title: title refused (expected, not an error): this session already set its first title and may not re-title before its first compaction. Do not retry." >&2
+        exit 0
+      fi
+    fi
+
     capture_prev_state
     apply_title "$(render_title "$clean" "$existing" "$(root_title)")"
     if [ "$(has_no_main_compaction "$existing")" = yes ]; then
