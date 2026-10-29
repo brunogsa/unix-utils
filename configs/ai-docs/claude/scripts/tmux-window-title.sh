@@ -440,7 +440,11 @@ clear_root_title() {
 # `-` is not read as a flag.
 apply_title() {
   tmux set-window-option -t "$TMUX_PANE" automatic-rename off
-  tmux rename-window -t "$TMUX_PANE" -- "$1"
+
+  # One command list, so a rename never lands without the record
+  # of what the script wrote.
+  tmux rename-window -t "$TMUX_PANE" -- "$1" \; \
+    set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$1"
 }
 
 # Shared preamble + render for --bump-counter and

@@ -79,6 +79,14 @@ window_name() {
   tmux -L "$SOCK" display-message -t "$TMUX_PANE" -p '#{window_name}'
 }
 
+# set_last_title - record `name` as the name the script itself
+# last wrote, the way apply_title does, so a name injected with
+# rename-window reads as the script's own and never as a hand
+# rename.
+set_last_title() {
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_last_title" "$1"
+}
+
 title() {
   bash "$SCRIPT_UNDER_TEST" "$@"
 }
@@ -462,6 +470,7 @@ it_should_drop_a_trailing_hyphen_left_by_truncating_the_root() {
   title "aaaaaaaaaaaaaa-z"
   title --bump-counter
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaa-z[123456789012345]"
+  set_last_title "aaaaaaaaaaaaaa-z[123456789012345]"
   title "aaaaaaaaaaaaaa-z"
 
   assert_eq \
@@ -514,6 +523,7 @@ it_should_keep_the_root_at_sixteen_chars_for_every_counter_width_up_to_sixteen()
   for digit_count in 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
     local digits; digits=$(printf '1%.0s' $(seq 1 "$digit_count"))
     tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[${digits}]"
+    set_last_title "aaaaaaaaaaaaaaaa[${digits}]"
     title "bbbbbbbbbbbbbbbbbbbb"
 
     # Read the first 16 chars directly rather than splitting on
@@ -557,6 +567,7 @@ it_should_survive_an_absurdly_wide_counter_that_alone_exceeds_the_cap() {
   title --bump-counter
   local absurd="123456789012345678901234567890"
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaa-bbbb-cccc-d[${absurd}]"
+  set_last_title "aaaa-bbbb-cccc-d[${absurd}]"
 
   local status=0
   title "eeee-ffff-gggg-h" >/dev/null 2>&1 || status=$?
@@ -602,6 +613,7 @@ it_should_render_a_single_label_char_at_a_fourteen_char_counter_width() {
   title "aaaaaaaaaaaaaaaa"
   title --bump-counter
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[123456789012]"
+  set_last_title "aaaaaaaaaaaaaaaa[123456789012]"
   title "bbbbbbbbbbbbbbbb"
 
   assert_eq \
@@ -619,6 +631,7 @@ it_should_drop_the_label_entirely_at_a_fifteen_char_counter_width() {
   title "aaaaaaaaaaaaaaaa"
   title --bump-counter
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[1234567890123]"
+  set_last_title "aaaaaaaaaaaaaaaa[1234567890123]"
   title "bbbbbbbbbbbbbbbb"
 
   assert_eq \
@@ -637,11 +650,43 @@ it_should_clamp_the_head_room_to_zero_without_negative_width_at_a_wide_counter()
   # 16-char room (16 - (22-16) = 10), while the label_room clamp
   # (16 - 22, floored at 0) drops the label entirely.
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "aaaaaaaaaaaaaaaa[12345678901234567890]"
+  set_last_title "aaaaaaaaaaaaaaaa[12345678901234567890]"
   title "bbbbbbbbbbbbbbbb"
 
   assert_eq \
     "TmuxWindowTitle > cap > should clamp the head room without going negative at a wide counter" \
     "aaaaaaaaaa[12345678901234567890]" "$(window_name)"
+  stop_server
+}
+
+# seed_rooted_window - put the pane in the state the script
+# itself leaves after a main compaction: `root` frozen, and
+# `last_name` both shown by the window and recorded as the last
+# title the script wrote.
+seed_rooted_window() {
+  local root=$1 last_name=$2
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "$last_name"
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "zsh"
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_root_title" "$root"
+  set_last_title "$last_name"
+}
+
+# root_option - the frozen root stored on the pane under test.
+root_option() {
+  tmux -L "$SOCK" show-options -p -t "$TMUX_PANE" -v "@claude_root_title" 2>/dev/null
+}
+
+it_should_render_ebs_report_27_plus_2_when_a_main_bump_lands_on_a_pre_rollout_counter() {
+  start_server
+
+  # A window opened before rollout: the name carries the
+  # counter and no last title was ever recorded.
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "ebs-report[26+2]"
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render ebs-report[27+2] when a main bump lands on a pre-rollout ebs-report[26+2]" \
+    "ebs-report[27+2]" "$(window_name)"
   stop_server
 }
 
@@ -821,6 +866,7 @@ it_should_survive_an_absurdly_wide_counter_with_no_root_frozen
 it_should_render_a_single_label_char_at_a_fourteen_char_counter_width
 it_should_drop_the_label_entirely_at_a_fifteen_char_counter_width
 it_should_clamp_the_head_room_to_zero_without_negative_width_at_a_wide_counter
+it_should_render_ebs_report_27_plus_2_when_a_main_bump_lands_on_a_pre_rollout_counter
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
