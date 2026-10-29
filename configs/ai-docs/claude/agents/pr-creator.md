@@ -39,6 +39,8 @@ You cannot ask the user, so treat a missing ticket input as "none" and flag it a
 5. **Caller asked you to go all the way**: continue the `create-pr` skill's own process instead of stopping at the drafted body.
    Push the branch if needed, create or update the PR exactly as that skill prescribes, and return the PR URL.
 
+   Before pushing, when `.github/` holds a PR template (`pull_request_template.md` or `PULL_REQUEST_TEMPLATE.md`), run `~/.claude/skills/create-pr/scripts/check-pr-template-headings.sh <final-body> <template>` and fix the body until it exits 0, whoever composed it. It is the only template check left when `pr-finalizer` was skipped: two real PRs composed without it dropped template sections.
+
 ## Boundaries
 
 - Never push or create/update a PR unless the caller explicitly asked you to go all the way.
