@@ -83,8 +83,8 @@ agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true
-You are running inside tmux. Set the tmux window title ONCE, now, to the SHORTEST name that conveys the session's goal. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". The title names the goal, never a skill name, a step name, or an issue-tracker ID. Set it by running:
-  ~/.claude/scripts/tmux-window-title.sh "<title>"
+You are running inside tmux. Set the tmux window title ONCE, now, to the SHORTEST name that conveys the session's goal. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), only lowercase letters, digits and hyphens ([a-z0-9-]) so a quote, "$", backtick or ";" copied from a PR title or branch name never reaches the command, and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". The title names the goal, never a skill name, a step name, or an issue-tracker ID. Set it by running:
+  ~/.claude/scripts/tmux-window-title.sh '<title>'
 Pick the goal from the first of these sources that exists, in this order:
   1. The open PR's title: run `gh pr view --json title` yourself. Drop ticket IDs and "feat(...)"-style prefixes from it. If the lookup fails or finds nothing, go to the next source.
   2. The git branch topic, with the ticket ID dropped: read the branch name yourself.
