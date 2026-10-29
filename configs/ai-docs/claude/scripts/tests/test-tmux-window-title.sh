@@ -1176,6 +1176,20 @@ it_should_render_dot_city_code_0_plus_1_when_a_subagent_bump_lands_on_a_dotted_n
   stop_server
 }
 
+it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1() {
+  start_server
+
+  title "billing"
+  title --bump-subagent-counter
+  local status=0
+  title "retry-fix" >/dev/null 2>&1 || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > first title > should refuse a re-title after a subagent bump and keep billing[0+1]" \
+    "billing[0+1]|0" "$(window_name)|$status"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1274,6 +1288,7 @@ it_should_leave_a_dotted_window_unchanged_and_exit_0_with_the_expected_refusal_n
 it_should_leave_a_window_named_only_a_dot_unchanged
 it_should_set_the_first_title_after_a_dot_refused_call_once_the_user_drops_the_dot
 it_should_render_dot_city_code_0_plus_1_when_a_subagent_bump_lands_on_a_dotted_name
+it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
