@@ -87,6 +87,12 @@ set_last_title() {
   tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_last_title" "$1"
 }
 
+# pane_option - the value of a pane option on the pane under
+# test, empty when it was never set.
+pane_option() {
+  tmux -L "$SOCK" show-options -p -t "$TMUX_PANE" -v "$1" 2>/dev/null || true
+}
+
 title() {
   bash "$SCRIPT_UNDER_TEST" "$@"
 }
@@ -980,7 +986,7 @@ it_should_drop_the_counter_and_the_root_on_reset() {
   title "auth-fix"
   title --bump-counter
   title "db-store"
-  title --reset-counter
+  title --reset-counter </dev/null
 
   assert_eq \
     "TmuxWindowTitle > reset > should shed both the counter and the root prefix" \
@@ -995,7 +1001,7 @@ it_should_shed_a_split_counter_and_release_the_root_on_reset() {
   title --bump-counter
   title --bump-subagent-counter
   title "db-store"
-  title --reset-counter
+  title --reset-counter </dev/null
 
   assert_eq \
     "TmuxWindowTitle > reset > should shed both halves of a split [M+S] counter on reset" \
@@ -1019,7 +1025,7 @@ it_should_let_a_new_root_be_frozen_after_a_reset() {
   title "auth-fix"
   title --bump-counter
   title "db-store"
-  title --reset-counter
+  title --reset-counter </dev/null
   title --bump-counter
   title "api-cache"
 
@@ -1038,11 +1044,11 @@ it_should_release_the_root_even_when_no_counter_is_present() {
   title "auth-fix"
   title --bump-counter
   title "db-store"
-  title --reset-counter
+  title --reset-counter </dev/null
 
   # Second reset: no counter to strip, so the mode returns
   # early - the root must already have been released.
-  title --reset-counter
+  title --reset-counter </dev/null
   title --bump-counter
   title "api-cache"
 
@@ -1056,7 +1062,7 @@ it_should_leave_an_untitled_window_alone_on_reset() {
   start_server
 
   tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
-  title --reset-counter
+  title --reset-counter </dev/null
 
   assert_eq \
     "TmuxWindowTitle > reset > should leave a window Claude never titled untouched" \
@@ -1281,6 +1287,88 @@ it_should_print_help_to_stdout() {
     "yes" "$documents_root"
 }
 
+it_should_clear_root_and_first_title_flag_without_renaming_on_source_clear() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "db-store"
+  local before
+  before=$(window_name)
+
+  title --reset-counter <<'JSON'
+{"source":"clear"}
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should write no window name on source clear" \
+    "$before" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should release the frozen root on source clear" \
+    "" "$(pane_option "@claude_root_title")"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should unset the first-title flag on source clear" \
+    "" "$(pane_option "@claude_first_title_used")"
+  stop_server
+}
+
+it_should_store_zsh_as_the_last_title_after_a_reset_with_source_clear_on_a_never_titled_zsh_0_plus_1() {
+  start_server
+
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+  title --bump-subagent-counter </dev/null
+
+  title --reset-counter <<'JSON'
+{"source":"clear"}
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should store zsh without its counter as the last title on source clear" \
+    "zsh" "$(pane_option "@claude_last_title")"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should leave the never-titled zsh[0+1] name for the restore hook on source clear" \
+    "zsh[0+1]" "$(window_name)"
+  stop_server
+}
+
+it_should_keep_each_existing_reset_label_and_leave_last_title_set_and_first_title_unset() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "db-store"
+  title --reset-counter <<'JSON'
+{"source":"startup"}
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should render the bare label on a non-clear source" \
+    "db-store" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should leave the last title set to the bare label on a non-clear source" \
+    "db-store" "$(pane_option "@claude_last_title")"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should unset the first-title flag on a non-clear source" \
+    "" "$(pane_option "@claude_first_title_used")"
+  stop_server
+}
+
+it_should_take_the_non_clear_path_when_stdin_is_malformed() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "db-store"
+  title --reset-counter <<'JSON'
+not json at all
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should still reset with the bare label when stdin is malformed JSON" \
+    "db-store" "$(window_name)"
+  stop_server
+}
+
 if ! command -v tmux >/dev/null 2>&1; then
   echo "tmux not installed - cannot exercise tmux-window-title.sh" >&2
   exit 1
@@ -1357,6 +1445,10 @@ it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused
 it_should_freeze_the_first_title_when_the_main_bump_lands_after_a_refused_retitle
 it_should_treat_the_first_title_as_spent_on_a_window_titled_before_rollout
 it_should_allow_the_first_title_with_no_note_when_the_live_name_equals_prev_on_a_pre_rollout_window
+it_should_clear_root_and_first_title_flag_without_renaming_on_source_clear
+it_should_store_zsh_as_the_last_title_after_a_reset_with_source_clear_on_a_never_titled_zsh_0_plus_1
+it_should_keep_each_existing_reset_label_and_leave_last_title_set_and_first_title_unset
+it_should_take_the_non_clear_path_when_stdin_is_malformed
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

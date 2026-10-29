@@ -680,10 +680,37 @@ case "$MODE" in
     # zero compactions must still release the root.
     clear_root_title
 
+    # A spent first-title flag would block the next session's
+    # first title, so every source releases it.
+    tmux set-option -p -u -t "$TMUX_PANE" "@claude_first_title_used" 2>/dev/null || true
+
+    # SessionStart passes {"source": ...} on stdin.
+    # An empty or unreadable source takes the non-clear path.
+    # `|| true` keeps a jq failure from aborting the reset
+    # under `set -e`.
+    source=$(jq -r '.source // empty' 2>/dev/null || true)
+
     current=$(current_title)
+
+    # On /clear the SessionEnd restore hook alone owns the name.
+    # Hook order is undocumented and hooks run in parallel, so
+    # write no name here.
+    #
+    # Record the live name minus its counter as the last title
+    # the script wrote, so a never-titled "zsh[0+1]" does not
+    # keep "[0+1]" once the restore hook has run.
+    if [ "$source" = clear ]; then
+      tmux set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$(strip_counter "$current")"
+      exit 0
+    fi
+
     # With no counter present, leave the window name alone --
     # it's the user's shell title, not one of ours.
+    #
+    # The last title still gets set: the rollout shim reads an
+    # unset one as a pre-rollout window.
     if [ -z "$(parse_counter "$current")" ]; then
+      tmux set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$current"
       exit 0
     fi
 
