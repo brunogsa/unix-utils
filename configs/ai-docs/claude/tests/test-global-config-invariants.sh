@@ -319,6 +319,39 @@ it_should_fail_when_the_session_start_compaction_router_is_still_wired
 it_should_fail_when_the_dead_session_start_compaction_router_script_survives
 
 # ============================================================
+# describe("TmuxTitleSessionStartWiring")
+# ============================================================
+
+# session_start_matcher_for - the committed matcher of the
+# SessionStart entry whose hook runs the given command.
+#
+# Selected by command, never by array index, so reordering
+# the entries can't flap these tests.
+session_start_matcher_for() {
+  committed_settings | jq -r --arg cmd "$1" \
+    '.hooks.SessionStart[] | select(any(.hooks[]; .command == $cmd)) | .matcher'
+}
+
+it_should_wire_the_reset_entry_on_startup_clear_resume_and_fork() {
+  local actual
+  actual=$(session_start_matcher_for "bash ~/.claude/scripts/tmux-window-title.sh --reset-counter")
+  assert_eq \
+    "TmuxTitleSessionStartWiring > happy > should wire the reset entry on startup, clear, resume and fork" \
+    "startup|clear|resume|fork" "$actual"
+}
+
+it_should_wire_the_reminder_entry_on_startup_clear_resume_and_fork_but_never_on_compact() {
+  local actual
+  actual=$(session_start_matcher_for "bash ~/.claude/hooks/claude-tmux-title-reminder.sh")
+  assert_eq \
+    "TmuxTitleSessionStartWiring > happy > should wire the reminder entry on startup, clear, resume and fork but never on compact" \
+    "startup|clear|resume|fork" "$actual"
+}
+
+it_should_wire_the_reset_entry_on_startup_clear_resume_and_fork
+it_should_wire_the_reminder_entry_on_startup_clear_resume_and_fork_but_never_on_compact
+
+# ============================================================
 # describe("SuiteExecBitPermissions")
 # ============================================================
 
