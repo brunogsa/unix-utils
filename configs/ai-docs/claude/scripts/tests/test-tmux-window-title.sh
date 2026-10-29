@@ -690,6 +690,58 @@ it_should_render_ebs_report_27_plus_2_when_a_main_bump_lands_on_a_pre_rollout_co
   stop_server
 }
 
+it_should_render_dot_payments_3_when_a_main_bump_follows_a_hand_rename_of_a_rooted_window() {
+  start_server
+  seed_rooted_window ".billing" ".billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".payments"
+
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render .payments[3] when a main bump follows a hand rename of a rooted window to .payments" \
+    ".payments[3]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_dot_payments_2_plus_1_when_a_subagent_bump_follows_the_hand_rename() {
+  start_server
+  seed_rooted_window ".billing" ".billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".payments"
+
+  title --bump-subagent-counter
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render .payments[2+1] when a subagent bump follows the hand rename to .payments" \
+    ".payments[2+1]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_dot_payments_ledger_fix_when_claude_sets_a_tail_after_the_hand_rename() {
+  start_server
+  seed_rooted_window ".billing" ".billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".payments"
+
+  title "ledger-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render .payments/ledger-fix[2] when Claude sets a tail after the hand rename to .payments" \
+    ".payments/ledger-fix[2]" "$(window_name)"
+  stop_server
+}
+
+it_should_render_payments_ledger_fix_when_the_hand_rename_drops_the_dot() {
+  start_server
+  seed_rooted_window ".billing" ".billing/retry-fix[2]"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "payments"
+
+  title "ledger-fix"
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should render payments/ledger-fix[2] when the hand rename drops the dot" \
+    "payments/ledger-fix[2]" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -867,6 +919,10 @@ it_should_render_a_single_label_char_at_a_fourteen_char_counter_width
 it_should_drop_the_label_entirely_at_a_fifteen_char_counter_width
 it_should_clamp_the_head_room_to_zero_without_negative_width_at_a_wide_counter
 it_should_render_ebs_report_27_plus_2_when_a_main_bump_lands_on_a_pre_rollout_counter
+it_should_render_dot_payments_3_when_a_main_bump_follows_a_hand_rename_of_a_rooted_window
+it_should_render_dot_payments_2_plus_1_when_a_subagent_bump_follows_the_hand_rename
+it_should_render_dot_payments_ledger_fix_when_claude_sets_a_tail_after_the_hand_rename
+it_should_render_payments_ledger_fix_when_the_hand_rename_drops_the_dot
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset

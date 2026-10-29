@@ -399,6 +399,43 @@ root_title() {
   tmux show-options -p -t "$TMUX_PANE" -v "@claude_root_title" 2>/dev/null || true
 }
 
+# Echo the last name this script wrote to the window, or nothing
+# when it never wrote one (a window opened before this option
+# existed).
+#
+# The window name is the user's to rename; this option is the
+# script's own record, so a live name that differs from it is a
+# hand rename.
+last_title() {
+  tmux show-options -p -t "$TMUX_PANE" -v "@claude_last_title" 2>/dev/null || true
+}
+
+# Echo a hand-set window name as a root: "/" folded to "-" so it
+# cannot split into root and label, then cut to MAX_LEN_PLAIN
+# (a leading dot counts).
+#
+# The counter is not stripped: the count lives in last_title, so
+# a bracket in a hand-set name is plain text.
+adopt_root_name() {
+  local name=$1
+  truncate_segment "${name//"$ROOT_SEPARATOR"/-}" "$MAX_LEN_PLAIN"
+}
+
+# Echo "yes" when the main-compaction half of a counter body is
+# zero or absent, else "no".
+#
+# A string test, never a numeric one: bash 3.2 overflows on the
+# 20-30 digit counts the cap tests inject.
+has_no_main_compaction() {
+  local main
+  main=$(main_count "$1")
+  if [[ $main =~ ^0+$ ]]; then
+    printf 'yes'
+  else
+    printf 'no'
+  fi
+}
+
 # Freeze `base` as this session's root, unless one is
 # already frozen.
 #
@@ -467,17 +504,37 @@ apply_title() {
 # This helper reads both together, after.
 bump_counter() {
   local half=$1
-  local current body base main sub counter
+  local current last body base main sub counter
+  local is_hand_rename=no
 
   current=$(current_title)
-  body=$(parse_counter "$current")
+  last=$(last_title)
   capture_prev_state
-  base=$(compact_focus_base "$current")
+
+  # Counter and label come from the name the script itself wrote
+  # last.
+  #
+  # With none recorded (a window opened before rollout) they
+  # come from the live name, as they always did.
+  if [ -z "$last" ]; then
+    body=$(parse_counter "$current")
+    base=$(compact_focus_base "$current")
+  else
+    body=$(parse_counter "$last")
+    if [ "$current" = "$last" ]; then
+      base=$(compact_focus_base "$last")
+    else
+      # The user renamed the window since: take the whole new
+      # name as the label, with no split at its own "/".
+      is_hand_rename=yes
+      base=$(adopt_root_name "$current")
+    fi
+  fi
 
   main=$(main_count "$body")
   sub=$(subagent_count "$body")
 
-  if [ "$half" = main ]; then
+  if [ "$(has_no_main_compaction "$body")" = yes ]; then
     # Freeze the root on the FIRST MAIN compaction only: `base`
     # is still the pre-compaction title, which is the anchor the
     # user already recognizes.
@@ -485,9 +542,16 @@ bump_counter() {
     # Subagent bumps never reach here, so a session whose
     # subagents compacted first still anchors to the title it
     # carried into its OWN first compaction.
-    if [ "$main" -eq 0 ]; then
+    if [ "$half" = main ]; then
       freeze_root_title "$base"
     fi
+  elif [ "$is_hand_rename" = yes ]; then
+    # After a main compaction the hand-set name replaces the
+    # root, so the label equals it and renders bare.
+    tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$base"
+  fi
+
+  if [ "$half" = main ]; then
     main=$(( main + 1 ))
   else
     sub=$(( sub + 1 ))
@@ -587,7 +651,20 @@ case "$MODE" in
       exit 1
     fi
 
-    existing=$(parse_counter "$(current_title)")
+    current=$(current_title)
+    last=$(last_title)
+    if [ -z "$last" ]; then
+      existing=$(parse_counter "$current")
+    else
+      existing=$(parse_counter "$last")
+
+      # A live name that differs from the last one written is
+      # a hand rename; after a main compaction it becomes the
+      # root.
+      if [ "$current" != "$last" ] && [ "$(has_no_main_compaction "$existing")" = no ]; then
+        tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$(adopt_root_name "$current")"
+      fi
+    fi
     capture_prev_state
     apply_title "$(render_title "$clean" "$existing" "$(root_title)")"
     ;;
