@@ -708,5 +708,8 @@ case "$MODE" in
     fi
     capture_prev_state
     apply_title "$(render_title "$clean" "$existing" "$(root_title)")"
+    if [ "$(has_no_main_compaction "$existing")" = yes ]; then
+      tmux set-option -p -t "$TMUX_PANE" -- "@claude_first_title_used" 1
+    fi
     ;;
 esac

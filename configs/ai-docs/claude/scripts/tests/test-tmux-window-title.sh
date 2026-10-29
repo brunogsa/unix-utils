@@ -1089,6 +1089,24 @@ it_should_reject_a_missing_title() {
     "1" "$status"
 }
 
+# first_title_flag - the pane option marking that this session's
+# first title was spent; empty when unset.
+first_title_flag() {
+  tmux -L "$SOCK" show-options -p -t "$TMUX_PANE" -v "@claude_first_title_used" 2>/dev/null
+}
+
+it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre_claude_name() {
+  start_server
+
+  local err status=0
+  err=$(title "city-code" 2>&1 >/dev/null) || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > first title > should set the first title with no refusal note when the window shows its pre-Claude name" \
+    "city-code|0||1" "$(window_name)|$status|$err|$([ -n "$(first_title_flag)" ] && echo 1)"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1181,6 +1199,7 @@ it_should_reject_a_title_that_sanitizes_to_nothing
 it_should_reject_a_missing_title
 it_should_no_op_outside_tmux
 it_should_print_help_to_stdout
+it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre_claude_name
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
