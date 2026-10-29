@@ -546,10 +546,16 @@ clear_root_title() {
 apply_title() {
   tmux set-window-option -t "$TMUX_PANE" automatic-rename off
 
+  # tmux reads an argument ending in `;` as a command separator,
+  # which would drop it from the title; a backslash makes it a
+  # literal semicolon again.
+  local title="$1"
+  [[ "$title" == *\; ]] && title="${title%;}\\;"
+
   # One command list, so a rename never lands without the record
   # of what the script wrote.
-  tmux rename-window -t "$TMUX_PANE" -- "$1" \; \
-    set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$1"
+  tmux rename-window -t "$TMUX_PANE" -- "$title" \; \
+    set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$title"
 }
 
 # Shared preamble + render for --bump-counter and

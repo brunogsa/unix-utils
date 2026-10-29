@@ -1312,6 +1312,20 @@ JSON
   stop_server
 }
 
+it_should_set_the_window_name_and_last_title_verbatim_when_the_title_ends_in_a_semicolon() {
+  start_server
+
+  title "foo;"
+
+  assert_eq \
+    "TmuxWindowTitle > semicolon > should set the window name verbatim when the title ends in a semicolon" \
+    "foo;" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > semicolon > should record the last title verbatim when the title ends in a semicolon" \
+    "foo;" "$(pane_option "@claude_last_title")"
+  stop_server
+}
+
 it_should_store_zsh_as_the_last_title_after_a_reset_with_source_clear_on_a_never_titled_zsh_0_plus_1() {
   start_server
 
@@ -1515,6 +1529,7 @@ if ! command -v tmux >/dev/null 2>&1; then
 fi
 
 it_should_set_a_plain_title_before_any_compaction
+it_should_set_the_window_name_and_last_title_verbatim_when_the_title_ends_in_a_semicolon
 it_should_hyphenate_whitespace_in_a_title
 it_should_start_the_counter_at_one_on_the_first_compaction
 it_should_increment_the_counter_on_later_compactions
