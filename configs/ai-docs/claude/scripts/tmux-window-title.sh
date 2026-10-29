@@ -18,7 +18,7 @@
 #   Counter bumps, one per kind of compaction:
 #     --bump-subagent-counter   # +1 subagent compaction
 #     --bump-counter            # +1 main-session compaction
-#     --reset-counter           # drop the counter entirely
+#     --reset-counter           # reset title state
 #
 # Compaction counter:
 #   The title carries an optional trailing counter -- how many
@@ -53,7 +53,17 @@
 #   compaction.
 #
 #   The counter is managed by SessionStart hooks: a bump on
-#   `compact`, --reset-counter on `startup`/`clear`.
+#   `compact`, --reset-counter on every other source.
+#
+#   --reset-counter reads the SessionStart `source` from stdin
+#   ({"source": ...}).
+#
+#   For every source it drops the root and the first-title flag,
+#   so the next session titles itself afresh.
+#
+#   On `clear` it writes no window name -- the SessionEnd
+#   restore hook owns the name on /clear -- and sets the last
+#   title to the live name minus its counter.
 #
 #   Setting a base title PRESERVES an existing counter.
 #
@@ -142,7 +152,7 @@
 #   and cannot preserve it by judgment alone.
 #
 #   It is immutable for the life of the session -- only
-#   --reset-counter (SessionStart `startup`/`clear`) drops it,
+#   --reset-counter (every non-`compact` source) drops it,
 #   letting the next session set its own.
 #
 #   A pane that Claude never titled grows no root, so the window
@@ -198,7 +208,7 @@
 #
 #   tmux-window-title.sh --reset-counter
 #     drops the counter and the root, keeping the rendered
-#     label: "hook-tests"
+#     label: "hook-tests" (on source `clear` no name is written)
 
 set -euo pipefail
 
