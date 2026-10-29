@@ -39,12 +39,30 @@
 #   The "+" costs two of the 16-char tail room (see Root anchor
 #   below), so it appears only once it carries information.
 #
-#   The count lives in the title itself (single source of
-#   truth), managed by SessionStart hooks: a bump on `compact`,
-#   --reset-counter on `startup`/`clear`.
+#   The reference for the count is the pane option
+#   @claude_last_title, the name this script itself wrote last.
 #
-#   Setting a base title PRESERVES an existing counter, so
-#   Claude re-titling on a topic shift does not reset the count.
+#   The live window name is read only when that option is unset
+#   (a window opened before rollout) or differs from it, which
+#   means the user renamed the window by hand.
+#
+#   A hand rename is taken whole as the new label, and becomes
+#   the root (folded and capped like any root) at the next main
+#   compaction.
+#
+#   The counter is managed by SessionStart hooks: a bump on
+#   `compact`, --reset-counter on `startup`/`clear`.
+#
+#   Setting a base title PRESERVES an existing counter.
+#
+#   Leading dots in a title Claude passes are stripped: a dotted
+#   label is always the user's own deliberate name, so Claude
+#   never writes one.
+#
+#   When a main compaction freezes no root (the window still
+#   shows its pre-Claude name), --bump-counter prints a note on
+#   stdout telling Claude to pass the session goal first; that
+#   title then becomes the root.
 #
 # Root anchor:
 #   The title the user learned to recognize is the one the
@@ -548,6 +566,14 @@ bump_counter() {
     # carried into its OWN first compaction.
     if [ "$half" = main ]; then
       freeze_root_title "$base"
+
+      # No root froze, so the next title Claude passes becomes
+      # the root (title mode). Claude Code adds a SessionStart
+      # `compact` hook's plain stdout to Claude's context, so
+      # this note reaches it right when it must pick that title.
+      if [ -z "$(root_title)" ]; then
+        echo "tmux-window-title: this window has no root title yet. Pass the session goal as your next title, not the current sub-goal: that title becomes the window's root."
+      fi
     fi
   elif [ "$is_hand_rename" = yes ]; then
     # After a main compaction the hand-set name replaces the

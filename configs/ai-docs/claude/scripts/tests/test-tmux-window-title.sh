@@ -912,6 +912,41 @@ it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root(
   stop_server
 }
 
+it_should_print_the_session_goal_first_note_on_stdout_when_a_main_bump_freezes_no_root() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+
+  local out
+  out=$(title --bump-counter 2>/dev/null)
+
+  local mentions_goal=no
+  case "$out" in *"session goal"*) mentions_goal=yes ;; esac
+  assert_eq \
+    "TmuxWindowTitle > bump note > should tell Claude to pass the session goal first when no root froze" \
+    "yes" "$mentions_goal"
+  stop_server
+}
+
+it_should_print_no_note_when_the_main_bump_freezes_a_root_or_finds_one_already_frozen() {
+  start_server
+  title "billing"
+  local out
+  out=$(title --bump-counter 2>/dev/null)
+  assert_eq \
+    "TmuxWindowTitle > bump note > should print no note when the bump freezes a root" \
+    "" "$out"
+  stop_server
+
+  start_server
+  title "billing"
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_root_title" "billing"
+  out=$(title --bump-counter 2>/dev/null)
+  assert_eq \
+    "TmuxWindowTitle > bump note > should print no note when a root is already frozen" \
+    "" "$out"
+  stop_server
+}
+
 it_should_strip_every_leading_dot_when_claude_passes_a_dotted_title() {
   local dotted
   for dotted in ".billing" "..billing" ".-billing" " .billing" "/.billing"; do
@@ -1133,6 +1168,8 @@ it_should_freeze_a_dotted_pre_claude_name_as_root_despite_the_pre_claude_name_gu
 it_should_freeze_a_lone_dot_as_root_and_render_dot_slash_retry_fix
 it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_note
 it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root
+it_should_print_the_session_goal_first_note_on_stdout_when_a_main_bump_freezes_no_root
+it_should_print_no_note_when_the_main_bump_freezes_a_root_or_finds_one_already_frozen
 it_should_strip_every_leading_dot_when_claude_passes_a_dotted_title
 it_should_exit_1_and_leave_zsh_when_claude_passes_a_lone_dot
 it_should_drop_the_counter_and_the_root_on_reset
