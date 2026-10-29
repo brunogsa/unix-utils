@@ -1135,6 +1135,19 @@ it_should_leave_a_dotted_window_unchanged_and_exit_0_with_the_expected_refusal_n
   stop_server
 }
 
+it_should_leave_a_window_named_only_a_dot_unchanged() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "."
+
+  local status=0
+  title "retry-fix" >/dev/null 2>&1 || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > dotted window > should leave a window named only . unchanged" \
+    ".|0" "$(window_name)|$status"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1230,6 +1243,7 @@ it_should_print_help_to_stdout
 it_should_set_the_first_title_with_no_refusal_note_when_the_window_shows_its_pre_claude_name
 it_should_refuse_a_second_title_before_the_first_main_compaction_with_exit_0_and_the_note
 it_should_leave_a_dotted_window_unchanged_and_exit_0_with_the_expected_refusal_note
+it_should_leave_a_window_named_only_a_dot_unchanged
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
