@@ -1190,6 +1190,19 @@ it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1() {
   stop_server
 }
 
+it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused() {
+  start_server
+
+  title "city-code"
+  title "retry-fix" >/dev/null 2>&1
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > first title > should freeze the first title as root when a second title was refused" \
+    "city-code|city-code[1]" "$(root_option)|$(window_name)"
+  stop_server
+}
+
 it_should_no_op_outside_tmux() {
   local status=0
   env -u TMUX -u TMUX_PANE bash "$SCRIPT_UNDER_TEST" "auth-fix" >/dev/null 2>&1 || status=$?
@@ -1289,6 +1302,7 @@ it_should_leave_a_window_named_only_a_dot_unchanged
 it_should_set_the_first_title_after_a_dot_refused_call_once_the_user_drops_the_dot
 it_should_render_dot_city_code_0_plus_1_when_a_subagent_bump_lands_on_a_dotted_name
 it_should_refuse_a_retitle_after_a_subagent_bump_and_keep_billing_0_plus_1
+it_should_freeze_the_first_title_as_root_when_a_second_title_was_refused
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
