@@ -16,13 +16,14 @@
 #   itself.
 #
 #   Instead it injects a directive (SessionStart
-#   additionalContext) telling Claude to set the title via
-#   tmux-window-title.sh, and to keep it current.
+#   additionalContext) telling Claude to set one goal-named
+#   first title via tmux-window-title.sh and never re-title
+#   before the first main compaction.
 #
-#   Wired on SessionStart sources startup|clear|compact, so
-#   the directive is (re)injected exactly when the session
-#   boundary resets context: a fresh start, after /clear, and
-#   after compaction (which can summarize the directive away).
+#   Wired on SessionStart sources startup|clear|resume|fork,
+#   so the directive is injected when a session begins. The
+#   compact source is excluded: the compact reminder and the
+#   main compaction bump speak there instead.
 #
 #   Skipped entirely outside tmux -- no window to title, so no
 #   point nagging.
@@ -82,12 +83,17 @@ agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
 read -r -d '' DIRECTIVE <<'EOF' || true
-You are running inside tmux. Keep the tmux window titled with the SHORTEST name that still conveys the current work. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". Set or refresh it by running:
+You are running inside tmux. Set the tmux window title ONCE, now, to the SHORTEST name that conveys the session's goal. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". The title names the goal, never a skill name, a step name, or an issue-tracker ID. Set it by running:
   ~/.claude/scripts/tmux-window-title.sh "<title>"
-Set it now from the user's first request. Then overwrite it (the script replaces the title outright -- no stacking) on either of these triggers:
-  1. You judge the conversation has shifted to a new topic -- do this proactively, on your own initiative, without waiting to be asked.
-  2. The user explicitly asks to update the window/pane/tmux title.
-Always pass ONLY the current work (the compact-focus label), never a composed title. Once this session has survived a compaction the script prefixes the title it froze beforehand, rendering "<root>/<compact-focus>[M+S]" inside a wider 32-character cap -- M is this session's own compactions, S is subagent compactions (S is dropped entirely when zero) -- so never type a "/" or a "[M+S]" yourself, and never try to restate the original title from memory. Post-root, the root keeps its own fixed 16 characters and your compact-focus label shares a second 16-character tail with the leading "/" and the [M+S] counter -- so up to 12 characters with [1], 10 with [1+1], and fewer as the counter widens -- so keep it as short as the pre-compaction 16-char title. The script owns that composition; handing it "<root>/<compact-focus>" would nest a second root inside the first.
+Pick the goal from the first of these sources that exists, in this order:
+  1. The open PR's title: run `gh pr view --json title` yourself. Drop ticket IDs and "feat(...)"-style prefixes from it. If the lookup fails or finds nothing, go to the next source.
+  2. The git branch topic, with the ticket ID dropped: read the branch name yourself.
+  3. The goal of the user's first real request.
+Use this order whenever the first request is a bare skill call with no topic (for example "/implement").
+Never re-title before the first main compaction, even when the conversation changes subject. The script refuses a second title and exits 0 with a note saying so; do not retry it.
+A window name starting with "." is the user's own: it is never changed before the first main compaction and its root is never replaced after one. The script refuses it and exits 0 with a note; do not retry.
+If the user asks for a new title before the first main compaction, do not call the script and never call "tmux rename-window" directly. Reply that they rename the window by hand with "prefix ," (tmux's rename-window key).
+Pass ONLY the goal label, never a composed title. Once this session has survived a compaction the script prefixes the title it froze beforehand, rendering "<root>/<tail>[M+S]" inside a wider 32-character cap -- M is this session's own compactions, S is subagent compactions (S is dropped entirely when zero) -- so never type a "/" or a "[M+S]" yourself, and never try to restate the original title from memory. Post-root, the root keeps its own fixed 16 characters and your tail label shares a second 16-character tail with the leading "/" and the [M+S] counter -- so up to 12 characters with [1], 10 with [1+1], and fewer as the counter widens. The script owns that composition; handing it "<root>/<tail>" would nest a second root inside the first.
 This applies only to you, the top-level session -- sub-agents spawned via the Agent/Task tool must never call tmux-window-title.sh or be told to, since their fragment would clobber the window's real title.
 EOF
 

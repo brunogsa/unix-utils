@@ -96,7 +96,14 @@ it_should_stay_silent_for_a_non_cli_entrypoint_regardless_of_agent_field() {
     "" "$(emitted_directive)"
 }
 
+it_should_carry_no_instruction_to_re_title_on_a_topic_shift() {
+  run_hook '{}'
+  assert_eq "should carry no instruction to re-title the window when the conversation shifts to a new topic" \
+    "no" "$(emitted_directive | grep -Eiq 'shift|new topic' && echo yes || echo no)"
+}
+
 it_should_emit_the_directive_for_the_orchestrator_when_no_agent_field_is_present
+it_should_carry_no_instruction_to_re_title_on_a_topic_shift
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_starts
 it_should_emit_the_directive_when_a_main_session_started_with_agent_flag_starts
 it_should_stay_silent_outside_tmux_regardless_of_agent_field
