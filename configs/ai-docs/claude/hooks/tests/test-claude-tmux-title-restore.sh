@@ -85,6 +85,15 @@ it_should_re_enable_automatic_rename_on_reason_clear_when_the_captured_state_is_
   stop_server
 }
 
+it_should_rename_to_the_captured_name_on_reason_clear_when_the_captured_state_is_off() {
+  start_server
+  claude_titled_window "deploy-box" "off" ".payments/ledger-fix[2]"
+  session_end clear
+  assert_eq "window shows the pre-Claude name after /clear" "deploy-box" "$(window_name)"
+  assert_eq "automatic-rename stays off after /clear" "off" "$(auto_rename)"
+  stop_server
+}
+
 it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other() {
   start_server
   claude_titled_window "zsh" "off" ".city-code/retry-fix[1]"
@@ -94,6 +103,7 @@ it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other() {
 }
 
 it_should_re_enable_automatic_rename_on_reason_clear_when_the_captured_state_is_on
+it_should_rename_to_the_captured_name_on_reason_clear_when_the_captured_state_is_off
 it_should_restore_zsh_over_dot_city_code_retry_fix_1_on_reason_other
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
