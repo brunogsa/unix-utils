@@ -1448,6 +1448,67 @@ JSON
   stop_server
 }
 
+it_should_count_from_1_and_freeze_ledger_as_root_after_a_reset_with_source_startup() {
+  start_server
+
+  title "billing"
+  title --bump-counter
+  title --bump-counter
+  title --bump-counter
+  title --reset-counter <<'JSON'
+{"source":"startup"}
+JSON
+  title "ledger"
+  title --bump-counter
+  local after_bump
+  after_bump=$(window_name)
+  title "x"
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should count from [1] and freeze ledger as root after a reset with source startup" \
+    "ledger[1]|ledger/x[1]" "$after_bump|$(window_name)"
+  stop_server
+}
+
+it_should_allow_the_first_title_after_a_resume_reset_on_a_pane_with_prev_zsh_and_a_rooted_title() {
+  start_server
+
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+  title "billing"
+  title --bump-counter
+  title --reset-counter <<'JSON'
+{"source":"resume"}
+JSON
+
+  local err status=0
+  err=$(title "ledger" 2>&1 >/dev/null) || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should allow the first title after a resume reset on a pane with prev zsh and a rooted title" \
+    "ledger|0|" "$(window_name)|$status|$err"
+  stop_server
+}
+
+it_should_allow_the_first_title_after_a_startup_reset_with_a_stale_prev_left_by_a_crash() {
+  start_server
+
+  # A crashed session left its captured prev and a titled window
+  # behind; the new session starts on the same pane.
+  tmux -L "$SOCK" set-option -p -t "$TMUX_PANE" "@claude_prev_window_name" "zsh"
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "billing"
+  title --reset-counter <<'JSON'
+{"source":"startup"}
+JSON
+
+  local err status=0
+  err=$(title "ledger" 2>&1 >/dev/null) || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should allow the first title after a startup reset with a stale prev left by a crash" \
+    "ledger|0|" "$(window_name)|$status|$err"
+  stop_server
+}
+
 if ! command -v tmux >/dev/null 2>&1; then
   echo "tmux not installed - cannot exercise tmux-window-title.sh" >&2
   exit 1
@@ -1534,6 +1595,9 @@ it_should_allow_a_new_first_title_after_a_reset_with_source_resume
 it_should_allow_a_new_first_title_after_a_reset_with_source_fork
 it_should_render_ledger_bare_after_a_reset_with_source_resume_inside_a_rooted_session
 it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_billing_and_counter_3
+it_should_count_from_1_and_freeze_ledger_as_root_after_a_reset_with_source_startup
+it_should_allow_the_first_title_after_a_resume_reset_on_a_pane_with_prev_zsh_and_a_rooted_title
+it_should_allow_the_first_title_after_a_startup_reset_with_a_stale_prev_left_by_a_crash
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
