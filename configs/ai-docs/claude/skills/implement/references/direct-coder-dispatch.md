@@ -11,6 +11,8 @@ Loaded whenever §4.0's extractor call returns empty stdout for a task: no test 
 - **Verification**: same rule as §4.1 - task-scoped commands only, when the plan names any; omit when it names none.
 - Read Files, Verification, and acceptance criteria from the task's `## Task Details` entry, same fallback rule as §4.1.
 - **Optional**: the same `references:` / `base:` / `<run-label>` fields as §4.1.
+- State in the dispatch prompt when a code task's planned tests are N/A and no test runner exists for its files, so `direct-coder` can apply its no-runner exception instead of bouncing.
+  - The batch-end package lists the stand-in verification it reports under Deviations.
 
 Everything else is baked into `direct-coder.md`. Don't re-push any of it.
 

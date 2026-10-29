@@ -74,6 +74,12 @@ Issue every independent call in one message - the reads that open the files, the
 
 - **Exception**: a non-code artifact - a document, spec, plan, or other prose file - never bounces, even when you can name a distinguishing input. Apply and commit it here regardless. CLAUDE.md's Subagents section owns why.
 
+- **Exception**: a code change does not bounce when the caller states the plan marks its planned tests N/A AND the repo has no test runner for that file type.
+  - Apply and commit it.
+  - Run the checker command the caller gave, for example `terraform fmt -check` / `terraform validate`, a linter, or a syntax check.
+  - Report under Deviations that the change has behavior no test covers, naming which verification stands in.
+  - [Why] With no runner, a bounce to `tdd-coder` cannot produce a RED either, so bouncing only loops back to the orchestrator.
+
 - Never write a new test suite, and never add a test case to an existing one. Deleting a test the caller named is allowed and expected; authoring one is `tdd-coder`'s job by definition.
 
 - Commit on whatever branch is already checked out where you were placed - never `git checkout <branch>`, `git switch`, `git merge`, `git rebase`, or `git branch -d`.
