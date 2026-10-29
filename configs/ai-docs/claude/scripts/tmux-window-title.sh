@@ -648,7 +648,11 @@ case "$MODE" in
     # owns the "<root>/<current>" composition, so a caller
     # passing an already-rooted string would otherwise nest one
     # root inside another.
-    clean=$(printf '%s' "$MODE" | tr -d '\000-\037' | tr "$ROOT_SEPARATOR" '-' | sed -E 's/[[:space:]]+/-/g; s/-+/-/g; s/^-+//; s/-+$//')
+    #
+    # Leading dots are stripped after that cleanup, then hyphens
+    # they uncovered: a leading "." protects a window from this
+    # script, and only the user may set one.
+    clean=$(printf '%s' "$MODE" | tr -d '\000-\037' | tr "$ROOT_SEPARATOR" '-' | sed -E 's/[[:space:]]+/-/g; s/-+/-/g; s/^[-.]+//; s/-+$//')
 
     if [ -z "$clean" ]; then
       echo "tmux-window-title: <title> is empty after sanitizing" >&2

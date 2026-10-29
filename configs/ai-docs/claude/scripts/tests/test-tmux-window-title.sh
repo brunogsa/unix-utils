@@ -912,6 +912,37 @@ it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root(
   stop_server
 }
 
+it_should_strip_every_leading_dot_when_claude_passes_a_dotted_title() {
+  local dotted
+  for dotted in ".billing" "..billing" ".-billing" " .billing" "/.billing"; do
+    start_server
+    tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+
+    title "$dotted"
+
+    assert_eq \
+      "TmuxWindowTitle > stored state > should strip every leading dot when Claude passes '$dotted'" \
+      "billing" "$(window_name)"
+    stop_server
+  done
+}
+
+it_should_exit_1_and_leave_zsh_when_claude_passes_a_lone_dot() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+
+  local status=0
+  title "." >/dev/null 2>&1 || status=$?
+
+  assert_eq \
+    "TmuxWindowTitle > stored state > should exit 1 when Claude passes a lone dot" \
+    "1" "$status"
+  assert_eq \
+    "TmuxWindowTitle > stored state > should leave zsh when Claude passes a lone dot" \
+    "zsh" "$(window_name)"
+  stop_server
+}
+
 it_should_drop_the_counter_and_the_root_on_reset() {
   start_server
 
@@ -1102,6 +1133,8 @@ it_should_freeze_a_dotted_pre_claude_name_as_root_despite_the_pre_claude_name_gu
 it_should_freeze_a_lone_dot_as_root_and_render_dot_slash_retry_fix
 it_should_set_the_tail_on_every_call_after_a_main_compaction_with_no_refusal_note
 it_should_freeze_the_first_title_after_a_rootless_first_main_compaction_as_root
+it_should_strip_every_leading_dot_when_claude_passes_a_dotted_title
+it_should_exit_1_and_leave_zsh_when_claude_passes_a_lone_dot
 it_should_drop_the_counter_and_the_root_on_reset
 it_should_shed_a_split_counter_and_release_the_root_on_reset
 it_should_let_a_new_root_be_frozen_after_a_reset
