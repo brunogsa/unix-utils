@@ -1,12 +1,12 @@
 ---
 name: improve-from-user
-description: "Mine current session, a PR's comments, AI! comments you left in files, or your [AI!] picks and notes in verdict files for CLAUDE.md / skill updates."
+description: "Mine current session, a PR's comments, AI! comments you left in files, your [AI!] picks and notes in verdict files, or a feedback file a spec/plan skill wrote, for CLAUDE.md / skill updates."
 disable-model-invocation: false
 ---
 
 # Improve from User
 
-Review user feedback - from the current session, a pull request's comments, AI! comments left in files, or the findings picked in verdict files - and identify learnings to add to CLAUDE.md or skills.
+Review user feedback - from the current session, a pull request's comments, AI! comments left in files, the findings picked in verdict files, or a feedback file a spec/plan skill wrote - and identify learnings to add to CLAUDE.md or skills.
 
 Steps 2-7 run inline; only step 1's read stage can fan out to background subagents (see Execution).
 
@@ -30,6 +30,7 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 | `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>` | **B. PR comments** - your `AI:`-prefixed comments on PR `<n>` (other users and un-prefixed comments ignored) |
 | `AI! comments` (± `on <paths>`) | **C. AI! comments** - `AI!` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 | `verdict marks` (± `on <files>`) | **D. Verdict marks** - the `verdict_*.md` findings you tagged `[AI!]` and your `[AI!: <message>]` notes; untagged findings are ignored |
+| `feedback in <path>` | **E. Feedback file** - the corrections a caller skill (`to-spec`, `to-plan`) recorded in `<path>`; launched by [`lateral-learn.md`](references/lateral-learn.md) |
 
 Examples:
 - `/improve-from-user`
@@ -40,6 +41,7 @@ Examples:
 - `/improve-from-user AI! comments on files src/foo.ts, plan_<slug>.md`
 - `/improve-from-user AI! comments on src/components, docs/`
 - `/improve-from-user verdict marks`
+- `/improve-from-user feedback in /tmp/scratch/feedback_my-spec_1.md`
 
 ## Scope
 
@@ -48,7 +50,7 @@ Examples:
 
 Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detailed examples and domain-specific knowledge go to the relevant skill.
 
-All four modes share one write-target rule, resolved by `scripts/resolve-repo-targets.py`: before writing anywhere, it checks that `~/.claude/CLAUDE.md` and `~/.claude/skills/*` are still live symlinks.
+All five modes share one write-target rule, resolved by `scripts/resolve-repo-targets.py`: before writing anywhere, it checks that `~/.claude/CLAUDE.md` and `~/.claude/skills/*` are still live symlinks.
 
 A detached regular file - left behind by `/config` or `update-config`'s temp+rename - makes it die loudly rather than silently write a file the repo no longer tracks.
 
@@ -98,7 +100,7 @@ Full detail: [`references/mode-a-session.md`](references/mode-a-session.md).
 
 ## Step 1: Extract User Feedback Items (main context)
 
-Detect the mode from the arg (see the Usage table), then load and run the matching mode reference. The four modes are mutually exclusive per invocation - load only the one matched:
+Detect the mode from the arg (see the Usage table), then load and run the matching mode reference. The five modes are mutually exclusive per invocation - load only the one matched:
 
 - **Mode A** (empty arg / `this session`) → [`references/mode-a-session.md`](references/mode-a-session.md)
 - **Mode B** (explicit PR token) → [`references/mode-b-pr-comments.md`](references/mode-b-pr-comments.md)
@@ -106,6 +108,8 @@ Detect the mode from the arg (see the Usage table), then load and run the matchi
   - Check it before Mode C, since a verdict mark is also spelled `[AI!]` and would otherwise route to Mode C.
 
 - **Mode C** (mentions `AI!`) → [`references/mode-c-ai-comments.md`](references/mode-c-ai-comments.md)
+
+- **Mode E** (`feedback in <path>`) → [`references/mode-e-feedback-file.md`](references/mode-e-feedback-file.md)
 
 **All modes emit items in the same unified format below** so steps 2-7 treat them uniformly, whether step 1 ran inline or fanned out to subagents.
 
@@ -148,6 +152,7 @@ This list is step 2-7's working input. When Mode A's read stage escalates to sub
    - Detailed code example or pattern → `skills/code-standards/SKILL.md`
    - Test example or strategy → `skills/test-standards/SKILL.md`
    - Review process improvement → `skills/code-review-pipeline/references/review-principles.md`
+   - How a spec or plan is authored, or what its reviewer should have caught → see "Where a lesson lands" in [`references/mode-e-feedback-file.md`](references/mode-e-feedback-file.md)
    - Domain-specific knowledge → relevant domain skill
    - New topic not covered by existing skills → propose a new skill
 

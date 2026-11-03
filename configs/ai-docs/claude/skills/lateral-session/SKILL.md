@@ -13,6 +13,10 @@ Only when the user explicitly asks for a new session, a new window, or tmux, for
 
 Without that ask, off-goal items go to a subagent as usual.
 
+One narrow exception: a skill step may launch a session by design, via `improve-from-user/references/lateral-learn.md`.
+
+- Why: the user asked for that launch once, as a standing rule (2026-11-03), so each run needs no fresh ask.
+
 ## Before launching
 
 1. Pin down exactly one item.
