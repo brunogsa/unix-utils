@@ -36,7 +36,6 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 - It diffs the branch against that base and reads nothing else - not the spec/plan choice, not the `PR-N` answer.
 
-  - Holding it until the interview answers arrive serializes its whole run behind a human who is not blocking it.
 
 - Discover spec/plan in cwd by glob `spec_*.md plan_*.md` (top-level):
   - One spec / one plan → use whichever exist, auto-resolved. Multiple of either → open question **(A) Spec/plan choice**: list them numbered.

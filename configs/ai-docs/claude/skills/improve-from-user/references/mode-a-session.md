@@ -36,7 +36,7 @@ A wide window burns a large run silently otherwise, and this is the one point wh
 
 **Escalation on a large survey**: when the survey's estimated tokens exceed ~80k, don't read every qualifying transcript inline.
 
-Instead, dispatch background `general-purpose` subagents, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
+Instead, dispatch background `agent(subAgent=general-purpose, title=Extract feedback items from transcript slice, model=sonnet)`, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
 
 That's half the escalation threshold, so no single agent's read comes near filling its own context.
 

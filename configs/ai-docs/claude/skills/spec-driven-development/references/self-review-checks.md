@@ -61,7 +61,6 @@ Both measure rather than judge - never inline.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
   - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.
-  - No fixer - the user alone triages it.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 

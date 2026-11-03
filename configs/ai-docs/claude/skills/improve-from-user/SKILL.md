@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Review user feedback - from the current session, a pull request's comments, AI! comments left in files, the findings picked in verdict files, or a feedback file a spec/plan skill wrote - and identify learnings to add to CLAUDE.md or skills.
 
-Steps 2-7 run inline; only step 1's read stage can fan out to background subagents (see Execution).
+Steps 2-7 run inline; only step 1's read stage can fan out to background subagents (Mode A only, per its reference).
 
 This skill is **read-only on input artifacts**: it does NOT strip AI! comments, resolve PR comments, or address the questions they raise.
 
@@ -68,39 +68,7 @@ Modes B and C keep reading PR comments and `AI!` markers globally, from any repo
 
 ## Execution
 
-Steps 2-7 run inline - you see every read and edit as it happens.
-
-The only fan-out in the skill is Mode A's read stage, and only when the corpus survey estimates a large window.
-
-1. Step 1: detect the mode, load its reference, extract feedback items (see the escalation fork below for Mode A).
-2. Steps 2-7 in main context: read targets, cluster and rank candidate learnings, generalize, target, cross-check, present findings, get per-item approval, apply edits one at a time.
-
-3. Step 8 (audit reminder) at the end.
-
 If step 1 yields zero items (no quote-worthy session moments, no `AI:`-prefixed PR comments from your login, no AI! matches, or no verdict file carrying an `[AI!]` tag), report that and stop - never run analysis on nothing.
-
-### Step 1's escalation fork (Mode A only)
-
-Mode A's read stage prints a corpus survey (file count, turn count, estimated tokens) and confirms it with the user before mining any content.
-
-- **Below ~80k estimated tokens**: read every qualifying transcript's extractor output inline, in the main context.
-- **Above ~80k estimated tokens**: dispatch background `agent(subAgent=general-purpose, title=Extract feedback items from transcript slice, model=sonnet)`, one per file slice, each slice sized to a fixed ~40k-estimated-token budget.
-  - Half the escalation threshold, so no single agent's read comes near filling its own context.
-  - No separate cap on how many agents that produces; real parallelism is already bounded by the `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` setting.
-
-Each dispatched agent runs the extractor over its own slice and returns items in the unified format below.
-
-A slice whose agent fails is retried once; if it fails again, report it as unmined together with its file list.
-
-A missing slice must never look identical to a slice that genuinely found nothing.
-
-Full detail: [`references/mode-a-session.md`](references/mode-a-session.md).
-
-**Post-edit audits do NOT run inside this skill.**
-
-- Running `consistency-check-principles-and-skills` nested inside this skill's execution would audit a half-applied edit set - its 3 ensemble children read the files exactly as they stand at that moment.
-
-- Step 8 (main context) reminds the user to run the audits in a fresh session.
 
 ## Step 1: Extract User Feedback Items (main context)
 
