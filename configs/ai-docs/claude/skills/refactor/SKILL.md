@@ -87,6 +87,9 @@ If the script reports nothing to refactor, inform the user and stop.
 
 - Simplify for clarity, not brevity: reduce needless complexity and nesting, eliminate redundant code and dead abstractions, consolidate related logic, and drop comments that only restate the code.
 
+- When changed code duplicates logic, the finding lists every copy across the repo (grep count plus paths), and its fix covers all of them.
+  - This is the one exception to "no refactors outside the changed files", since a fix that dedups only this diff's copies leaves the older ones to drift.
+
 - Prefer explicit, readable code over compact code - avoid nested ternaries in favor of `if`/`else` or `switch` for multi-way branches.
 
 - Keep the balance - do NOT over-simplify: no clever one-liners, no merging unrelated concerns into one function, no stripping helpful abstractions, no trading readability for fewer lines.
