@@ -85,7 +85,7 @@ Why: a clarify task sits in no PR, so without its own issue nothing in Linear co
 
 Export a clarify issue by these rules:
 
-- Title is the task heading text, and body is the task's body entry.
+- Title is the heading text after `### N. `, keeping the `[Clarify]` tag, so a re-run's title search finds the title it wrote. Body is the task's body entry.
 
 - Derive `Application` and `Issue Type` from the live taxonomy like a PR's, and ask per ambiguous case as in step 4. Never invent a value.
 
@@ -109,7 +109,7 @@ A run that writes zero issues writes no `Linear:` line, matching the zero-PR rul
 
 Once every issue this run creates exists, mirror the plan's dependency graph: write each PR's `Depends on` as a `blockedBy` relation on that PR's issue through `save_issue`.
 
-Also write a `blockedBy` on the clarify issue for each PR issue holding at least 1 task whose `**Depends on**:` lists the clarify task.
+Also, on each PR issue holding at least 1 task whose `**Depends on**:` lists a clarify task, write a `blockedBy` relation pointing at that clarify task's issue.
 
 Write relations only after all the issues exist, because a relation needs both endpoints.
 

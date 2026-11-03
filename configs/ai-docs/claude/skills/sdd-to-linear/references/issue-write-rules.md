@@ -12,7 +12,7 @@ Read before the first Linear write of an export. It covers what each issue body 
 
 - Never substitute a body Arco's skills would suggest.
 
-- A `[Clarify]` task's issue: the body is that task's own body entry, and the title is its heading text.
+- A `[Clarify]` task's issue: the body is that task's own body entry, and the title is its heading text after `### N. `, keeping the `[Clarify]` tag.
 
 ## Idempotent re-run
 

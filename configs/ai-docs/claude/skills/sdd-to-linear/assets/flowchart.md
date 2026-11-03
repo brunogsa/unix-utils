@@ -30,7 +30,7 @@ flowchart TD
   n11["11. After each create, write the issue URL into that PR's<br/>(or Clarify task's) Linear field, in backticks. After the first issue,<br/>write the document-level Linear line the same way"]
   n12{"12. A write failed partway?"}
   n12a["12a. Step 6 · STOP the export. Report which PRs got issues<br/>and which did not, write the Linear field only for created ones,<br/>never retry silently, offer the retry"]:::gate
-  n13["13. All issues exist: write each PR's Depends on as a blockedBy<br/>relation, only for a graph the three DAG gates accepted.<br/>Also blockedBy on the Clarify issue for each PR whose task depends on it.<br/>Verify with get_issue includeRelations"]
+  n13["13. All issues exist: write each PR's Depends on as a blockedBy<br/>relation, only for a graph the three DAG gates accepted.<br/>Also each PR issue whose task depends on a Clarify task<br/>is blockedBy that Clarify task's issue.<br/>Verify with get_issue includeRelations"]
   n13a["13a. Relation with no blocking issue: name it,<br/>finish the rest, never report clean"]:::gate
   n14["14. One decisions comment per PR via save_comment, PT-BR.<br/>A PR with no recorded decision gets none"]
   n15{"15. spec_slug.md beside the plan?"}
