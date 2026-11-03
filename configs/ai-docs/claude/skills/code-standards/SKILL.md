@@ -98,9 +98,6 @@ return over a mutated accumulator) - not a documentation task.
 - [Instruction] Prefix booleans with `is`/`has`/`should`/`can`.
   - [Why] An affirmative prefix signals the value is a boolean and which way true points.
 
-- [Instruction] Avoid negating a negative (`!isNotReady`) - name the positive condition.
-  - [Why] Double negatives force the reader to flip the truth value at every read site - a cognitive tax.
-
 - [Instruction] **CRITICAL: When a condition spans 3+ clauses or negates a quantifier over a collection, extract it into a named boolean used at the if site.**
   - [Why] Such a condition hides intent behind stacked clauses or a flipped negation; a named boolean documents it.
 
@@ -185,9 +182,6 @@ the combined form is needed.
 - [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await - it propagated through every caller with no real async
 work anywhere. Keep the chain synchronous.
 
-- [Instruction] Avoid global mutable state - pass data through params and return values.
-  - [Why] Module-scope state makes data flow invisible and breaks unit isolation.
-
 - [Instruction] Keep functions pure by default - isolate I/O into thin boundary functions.
   - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure - keep it at the edges.
 
@@ -238,24 +232,6 @@ work anywhere. Keep the chain synchronous.
 
 - [Instruction] Pair each `info` log (counts/IDs/status) with a `debug` log carrying the full payload (sorted arrays).
   - [Why] `info` stays cheap and scannable always-on; the heavy `debug` detail rides alongside for when you need it.
-
-- [Example]
-```ts
-logger.info({
-  message: 'getSchoolsAgreementsAndSkus completed',
-  service: 'ContractValidation',
-  schoolCount: input.schoolCNPJ.length,
-  agreementCount: result.agreements.length,
-});
-
-logger.debug({
-  message: 'getSchoolsAgreementsAndSkus payload',
-  service: 'ContractValidation',
-  schoolDocNumbers: [...input.schoolCNPJ].sort(),
-  agreementIds: result.agreements.map((a) => a.agreementId).sort(),
-  skuCodes: result.agreements.flatMap((a) => a.skus).sort(),
-});
-```
 
 - [Instruction] When a log payload may carry sensitive data (CPF, CNPJ, email, address, tokens, free-text), surface the candidate fields and ask before shipping - never silently include or drop them.
   - [Why] Silent-include leaks PII; silent-drop robs the choice - both replace an explicit per-field pick with a default.
