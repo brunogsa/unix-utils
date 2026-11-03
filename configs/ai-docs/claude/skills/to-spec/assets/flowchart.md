@@ -53,6 +53,16 @@ def to_spec():
         #      the user explicitly says to keep it open - never on own judgment
         apply_answers_through_spec_editor()
 
+    # 14 · Step 3 block · at any later step, a round that holds a correction
+    #      (human corrects, rejects, rewords or adds to the spec,
+    #      or rejects a recommended option) does both moves in ONE message:
+    #      launch the learn run per lateral-learn.md, and dispatch
+    #      spec-editor with the corrections, swept across the spec.
+    #      A round with no correction launches nothing
+    if round_holds_correction():
+        launch_learn_run()
+        dispatch_spec_editor_with_corrections()
+
     # 8 · Step 5 · Read self-review-checks.md, then run
     #     check-deterministic-gates.sh --spec-only
     exit_code = run_deterministic_gates()
@@ -108,6 +118,7 @@ flowchart TD
   n11["11. Decide each finding yourself, dispatch spec-editor<br/>with the accepted ones. Runs once per spec, never twice"]:::dispatch
   n12["12. Report every finding in one block, applied or skipped<br/>with the reason, naming any check skipped by toggle"]
   n13(["13. Step 6 · Give the spec path and offer brainstorm-how.<br/>Do not run it in this session"]):::done
+  n14["14. Step 3 block · any later round that holds a correction, ONE message:<br/>launch the learn run per lateral-learn.md,<br/>and dispatch spec-editor with the corrections swept across the spec.<br/>A round with no correction launches nothing"]:::dispatch
 
   n1 --> n2 --> n3
   n3 -->|"no"| n3a
@@ -121,6 +132,8 @@ flowchart TD
   n9 -->|"1"| n9a --> n10
   n9 -->|"2"| n9b
   n10 --> n11 --> n12 --> n13
+  n7a -.->|"round holds a correction"| n14
+  n10 -.->|"human corrects the handling"| n14
 
   classDef start fill:#d4edda,stroke:#28a745
   classDef gate fill:#fff3cd,stroke:#d39e00

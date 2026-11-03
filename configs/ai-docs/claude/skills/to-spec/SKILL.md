@@ -65,6 +65,17 @@ Dispatch `agent(subAgent=spec-writer, title=Write the spec)` in the background a
 
 **This session never writes the spec itself.** Every later edit goes through `agent(subAgent=spec-editor, title=Apply spec edits)` carrying the exact changes.
 
+**Every human correction round also teaches.** At any later step, when a round holds a correction, do both moves in ONE message:
+
+- Launch the learn run, following `~/.claude/skills/improve-from-user/references/lateral-learn.md` for the protocol.
+- Dispatch `agent(subAgent=spec-editor, title=Apply spec edits)` with the corrections, swept across the rest of the spec per the global CLAUDE.md's correction rule.
+
+A round is one human message, or one `AskUserQuestion` call's answers. A correction is the human correcting, rejecting, rewording, or adding to the written spec, or rejecting a recommended option.
+
+An open-question answer that picks the recommended option is not a correction, and a round with no correction launches nothing.
+
+Why both in one message: the learn run needs no answer from this session, so waiting on it would only delay the spec edit.
+
 **A failed dispatch ends the run.** When the dispatch errors, or returns and `spec_<slug>.md` does not exist on disk, report the failure with the agent's error and stop.
 
 Offer nothing, not `brainstorm-how` and not a retry, and never present the failed write as a finished spec.
@@ -79,7 +90,7 @@ Interview the user on every entry before any review runs, with `AskUserQuestion`
 
 Cluster every question open at the same moment into one call, at most 4 per call, and use more calls when there are more.
 
-Settle each question in the interview by default. Apply each answer through `agent(subAgent=spec-editor, title=Apply spec edits)`: remove the answered entry from `## Open Questions` and write the decision where it belongs in the spec.
+Settle each question in the interview by default. Apply each answer through `agent(subAgent=spec-editor, title=Apply spec edits)`: remove the answered entry from `## Open Questions` and write the decision where it belongs in the spec. When the answers hold a correction, this dispatch is the second move of the correction-round block in step 3.
 
 Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
 
@@ -100,7 +111,7 @@ Then dispatch `agent(subAgent=spec-reviewer, effort=xhigh, title=Fresh-eyes revi
 - **Always - "How would this break?"**: every boundary and failure-category row instantiated or opted out, and every AC carrying a surfaced failure mode.
 - **Only when `qualitative_pass` is true**, read back from `/tmp/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
 
-Decide each finding yourself and dispatch `spec-editor` with the ones you accept.
+Decide each finding yourself and dispatch `spec-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
 
 Report every finding to the user in one block, applied or skipped with the reason, naming any check skipped by toggle.
 
