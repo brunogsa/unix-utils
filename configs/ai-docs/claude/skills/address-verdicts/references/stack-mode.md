@@ -65,6 +65,9 @@ Stop, naming the branches, on any of these:
 - Launch the learn run before the first checkout, following `~/.claude/skills/improve-from-user/references/lateral-learn.md`: Mode D, `/improve-from-user verdict marks on <every verdict_quality-gate_*.md, absolute paths>`.
   - Do not ask and do not wait: carry on with the chain in the same message.
 
+  - Launch nothing when any verdict file already carries a `[Done]` heading, and tell the user so in one line.
+    - Why: that file's marks were likely mined by the earlier run, so a second launch would propose the same lesson as if the human had repeated it.
+
   - One run over every file, so its clustering sees a kind of finding recur across branches.
 
 - Record `git status --porcelain`'s tracked modifications as the **never-stage list**.

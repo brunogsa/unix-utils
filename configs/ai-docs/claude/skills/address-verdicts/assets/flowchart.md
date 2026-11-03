@@ -299,8 +299,12 @@ def run_marked_stack(arg):
     #       verdict_quality-gate_*.md (absolute paths) in a lateral session,
     #       per improve-from-user/references/lateral-learn.md, so its
     #       clustering sees a kind of finding recur across branches. Carry on
-    #       to the chain in the same message.
-    launch_lateral_learn(f"verdict marks on {files}")       # 1h2
+    #       to the chain in the same message. Skip it, saying so in one
+    #       line, when any verdict file already carries a [Done] heading.
+    if any_file_has_done_heading(files):                    # 1h2
+        say("learn run skipped: a verdict file already has a [Done] heading")
+    else:
+        launch_lateral_learn(f"verdict marks on {files}")   # 1h2
 
     # 1g · Record the tracked modifications as the NEVER-STAGE list. Never
     #      stash them (the stash stack is shared across
@@ -461,7 +465,7 @@ flowchart TD
   n1e1["1e1. Preflight · Record the starting branch first,<br/>to return to on a clean finish"]
   n1f{"1f. Preflight · Is a chain branch checked out in another<br/>worktree? git refuses that checkout"}
   n1h["1h. Step 2 · Ask ALL questions for ALL marked findings, upfront,<br/>in one AskUserQuestion.<br/>A question asked mid-chain blocks a run that has already<br/>pushed half the stack"]:::gate
-  n1h2["1h2. Preflight · No ask, no wait: launch ONE learn run, Mode D over<br/>every verdict_quality-gate_*.md (absolute paths), in a lateral<br/>session per improve-from-user/references/lateral-learn.md. One run<br/>over every file, so clustering sees recurrence across branches.<br/>Carry on to the chain in the same message"]:::skill
+  n1h2["1h2. Preflight · No ask, no wait: launch ONE learn run, Mode D over<br/>every verdict_quality-gate_*.md (absolute paths), in a lateral<br/>session per improve-from-user/references/lateral-learn.md. One run<br/>over every file, so clustering sees recurrence across branches.<br/>Carry on to the chain in the same message.<br/>Unless any verdict file already has a [Done] heading: launch nothing, say so in one line"]:::skill
   n1g["1g. Preflight · Record the tracked modifications as the<br/>NEVER-STAGE list. Never stash them (the stash<br/>stack is shared across worktrees), never discard them, stage explicit<br/>file paths only, and every dispatch prompt carries the list since<br/>a subagent's git add -A would sweep them in"]
   n1g1{"1g1. Preflight · Does a never-stage file differ between the first and<br/>last chain branch? checkout refuses to carry it"}
   n1g2["1g2. Preflight · Run the repo's documented pre-test setup once<br/>(its CLAUDE.md names it, e.g. start and migrate a test DB)"]

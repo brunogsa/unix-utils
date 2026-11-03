@@ -36,6 +36,8 @@ The goal is that the human never repeats a correction: lessons reach the global 
     - **Lesson drawn** is the caller's first draft, which the learn session's step 2 challenges.
 
 - Verdict marks (address-verdicts): write no feedback file; the source is Mode D over the absolute paths of the verdict files.
+  - The caller launches nothing when any of those files already carries a `[Done]` heading.
+  - Why: an earlier run likely mined its marks, so a second launch would propose the same lesson as if the human had repeated it.
 
 ## The launch
 
