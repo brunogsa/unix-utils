@@ -12,9 +12,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - **`CRITICAL`** - optional prefix flagging an instruction as a tiebreaker. Rare by design; the script caps the ratio.
 
-- [Instruction] Load the `skill-standards` skill before editing this file or any `*-standards` skill - it holds the marker-authoring rules (splitting, nesting, headings, density interplay).
-  - [Why] Needed only when authoring these files, so lazy-loading them cuts ~900 always-on words from every session.
-
 ## Foundations
 
 - [Instruction] Place every rule by its scope - the narrowest surface that still reaches every reader who needs it.
@@ -76,7 +73,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Count as evidence only an artifact another human can open and check without you.
   - [Why] A summary of a log asks the reader to trust you, while the raw artifact lets them rebuild the conclusion themselves.
-  - [Example] Evidence: a verbatim log line, a cURL with its response, a payload, a query with its output, a screenshot.
   - [Example] Bad: "another system wrote to EBS". Good: our last upsert's log line, plus the EBS row with a later `last_update_date`.
 
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
@@ -112,9 +108,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 
   - [Example] Bad: "Effort: small", "Risk: low", "Prior: fix, cheap." Good: "Effort: 1 file, 12 lines", "Risk: no caller outside `sync/`", "Prior: fix - 1 file, 12 lines."
-
-  - [Example] Bad: "The SAS rule is very likely right for SAE too." Good: "Checked: SAS and SAE both call `AxiosHttpClient`. Not checked: SAE at runtime (no SAE spec matches `TIMEOUT`)."
-
 - [Instruction] **Say it the plainest way that still carries the rule** -- no clever, compressed, or packed phrasing, in rules, task subjects, or chat.
   - [Why] Compressed wording makes the reader decode it, and a rule they decode is a rule they apply wrong.
 
@@ -138,9 +131,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **CRITICAL: Search before creating** -- look for existing similar code before writing anything new.
   - [Why] Duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
   - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
-
-  - [Example] Bad: a hand-rolled test double in the spec. Good: the mock or fixture the repo's shared test-utils already exports.
-
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
 
@@ -178,8 +168,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
-  - [Example] Bad: one fix pasted into each per-ERP flow, each with its own fixture and why-comment. Good: one shared helper and fixture every flow calls, the comment kept once.
-
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
 
@@ -248,9 +236,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the review surface and buries the real change in incidental reformatting.
-
-  - [Example] Don't touch indentation, blank lines, whitespace, quotes, or semicolons you weren't asked to change.
-
 - [Instruction] **CRITICAL: Change file contents with Edit or Write, never through Bash** (sed, awk, perl, heredoc), whatever the harness prompt allows - except an editor-style replace-all of the same text.
   - [Why] A Bash edit can silently change the wrong line or nothing, with no diff prompt, mismatch error or hook to catch it.
 
@@ -266,9 +251,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] The manual id is referenceable in chat immediately, and pinning the system id keeps later updates unambiguous.
 
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
-
-  - [Example] The five placement categories: `[Sub-Step]`, `[Side]`, `[Scout]`, `[Drift]`, `[Reminder]` - the `task-breakdown` skill holds what each is and where it commits.
-
 - [Instruction] Persist machine-checkable task state - step counters, gate outcomes, attempt counts, decisions, artifact/experiment links - in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction and reads back as structured fields, so a resumed skill needn't re-parse prose.
 
@@ -391,7 +373,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] With no such input there is no RED to write, so a TDD cycle manufactures a test that asserts the text you typed.
   - [Example] No such input: a comment, prose, a rename, a file move, a config or frontmatter value, a dead-code deletion.
 
-- [Instruction] CRITICAL: Never route a document, spec, plan, or other non-code artifact edit through TDD (`tdd-coder`) - TDD applies to code only, even when a distinguishing input can be named.
+- [Instruction] Never route a document, spec, plan, or other non-code artifact edit through TDD (`tdd-coder`) - TDD applies to code only, even when a distinguishing input can be named.
   - [Why] Tests over prose have a bad ROI - authoring and maintaining them costs more than the regressions they'd ever catch.
 
 - [Instruction] Run a permission-gated action (commit, push, reply) in main even when its task is delegated - hand the subagent everything else.
