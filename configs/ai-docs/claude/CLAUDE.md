@@ -68,7 +68,9 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Make your reasoning verifiable** -- back every claim with code, test, doc, or search evidence, and say why you chose a path only where a different choice was open.
   - [Why] Claude can hallucinate, so the human must verify every conclusion - and the human is the bottleneck.
   - [Example] A claim on how an external library, service, or tool behaves needs the URL of the official doc page confirming it.
-  - [Example] Bad: "the retry works", "zero violations". Good: the cURL or log line that showed it, and the quoted snippet with `path:line`.
+
+  - [Example] Bad: "the retry works", "zero violations", an AC assuming a retry re-reads. Good: the cURL or log line that showed it, or the `path:line` call chain through any queue hand-off.
+
   - [Example] Keep "what the code says" apart from "what the run showed" - a reading of the code is not a test result.
 
 - [Instruction] Count as evidence only an artifact another human can open and check without you.
