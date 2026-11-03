@@ -135,7 +135,7 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
   - [Why] A type-based rule misjudges what to collapse - collapsing what the reader needs defeats why the doc exists.
 
 - [Instruction] Write an SOP or runbook as the system's observable behavior - never name code symbols, file paths, or line numbers in it.
-  - [Why] Its reader is ops or on-call acting on what they see, and a code pointer goes stale on the next refactor while the behavior still holds.
+  - [Why] On-call acts on what they see, and a code pointer goes stale on the next refactor while the behavior still holds.
 
   - [Example] Bad: "`SchoolCrmConsumer.handle` (`consumer.ts:88`) adds `cnpj` to the log context". Good: "every log line of the school sync carries the school's CNPJ - search by it".
 

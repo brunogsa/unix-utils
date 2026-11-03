@@ -110,7 +110,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
   - [Example] Bad: "Several legs show the defect, so one fix closes several entries." Good: "3 legs show the defect, so one fix closes 3 of the 149 entries."
 
-  - [Example] Bad: "has 59 `.execute(` matches, mostly positional calls." Good: "has 59 `.execute(` matches; 41 are positional calls."
 
   - [Example] Bad: "Effort: small", "Risk: low", "Prior: fix, cheap." Good: "Effort: 1 file, 12 lines", "Risk: no caller outside `sync/`", "Prior: fix - 1 file, 12 lines."
 
@@ -163,7 +162,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
 
 - [Instruction] Give every temporary guard - a rollout alarm, a kill-switch flag, a workaround - its removal date inside the guard itself, where on-call reads it.
-  - [Why] A guard whose removal lives only in a tracker nobody opens when it fires outlives its rollout and keeps paging for nothing.
+  - [Why] A guard whose removal lives only in a tracker nobody opens when it fires outlives its rollout and pages for nothing.
   - [Example] Bad: an alarm whose removal is only a Linear issue. Good: the alarm description says "disable after <date>, once the rollout ends".
 
 ### Self-describing artifacts
@@ -361,7 +360,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
-  - [Example] Prose caps don't enforce: `repo-green-runner` ran 1h+ against a documented 40-minute max, and the CRITICAL-density rule kept failing until a hook enforced it.
   - [Example] I name a workflow by its skill's job and the skill didn't fire: file a `[Harness]` to fix that skill's description, not a one-off load.
 
 - [Instruction] Close a `[Harness]` task within the session that surfaced it, never in a later batch.

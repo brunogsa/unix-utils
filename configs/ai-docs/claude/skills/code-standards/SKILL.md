@@ -229,23 +229,6 @@ work anywhere. Keep the chain synchronous.
 - [Instruction] Logs must never crash the flow - every reducer/accessor/template expression must tolerate undefined or empty inputs.
   - [Why] Telemetry that crashes the flow removes the very thing meant to help you debug.
 
-- [Example]
-```ts
-// Bad - reduce throws on empty agreements
-logger.info({
-  message: 'Completed',
-  skuCount: result.agreements.reduce((s, a) => s + a.skus.length, 0),
-});
-
-// Good - guard with optional chain + nullish fallback
-logger.info({
-  message: 'Completed',
-  skuCount: result.agreements?.reduce((s, a) => s + (a.skus?.length ?? 0), 0) ?? 0,
-});
-
-// Even better - extract a safeSum helper if the pattern repeats
-```
-
 - [Instruction] Pick a log level by who caused the condition - the system's own degradation is `warn`, a caller's invalid input is `info`.
   - [Why] Warn-rate is only alertable if it tracks the system's health; a warn per bad request makes it a traffic counter.
   - [Example] `info` - designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
@@ -316,24 +299,6 @@ logger.debug({
 
 - [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values; a named constant for a standalone one.**
   - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change - a constant is grep-able, changed once.
-
-- [Example]
-```ts
-// Don't do this:
-if (type === "KIT" || type === "AVULSO") {
-  // do something
-}
-
-// Prefer:
-enum ProductType {
-  KIT = "KIT",
-  AVULSO = "AVULSO"
-}
-
-if (type === ProductType.KIT || type === ProductType.AVULSO) {
-  // do something
-}
-```
 
 - [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness.
   - [Why] `if (count)` treats `0` and `undefined` identically - falsiness checks paper over the distinction and ship bugs.
