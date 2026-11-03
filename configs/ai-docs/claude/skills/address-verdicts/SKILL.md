@@ -14,6 +14,9 @@ disable-model-invocation: false
 
 - Empty, or `marked` - **marked mode**: every finding whose heading the human tagged `[AI!]` (`### 3. [AI!][MEDIUM][refactor] ...`), across every `verdict_quality-gate_*.md`.
   - `[AI!: <message>]` in the same slot selects the finding too, and its message is the human's instruction for the fix (§4).
+
+  - The colon is optional: `[AI! <message>]` carries a message the same way.
+
   - Each finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
   - Before the first apply, it launches one lateral `/improve-from-user` run over every file's `[AI!]` marks and notes, no ask, and carries on.
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
@@ -139,7 +142,7 @@ This overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditi
 
 A lens whose findings are all non-code dispatches its own agent zero times, which is a correct outcome, not a failure. §3 still seeds its entry, and §5 still annotates every finding.
 
-**A finding tagged `[AI!: <message>]` carries its message into the dispatch verbatim, as the human's instruction.**
+**A finding tagged `[AI!: <message>]` (or `[AI! <message>]`) carries its message into the dispatch verbatim, as the human's instruction.**
 
 - Where the message conflicts with the finding's suggested fix, the message wins.
 - Classify the finding by what the fix edits once the message is applied, so a message can move it to another agent.
@@ -194,7 +197,7 @@ Write every one of that lens's outcomes in place, next to its own finding - neve
 **An `[AI!]` tag is the human's selection mark, in the same slot `[Done]` takes.**
 
 - Applied: replace `[AI!]` with `[Done]` - `### 3. [Done][MEDIUM][refactor] ...` - never stack both.
-  - For `[AI!: <message>]`, keep the message in the body line: `APPLIED (<sha>) - per the note: <message>`.
+  - For `[AI!: <message>]` or `[AI! <message>]`, keep the message in the body line: `APPLIED (<sha>) - per the note: <message>`.
 
 - Skipped or failed: keep the tag, message included, so the next marked run retries it; the human deletes the tag to drop the finding.
   - A `[QUESTION]` finding whose tag carries no answer stays marked too, with `SKIPPED (needs an answer: <the question>)`.

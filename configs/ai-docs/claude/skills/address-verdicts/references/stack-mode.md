@@ -16,7 +16,7 @@ Read every `verdict_quality-gate_*.md` in CWD - all of them, not the newest per 
 - List each file's marked findings fence-aware, since a finding may quote a heading inside a code fence:
 
 ```bash
-awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!(: [^]]+)?\]/' <file>
+awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!([: ][^]]*)?\]/' <file>
 ```
 
 - No marked finding in any file → stop: nothing is marked; tag a heading `### N. [AI!][...]` first.

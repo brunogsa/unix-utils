@@ -10,6 +10,7 @@ The signal is only the findings you tagged in a reviewer's verdict file, and wha
 |---|---|
 | `[AI!]` | selected - the reviewer's call and its suggested fix were worth applying |
 | `[AI!: <message>]` | selected with a note - the message is your correction to the suggested fix |
+| `[AI! <message>]` | same as `[AI!: <message>]` - the colon is optional |
 | no tag | not a signal - skip it |
 | `[Done]` | a prior `address-verdicts` run's output, not a pick - skip it |
 
@@ -24,7 +25,7 @@ This mode is read-only on the verdict files: it never adds, rewrites, or strips 
 List each file's tagged headings fence-aware, since a finding may quote a heading inside a code fence:
 
 ```bash
-awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!(: [^]]+)?\]/' <file>
+awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!([: ][^]]*)?\]/' <file>
 ```
 
 A file where this prints nothing contributes no item.
