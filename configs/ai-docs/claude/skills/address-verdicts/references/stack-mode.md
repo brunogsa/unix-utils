@@ -29,7 +29,7 @@ Run `git fetch origin` once, first, so every branch check and remote comparison 
 Read the branch from the file's first line, never its name - the filename turns `/` into `-`, so it cannot be reversed:
 
 ```bash
-head -1 <file> | sed -nE 's/^# [^:]+: (.+) vs [^ ]+[[:space:]]*$/\1/p'
+head -1 <file> | sed -nE 's/^# [^:]+: ([^ ]+) vs [^ ]+.*$/\1/p'
 ```
 
 - Empty output, or a branch `git rev-parse --verify origin/<branch>` rejects → stop, naming the file.
