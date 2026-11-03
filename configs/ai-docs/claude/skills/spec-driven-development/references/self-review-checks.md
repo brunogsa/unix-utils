@@ -116,7 +116,7 @@ With no spec, skip that script; each task's `## Task Details` acceptance criteri
 
 Dispatch `agent(subAgent=plan-reviewer, title=Judge machinery-to-AC traceability)` with plan and spec: every piece of machinery must trace to a spec AC or requirement.
 
-Output: untraceable items (empty = pass); block if non-empty - cut it, or earn an AC.
+Output: untraceable items (empty = pass); block if non-empty - cut it, or earn an AC. Exempt `[Clarify]` tasks: they settle questions.
 
 ## Right-sized plan (toggle)
 

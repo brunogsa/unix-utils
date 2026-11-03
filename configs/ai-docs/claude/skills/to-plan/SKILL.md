@@ -107,6 +107,12 @@ Settle each question in the interview by default. Apply each answer through `age
 
 Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
 
+For a question only an external party can answer (another team, a vendor), the interview's recommended option is a `[Clarify]` task over keeping it open. Its tracker issue blocks the tasks that depend on the answer.
+
+Why a clarify task: an `## Open Questions` entry blocks nothing in the tracker, so dependent work can start before the answer lands.
+
+Carry the task's full shape inline in the `plan-editor` dispatch - heading, body fields, Task Details entry, and each dependent's `- Task N` bullet - because `plan-editor` reads only the plan and its instructions. The shape is the "Clarify task" block in `~/.claude/skills/spec-driven-development/references/plan-tasks-and-appendix.md`.
+
 Why before the review: the reviewer judges the settled plan, so reviewing a plan with open questions reviews text the answers will change, and the review would run twice.
 
 Why settle by default: the common path is a plan with no open question left, and an entry the user never chose to keep is a decision this session skipped asking about.

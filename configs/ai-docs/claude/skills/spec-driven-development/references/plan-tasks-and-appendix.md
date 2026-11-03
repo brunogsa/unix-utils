@@ -58,6 +58,20 @@ Lead with a task-dependency DAG (mermaid, `mmdc`-validated) when a task names a 
 
 Each task produces at least one base commit (tests, code, IaC/docs together; RED/GREEN lives inside it). At execution, a refactor/scout/drift/`/auto-review` follow-up becomes its own extra commit; a substantial addition becomes a new peer task. Refactors stay isolated tasks.
 
+**Clarify task**: a question only an external party (another team, a vendor) can answer becomes `### N. [Clarify] <question to settle>`. It is the one exception to "Each task produces at least one base commit".
+
+- Its body entry holds `**Depends on**:`, a `**Brief Description**:` naming who answers, `**Tests (planned)**: N/A - clarify task, no code`, and no commit sketch.
+
+- Its body entry also holds the backtick-wrapped `**Linear**:` field `sdd-to-linear` writes, like a PR's.
+
+- List it under no PR's `**Tasks**:` - `check-pr-task-projection.py` rejects that, since the task has no commit.
+
+- Each dependent lists it as a `- Task N` bullet under `**Depends on**:`; that dependency is satisfied outside the PR graph.
+
+- Its Task Details entry holds only the acceptance criterion "the answer is recorded in the plan's Technical Decisions log" and the Verification "the Linear issue is closed with the answer".
+
+- The block is enforced in Linear, not locally: `implement` treats a dependency outside the current PR as satisfied and never checks it.
+
 Sub-step breadcrumb: optional, semicolon-separated parenthetical after the title - `### N. Title (sub-step; sub-step)`; keep ~4 items, else split the task.
 
 **Brief Description**: a short paragraph of at most 4 sentences, or a bullet list of one sentence per bullet - never a longer prose block.
