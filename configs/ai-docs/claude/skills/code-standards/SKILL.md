@@ -248,9 +248,6 @@ work anywhere. Keep the chain synchronous.
   - [Why] A judgment word makes the reader infer which rule broke; the rule stated outright hands it to them.
   - [Example] Bad: "professor marca disagrees with student marca". Good: "professor and student lines must share one marca; got X and Y".
 
-- [Instruction] Never retry indefinitely - always cap consecutive retries.
-  - [Why] Uncapped retries during an outage become a self-inflicted DDoS on the upstream.
-
 - [Instruction] Make batch operations idempotent and resumable, so a crash mid-flight can safely re-run from where it stopped.
   - [Why] Long batches eventually crash; without idempotent resumability you re-run the whole thing and risk duplicates.
 
