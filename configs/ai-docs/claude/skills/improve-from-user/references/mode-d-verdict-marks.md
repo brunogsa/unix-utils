@@ -52,4 +52,4 @@ Two kinds of lesson come out of a verdict file, with different targets:
 
 - **About the code** - a note saying "use helper X instead", "this repo keeps Y in Z" → the repo's `CLAUDE.md`, or `code-standards` when it holds across repos.
 
-The reviewer skills are global, so a run from any other repo lists a reviewer lesson under Global Findings, per SKILL.md step 4.
+The reviewer skills are global, so a reviewer lesson targets the global set from any repo, per SKILL.md step 4.

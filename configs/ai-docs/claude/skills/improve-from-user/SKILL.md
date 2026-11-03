@@ -56,11 +56,15 @@ A detached regular file - left behind by `/config` or `update-config`'s temp+ren
 
 When the symlink is healthy, the write target is the repo-tracked source path behind it.
 
-Running from the unix-utils repo targets this repo's own `configs/ai-docs/claude/CLAUDE.md` / `configs/ai-docs/claude/skills/*`; running from any other repo targets that repo's own `CLAUDE.md` / `.claude/skills/*`.
+Every run, from any repo, can write the global set: the repo-tracked paths behind `~/.claude/CLAUDE.md` and `~/.claude/skills/*` (`realpath` them), which live in `~/unix-utils/configs/ai-docs/claude/`.
 
-This write-target rule covers all four modes, but repo-scoping the **read** side only applies to Mode A - which `~/.claude/projects/*` transcripts the session sweep mines.
+- Most lessons are about how the agent works, which global rules govern, so a run that could not write them would lose them.
 
-Modes B and C keep reading PR comments and `AI!` markers globally, from any repo. Mode D reads the verdict files in CWD, or the paths it is given.
+Running from any repo other than unix-utils adds a second set, that repo's own `CLAUDE.md` / `.claude/skills/*`, as reported by the resolver.
+
+This write-target rule covers all five modes, but repo-scoping the **read** side only applies to Mode A - which `~/.claude/projects/*` transcripts the session sweep mines.
+
+Modes B and C keep reading PR comments and `AI!` markers globally, from any repo. Mode D reads the verdict files in CWD, or the paths it is given. Mode E reads only the feedback file it is given.
 
 ## Execution
 
@@ -159,18 +163,16 @@ This list is step 2-7's working input. When Mode A's read stage escalates to sub
    If the resolved target repo has no `CLAUDE.md` yet, propose creating one at its root - under the same per-item approval gate as any other edit.
    - A repo with no `CLAUDE.md` is the repo that most needs one.
 
-   When the read scope spans every repo (a unix-utils sweep), apply this repo's own Foundations rule to each candidate before proposing a write:
+   In every mode and from every repo, consider both target sets (see Scope) for each candidate, and place it by the global CLAUDE.md's Foundations rule:
    - Cross-cutting and always-needed → the global CLAUDE.md.
-   - Domain knowledge or a how-to → a skill.
-   - A repo-specific gotcha or convention → that repo's own CLAUDE.md.
+   - Domain knowledge or a how-to that holds across repos → a global skill.
+   - A repo-specific gotcha, convention, or how-to → the current repo's own `CLAUDE.md` or `.claude/skills/*`.
 
-   Drop any candidate that only fits the repo-specific bucket from what gets written, and list it separately in step 6's output alongside the repo it came from.
-   - The global CLAUDE.md loads every session, so a client-repo domain fact placed there taxes every future project.
+   The global CLAUDE.md loads every session, so a client-repo domain fact placed there taxes every future project.
 
-   When run from any repo other than unix-utils, the global CLAUDE.md and every global skill (`~/.claude/skills/*`) have no write target, in every mode.
-   - List each candidate that belongs there in step 6 under Global Findings, with its target and proposed wording, never as a proposed edit.
+   In a unix-utils sweep, a candidate that only fits the repo-specific bucket has no write target: drop it from what gets written, and list it in step 6 with the repo it came from.
 
-   - A file-based source (Mode C or D) also gets its rerun command: `cd ~/unix-utils`, then the same invocation with `on <absolute paths>`.
+   A global edit made from another repo lands in `~/unix-utils`, outside CWD's `git status`, so name each edited unix-utils path in the closing report.
 
 5. **Check against existing content** - Read the target file(s) and verify:
    - Does this learning already exist?
@@ -187,11 +189,10 @@ current wording isn't landing.** Diagnose why it didn't land, then propose the m
 6. **Present findings** - Show the user:
    - What learnings were identified
    - How they were generalized
-   - Target file for each (CLAUDE.md or which skill)
+   - Target file for each (CLAUDE.md or which skill), and whether it is in the global or the repo set
    - Which are new vs already covered vs already-covered-but-strengthened
    - Proposed additions (if any), plus proposed strengthenings of existing rules (if any) - each showing the current wording next to the proposed one
    - Repo-specific findings dropped from a unix-utils sweep (not written), each labeled with its originating repo
-   - Global findings with no write target from a non-unix-utils repo (not written), per step 4
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
 
@@ -221,7 +222,7 @@ Why a reminder instead of an automatic run:
 1. [Learning description]
    - Context: [Session moment | PR comment | AI! comment line]
    - Generalized principle: [Language-agnostic version]
-   - Target: [CLAUDE.md > SECTION or skills/skill-name/SKILL.md]
+   - Target: [global | repo] [CLAUDE.md > SECTION or skills/skill-name/SKILL.md]
    - Status: [New / Already covered / Needs clarification]
 
 ## Proposed Additions
@@ -247,11 +248,6 @@ Number these alongside the additions above so they share the same approve-by-num
 ## Repo-Specific Findings (unix-utils sweep only, not written)
 
 - [Finding] - repo: [originating repo name]
-
-## Global Findings (not written from <repo>) (outside unix-utils only)
-
-- [Finding] - target: [CLAUDE.md > SECTION or skills/<skill>/SKILL.md] - proposed: [wording]
-- Rerun from `~/unix-utils` (Mode C or D only): `/improve-from-user <same source> on <absolute paths>`
 ```
 
 Post-edit audits are not embedded - see Step 8 (main-context reminder).
