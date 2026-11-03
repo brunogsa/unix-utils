@@ -41,6 +41,11 @@ Every review comment opens with a bold, bracketed severity tag on its own line, 
 
 - **Summary line**: one plain sentence naming the visible effect and its cause, with no bold label and no bullet.
   - Example: *"Fees come out 100x too high because the rate unit is wrong."*
+
+  - Name the effect in what a person sees, never in internal values they never read - grid coordinates, JSON keys, offsets go in the evidence.
+
+    - Bad: *"The per-client grid fills y 0-19, but widgets already sit at y=6."* Good: *"The 18 new client widgets land on top of 5 existing dashboard widgets."*
+
   - It carries the whole finding on its own - a reader who stops there still knows whether this blocks them.
 
 - **Sugestão** / **Suggestion**: the fix, shown as code whenever possible.
@@ -122,11 +127,25 @@ Why: time-boxed reviews need to surface MANDATORY issues first. If you spend the
 
 Why: reviewing untouched code is scope creep that slows merges without value. Exception: unchanged code that breaks against the changed code - the change is what made it relevant.
 
+## Attribute a finding to the branch that wrote the line
+
+On a stacked branch, find the commit that introduced the flagged line (`git log -S '<line text>'`). When it belongs to a branch lower in the stack, name that branch in the fix.
+
+Why: a fix landed on the reviewed branch leaves the lower PR still wrong, and merging forward cannot repair it from above.
+
 ## Every comment leads to a clear next step
 
 Avoid mere observations - explain what should change. Include suggestions or questions.
 
 Why: observation-only comments ("this is interesting...") leave the author in limbo. Every comment must end with something the author can DO.
+
+## Propose deleting a drifted doc before extending it
+
+When a doc only restates what the code's types and signatures already say, and the diff left it out of date, suggest deleting it and repointing its inbound links before suggesting an addition to it.
+
+Example: a package README whose snippets gained a `metricsPublisher` argument it never explains - delete the README, not document the argument.
+
+Why: every addition is one more copy to keep in sync with the code, and the drift you found is proof nobody keeps it in sync.
 
 ## Skip low-value comments
 
@@ -179,8 +198,11 @@ Why: this order maximizes comprehension per minute - context → behavior → im
 - Don't suggest broad rewrites - prefer small, surgical changes.
 - Don't ask questions without explaining their impact.
 - Don't recommend extending a pattern the coding standards forbid - check the existing code against the standards before proposing more of it.
+- Don't raise a QUESTION the code or git history can answer - check the callers first.
+- State what that check found as a conditional recommendation: "X is always sent by Y, so make it required".
+- Don't suggest a fix that reintroduces what another finding in the same report flags.
 
-Why: surgical changes get merged while rewrite requests get pushback, an impact-less question gets ignored, and a recommendation that grows a forbidden pattern makes the review itself the reason the defect ships.
+Why: surgical changes get merged while rewrite requests get pushback, an impact-less question gets ignored, a recommendation that grows a forbidden pattern makes the review itself the reason the defect ships, a question the code answers hands the author the reviewer's own lookup, and a fix that reintroduces a flagged defect makes the author choose which finding to break.
 
 ## Output language matches the invoking context
 
