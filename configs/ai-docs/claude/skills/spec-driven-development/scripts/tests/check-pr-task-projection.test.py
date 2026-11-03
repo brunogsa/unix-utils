@@ -345,3 +345,17 @@ def test_should_exit_0_when_a_task_in_a_pr_with_no_ancestor_depends_on_a_clarify
     plan = _write_plan(tmp_path, task_body=CLARIFY_TASK_BODY, pr_body=pr_body)
     result = _run(plan)
     assert result.returncode == 0, result.stderr
+
+
+def test_should_pass_every_deterministic_plan_gate_and_the_projection_check_on_a_plan_with_a_clarify_task():
+    fixture_dir = Path(__file__).parent / "fixtures" / "clarify-task"
+    plan = fixture_dir / "plan_clarify.md"
+    spec = fixture_dir / "spec_widget.md"
+    gates = subprocess.run(
+        ["bash", str(SCRIPT.parent / "check-deterministic-gates.sh"), str(plan), str(spec)],
+        capture_output=True,
+        text=True,
+    )
+    assert gates.returncode == 0, gates.stdout
+    projection = _run(plan)
+    assert projection.returncode == 0, projection.stderr
