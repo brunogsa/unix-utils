@@ -1,6 +1,9 @@
-# Stack mode - `[AI!]`-marked findings across a branch stack
+---
+# user-approved 2026-11-03: trims bottom out ~1260 words; a split fails because every no-argument run reads all of it
+words-budget: 2048
+---
 
-Loaded by `SKILL.md` §1 only in marked mode (empty arg or `marked`). Every other selection never reads it.
+# Stack mode - `[AI!]`-marked findings across a branch stack
 
 Why each rule holds: [`design-rationale.md`](design-rationale.md).
 
@@ -45,7 +48,6 @@ gh pr list --state open --json number,headRefName,baseRefName --limit 1000
 - Walk up through each PR whose base is the current head, to the top of the stack.
 
 - The chain is the whole stack, from the branch directly above the trunk to the top - including branches below the lowest marked one.
-  - A re-run after a stop must still carry forward what the stopped run already pushed, and a branch with nothing to merge, apply, or push costs one checkout.
 
 Stop, naming the branches, on any of these:
 
@@ -60,7 +62,6 @@ Stop, naming the branches, on any of these:
 - `git worktree list` showing a chain branch checked out in another worktree → stop, since git refuses that checkout.
 
 - Ask every pre-flight question in one `AskUserQuestion`: §2's questions for every marked finding across every file.
-  - A question asked mid-chain blocks a run that has already pushed half the stack.
 
 - Launch the learn run before the first checkout, following `~/.claude/skills/improve-from-user/references/lateral-learn.md`: Mode D, `/improve-from-user verdict marks on <every verdict_quality-gate_*.md, absolute paths>`.
   - Do not ask and do not wait: carry on with the chain in the same message.
@@ -80,7 +81,7 @@ Stop, naming the branches, on any of these:
 - Run the repo's documented pre-test setup once (its CLAUDE.md names it, e.g. starting and migrating a test DB).
 
 - Resolve the **gate workflow**: the one whose `on.pull_request.branches` lists the trunk.
-  - A workflow with no `branches` filter is never the gate - it runs on every PR, so its pass says nothing about the full gate.
+  - A workflow with no `branches` filter is never the gate.
 
   - No such workflow → CI is never watched; say so in the report.
 
@@ -92,21 +93,19 @@ Stop, naming the branches, on any of these:
   - One closing `[Reminder]` for §6's report.
 
 - Record each branch's progress in its task `metadata` the moment it happens: pre-merge SHA, branch-start SHA, pushed SHA, CI run id and result.
-  - Steps 4 and 6 read their diff ranges back from there, so a compaction mid-chain loses nothing.
+  - Steps 4 and 6 read their diff ranges back from there.
 
 ## Validate
 
 "Validate" below means: each touched workspace's lint, plus its related-tests runner over the changed files (e.g. `jest --findRelatedTests <files>`).
 
 - A changed path no spec covers passes on lint alone.
-- A red caused by infrastructure (an unreachable DB, a missing build output) stops with that cause named apart from a failing test, since its fix is setup, not code.
+- A red caused by infrastructure (an unreachable DB, a missing build output) stops with that cause named apart from a failing test.
 
 ## Per branch, bottom-up
 
 1. `git checkout <branch>`, then `git merge --ff-only origin/<branch>`. A diverged branch stops the chain.
-   - Untracked verdict files survive the checkout, so §5's annotations keep landing in CWD.
-
-   - Then run the repo's documented build steps (its CLAUDE.md names them, e.g. a library build and a generated client), since the previous branch's build outputs do not match this one's sources.
+   - Then run the repo's documented build steps (its CLAUDE.md names them, e.g. a library build and a generated client).
 
 2. Merge forward: every branch except the one directly above the trunk runs `git merge --no-edit <the chain branch below>`, recording HEAD before it as the pre-merge SHA.
    - The trunk is never merged into the stack.
@@ -116,7 +115,6 @@ Stop, naming the branches, on any of these:
 3. When the merge touched paths the build steps cover, re-run them.
 
 4. When the merge changed anything, validate `git diff --name-only <pre-merge-sha>..HEAD`. Red → stop.
-   - The apply agents need a green start to tell their own RED from an inherited one.
 
 5. Apply this branch's marked findings through §3-§5, annotating each lens as it returns.
    - When an apply touched paths the build steps cover, re-run them before the next dispatch.
@@ -133,8 +131,6 @@ Stop, naming the branches, on any of these:
 8. Watch CI only when step 7 pushed and the PR's base is the trunk the gate workflow triggers on.
    - Poll `gh run list --workflow <gate file> --commit <pushed sha> --json databaseId --jq '.[0].databaseId'` until it prints an id, timing out after 10 minutes.
 
-   - Keying on the pushed SHA keeps the previous commit's green run from counting.
-
    - Then run `gh run watch <id> --exit-status` with `run_in_background`, since a full gate outlives the Bash foreground cap.
 
    - Wait for that result before step 9. A failed run or a poll timeout stops the chain.
@@ -148,7 +144,7 @@ A branch with no marked finding still runs steps 1-4 and 7-8, so the fixes below
 On any stop, leave the repo on the stopped branch with no merge in progress, and name the branch, the step, and the cause.
 
 - Branches already pushed stay pushed; branches above the stop stay untouched.
-- Never return to the starting branch on a stop - the human resumes from where it broke.
+- Never return to the starting branch on a stop.
 
 On a clean finish, `git checkout <starting branch>`.
 

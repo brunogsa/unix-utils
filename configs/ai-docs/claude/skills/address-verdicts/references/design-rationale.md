@@ -2,12 +2,6 @@
 
 Evidence and long-form reasoning behind rules that `SKILL.md` states in one line. None of it adds a constraint; open it only to judge whether a rule still holds.
 
-## Why one TaskList entry per lens
-
-No finding is lost to the grouping: each entry names its own count, and §5 still annotates every finding individually in its verdict file.
-
-That file, not the TaskList, is the durable per-finding ledger.
-
 ## Why the dispatch cap is ~10 findings
 
 The `refactor` agent is the concrete case: its p90 is 85 assistant turns, so 30-50 findings can exhaust it mid-run with nothing committed.
@@ -60,9 +54,6 @@ Holding every annotation to the end would lose all of them on an interrupted run
 Marked mode commits, pushes, and merges across a whole stack, so each finding it touches must be one the human read and chose.
 
 A fallback to `all` on an unmarked run would push findings nobody read to every PR in the stack.
-
-The `[AI!]` tag sits in the `[Done]` slot, so applying a finding swaps one tag for the other and a heading never carries both.
-
 ## Why a skipped marked finding keeps its `[AI!]`
 
 The mark records the human's choice, and a skip does not change that choice, so the next marked run retries it.
@@ -78,9 +69,6 @@ The note stays in the body after `[Done]` replaces the tag, so the ledger shows 
 ## Why marked mode reads only `verdict_quality-gate_*` files
 
 The human chose this scope: each quality-gate file is one branch's merged review, and a standalone lens file can be an older generation of findings a merged file already carries.
-
-The filename replaces `/` with `-`, so the branch is read from the header, never from the filename.
-
 ## Why the chain covers the whole stack, not just from the lowest marked branch
 
 A stopped run leaves pushed fixes on the branches below the stop, and their findings are now `[Done]`.
@@ -117,7 +105,7 @@ Applying a finding swaps its `[AI!]` for `[Done]`, and `/improve-from-user` skip
 
 One run over the whole stack lets `/improve-from-user` count a kind of finding picked on 3 branches as 3 pieces of evidence, where 8 separate runs would each see 1.
 
-On a re-run the question recommends skipping, since a still-`[AI!]` finding the first run skipped would be mined again. `/improve-from-user` would then read that repeat as the human raising it again and propose to strengthen a rule nobody re-asked for.
+Known gap: the learn launch skips a re-run only when some verdict file has a `[Done]` heading, so a first run that applied nothing gets its marks mined twice.
 
 ## Why every question is asked before the first checkout
 

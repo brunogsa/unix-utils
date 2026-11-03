@@ -1,6 +1,6 @@
 ---
 name: address-verdicts
-description: "Apply findings from any verdict_*.md on disk, marking each APPLIED/SKIPPED in place. With no args, applies every [AI!]-marked finding across all verdict_quality-gate_* files, each on its own stacked branch/PR, then pushes and merges forward. Triggers: /address-verdicts, 'address the verdicts', 'apply the [AI!] findings', 'apply the review findings', 'work through the refactor verdict'."
+description: "Apply verdict_*.md findings, marking each APPLIED/SKIPPED in place; no args applies [AI!]-marked ones. Triggers: /address-verdicts, 'address the verdicts', 'apply the [AI!] findings', 'apply the review findings', 'work through the refactor verdict'."
 disable-model-invocation: false
 ---
 
@@ -20,7 +20,6 @@ disable-model-invocation: false
   - Each finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
   - Before the first apply, it launches one lateral `/improve-from-user` run over every file's `[AI!]` marks and notes, no ask, and carries on.
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
-  - A bare invocation used to mean `all` on the current branch; it now pushes, so pass `all` for that older run.
 
 - `all` - every finding in every located verdict file, on the current branch.
 - A lens name, `refactor`, `auto-review`, `test-sdd`, or `quality-gate` - every finding in that lens's file only.
@@ -38,14 +37,9 @@ disable-model-invocation: false
 
 ## What this is
 
-This is **the** apply step for any `verdict_*.md` on disk, whichever lens wrote it: `/refactor`, `/auto-review`, `/test-sdd`, or a `/quality-gate` run - the only place the apply loop lives.
+This is the only apply step for any `verdict_*.md`, whichever lens wrote it (`/refactor`, `/auto-review`, `/test-sdd`, `/quality-gate`), so the routing, commit, and annotation rules have one home.
 
-`/quality-gate` decides *which* findings are worth applying and calls this skill to apply them, so the routing, commit, and annotation rules have one home.
-
-Two ways in; only who picks the findings differs:
-
-- **A human invokes it** - `<which ones>` is the selection, and §2 may ask a clarifying question.
-- **A skill invokes it** - the caller passes a triaged finding list plus `--no-ask`. Nothing prompts.
+`/quality-gate` decides *which* findings to apply and calls this skill with that triaged list plus `--no-ask`, so nothing prompts; a human picks with `<which ones>` and may get §2's clarifying question.
 
 ## 1. Locate the verdict files
 
@@ -54,30 +48,7 @@ Two ways in; only who picks the findings differs:
 - It replaces the rest of this section - every `verdict_quality-gate_*.md` counts, not the newest per lens.
 - It wraps §2-§5 in a per-branch loop that merges, validates, pushes, and watches CI.
 
-Every other selection skips it, works only the current branch, and never pushes.
-
-```bash
-ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md 2>/dev/null
-```
-
-Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`; `quality-gate` is one more lens.
-
-A `verdict_quality-gate_*.md` counts as a source for both `refactor` and `auto-review`. Per lens, the newest source by modification time (`ls -t`, not a lexical sort) wins, never both:
-
-- The newest merged file's findings tagged with that lens.
-- Or the newest standalone `verdict_<lens>_*.md`, whichever was modified later.
-
-Why: `/quality-gate` moves its own standalone files away, so an older one left in CWD would be worked beside the merged file. `test-sdd` has only standalone files.
-
-- **Default**: the winning source of each lens. Under `all`, the merged file contributes only for the lenses it wins.
-
-- **To work an older generation instead**: name its exact file path inside `<which ones>`.
-
-- **A lens has no source at all**: proceed with the others, saying so in the closing report (§6). A lens only a merged file covers is not missing.
-  - If `<which ones>` explicitly named it, stop instead - say no report exists for it.
-  - Never fabricate one by re-running the reviewer.
-
-- **No lens has any file**: stop with a clear message - nothing to address yet, run `/quality-gate` or a single lens (`/refactor`, `/auto-review`, `/test-sdd`) first.
+Every other selection skips it, works only the current branch, and never pushes: read [`references/locate-lens-files.md`](references/locate-lens-files.md) now and follow it to pick each lens's source file.
 
 ## 2. Resolve `<which ones>`, and the test command
 
@@ -98,12 +69,6 @@ Applying an auto-review-lens finding also needs a test command, to run RED-then-
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues.
 
-**Capture the rule behind a human choice the moment it lands**, on a human invocation only (`--no-ask` has no human choice to learn from): answering a clarifying question here in §2, or rejecting, rewording, or hand-editing a proposed `SKIPPED` reason (§5) or a subagent's fix (§4) before it's committed.
-
-Follow CLAUDE.md's correction rule - infer the general rule behind the change, then sweep it across this run's remaining findings; skip it and the correction lands again on the next lens.
-
-Skipping beats guessing - a wrong guess lands a commit nobody asked for.
-
 A missing test command under `--no-ask` skips only findings that need one - refactor-lens findings still apply, since that agent brings its own green-before-and-after check.
 
 ## 3. Seed the whole TaskList upfront - one entry per lens, never one per finding
@@ -122,8 +87,7 @@ A lens with no finding gets no entry at all, since an empty task reads as work t
 
 **One entry per lens is the rule, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
-Each entry names its own count, and §5 still annotates every finding individually in its verdict file. Why the grouping loses nothing: [`references/design-rationale.md`](references/design-rationale.md).
-
+Each entry names its own count, and §5 still annotates every finding individually in its verdict file.
 Add one closing `[Reminder]` entry for the final report (§6) - it survives a mid-run compaction, so the wrap-up step can't get silently skipped.
 
 ## 4. Apply each lens through one pinned subagent
@@ -133,8 +97,6 @@ Dispatch one subagent per entry seeded above, **serially, in that seeded order**
 **Classify each finding by what it edits, not by which lens found it.** The three bullets below are the default for a code finding; a non-code finding overrides them.
 
 A finding whose target is a document, spec, plan, prompt-markdown, `SKILL.md`, agent file, comment, rename, file move, config value, or frontmatter value goes to `direct-coder`, whichever lens reported it.
-
-Why: CLAUDE.md's CRITICAL rule bars routing a non-code artifact edit through `tdd-coder`, since a test over prose costs more to author and maintain than the regressions it would catch.
 
 A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)` per §5.
 
@@ -165,11 +127,11 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
-- Aim for ~10 units per dispatch as a guide, not a rule - deviate when clustering or bundling argues for it.
+- Aim for ~10 units per dispatch, a guide that clustering or bundling may override.
 
-When an entry contributes more than ~10 findings, split it into multiple sequential dispatches to that entry's own agent - still serial, same branch, same seeded order, never one uncapped batch.
+Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch, same seeded order, never one uncapped batch.
 
-For code findings, the refactor lens keeps its own agent, since a correctness fix needs `tdd-coder`'s test-first discipline. The turn-count telemetry behind the cap, and why the refactor agent stays separate, are in [`references/design-rationale.md`](references/design-rationale.md).
+Why the cap, and why code refactor findings keep their own agent: [`references/design-rationale.md`](references/design-rationale.md).
 
 **One commit per finding still holds inside a batched dispatch** - say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen the diff a human reviews.
 
