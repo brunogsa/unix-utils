@@ -310,6 +310,10 @@ logger.debug({
   - [Why] The parse re-derives what the code already held, and it breaks silently the moment the composition format changes.
   - [Example] Bad: `parseBimestreFromBimester(bimester, anoVigencia)` slicing `${bimestre}${anoVigencia}` back apart. Good: pass `bimestre` through beside the composed field.
 
+- [Instruction] Before comparing a value with another, run both through the normalizer that produced the first one.
+  - [Why] Two normalizers drift on an edge character and turn the comparison into a false alarm.
+  - [Example] Bad: comparing `dOeste` (the mapper strips the apostrophe) with `d oeste` (the warn check's regex turns it into a space). Good: one shared normalizer applied to both sides.
+
 - [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values; a named constant for a standalone one.**
   - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change - a constant is grep-able, changed once.
 
