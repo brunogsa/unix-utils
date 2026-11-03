@@ -12,6 +12,8 @@ Read before the first Linear write of an export. It covers what each issue body 
 
 - Never substitute a body Arco's skills would suggest.
 
+- A `[Clarify]` task's issue: the body is that task's own body entry, and the title is its heading text.
+
 ## Idempotent re-run
 
 Decide per PR, in this order, before any create:
@@ -25,6 +27,8 @@ Decide per PR, in this order, before any create:
 - **The search finds none.** Create the issue.
 
 - **The search finds several.** Ask the user which one is this PR's, listing each with its status.
+
+A clarify issue matches in the same order, using the task's own `**Linear**:` field first, then a title search.
 
 Why field first: a title can be edited in Linear, but the URL the plan recorded still points at the right issue.
 

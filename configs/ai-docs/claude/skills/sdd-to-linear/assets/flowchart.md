@@ -26,11 +26,11 @@ flowchart TD
   n8["8. Step 4 · Per PR: derive the single Application<br/>and Issue Type labels. Never set Issue Origin.<br/>Milestone only where the PR is a feature"]
   n9{"9. PR tasks span two or more Application values,<br/>or no Issue Type clearly applies?"}
   n9a["9a. Ask which single value, recommended first.<br/>Write that PR only once answered;<br/>keep going with the other PRs meanwhile"]:::gate
-  n10["10. Step 5 · Read references/issue-write-rules.md,<br/>then create exactly one issue per PR in plan order,<br/>PT-BR body carrying the plan's task content"]
-  n11["11. After each create, write the issue URL into that PR's<br/>Linear field, in backticks. After the first issue,<br/>write the document-level Linear line the same way"]
+  n10["10. Step 5 · Read references/issue-write-rules.md,<br/>then create exactly one issue per PR in plan order,<br/>plus one per Clarify task,<br/>PT-BR body carrying the plan's task content"]
+  n11["11. After each create, write the issue URL into that PR's<br/>(or Clarify task's) Linear field, in backticks. After the first issue,<br/>write the document-level Linear line the same way"]
   n12{"12. A write failed partway?"}
   n12a["12a. Step 6 · STOP the export. Report which PRs got issues<br/>and which did not, write the Linear field only for created ones,<br/>never retry silently, offer the retry"]:::gate
-  n13["13. All issues exist: write each PR's Depends on as a blockedBy<br/>relation, only for a graph the three DAG gates accepted.<br/>Verify with get_issue includeRelations"]
+  n13["13. All issues exist: write each PR's Depends on as a blockedBy<br/>relation, only for a graph the three DAG gates accepted.<br/>Also blockedBy on the Clarify issue for each PR whose task depends on it.<br/>Verify with get_issue includeRelations"]
   n13a["13a. Relation with no blocking issue: name it,<br/>finish the rest, never report clean"]:::gate
   n14["14. One decisions comment per PR via save_comment, PT-BR.<br/>A PR with no recorded decision gets none"]
   n15{"15. spec_slug.md beside the plan?"}

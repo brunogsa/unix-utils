@@ -79,7 +79,19 @@ Why: writing both values would violate the single-select group, and aborting the
 
 Read [`references/issue-write-rules.md`](references/issue-write-rules.md) before the first write. It holds the body shape, the idempotent re-run match, and the status check.
 
-Create exactly one issue per PR, in the plan's order. Never collapse several PRs into one issue and never add an extra one.
+Create exactly one issue per PR, in the plan's order. Never collapse several PRs into one issue and never add an extra one, with one exception: a `[Clarify]` task gets its own issue besides the PRs'.
+
+Why: a clarify task sits in no PR, so without its own issue nothing in Linear could block the PRs that wait on the answer.
+
+Export a clarify issue by these rules:
+
+- Title is the task heading text, and body is the task's body entry.
+
+- Derive `Application` and `Issue Type` from the live taxonomy like a PR's, and ask per ambiguous case as in step 4. Never invent a value.
+
+- Set no milestone.
+
+- After create, write its URL into the task's own `**Linear**:` field, wrapped in backticks.
 
 Set initiative, project, the `Application` label, the `Issue Type` label, and the milestone where the PR is a feature.
 
@@ -96,6 +108,8 @@ After the run's first issue lands, write the plan's document-level `Linear:` lin
 A run that writes zero issues writes no `Linear:` line, matching the zero-PR rule.
 
 Once every issue this run creates exists, mirror the plan's dependency graph: write each PR's `Depends on` as a `blockedBy` relation on that PR's issue through `save_issue`.
+
+Also write a `blockedBy` on the clarify issue for each PR issue holding at least 1 task whose `**Depends on**:` lists the clarify task.
 
 Write relations only after all the issues exist, because a relation needs both endpoints.
 
@@ -141,7 +155,7 @@ Write the comments and the project description in PT-BR, the same rule as the is
 
 - Never retry silently. Offer the retry to the user instead.
 
-- Apply the same rule to a `blockedBy` relation whose blocking PR has no issue, because the export stopped early or that PR was skipped.
+- Apply the same rule to a `blockedBy` relation whose blocking PR or clarify task has no issue, because the export stopped early or that PR was skipped.
 
 - Name that specific relation, finish the rest of the export, and never report a clean export over a partial one.
 
@@ -167,7 +181,7 @@ End by reporting every URL the run created as a nested bullet tree in the plan's
 
 Flag separately each issue handed back for being In Progress, In Review or Done, and each PR that got no issue.
 
-Also list each `blockedBy` relation left unwritten, naming both PRs, so a partial tree is never read as clean.
+Also list each `blockedBy` relation left unwritten, naming both ends (two PRs, or a PR and a clarify task), so a partial tree is never read as clean.
 
 Name too each comment write and the project-description write that was rejected, for the same reason.
 
