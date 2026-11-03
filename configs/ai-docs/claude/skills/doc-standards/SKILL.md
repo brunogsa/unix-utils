@@ -19,8 +19,9 @@ Principles and paired examples for any documentation work; not every principle n
 - [Instruction] **CRITICAL: When you must comment, the maximum scope is why this code exists in this shape** - never restate what the code shows (rename/restructure instead) or explain how it works.
   - [Why] Only the reason code exists like this survives commits, refactors, and restating - history and mechanics don't.
 
-- [Instruction] Route history to the commit message body, not source - PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
+- [Instruction] **CRITICAL: Route history to the commit message body, not source** - PR numbers, "main used to", and mid-refactor justifications like "(was previously inline)", "(moved here from X)".
   - [Why] A history note rots as the code changes; the commit preserves it as a point-in-time snapshot that never goes stale.
+  - [Example] Bad: `// after Task 3 each use case catches its error`, `// first PR to reject CRM data`. Good: `// one bad school never fails the batch`.
 
 - [Instruction] A deferred-work TODO/FIXME in source must link to a tracked ticket (Jira/Linear URL), never to a local `.md` doc or a task named only in prose.
   - [Why] A ticket URL is durable and checkable; a local .md vanishes and a prose pointer rots with no way to verify it exists.
@@ -84,6 +85,7 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles -
   - [Why] A path, URL, or anchor survives edits; a bare name or lookup number forces a hunt and rots silently on renumber.
 
   - [Example] Bad (lookup pointers - spell the behavior out inline): `AC-N`, `Req-N`, `Task-N`, `DBMA-X`, `BR-N` rules, `PR-N` premises, `D-N` decisions, `R-N` risks, `OQ-N` open questions.
+
   - [Example] Bad (bare symbol name): `see handleRetry`. Good: `handleRetry` in `src/net/retry.ts`, or `[HLD → Riscos](./hld.md#riscos)`.
   - [Example] OK (step order - exempted): `implement/SKILL.md` citing its own `§3-§8 repeat once per PR` - the numbers encode the loop's bounds.
   - [Example] OK (registry anchors - exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
@@ -113,11 +115,11 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles -
 
   - [Example] `SA` / `SAP` → `sales_agreement` / `sales_agreement_product`; `"12345678000195" + "12.345.678/0001-95"` beats `digits + formatCnpj(digits)`.
 
-## Standalone doc files
-
 - [Instruction] Call a technical reader "engineers" or "on-call" - never "ops", which in my team means the non-engineering operations team.
   - [Why] A comment that says "ops" points the reader at the wrong team.
   - [Example] Bad: `// why: ops find error callbacks by category`. Good: `// why: on-call engineers find error callbacks by category`.
+
+## Standalone doc files
 
 Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`design-docs`** skill for which doc to write, its template, a worked example, and the ownership + altitude rules.
 
@@ -132,9 +134,15 @@ Authoring a full ADR/HLD/LLD/spec/plan, or a JSONC payload schema? Load the **`d
 - [Instruction] Collapsibility follows one reader-judged test: collapse whatever this doc's reader only consults or already holds; never collapse what they need to form the judgment the doc asks of them.
   - [Why] A type-based rule misjudges what to collapse - collapsing what the reader needs defeats why the doc exists.
 
+- [Instruction] Write an SOP or runbook as the system's observable behavior - never name code symbols, file paths, or line numbers in it.
+  - [Why] Its reader is ops or on-call acting on what they see, and a code pointer goes stale on the next refactor while the behavior still holds.
+
+  - [Example] Bad: "`SchoolCrmConsumer.handle` (`consumer.ts:88`) adds `cnpj` to the log context". Good: "every log line of the school sync carries the school's CNPJ - search by it".
+
 - [Instruction] Never inventory facts a tool generates on demand - file paths, callers, deps, file/function listings - in any doc or comment.
   - [Why] IDEs, grep, and doc tools regenerate these for free; an inline copy adds nothing and goes stale on the next move.
   - [Example] Bad: `// Used by: src/foo.ts, src/bar.ts, tests/baz.test.ts`. Good: omit the list entirely; the reader can grep.
+  - [Example] Bad, in shared code: `// the OMS and Protheus error classifiers match it`. Good: `// error classifiers match this message by regex - grep before rewording it`.
 
 - [Instruction] When a doc or script header points at a sibling file instead of restating a rule, name the file that authors it - never the file you read it in.
   - [Why] A pointer to the wrong file is worse than none - the reader follows it, finds nothing, and re-derives the rule.
