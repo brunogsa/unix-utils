@@ -281,3 +281,67 @@ def test_should_report_a_finding_when_a_none_bullet_is_mixed_with_a_task_bullet_
     result = _run(plan)
     assert result.returncode == 1
     assert "Task 2" in result.stderr
+
+
+CLARIFY_TASK_BODY = """\
+### 1. First task
+
+**Depends on**: none
+
+### 2. [Clarify] Confirm the row cap with the warehouse team
+
+**Depends on**: none
+
+### 3. Third task
+
+**Depends on**:
+- Task 2
+"""
+
+
+def test_should_exit_0_when_a_clarify_task_is_claimed_by_no_pr(tmp_path):
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1\n\n"
+        "**Depends on**: none\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 3\n\n"
+        "**Depends on**: PR-1\n"
+    )
+    plan = _write_plan(tmp_path, task_body=CLARIFY_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("OK:")
+
+
+def test_should_report_a_pr_that_lists_a_clarify_task_because_a_clarify_task_has_no_commit(tmp_path):
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1, 2\n\n"
+        "**Depends on**: none\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 3\n\n"
+        "**Depends on**: PR-1\n"
+    )
+    plan = _write_plan(tmp_path, task_body=CLARIFY_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "PR-1" in result.stderr
+    assert "Task 2" in result.stderr
+    assert "clarify task has no commit and belongs to no PR" in result.stderr
+
+
+def test_should_exit_0_when_a_task_in_a_pr_with_no_ancestor_depends_on_a_clarify_task(tmp_path):
+    # The clarify answer arrives through Linear, outside the PR
+    # graph, so PR-2 needs no dependency edge toward anything.
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1\n\n"
+        "**Depends on**: none\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 3\n\n"
+        "**Depends on**: none\n"
+    )
+    plan = _write_plan(tmp_path, task_body=CLARIFY_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
