@@ -143,9 +143,6 @@ only - translation and business rules belong in their own named steps.
 
 ### Design & performance choices
 
-- [Instruction] Prefer composition - small, focused pieces - over inheritance and deep class hierarchies.
-  - [Why] Inheritance couples to the parent's implementation, not just its contract; composition couples to interfaces only.
-
 - [Instruction] **Information hiding** -- expose intent, hide implementation across code APIs, CLI interfaces, doc structures, and test helpers; clients depend only on the contract.
   - [Why] Hiding internals lets you change them later without breaking callers; exposing them creates coupling kept forever.
 
@@ -157,7 +154,7 @@ only - translation and business rules belong in their own named steps.
   - [Example] Bad: `routing?: Routing` plus `if (!this.routing) throw`, kept so a bare `super(logger)` compiles. Good: `deps: Deps` required, and that consumer implements its handler interface with its own check.
 
 - [Instruction] Drive optional behavior with an explicit flag the consumer sets, not a heuristic that infers intent from incidental state.
-  - [Why] An inferred trigger couples behavior to a data coincidence, firing where never meant, costing the consumer the choice.
+  - [Why] An inferred trigger fires on a data coincidence the consumer never chose.
 
 - [Example] Bad: `hasReadableDetail: detail !== undefined` - inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
 
