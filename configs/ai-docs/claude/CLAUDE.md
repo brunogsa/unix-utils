@@ -74,6 +74,11 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Example] Bad: "the retry works", "zero violations". Good: the cURL or log line that showed it, and the quoted snippet with `path:line`.
   - [Example] Keep "what the code says" apart from "what the run showed" - a reading of the code is not a test result.
 
+- [Instruction] Count as evidence only an artifact another human can open and check without you.
+  - [Why] A summary of a log asks the reader to trust you, while the raw artifact lets them rebuild the conclusion themselves.
+  - [Example] Evidence: a verbatim log line, a cURL with its response, a payload, a query with its output, a screenshot.
+  - [Example] Bad: "another system wrote to EBS". Good: our last upsert's log line, plus the EBS row with a later `last_update_date`.
+
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
 
@@ -135,6 +140,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
   - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
 
+  - [Example] Bad: a hand-rolled test double in the spec. Good: the mock or fixture the repo's shared test-utils already exports.
+
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
 
@@ -155,6 +162,10 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
   - [Why] Speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
 
+- [Instruction] Give every temporary guard - a rollout alarm, a kill-switch flag, a workaround - its removal date inside the guard itself, where on-call reads it.
+  - [Why] A guard whose removal lives only in a tracker nobody opens when it fires outlives its rollout and keeps paging for nothing.
+  - [Example] Bad: an alarm whose removal is only a Linear issue. Good: the alarm description says "disable after <date>, once the rollout ends".
+
 ### Self-describing artifacts
 
 - [Instruction] **CRITICAL: Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
@@ -168,6 +179,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
+  - [Example] Bad: one fix pasted into each per-ERP flow, each with its own fixture and why-comment. Good: one shared helper and fixture every flow calls, the comment kept once.
 
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
@@ -345,6 +357,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
   - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
+  - [Example] Bad: a new spec opening with `// eslint-disable-next-line import/order` because 119 sibling specs do. Good: order the imports and let the linter confirm it.
 
 - [Instruction] **CRITICAL: Surface harness gaps** -- file a `[Harness]` when a check could catch the defect class you hand-fixed, or the rule that keeps being violated, and needs no hand-maintained list.
   - [Why] A hand-fix a rule could make is signal lost, but a ledger-backed check goes stale faster than it catches anything.
@@ -356,7 +369,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Execute every `[Harness]` task through the `tdd-coder` agent dispatched with `model=opus`, the override its file declares above the sonnet default.
   - [Why] A rule must fire on cases nobody has written yet: opus judgment, plus a RED proof that blocks a wrong-but-green check.
-  - [Example] Bad: a new spec opening with `// eslint-disable-next-line import/order` because 119 sibling specs do. Good: order the imports and let the linter confirm it.
 
 - [Instruction] On this machine's Bash tool (zsh, not bash), never rely on an unquoted `$VAR` to split a space-separated path list - use an array or literal paths instead.
   - [Why] zsh has word-splitting off by default, so an unquoted multi-path variable collapses to one argument.
