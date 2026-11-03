@@ -59,20 +59,15 @@ Stop, naming the branches, on any of these:
 
 - `git worktree list` showing a chain branch checked out in another worktree → stop, since git refuses that checkout.
 
-- Ask every pre-flight question in one `AskUserQuestion`: §2's questions for every marked finding across every file, plus the learn question below.
+- Ask every pre-flight question in one `AskUserQuestion`: §2's questions for every marked finding across every file.
   - A question asked mid-chain blocks a run that has already pushed half the stack.
 
-- The learn question: run `/improve-from-user` over your marks before any of them is applied?
-  - Recommend learning first, except when any verdict file already carries a `[Done]` heading: that run's marks were likely mined already, so recommend skipping.
+- Launch the learn run before the first checkout, following `~/.claude/skills/improve-from-user/references/lateral-learn.md`: Mode D, `/improve-from-user verdict marks on <every verdict_quality-gate_*.md, absolute paths>`.
+  - Do not ask and do not wait: carry on with the chain in the same message.
 
-- On yes, run `/improve-from-user verdict marks on <every verdict_quality-gate_*.md>` in this session, and finish its approve-and-apply loop before going on.
   - One run over every file, so its clustering sees a kind of finding recur across branches.
 
-  - In this session, never a subagent, since it asks per-item approval and its edits need permission prompts.
-
 - Record `git status --porcelain`'s tracked modifications as the **never-stage list**.
-  - Record it after the learn step, so an edit that step landed in this repo's `CLAUDE.md` or `.claude/skills/` joins the list instead of failing step 7's clean-tree check.
-
   - Never stash them (the stash stack is shared across worktrees) and never discard them.
 
   - The list binds main and every dispatch prompt alike: stage explicit file paths only, never a directory such as `docs/` that holds a listed file.

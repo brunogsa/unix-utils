@@ -291,26 +291,19 @@ def run_marked_stack(arg):
         halt("(preflight)", "worktree check", "branch checked out elsewhere")  # 1f
 
     # 1h · Step 2 - ALL questions for ALL marked findings, in one
-    #      AskUserQuestion, plus the learn question (run /improve-from-user
-    #      over your marks before any is applied?): a question asked mid-chain
-    #      blocks a run that has already pushed half the stack.
+    #      AskUserQuestion: a question asked mid-chain blocks a run that has
+    #      already pushed half the stack.
     answers = ask_all_questions_upfront(marked)             # 1h
 
-    # 1h1 · Did the human pick learning? Recommend learning first, except
-    #       recommend skipping when any verdict file already carries a [Done]
-    #       heading: that run's marks were likely mined already.
-    if answers.learn:                                       # 1h1
-        # 1h2 · ONE run over every verdict_quality-gate_*.md, so its clustering
-        #       sees a kind of finding recur across branches. In THIS session,
-        #       never a subagent: it asks per-item approval and its edits need
-        #       permission prompts. Finish its approve-and-apply loop before
-        #       going on.
-        run_improve_from_user(f"verdict marks on {files}")  # 1h2
+    # 1h2 · No ask, no wait: launch ONE learn run over every
+    #       verdict_quality-gate_*.md (absolute paths) in a lateral session,
+    #       per improve-from-user/references/lateral-learn.md, so its
+    #       clustering sees a kind of finding recur across branches. Carry on
+    #       to the chain in the same message.
+    launch_lateral_learn(f"verdict marks on {files}")       # 1h2
 
-    # 1g · Record the tracked modifications as the NEVER-STAGE list, AFTER the
-    #      learn step so an edit it landed in the repo's CLAUDE.md or
-    #      .claude/skills/ joins the list instead of failing the clean-tree
-    #      check 1s1. Never stash them (the stash stack is shared across
+    # 1g · Record the tracked modifications as the NEVER-STAGE list. Never
+    #      stash them (the stash stack is shared across
     #      worktrees), never discard them, and every dispatch prompt carries
     #      the list since a subagent's `git add -A` would sweep them in. Stage
     #      explicit file paths only, never a directory holding a listed file.
@@ -467,10 +460,9 @@ flowchart TD
   n1e{"1e. Step 1 · Is it one valid stack? Stop on an unparsable<br/>header, a branch origin/&lt;branch&gt; rejects, a PR count equal to<br/>the limit (a cut-off list can drop a middle PR), a marked branch<br/>with no open PR, two open PRs sharing one base (a fork), or<br/>marked branches in two different stacks"}
   n1e1["1e1. Preflight · Record the starting branch first,<br/>to return to on a clean finish"]
   n1f{"1f. Preflight · Is a chain branch checked out in another<br/>worktree? git refuses that checkout"}
-  n1h["1h. Step 2 · Ask ALL questions for ALL marked findings, upfront,<br/>in one AskUserQuestion, plus the learn question: run<br/>/improve-from-user over your marks before any is applied?<br/>A question asked mid-chain blocks a run that has already<br/>pushed half the stack"]:::gate
-  n1h1{"1h1. Preflight · Did the human pick learning? Recommend learning<br/>first, except recommend skipping when any verdict file already<br/>carries a [Done] heading - its marks were likely mined already"}
-  n1h2["1h2. Preflight · Run /improve-from-user verdict marks on every<br/>verdict_quality-gate_*.md, in THIS session (never a subagent: it<br/>asks per-item approval and its edits need permission prompts).<br/>One run over every file, so clustering sees recurrence across<br/>branches. Finish its approve-and-apply loop before going on"]:::skill
-  n1g["1g. Preflight · Record the tracked modifications as the<br/>NEVER-STAGE list, AFTER the learn step so an edit it landed in<br/>the repo's CLAUDE.md or .claude/skills/ joins the list instead of<br/>failing the clean-tree check 1s1. Never stash them (the stash<br/>stack is shared across worktrees), never discard them, stage explicit<br/>file paths only, and every dispatch prompt carries the list since<br/>a subagent's git add -A would sweep them in"]
+  n1h["1h. Step 2 · Ask ALL questions for ALL marked findings, upfront,<br/>in one AskUserQuestion.<br/>A question asked mid-chain blocks a run that has already<br/>pushed half the stack"]:::gate
+  n1h2["1h2. Preflight · No ask, no wait: launch ONE learn run, Mode D over<br/>every verdict_quality-gate_*.md (absolute paths), in a lateral<br/>session per improve-from-user/references/lateral-learn.md. One run<br/>over every file, so clustering sees recurrence across branches.<br/>Carry on to the chain in the same message"]:::skill
+  n1g["1g. Preflight · Record the tracked modifications as the<br/>NEVER-STAGE list. Never stash them (the stash<br/>stack is shared across worktrees), never discard them, stage explicit<br/>file paths only, and every dispatch prompt carries the list since<br/>a subagent's git add -A would sweep them in"]
   n1g1{"1g1. Preflight · Does a never-stage file differ between the first and<br/>last chain branch? checkout refuses to carry it"}
   n1g2["1g2. Preflight · Run the repo's documented pre-test setup once<br/>(its CLAUDE.md names it, e.g. start and migrate a test DB)"]
   n1g3["1g3. Preflight · Resolve the gate workflow: the one whose<br/>on.pull_request.branches lists the trunk. A workflow with no<br/>branches filter is never the gate. None found = CI is never<br/>watched, and the report says so"]
@@ -521,9 +513,7 @@ flowchart TD
   n1e -->|"no"| n24
   n1e -->|"yes"| n1e1 --> n1f
   n1f -->|"yes"| n24
-  n1f -->|"no"| n1h --> n1h1
-  n1h1 -->|"yes, learn first"| n1h2 --> n1g
-  n1h1 -->|"no, skip"| n1g
+  n1f -->|"no"| n1h --> n1h2 --> n1g
   n1g --> n1g1
   n1g1 -->|"yes, differs"| n24
   n1g1 -->|"no"| n1g2 --> n1g3 --> n1i --> n1j --> n1k
