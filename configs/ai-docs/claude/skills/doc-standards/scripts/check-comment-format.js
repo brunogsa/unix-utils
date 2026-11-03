@@ -14,6 +14,11 @@
 //   comment that overflows belongs on its own line above the
 //   code rather than squeezed beside it.
 //
+//   A comment line holding only a URL is exempt: the URL is
+//   one token no wrap can split, and a shortened link rots.
+//   Prose beside a URL still counts, since the prose can wrap
+//   and the URL can move to its own line.
+//
 // PARAGRAPH <start>-<end>:<n>
 //   A run of consecutive standalone full-comment lines longer
 //   than --max-lines (default 4) with no blank comment line
@@ -35,6 +40,9 @@
 //   Anything else -- a bare word, a dash, an arrow, a
 //   trailing backslash -- means the blank line landed
 //   mid-sentence instead of at a clause boundary.
+//
+//   A last line holding only a URL is exempt too, since a
+//   period after it would read as part of the link.
 //
 // BULLET-SPACING <line>
 //   A top-level bullet marker (` * - text`, `// - text`) must
@@ -1241,11 +1249,15 @@ function markTouchedAndFullCommentLines(commentRanges, lines, lineStarts) {
   return { widthTouchedLines, fullCommentLines };
 }
 
-function findWidthViolations(widthTouchedLines, lines, maxChars) {
+function findWidthViolations(widthTouchedLines, fullCommentLines, lines, maxChars, lang) {
   const violations = [];
   for (const l of [...widthTouchedLines].sort((a, b) => a - b)) {
     const lineText = lines[l] ?? '';
-    if (lineText.length > maxChars) violations.push({ line: l + 1, chars: lineText.length });
+    const isBareUrl =
+      fullCommentLines.has(l) && BARE_URL_RE.test(commentText(lineText, lang).trim());
+    if (lineText.length > maxChars && !isBareUrl) {
+      violations.push({ line: l + 1, chars: lineText.length });
+    }
   }
   return violations;
 }
@@ -1335,6 +1347,11 @@ function commentText(lineText, lang) {
 // carries its thought into the next line, so a break there
 // severs a sentence the reader then has to rejoin.
 const SENTENCE_END_RE = /(?<!\.)[.;][)"'\]`]*$/;
+
+// A URL is one token that no wrap can split, and a shortened
+// link rots, so a comment line holding only a URL is exempt
+// from WIDTH and SENTENCE-BREAK and never re-flowed by --fix.
+const BARE_URL_RE = /^https?:\/\/\S+$/;
 const COLON_END_RE = /:[)"'\]`]*$/;
 const BULLET_RE = /^(\s*)-\s/;
 const LEADING_WHITESPACE_RE = /^(\s*)/;
@@ -1390,7 +1407,10 @@ function findSentenceAndBulletViolations(fullCommentLines, lines, lang) {
       const lastIndent = text.match(LEADING_WHITESPACE_RE)[1].length;
       const isSetOffExample = listBaseIndent === null && lastIndent > runMinIndent;
       const ok =
-        isSetOffExample || SENTENCE_END_RE.test(text) || (nextIsBullet && COLON_END_RE.test(text));
+        isSetOffExample ||
+        BARE_URL_RE.test(text.trim()) ||
+        SENTENCE_END_RE.test(text) ||
+        (nextIsBullet && COLON_END_RE.test(text));
       if (!ok) sentenceBreaks.push({ line: lastLine + 1 });
     }
     runStart = null;
@@ -1492,7 +1512,7 @@ function checkFile(file, { maxChars, maxLines, langOverride, changedOnly, fix })
     lang,
     lines,
     fullCommentLines,
-    widthViolations: findWidthViolations(widthTouchedLines, lines, maxChars),
+    widthViolations: findWidthViolations(widthTouchedLines, fullCommentLines, lines, maxChars, lang),
     paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines, lang),
     codeGaps: findCodeGapViolations(fullCommentLines, lines, lang),
     sentenceBreaks,
@@ -1558,9 +1578,9 @@ function renderCommentLine(indent, marker, prose) {
 // instead of repacking one line and leaving ragged neighbours.
 //
 // Absorption stops at a sentence end, a blank or delimiter
-// line, a new bullet, a different comment prefix, or indented
-// prose -- each marks the start of something the re-flow has
-// no business merging into.
+// line, a new bullet, a different comment prefix, indented
+// prose, or a line holding only a URL -- each marks the start
+// of something the re-flow has no business merging into.
 //
 // `stopBefore` bounds the walk at the last line an earlier
 // repair in this same pass already moved, whose entry in
@@ -1589,6 +1609,7 @@ function flowUnit(lines, start, lang, fullCommentLines, stopBefore) {
     const parts = splitCommentLine(lines[next], lang);
     if (!parts || parts.indent !== head.indent || parts.marker !== head.marker) break;
     if (parts.prose !== parts.prose.trimStart() || BULLET_RE.test(parts.prose)) break;
+    if (BARE_URL_RE.test(parts.prose.trim())) break;
 
     texts.push(parts.prose.trim());
     end = next;

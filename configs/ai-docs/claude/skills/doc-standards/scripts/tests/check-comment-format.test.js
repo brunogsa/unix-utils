@@ -1069,6 +1069,104 @@ describe('check-comment-format', () => {
     });
   });
 
+  describe('a comment line holding only a url', () => {
+    const LIMITS_URL =
+      'https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch_limits_cwl.html';
+    const DIMENSIONS_URL =
+      'https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/' +
+      'FilterAndPatternSyntaxForMetricFilters.html#logs-metric-filters-dimensions';
+
+    const slashCitation = () =>
+      put(
+        'citation.ts',
+        lines(
+          '// The filter takes at most 3 dimensions:',
+          `// ${DIMENSIONS_URL}`,
+          '//',
+          '// The key id is used, never the key value.',
+          'const keyField = 2;',
+        ),
+      );
+
+    it('should report nothing on terraform comments citing aws docs on their own lines', () => {
+      const file = put(
+        'alarms.tf',
+        lines(
+          '# A log group takes at most 100 filters, not adjustable:',
+          `# ${LIMITS_URL}`,
+          '#',
+          '# AWS may disable a filter whose dimensions reach 1000 different',
+          '# name/value pairs; Route is the resource-path template, not the',
+          "# raw path, so its values stay bounded by the API's routes:",
+          `# ${DIMENSIONS_URL}`,
+          'resource "x" "y" {',
+          '  a = 1',
+          '',
+          '  # The filter takes at most 3 dimensions, which is why method',
+          '  # and path travel as the single route field:',
+          `  # ${DIMENSIONS_URL}`,
+          '  #',
+          '  # The key id is used, never the key value: the log must not',
+          '  # expose the secret.',
+          '  b = 2',
+          '}',
+        ),
+      );
+      const result = check(file);
+      assert.equal(result.out, '');
+      assert.equal(result.status, 0);
+    });
+
+    it('should exempt a slash comment line holding only a url from the width cap', () => {
+      assertAbsent(check(slashCitation()).out, 'WIDTH');
+    });
+
+    it('should accept a paragraph whose last line is only a url as ending a sentence', () => {
+      assertAbsent(check(slashCitation()).out, 'SENTENCE-BREAK');
+    });
+
+    it('should still report the width of a line mixing prose with an over-long url', () => {
+      const file = put('mixed.tf', lines(`# See ${LIMITS_URL} for the limits.`, 'locals {}'));
+      assertContains(check(file).out, 'WIDTH 1:');
+    });
+
+    it('should still report the width of a lone over-long token that is not a url', () => {
+      const file = put(
+        'path.tf',
+        lines('# /var/log/integrator/core/alarms/api-gateway/metric-filters.json', 'locals {}'),
+      );
+      assertContains(check(file).out, 'WIDTH 1:');
+    });
+
+    it('should count a line holding only a url toward the paragraph length', () => {
+      const file = put(
+        'paragraph.tf',
+        lines(
+          '# A log group takes at most 100 filters,',
+          '# and AWS does not raise that limit,',
+          '# so each alarm reuses one shared filter',
+          '# per client instead of adding its own,',
+          `# ${LIMITS_URL}`,
+          'locals {}',
+        ),
+      );
+      assertContains(check(file).out, 'PARAGRAPH 1-5:5');
+    });
+
+    it('should leave a line holding only a url untouched when --fix re-wraps the bullet above it', () => {
+      const file = put(
+        'bullet.tf',
+        lines(
+          '# - The filter takes at most three dimensions, which is why method and path travel together:',
+          `# ${DIMENSIONS_URL}`,
+          'locals {}',
+        ),
+      );
+      fix(file);
+      assert.ok(read(file).split('\n').includes(`# ${DIMENSIONS_URL}`), read(file));
+    });
+  });
+
   describe('lua files', () => {
     const longStringFile = (rel, open, close) =>
       put(
