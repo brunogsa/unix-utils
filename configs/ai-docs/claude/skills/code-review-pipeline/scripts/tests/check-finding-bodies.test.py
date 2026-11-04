@@ -8,6 +8,7 @@ Usage:
   pytest configs/ai-docs/claude/skills/code-review-pipeline/scripts/tests/check-finding-bodies.test.py
 """
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -459,3 +460,106 @@ class TestInternalRuleCitations:
             " para saber se a função baixa, decodifica ou valida a mensagem."
         )
         _assert_passes(_check(tmp_path, _verdict(_finding(body=_pt_body(summary)))))
+
+
+def _json_finding(body=None, path="src/billing/fees.py", line=42, severity="high"):
+    body = _pt_body(SUMMARY) if body is None else body
+    return {"path": path, "line": line, "severity": severity, "body": body}
+
+
+def _write_json(tmp_path, findings):
+    return _write(tmp_path, json.dumps(findings, ensure_ascii=False), "wave4-findings.json")
+
+
+def _run_json(path):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), "--findings-json", str(path)],
+        capture_output=True, text=True, encoding="utf-8",
+    )
+
+
+class TestFindingsJsonMode:
+    def test_array_of_well_formed_portuguese_bodies_passes(self, tmp_path):
+        nitpick = _body(
+            tag="NITPICK", before_tag="> Opinião subjetiva - fique à vontade para ignorar.",
+            suggestion_label=PT_SUGGESTION, tradeoff_label=PT_TRADEOFF,
+        )
+        findings = [_json_finding(), _json_finding(body=nitpick, line=7, severity="low")]
+        _assert_passes(_run_json(_write_json(tmp_path, findings)))
+
+    def test_body_over_the_512_char_cap_is_flagged_with_its_index_path_and_line(self, tmp_path):
+        long_body = _padded_body(NON_MANDATORY_CAP + 1, "RECOMENDADO")
+        findings = [
+            _json_finding(),
+            _json_finding(body=long_body, path="src/orders/validate.py", line=18),
+        ]
+        path = _write_json(tmp_path, findings)
+        lines = _violations(_run_json(path))
+        assert len(lines) == 1
+        assert lines[0].startswith(f"{path}: finding 2 (src/orders/validate.py:18): ")
+        assert "513" in lines[0] and "512" in lines[0]
+
+    def test_body_breaking_the_tag_and_section_layout_is_flagged(self, tmp_path):
+        body = "**CONFIRMADO.** A taxa é aplicada duas vezes.\n\n" + _body(
+            tag="RECOMENDADO", suggestion_label=None, tradeoff_label=None,
+        )
+        lines = _violations(_run_json(_write_json(tmp_path, [_json_finding(body=body)])))
+        joined = "\n".join(lines)
+        assert "severity tag" in joined
+        assert "Sugestão" in joined
+        assert "Trade-off" in joined
+
+    def test_body_citing_an_internal_rule_source_is_flagged(self, tmp_path):
+        path = _write_json(tmp_path, [_json_finding(body=_pt_body(PT_CITING_SUMMARY))])
+        lines = _violations(_run_json(path))
+        assert lines == [
+            f'{path}: finding 1 (src/billing/fees.py:42): body cites internal rule source'
+            ' "code-standards"; state the principle and why it matters for this code instead'
+        ]
+
+    def test_body_on_the_cited_file_itself_may_name_it(self, tmp_path):
+        finding = _json_finding(
+            body=_pt_body(PT_CITING_SUMMARY),
+            path="configs/ai-docs/claude/skills/code-standards/SKILL.md",
+        )
+        _assert_passes(_run_json(_write_json(tmp_path, [finding])))
+
+    def test_heading_checks_do_not_apply_since_a_json_finding_has_no_heading(self, tmp_path):
+        _assert_passes(_run_json(_write_json(tmp_path, [_json_finding(severity="low")])))
+
+    def test_empty_array_passes(self, tmp_path):
+        _assert_passes(_run_json(_write_json(tmp_path, [])))
+
+
+class TestFindingsJsonModeErrors:
+    @pytest.mark.parametrize("content,expected", [
+        ("[{\"path\": ", "invalid JSON"),
+        ('{"path": "a.py", "body": "x"}', "array"),
+        ('[{"path": "a.py", "line": 1}]', "body"),
+        ('[{"line": 1, "body": "x"}]', "path"),
+        ('["just a string"]', "body"),
+    ])
+    def test_malformed_findings_file_exits_two_explaining_why_on_stderr(
+        self, tmp_path, content, expected,
+    ):
+        path = _write(tmp_path, content, "wave4-findings.json")
+        result = _run_json(path)
+        assert result.returncode == 2, (result.stdout, result.stderr)
+        assert expected in result.stderr
+        assert str(path) in result.stderr
+
+    def test_missing_findings_file_exits_two_naming_it_on_stderr(self, tmp_path):
+        missing = tmp_path / "wave4-findings.json"
+        result = _run_json(missing)
+        assert result.returncode == 2
+        assert str(missing) in result.stderr
+
+    def test_verdict_paths_together_with_findings_json_is_a_usage_error(self, tmp_path):
+        verdict = _write(tmp_path, _verdict(_finding()))
+        findings = _write_json(tmp_path, [_json_finding()])
+        result = subprocess.run(
+            [sys.executable, str(SCRIPT), str(verdict), "--findings-json", str(findings)],
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        assert result.returncode == 2
+        assert "usage" in result.stderr.lower()
