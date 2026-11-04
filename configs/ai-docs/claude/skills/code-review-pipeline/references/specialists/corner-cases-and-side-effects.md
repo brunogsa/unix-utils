@@ -51,7 +51,7 @@ Flag only when the code will demonstrably misbehave (crash, wrong result,
 silent bad data, unexpected mutation). Internal functions with trusted callers
 don't need defensive checks.
 
-Per `code-standards`: fail loudly, not silently - a crash you see beats silent
+Fail loudly, not silently - a crash you see beats silent
 corruption you don't. Per layered architecture: I/O belongs in controllers,
 not use cases - a use case that writes to disk is a flagged side-effect.
 

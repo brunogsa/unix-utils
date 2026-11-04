@@ -42,7 +42,8 @@ Structure:
   function; business logic inside a controller.
 - Global mutable state added by the diff.
 - Function with ≥2 positional parameters where a named-param object would
-  document the shape (per `code-standards`).
+  document the shape - two same-typed positional arguments swap silently at
+  the call site, while named fields show each value's role there.
 - Falsiness check where null/undefined was meant (`if (value)` when `0` and
   `""` are valid).
 - Data not normalized at the entry point: string dates flowing through

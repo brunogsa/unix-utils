@@ -108,6 +108,27 @@ prefix the body with:
 - Portuguese (GH mode): `> Opinião subjetiva - sinta-se livre para ignorar.`
 - English (LOCAL mode): `> Subjective opinion - feel free to ignore.`
 
+## Reasons, not citations
+Tracing a finding to a standard decides its severity, but the trace stays
+internal. The body never names a rule source as its authority - no
+`*-standards` skill (`code-standards`, `test-standards`, `doc-standards`), no
+`CLAUDE.md` / `AGENTS.md`, no file of this pipeline. State the principle
+itself and its concrete effect on this code: what a caller, a reader, or
+production gets wrong without the fix.
+
+- Bad: "resolveLargeMessageBody usa o verbo vago resolve, que o
+  code-standards pede para trocar."
+- Good: "`resolve` não diz o que volta; `replaceS3RefWithStoredPayload`
+  mostra na chamada que o payload substitui a referência do S3."
+
+The one exception is a finding whose own `path` is that file - a review of a
+CLAUDE.md or a standards skill names the file under review.
+
+Why: the PR author can't open the reviewer's private rule files, so a
+citation teaches nothing they can check - the principle is what they can
+evaluate, push back on, and reuse. `check-finding-bodies.py` rejects these
+citations before any body is posted or written.
+
 ## Output contract
 Return a single JSON array. Empty array if nothing to flag. No prose outside the
 JSON. Each finding object:

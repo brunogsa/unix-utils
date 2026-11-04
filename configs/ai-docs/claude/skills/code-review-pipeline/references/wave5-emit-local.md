@@ -15,5 +15,8 @@ Write `${out_file}` (`${out_base}.md`) to the current CWD.
   - Provenance, counts, drop logs, and deviations belong in the Wave 6 terminal summary ([`wave6-summary-template.md`](wave6-summary-template.md)), not in the verdict file.
 
 - After writing `${out_file}`, run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py "${out_file}"`.
-  - On exit 1, rewrite only the flagged bodies to fit (cut prose, never drop Suggestion or Trade-off) and re-run, at most twice.
+  - On exit 1, rewrite only the flagged bodies and re-run, at most twice.
+
+  - Fix a budget violation by cutting prose, and a cited rule source by stating the principle it stands for; never drop Suggestion or Trade-off.
+
   - Report any violations still remaining in Wave 6 rather than looping.

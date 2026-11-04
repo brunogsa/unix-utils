@@ -54,14 +54,16 @@ Comments & docs:
   restructure, not the comment's wording.
 
 Logging:
-- I/O loop without progress logs - per `code-standards`, loops of external
-  calls should log counter format like `[3/70] item-name`.
+- I/O loop without progress logs - a loop of external calls should log a
+  counter like `[3/70] item-name`, so whoever watches a slow or stuck run
+  sees how far it got and which item it is on.
 - Failure logged without the full input that caused it (nobody can reproduce
   from just the error message).
 - PII, credentials, tokens, or raw request bodies with sensitive fields
   logged.
 - Wrong level: `info` for per-item events inside a hot loop; `debug` for
-  events production needs (debug is stripped in prod per `code-standards`).
+  events production needs (debug is stripped in prod, so on-call never sees
+  them).
 - Unstructured log where `LogContext.extendContext()` / structured logging
   conventions are established.
 - Log message that assumes the reader already knows what's happening

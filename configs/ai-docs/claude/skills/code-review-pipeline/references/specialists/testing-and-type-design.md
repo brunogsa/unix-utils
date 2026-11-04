@@ -31,7 +31,8 @@ For each new or changed behavior in the diff, ask:
 - Does the test title describe WHAT the behavior is, not what the code does?
 - Would the test still pass after a refactor that preserves behavior?
 - Is mocking limited to external dependencies (file I/O, network, external
-  processes) per `test-standards`?
+  processes)? Mocking an internal module ties the test to the implementation,
+  so a behavior-preserving refactor breaks it.
 
 Push invariants into the type where the compiler catches violations; use tests
 to cover what types cannot express.

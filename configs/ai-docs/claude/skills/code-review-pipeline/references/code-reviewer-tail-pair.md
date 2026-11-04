@@ -32,7 +32,10 @@ Each lens prompt also tells the lens to:
 - Write every finding in the layout of `~/.claude/skills/code-review-pipeline/references/local-review-template.md`, following its worked example, in English.
 
 - Run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py <VERDICT_PATH>` after writing.
-  - On exit 1, rewrite only the flagged bodies to fit (cut prose, never drop Suggestion or Trade-off) and re-run, at most twice.
+  - On exit 1, rewrite only the flagged bodies and re-run, at most twice.
+
+  - Fix a budget violation by cutting prose, and a cited rule source by stating the principle it stands for; never drop Suggestion or Trade-off.
+
   - Report any violations still remaining in the final message rather than looping.
 
 Without a named layout the lens falls back to its own Verdict/Reasoning/Evidence format, which neither `address-verdicts` nor the `pr-review` layout parses.
