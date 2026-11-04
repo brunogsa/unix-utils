@@ -30,3 +30,7 @@ pyrightconfig.json
 # Anthropic's skill sync writes upstream-owned skills here through the
 # symlinked skills/ tree. The next sync re-pushes them, so committing is churn.
 configs/ai-docs/claude/skills/synced/
+# Where Claude Code moves skills it removes, through the same symlinked
+# skills/ tree - each entry a timestamped copy nobody authored here. Left
+# unignored, the comment-format gate scans those copies as repo files.
+configs/ai-docs/claude/skills/.trash/
