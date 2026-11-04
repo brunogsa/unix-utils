@@ -107,9 +107,11 @@ Settle each question in the interview by default. Apply each answer through `age
 
 Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
 
-For a question only an external party can answer (another team, a vendor), the interview's recommended option is a `[Clarify]` task over keeping it open. Its tracker issue blocks the tasks that depend on the answer.
+For a question only an external party can answer (another team, a vendor), the interview's recommended option is a `[Clarify]` task over keeping it open, plus a stated premise the plan proceeds on until the answer lands. Its tracker issue blocks only the tasks the premise cannot cover, typically the deploy.
 
 Why a clarify task: an `## Open Questions` entry blocks nothing in the tracker, so dependent work can start before the answer lands.
+
+Why a premise: waiting on another team stalls the plan, while a premise that names what a contrary answer reopens costs one targeted edit if it proves false. Asking the party runs in parallel and never freezes the plan.
 
 Carry the task's full shape inline in the `plan-editor` dispatch - heading, body fields, Task Details entry, and each dependent's `- Task N` bullet - because `plan-editor` reads only the plan and its instructions. The shape is the "Clarify task" block in `~/.claude/skills/spec-driven-development/references/plan-tasks-and-appendix.md`.
 

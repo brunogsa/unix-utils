@@ -94,6 +94,10 @@ Settle each question in the interview by default. Apply each answer through `age
 
 Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
 
+For a question only an external party can answer (another team, a vendor), the recommended option is to keep the entry open with the link to where it was asked, and state the premise the spec proceeds on meanwhile and what a contrary answer reopens.
+
+Why: the spec keeps moving while the answer is chased, and the reversal note turns a "no" into one targeted edit.
+
 Why before the review: the reviewer judges the settled spec, so reviewing a spec with open questions reviews text the answers will change, and the review would run twice.
 
 Why settle by default: the common path is a spec with no open question left, and an entry the user never chose to keep is a decision this session skipped asking about.

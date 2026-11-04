@@ -62,6 +62,8 @@ Each task produces at least one base commit (tests, code, IaC/docs together; RED
 
 - Its body entry holds `**Depends on**:`, a `**Brief Description**:` naming who answers, `**Tests (planned)**: N/A - clarify task, no code`, and no commit sketch.
 
+- Its body entry lists each question with the link to where it was asked, the premise the plan proceeds on, and what a contrary answer reopens (tasks and reads named).
+
 - Its body entry also holds the backtick-wrapped `**Linear**:` field `sdd-to-linear` writes, like a PR's.
 
 - List it under no PR's `**Tasks**:` - `check-pr-task-projection.py` rejects that, since the task has no commit.
