@@ -21,6 +21,7 @@ import argparse
 import json
 import re
 import sys
+from typing import NoReturn
 
 FINDING_HEADING = re.compile(r"^### (\d+)\. ((?:\[[^\]]*\])*)\s*(?:`([^`:]*))?")
 MISPLACED_FINDING_HEADING = re.compile(r"^(?:#{1,2}|#{4,6}) \d+\. ")
@@ -273,7 +274,7 @@ def check_json_body(text, path):
     )
 
 
-def _exit_unusable(path, why):
+def _exit_unusable(path, why) -> NoReturn:
     print(f"check-finding-bodies.py: cannot use {path}: {why}", file=sys.stderr)
     sys.exit(2)
 
