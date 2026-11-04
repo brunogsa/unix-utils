@@ -15,7 +15,7 @@ import argparse
 import re
 import sys
 
-FINDING_HEADING = re.compile(r"^### (\d+)\. ((?:\[[^\]]*\])*)")
+FINDING_HEADING = re.compile(r"^### (\d+)\. ((?:\[[^\]]*\])*)\s*(?:`([^`:]*))?")
 MISPLACED_FINDING_HEADING = re.compile(r"^(?:#{1,2}|#{4,6}) \d+\. ")
 MISPLACED_HEADING_REASON = "numbered finding heading must be '### N.'"
 FINDING_BOUNDARY = re.compile(r"^(?:#{1,3} |---$)")
@@ -52,14 +52,26 @@ MANDATORY_CHAR_CAP = 1024
 MANDATORY_LINE_CAP = 16
 QUOTED_LINE_MAX = 60
 
+# The reviewer's private rule files: the PR author cannot open
+# them, so a body citing one asks for trust instead of stating
+# the principle.
+INTERNAL_RULE_SOURCE = re.compile(
+    r"\b[a-z]+-standards\b"
+    r"|\b(?:CLAUDE|AGENTS)\.md\b"
+    r"|\b(?:review-principles|review-checklists|common-preamble)\b"
+    r"|~/\.claude/",
+    re.IGNORECASE,
+)
+
 
 class Finding:
     """One numbered finding; `lines` holds (text, is_fenced) pairs,
     with fence delimiter lines counted as fenced."""
 
-    def __init__(self, number, heading_tokens):
+    def __init__(self, number, heading_tokens, path):
         self.number = number
         self.heading_tokens = heading_tokens
+        self.path = path
         self.lines = []
 
 
@@ -88,7 +100,7 @@ def parse_findings(text):
             heading = FINDING_HEADING.match(line)
             if heading:
                 tokens = BRACKET_TOKEN.findall(heading.group(2))
-                current = Finding(int(heading.group(1)), tokens)
+                current = Finding(int(heading.group(1)), tokens, heading.group(3) or "")
                 findings.append(current)
                 continue
             if FINDING_BOUNDARY.match(line):
@@ -186,8 +198,26 @@ def _check_budget(prose, tag):
     return reasons
 
 
+def _check_citations(prose, path):
+    """Flag each distinct internal rule source the prose names, unless
+    the finding is about that very file (its path contains the name)."""
+    path_lower = path.lower()
+    cited = {}
+    for line in prose:
+        for match in INTERNAL_RULE_SOURCE.finditer(line):
+            token = match.group(0)
+            is_finding_own_file = token.lower() in path_lower
+            if not is_finding_own_file:
+                cited.setdefault(token.lower(), token)
+    return [
+        f'body cites internal rule source "{token}";'
+        " state the principle and why it matters for this code instead"
+        for token in cited.values()
+    ]
+
+
 def check_finding(finding):
-    """Return every layout and budget violation of one finding."""
+    """Return every layout, budget and citation violation of one finding."""
     body_lines = _reviewer_lines(finding)
     body = [line for line, _ in body_lines]
     prose = [line for line, is_fenced in body_lines if not is_fenced]
@@ -197,6 +227,7 @@ def check_finding(finding):
         + _check_ordinal(finding.heading_tokens, tag)
         + _check_sections(prose, tag)
         + _check_budget(prose, tag)
+        + _check_citations(prose, finding.path)
     )
 
 

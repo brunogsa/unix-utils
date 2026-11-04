@@ -66,9 +66,9 @@ def _body(
     return "\n\n".join(part for part in parts if part is not None)
 
 
-def _finding(number=1, prefix="[HIGH]", body=None):
+def _finding(number=1, prefix="[HIGH]", body=None, location="src/billing/fees.py:42-48"):
     body = _body() if body is None else body
-    return f"### {number}. {prefix} `src/billing/fees.py:42-48`\n\n{body}\n"
+    return f"### {number}. {prefix} `{location}`\n\n{body}\n"
 
 
 def _verdict(*findings):
@@ -393,3 +393,69 @@ class TestExitCodesAndFiles:
         lines = _violations(_run(clean, failing))
         assert len(lines) == 1
         assert lines[0].startswith(f"{failing}: ")
+
+
+PT_CITING_SUMMARY = (
+    "resolveLargeMessageBody usa o verbo vago resolve, que o code-standards"
+    " pede para trocar por um verbo que nomeie a operação."
+)
+
+
+def _pt_body(summary):
+    return _body(
+        tag="OBRIGATÓRIO", summary=summary,
+        suggestion_label=PT_SUGGESTION, tradeoff_label=PT_TRADEOFF,
+    )
+
+
+class TestInternalRuleCitations:
+    def test_portuguese_body_justified_by_a_standards_skill_is_flagged_naming_it(
+        self, tmp_path,
+    ):
+        path = _write(tmp_path, _verdict(_finding(body=_pt_body(PT_CITING_SUMMARY))))
+        lines = _violations(_run(path))
+        assert len(lines) == 1
+        assert lines[0].startswith(f"{path}: finding 1: ")
+        assert '"code-standards"' in lines[0]
+        assert "state the principle" in lines[0]
+
+    @pytest.mark.parametrize("citation", [
+        "per CLAUDE.md",
+        "as AGENTS.md requires",
+        "see review-principles",
+        "the review-checklists entry says so",
+        "the common-preamble forbids it",
+        "~/.claude/skills/test-standards/SKILL.md says so",
+    ])
+    def test_english_body_justified_by_a_private_rule_file_is_flagged(
+        self, tmp_path, citation,
+    ):
+        body = _body(summary=f"Fees come out 100x too high, which is wrong {citation}.")
+        lines = _violations(_check(tmp_path, _verdict(_finding(body=body))))
+        assert lines
+        assert all("internal rule source" in line for line in lines)
+
+    def test_each_distinct_cited_source_gets_its_own_reason(self, tmp_path):
+        body = _body(summary="Both code-standards and CLAUDE.md, and code-standards again, say so.")
+        lines = _violations(_check(tmp_path, _verdict(_finding(body=body))))
+        assert len(lines) == 2
+        assert any('"code-standards"' in line for line in lines)
+        assert any('"CLAUDE.md"' in line for line in lines)
+
+    def test_source_named_only_inside_a_code_block_passes(self, tmp_path):
+        suggestion = "```diff\n-# see code-standards in CLAUDE.md\n+fee = total * rate / 100\n```"
+        _assert_passes(_check(tmp_path, _verdict(_finding(body=_body(suggestion_text=suggestion)))))
+
+    def test_finding_on_the_cited_file_itself_may_name_it(self, tmp_path):
+        finding = _finding(
+            body=_pt_body(PT_CITING_SUMMARY),
+            location="configs/ai-docs/claude/skills/code-standards/SKILL.md:12-14",
+        )
+        _assert_passes(_check(tmp_path, _verdict(finding)))
+
+    def test_body_stating_the_principle_without_citing_a_source_passes(self, tmp_path):
+        summary = (
+            "resolveLargeMessageBody usa o verbo vago resolve: quem lê precisa abrir o corpo"
+            " para saber se a função baixa, decodifica ou valida a mensagem."
+        )
+        _assert_passes(_check(tmp_path, _verdict(_finding(body=_pt_body(summary)))))
