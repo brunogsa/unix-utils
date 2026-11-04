@@ -9,11 +9,20 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    commit_sha=$(gh pr view "$pr_number" --repo "$repo" --json headRefOid --jq '.headRefOid')
    ```
 
-2. Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
+2. Run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py --findings-json "$work_dir/wave4-findings.json"`.
+   - On exit 1, rewrite only the flagged bodies in `wave4-findings.json` and re-run, at most twice.
+
+   - Fix a budget violation by cutting prose, and a cited rule source by stating the principle it stands for; never drop Sugestão or Trade-off.
+
+   - Report any violations still remaining in Wave 6 rather than looping. Exit 2 means the file is unreadable - stop and report it.
+
+   - Why: these comments post under the human's name to a PR the whole team reads, so the body rules in `review-principles.md` must hold before posting, not only in local verdict files.
+
+3. Write each Wave-4 finding's `body` to its own file, `$work_dir/wave5-comment-<n>.md` (one per finding, in finding order).
 
 ## Build and POST the pending review
 
-3. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` verbatim from its `$work_dir/wave5-comment-<n>.md`.
+4. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` verbatim from its `$work_dir/wave5-comment-<n>.md`.
    - **Leave the top-level `body` empty** - the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
      - Rationale: a guide in the body gets buried behind GitHub's review filter.
 
@@ -40,7 +49,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    }
    ```
 
-4. POST as a **pending** review (no `event` field), in exactly one call - the whole `comments[]` array goes in this single request, never one comment at a time:
+5. POST as a **pending** review (no `event` field), in exactly one call - the whole `comments[]` array goes in this single request, never one comment at a time:
 
    ```bash
    gh api repos/"$repo"/pulls/"$pr_number"/reviews \
@@ -52,7 +61,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    review_url=$(jq -r '.html_url // "(pending - open PR and filter reviews)"' "$work_dir/review-response.json")
    ```
 
-5. If the POST fails (422), re-read line numbers from `commentable-lines.txt` and drop findings whose anchors are unresolvable, then retry once **with the same single-batch-POST shape**.
+6. If the POST fails (422), re-read line numbers from `commentable-lines.txt` and drop findings whose anchors are unresolvable, then retry once **with the same single-batch-POST shape**.
    - Same endpoint, same one call, just a smaller `comments[]`.
    - Never fall back to the single-comment endpoint (`POST .../pulls/{pull_number}/comments`) or to `gh pr review`, even for findings the retry couldn't place.
      - Both submit immediately with no way to stay pending, worse than not posting those findings at all.
@@ -61,7 +70,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
 ## Confirm nothing submitted the review
 
-6. **Verify the review actually stayed pending** - a POST response of `"state": "PENDING"` is not proof by itself.
+7. **Verify the review actually stayed pending** - a POST response of `"state": "PENDING"` is not proof by itself.
    - Re-fetch the same review a moment later and check again.
    - Something between POST and report-out (a stray follow-up call, a retry, a second Wave-5 run in the same session) can submit it without your noticing:
 
@@ -82,7 +91,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 
 ## Post the Review Guide as its own PR comment
 
-7. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
+8. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
    - Its content is `$work_dir/wave2-guide.md`.
    - Use the issue-comments endpoint (PR conversation comments share the issue API):
 

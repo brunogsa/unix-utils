@@ -162,7 +162,8 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
     else:
         match mode:                                           # 17
             case "github":
-                # 18 · one single batch call.
+                # 18 · body check (check-finding-bodies.py --findings-json,
+                #      rewrite flagged bodies at most twice), then one single batch call.
                 post_pending_review(build("review-payload.json"))
                 if response.status == 422:                    # 19
                     drop_unresolvable_anchors()               # 19a · retry once, same batch shape
@@ -247,7 +248,7 @@ flowchart TD
 
   n17{"17. Mode?"}
 
-  n18["18. Build review-payload.json,<br/>POST pending review (single batch call)"]:::state
+  n18["18. check-finding-bodies.py --findings-json<br/>(rewrite flagged bodies, at most twice),<br/>build review-payload.json,<br/>POST pending review (single batch call)"]:::state
   n19{"19. POST returned 422?"}
   n19a["19a. Drop unresolvable anchors,<br/>retry once (same batch shape)"]
   n19a1{"19a1. Retry also failed?"}

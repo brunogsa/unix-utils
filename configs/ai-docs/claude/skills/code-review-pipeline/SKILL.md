@@ -203,7 +203,7 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 
 ## Error handling
 
-- **gh api POST 422 (Wave 5 emit)**: retry once per `wave5-emit-github.md`'s step 5 (same batch shape, undeliverable findings drop instead of falling back to a non-batch endpoint).
+- **gh api POST 422 (Wave 5 emit)**: retry once per `wave5-emit-github.md`'s step 6 (same batch shape, undeliverable findings drop instead of falling back to a non-batch endpoint).
   - If the retry also fails, stop and report the error.
 
 - **Post-emit verification fails**: if the re-fetched review isn't `PENDING`, or its comment count/lines don't match `review-payload.json`, stop - don't proceed to Wave 6's summary.
