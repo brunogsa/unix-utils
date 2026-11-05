@@ -49,6 +49,10 @@ Dispatch the routed judge (`title=Qualitative review of spec and plan`) over bot
 - **Ambiguity**: could any requirement be read two ways? Pick one and make it explicit, or leave a `**QUESTION:**` marker.
 - **Completeness**: does the Testable Acceptance Criteria section cover every Goal, Success Metric/KPI, User Story and Non-Functional/Technical Requirement in the spec - plus every corner case and failure mode?
 
+- **Blast radius**: for every field, table or contract the change adds, drops, or moves, does the doc list every reader and writer?
+  - Find them by grep in the repo, never from the doc's own claim.
+  - Why: a reader the doc misses keeps reading a field that is gone, and no AC or test ever points at it.
+
 - **Human-Reviewable**: judge the body above `# Appendix`, against the 1-6 page guideline - could a novice succeed with just this plan and repo?
 
 ## Mechanical defects - one repaired, one reported
