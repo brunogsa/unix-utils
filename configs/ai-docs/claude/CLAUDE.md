@@ -175,6 +175,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt - readers spend cycles auditing dead weight.
+  - [Example] Bad: a read of a field the new data model drops, left to degrade to a placeholder plus a `warn`. Good: delete every such read, found by grep.
 
 - [Instruction] Put ephemeral scratch - throwaway scripts, debug dumps - in /tmp, never the repo or CWD, UNLESS user-reviewed, then left untracked in CWD; see Note-taking discipline.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt.
