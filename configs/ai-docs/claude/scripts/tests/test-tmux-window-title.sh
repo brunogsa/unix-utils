@@ -1440,6 +1440,34 @@ JSON
   stop_server
 }
 
+# A window tmux-resurrect restores after a reboot carries its
+# name but no pane options, so no set_last_title here.
+it_should_keep_the_dotted_root_city_code_on_a_resume_reset_of_a_restored_window() {
+  start_server
+
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" ".cityCode/is-cleanup[7+2]"
+  title --reset-counter <<'JSON'
+{"source":"resume"}
+JSON
+  local after_reset
+  after_reset=$(window_name)
+  title "new-account"
+  local after_title
+  after_title=$(window_name)
+  title --bump-counter
+
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should keep the user's dotted root .cityCode when a resume reset sheds the counter of a restored window" \
+    ".cityCode" "$after_reset"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should refuse a Claude title on the restored dotted window after the resume reset" \
+    ".cityCode" "$after_title"
+  assert_eq \
+    "TmuxWindowTitle > reset by source > should keep the dotted root .cityCode through the next compaction after the resume reset" \
+    ".cityCode[1]" "$(window_name)"
+  stop_server
+}
+
 it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_billing_and_counter_3() {
   start_server
 
@@ -1609,6 +1637,7 @@ it_should_allow_a_new_first_title_after_a_reset_with_source_clear
 it_should_allow_a_new_first_title_after_a_reset_with_source_resume
 it_should_allow_a_new_first_title_after_a_reset_with_source_fork
 it_should_render_ledger_bare_after_a_reset_with_source_resume_inside_a_rooted_session
+it_should_keep_the_dotted_root_city_code_on_a_resume_reset_of_a_restored_window
 it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_billing_and_counter_3
 it_should_count_from_1_and_freeze_ledger_as_root_after_a_reset_with_source_startup
 it_should_allow_the_first_title_after_a_resume_reset_on_a_pane_with_prev_zsh_and_a_rooted_title

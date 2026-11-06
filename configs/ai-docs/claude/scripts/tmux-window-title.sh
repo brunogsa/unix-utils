@@ -65,6 +65,13 @@
 #   restore hook owns the name on /clear -- and sets the last
 #   title to the live name minus its counter.
 #
+#   On every other source a live counter is shed with the
+#   root, keeping the compact focus.
+#
+#   A first "/" segment starting with "." is the user's own
+#   root and is kept instead: a tmux-resurrect window has no
+#   pane options, so its name is that root's only record.
+#
 #   Setting a base title PRESERVES an existing counter.
 #
 #   Leading dots in a title Claude passes are stripped: a dotted
@@ -209,6 +216,10 @@
 #   tmux-window-title.sh --reset-counter
 #     drops the counter and the root, keeping the rendered
 #     label: "hook-tests" (on source `clear` no name is written)
+#
+#   tmux-window-title.sh --reset-counter
+#     on ".cityCode/is-cleanup[7+2]" keeps the user's dotted
+#     root: ".cityCode"
 
 set -euo pipefail
 
@@ -735,6 +746,20 @@ case "$MODE" in
     # anchor the new session to the old one's identity, which is
     # what the reset just revoked.
     base=$(compact_focus_base "$current")
+
+    # A dotted first segment is the user's own name -- Claude
+    # never writes a leading dot -- so keep it as the base
+    # instead of the compact focus.
+    #
+    # A window tmux-resurrect restores carries no pane options,
+    # so the live name is the only record of that root; shedding
+    # it would let the next Claude title overwrite it.
+    uncounted=$(strip_counter "$current")
+    first_segment=${uncounted%%"$ROOT_SEPARATOR"*}
+    if [[ "$first_segment" == .* ]]; then
+      base=$first_segment
+    fi
+
     capture_prev_state
     apply_title "$(render_title "$base" "")"
     ;;
