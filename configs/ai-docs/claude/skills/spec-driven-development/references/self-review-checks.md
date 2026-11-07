@@ -9,8 +9,8 @@ A run may write the plan alone (SKILL.md) - never report the absent spec as a fi
 **Deterministic** - a script or renderer returns the verdict, so re-running costs nothing.
 
 - Members: `scripts/check-mermaid-renders.sh`, the density checks, `check-hard-wrap.py`, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`.
-  - `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`.
-  - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`.
+  - `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`, `check-ac-references.py`.
+  - With a spec: `check-ac-coverage.sh`, `check-coverage-checklists.sh`, `check-ac-references.py` on the spec.
 
 - Run all with `scripts/check-deterministic-gates.sh <plan> [<spec>]`; no spec `SKIP`s the spec-taking gates.
   - `--spec-only <spec>` runs only the spec gates, `SKIP`ping the rest.

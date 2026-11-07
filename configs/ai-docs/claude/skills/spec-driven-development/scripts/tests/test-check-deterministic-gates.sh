@@ -131,7 +131,7 @@ build_tree() {
   local g
   for g in check-mermaid-renders.sh check-sections.sh check-test-distribution.sh \
     check-pr-dag.sh check-tasks-dag.sh check-files-union.sh check-ac-task-consistency.py \
-    check-ac-coverage.sh check-coverage-checklists.sh; do
+    check-ac-coverage.sh check-coverage-checklists.sh check-ac-references.py; do
     make_stub "$sdd/scripts/$g" "$g" 0
   done
   make_stub "$doc/scripts/check-density.sh" check-density.sh 0
@@ -181,10 +181,12 @@ check-files-union.sh $PLAN
 check-ac-task-consistency.py $PLAN
 check-ac-coverage.sh $PLAN $SPEC
 check-coverage-checklists.sh $SPEC
+check-ac-references.py $PLAN
+check-ac-references.py $SPEC
 EOF2
 )
   assert_eq "should invoke every member in the reference order, plan before spec for check-ac-coverage" "$expected" "$(cat "$CALL_LOG")"
-  assert_eq "should print one line per gate invocation" "19" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
+  assert_eq "should print one line per gate invocation" "21" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
 }
 
 it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_spec() {
@@ -198,7 +200,7 @@ it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_sp
   assert_contains "should report check-coverage-checklists as SKIP" "SKIP exit=- check-coverage-checklists.sh" "$RUN_OUT"
   assert_not_contains "should never report a skipped gate as PASS" "PASS exit=0 check-ac-coverage.sh" "$RUN_OUT"
   assert_not_contains "should never report the skipped spec gate as PASS" "PASS exit=0 check-coverage-checklists.sh" "$RUN_OUT"
-  assert_eq "should skip exactly the eight spec-only invocations" "8" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
+  assert_eq "should skip exactly the nine spec-only invocations" "9" "$(printf '%s\n' "$RUN_OUT" | grep -c '^SKIP ')"
 }
 
 it_should_keep_running_after_a_failing_gate_show_its_output_and_exit_non_zero() {
@@ -301,6 +303,7 @@ check-bullet-structure.py $SPEC
 check-hard-wrap.py $SPEC
 check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
 check-coverage-checklists.sh $SPEC
+check-ac-references.py $SPEC
 EOF2
 )
   assert_eq "should invoke only the spec gates, with the spec template for check-sections" "$expected" "$(cat "$CALL_LOG")"

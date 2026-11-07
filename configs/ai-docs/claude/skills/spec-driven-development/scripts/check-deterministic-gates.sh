@@ -197,5 +197,7 @@ else
   run_spec_gate gate plan+spec check-ac-coverage.sh bash "$script_dir/check-ac-coverage.sh" "$plan" "$spec"
 fi
 run_spec_gate gate spec check-coverage-checklists.sh bash "$script_dir/check-coverage-checklists.sh" "$spec"
+run_plan_gate gate plan check-ac-references.py "$script_dir/check-ac-references.py" "$plan"
+run_spec_gate gate spec check-ac-references.py "$script_dir/check-ac-references.py" "$spec"
 
 exit "$failed"
