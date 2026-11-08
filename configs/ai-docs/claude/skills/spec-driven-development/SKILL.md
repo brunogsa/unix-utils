@@ -116,13 +116,13 @@ The judged bucket routes by artifact - `spec-reviewer` over a spec, `plan-review
 Run the deterministic bucket first with `scripts/check-deterministic-gates.sh <plan> [<spec>]`, as often as needed; the judged bucket runs as few times as the caller accepts.
 
 **Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
-It carries bucket membership, dispatch tiers, the qualitative-pass checklist, the artifact fixers, and what each formal check means and blocks.
+It carries bucket membership, dispatch tiers, the qualitative-pass checklist, the artifact fixers, and what each check blocks.
 
 Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks - never ask them here.
 
-A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks - `to-plan` with no spec does.
-Treat all three as off in that case, and pass the runner no spec, which skips the gates that need one.
+A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks.
+Treat all three as off in that case, and pass the runner no spec.
 
 Name the three fields exactly `traces_to_ac`, `right_sized`, and `qualitative_pass`, so writer and reader never have to guess the same key.
 
@@ -143,8 +143,8 @@ The formal checks run in sequence:
 | How would this break? | `check-coverage-checklists.sh`, then `spec-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
 | Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
-| Task graph fits the PR order | `check-pr-task-projection.py` | a code task in no PR or in 2+ PRs, a `[Gate]`/`[Clarify]` task under a PR's `**Tasks**:`, a PR naming an undefined task id, or a task depending on one in a non-ancestor PR | Always on |
-| Every task file is in the files union | `check-files-union.sh` | a per-task `Files (logical order)` path missing from the plan-level `## Files to Create or Modify` union | Always on |
+| Task graph fits the PR order | `check-pr-task-projection.py` | a code task in no PR or 2+ PRs, a `[Gate]`/`[Clarify]` task under a PR's `**Tasks**:`, an undefined task id in a PR, or a dependency on a non-ancestor PR's task | Always on |
+| Every task file is in the files union | `check-files-union.sh` | a task `Files (logical order)` path missing from the plan's `## Files to Create or Modify` union | Always on |
 | Every line traces to an AC | `plan-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `plan-reviewer` | scope vs. request, simplest design | Toggle |
 
