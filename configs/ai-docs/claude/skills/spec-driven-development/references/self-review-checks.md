@@ -25,6 +25,7 @@ Routing: `spec-reviewer` over a spec, `plan-reviewer` over a plan, and a check o
 Why never `spec-reviewer` over a plan: a plan raises questions a spec never does - test design, task decomposition, AC tracing.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
+- Toggled checks: read `references/self-review-toggle-checks.md` only when that toggle is on.
 - Dispatch each at `effort=xhigh`, matching its pin - `max` buys latency, not accuracy.
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
@@ -115,15 +116,3 @@ With no spec, skip that script; each task's `## Task Details` acceptance criteri
 
 - `scripts/check-pr-dag.sh <plan>` validates the PR Breakdown's `Depends on:` graph (trivial on `Single PR.`); exit 1 blocks.
 - `scripts/check-tasks-dag.sh <plan>` runs the same on the Task Breakdown's graph; exit 1 blocks.
-
-## Every line traces to an AC (toggle)
-
-Dispatch `agent(subAgent=plan-reviewer, title=Judge machinery-to-AC traceability)` with plan and spec: every piece of machinery must trace to a spec AC or requirement.
-
-Output: untraceable items (empty = pass); block if non-empty - cut it, or earn an AC. Exempt `[Clarify]` tasks.
-
-## Right-sized plan (toggle)
-
-Dispatch `agent(subAgent=plan-reviewer, title=Judge spec/plan simplicity)` with the user's request + spec + plan - no gold-plating, simplest design meeting every AC.
-
-Advisory even at toggle "yes" - surface findings, never block.
