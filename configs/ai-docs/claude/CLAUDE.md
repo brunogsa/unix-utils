@@ -235,8 +235,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Prefer the least-destructive action that accomplishes the change.**
   - [Why] Two actions can both be authorized while one still throws away context the other keeps.
 
-  - [Example] Move over write+delete; `git checkout -- <file>` over rewrite-to-revert; `git stash` over `git checkout` when still needed. Stage only your hunks (`git-hunk`) in a file holding others' uncommitted work.
-
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the review surface and buries the real change in incidental reformatting.
 - [Instruction] **CRITICAL: Change file contents with Edit or Write, never through Bash** (sed, awk, perl, heredoc), whatever the harness prompt allows - except an editor-style replace-all of the same text.
