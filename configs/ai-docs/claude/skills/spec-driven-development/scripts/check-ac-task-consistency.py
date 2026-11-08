@@ -62,6 +62,14 @@ SUMMARY_TASK = re.compile(r"<summary>Task (\d+)")
 AC_FIELD = re.compile(r"\*\*Testable Acceptance criteria\*\*")
 AC_TOKEN = re.compile(r"AC-\d+")
 
+# A criteria bullet declares only the IDs that open it, as one
+# ID or a comma list (`- AC-4, AC-7: ...`).
+#
+# An ID later in the bullet text ("the premise of AC-37") is a
+# passing mention. Counting it would let a Test Design row cite
+# an AC the task never declares.
+AC_DECLARATION = re.compile(r"^\s*[-*]\s+(AC-\d+(?:\s*,\s*AC-\d+)*)")
+
 # The plan template's per-section escape, matched by the same
 # rule check-test-distribution.sh applies, so the two gates
 # agree on which Test Design designs no test.
@@ -188,7 +196,8 @@ def read_task_details(lines):
 
     The field's tokens sit on the bullet lines below the field marker,
     not on the marker's own line, so this reads every line up to the
-    next blank line as part of the field. A `<summary>Task N` line
+    next blank line as part of the field, and counts only the IDs that
+    open a bullet (see AC_DECLARATION). A `<summary>Task N` line
     shown as sample markup inside a fenced block is skipped entirely,
     the same way a fenced real entry never registers as a phantom
     Task Details entry."""
@@ -232,7 +241,9 @@ def read_task_details(lines):
             if not text.strip():
                 in_ac_field = False
                 continue
-            declared[current] |= set(AC_TOKEN.findall(text))
+            opening = AC_DECLARATION.match(text)
+            if opening:
+                declared[current] |= set(AC_TOKEN.findall(opening.group(1)))
 
     return entries, declared
 

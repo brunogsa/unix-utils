@@ -173,6 +173,62 @@ def test_fails_when_a_row_cites_an_ac_its_tasks_details_entry_does_not_declare(
     assert f"line {expected_line}: T2 lacks AC-2" in result.stderr
 
 
+PASSING_MENTION_DESIGN = """\
+```
+describe("fixture", () => {
+  it("should write one Linear issue per plan PR");            // AC-2 T1
+});
+```
+"""
+
+PASSING_MENTION_DETAILS = """\
+<details>
+<summary>Task 1 - Export the plan PRs to Linear</summary>
+
+**Testable Acceptance criteria**:
+- AC-1: the export writes one issue, the premise of AC-2.
+- Reads through AC-3 and AC-4 without declaring them.
+
+</details>
+"""
+
+LIST_DECLARATION_DETAILS = """\
+<details>
+<summary>Task 1 - Export the plan PRs to Linear</summary>
+
+**Testable Acceptance criteria**:
+- AC-1, AC-2: the export writes one issue per plan PR.
+
+</details>
+"""
+
+
+def test_fails_when_a_row_cites_an_ac_the_task_only_mentions_in_passing(
+    tmp_path,
+):
+    plan = _write_plan(
+        tmp_path,
+        design_body=PASSING_MENTION_DESIGN,
+        task_body=SINGLE_TASK,
+        details_body=PASSING_MENTION_DETAILS,
+    )
+    expected_line = _line_of(plan, "should write one Linear issue")
+    result = _run(str(plan))
+    assert result.returncode == 1
+    assert f"line {expected_line}: T1 lacks AC-2" in result.stderr
+
+
+def test_counts_every_id_in_a_leading_comma_list_as_declared(tmp_path):
+    plan = _write_plan(
+        tmp_path,
+        design_body=PASSING_MENTION_DESIGN,
+        task_body=SINGLE_TASK,
+        details_body=LIST_DECLARATION_DETAILS,
+    )
+    result = _run(str(plan))
+    assert result.returncode == 0, result.stderr
+
+
 PARAMETERIZED_DESIGN = """\
 ```
 describe("fixture", () => {
