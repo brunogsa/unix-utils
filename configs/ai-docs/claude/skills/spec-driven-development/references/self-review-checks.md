@@ -6,7 +6,7 @@ A run may write the plan alone (SKILL.md) - never report the absent spec as a fi
 
 ## The two buckets
 
-**Deterministic** - a script or renderer returns the verdict, so re-running costs nothing.
+**Deterministic** - a script or renderer returns the verdict.
 
 - Members: `scripts/check-mermaid-renders.sh`, the density checks, `check-hard-wrap.py`, `scripts/check-sections.sh`, `scripts/check-test-distribution.sh`.
   - `scripts/check-pr-dag.sh`, `scripts/check-tasks-dag.sh`, `scripts/check-pr-task-projection.py`, `scripts/check-files-union.sh`, `check-ac-task-consistency.py`, `check-ac-references.py`.
@@ -18,18 +18,16 @@ A run may write the plan alone (SKILL.md) - never report the absent spec as a fi
 - Dispatch the mermaid fixer at its agent file's pinned model - never name one here.
   - Why: `subagent-model-guard.py` hard-denies an override, so no caller can follow a named model.
 
-**Judged** - the *routed judge* decides; each round costs one dispatch over both documents.
+**Judged** - the *routed judge* decides.
 
 Routing: `spec-reviewer` over a spec, `plan-reviewer` over a plan, and a check over both goes to the judge of the doc it blocks.
 
-Why never `spec-reviewer` over a plan: separate report rows, and a plan raises questions a spec never does - test design, task decomposition, AC tracing.
+Why never `spec-reviewer` over a plan: a plan raises questions a spec never does - test design, task decomposition, AC tracing.
 
 - Members: the qualitative pass, the semantic half of "every AC has a test", "how would this break?", and the two toggled checks.
-- Dispatch each at `effort=xhigh`, matching its pin - every later step builds on the reviewed doc, while `max` buys latency, not accuracy.
+- Dispatch each at `effort=xhigh`, matching its pin - `max` buys latency, not accuracy.
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
-
-Why: a script catches breakage a judged dispatch would cost.
 
 ## Qualitative pass
 
@@ -68,8 +66,6 @@ Both measure rather than judge - never inline.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 
-Why: an unrenderable diagram is broken outright; reflowing prose is a judgment call that has split bullets.
-
 ## Every AC has a test
 
 Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (mechanics: `plan-tasks-and-appendix.md`, Test Design).
@@ -79,15 +75,13 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 - Mechanical half - `scripts/check-ac-coverage.sh <plan> <spec>` checks coverage completeness and citation honesty; exit 1 blocks.
 
 - Semantic half - runs after any mechanical half passes, never in parallel.
-  - Dispatch `agent(subAgent=plan-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC - the match no script can make.
+  - Dispatch `agent(subAgent=plan-reviewer, title=Judge AC-to-test coverage)` to judge whether each cited test *proves* its AC.
 
 - Output: orphan ACs + bogus citations (empty = pass); block approval if non-empty.
 
 ## Every template section is written
 
 `scripts/check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present; exit 1 blocks, listing each absent one.
-
-Never judge a missing section by eye.
 
 Run it on the plan against `assets/plan-template.md`, and on any spec against `assets/spec-template.md`.
 
@@ -120,7 +114,7 @@ With no spec, skip that script; each task's `## Task Details` acceptance criteri
 
 Dispatch `agent(subAgent=plan-reviewer, title=Judge machinery-to-AC traceability)` with plan and spec: every piece of machinery must trace to a spec AC or requirement.
 
-Output: untraceable items (empty = pass); block if non-empty - cut it, or earn an AC. Exempt `[Clarify]` tasks: they settle questions.
+Output: untraceable items (empty = pass); block if non-empty - cut it, or earn an AC. Exempt `[Clarify]` tasks.
 
 ## Right-sized plan (toggle)
 
