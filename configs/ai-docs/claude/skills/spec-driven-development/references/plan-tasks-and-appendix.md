@@ -137,6 +137,8 @@ Each field is its own line; parsers read the first found per PR. Free prose afte
 
 `**Tasks**:` the task numbers shipped (`1, 2`). `**Depends on**:` `none` or the PR numbers (`PR-1, PR-2`).
 
+`**Gates**:` the no-code `[Gate]` task numbers and the pre-merge or pre-deploy checks this PR waits on (`3`), else `none`.
+
 Lead the PR headings with a PR-dependency DAG (mermaid, `mmdc`-validated) when any PR names a real dependency; else `N/A - no PR dependencies`.
 
 ## Decision logs
