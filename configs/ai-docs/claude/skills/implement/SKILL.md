@@ -272,8 +272,7 @@ When a helper or drift surfaces mid-task, the subagent inserts new RED-GREEN lin
 
 ### 4.0. Pick the lane, per task
 
-Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <task-N>` before dispatch: non-empty stdout → `tdd-coder`, §4.1; empty stdout → `direct-coder`,
-[`references/direct-coder-dispatch.md`](references/direct-coder-dispatch.md) - CLAUDE.md's Subagents section owns why.
+Run `~/.claude/skills/spec-driven-development/scripts/extract-planned-tests-for-task.sh <plan-path> <task-N>` before dispatch: non-empty stdout → `tdd-coder`, §4.1; empty stdout → `direct-coder`, [`references/direct-coder-dispatch.md`](references/direct-coder-dispatch.md) - CLAUDE.md's Subagents section owns why.
 
 Exit 1 (malformed task section) is a plan defect, not a lane choice - stop, per §1.3's non-zero-exit rule.
 
@@ -332,8 +331,7 @@ The second opinion isn't lost, just deferred to §8.2's quality-gate tail.
 
 ### 4.3. Routing mid-execution discoveries
 
-Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) - `direct-coder.md`
-shares only Drift and Scout.
+Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) - `direct-coder.md` shares only Drift and Scout.
 
 There's no separate carry-forward digest: a Drift fix travels in its commit body.
 

@@ -20,8 +20,7 @@ For each `PR-N` in the arg, in order, resolve its task-id list:
 ~/.claude/skills/implement/scripts/get-pr-tasks.sh <plan-file> <PR-N>
 ```
 
-Exit 0 prints the comma-space task-id list in `<task-ids>` format - feed it straight into §3.3's exact-match loop.
-Exit 1 (label not found) or exit 2 (usage/parse error) surfaces the diagnostic and stops before dispatching anything for that PR.
+Exit 0 prints the comma-space task-id list in `<task-ids>` format - feed it straight into §3.3's exact-match loop. Exit 1 (label not found) or exit 2 (usage/parse error) surfaces the diagnostic and stops before dispatching anything for that PR.
 
 ## Stack mode: merge or native (decided once, at §1.5)
 
@@ -35,8 +34,7 @@ Decide by shape first, availability second - both must pass for `native`:
 - Any PR with 2+ parents in its `Depends on:` clause (a diamond, unrepresentable in a linear-only native stack) → `merge`.
 - Linear chain AND `gh stack --help` exits 0 (the `gh-stack` extension is installed) → `native`. Extension missing → `merge`.
 
-**This decision reads the PR graph, separate from §1.2's stacked-by-task gates** ([`stacked-by-task.md`](stacked-by-task.md)), which read the *task* graph inside one PR.
-The two are independent: a `Mode: merge` plan can still ship each of its PRs as a linear stack of per-task layers, and vice versa.
+**This decision reads the PR graph, separate from §1.2's stacked-by-task gates** ([`stacked-by-task.md`](stacked-by-task.md)), which read the *task* graph inside one PR. The two are independent: a `Mode: merge` plan can still ship each of its PRs as a linear stack of per-task layers, and vice versa.
 
 Record the decision as a `Mode: <merge|native>` line under the plan's `## PR Breakdown` heading - same inline edit style as a `Branch:` clause, idempotent on re-runs.
 
@@ -45,8 +43,7 @@ The mode is sticky for the stack's whole life; later sessions (review fixes, pos
 - `merge` branches must never be linked into a native stack - their merge commits already made the history non-linear.
 - `native` branches must never be manually merged into - one merge commit breaks the linearity the feature requires.
 
-Everything else here is mode-independent: branch creation, `Branch:` recording, the per-PR loop, and fail-fast run identically.
-The only `native` addition is one link step at the final PR's batch end - see [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md).
+Everything else here is mode-independent: branch creation, `Branch:` recording, the per-PR loop, and fail-fast run identically. The only `native` addition is one link step at the final PR's batch end - see [`batch-end-pr-native-link.md`](batch-end-pr-native-link.md).
 
 ## State-file keying (§2.3 widened)
 
@@ -82,15 +79,12 @@ Each PR's own §3-§8 run scopes that PR's repo-green gate, quality-gate tail, a
 
 Label resolution and the checkout decision above run fresh per PR; the DAG re-check `implement/SKILL.md` §1.3 owns does not.
 
-§2 seeds **every** PR's entries upfront - each PR's tasks followed by that PR's batch-end reminders, §2.2's computed N of them - so the list reads as the whole run's timeline.
-A fail-fast stop simply leaves the later PRs' entries `pending`.
+§2 seeds **every** PR's entries upfront - each PR's tasks followed by that PR's batch-end reminders, §2.2's computed N of them - so the list reads as the whole run's timeline. A fail-fast stop simply leaves the later PRs' entries `pending`.
 
-**Stop predicate, checked after each PR's own §8 completes:**
-Proceed to the next PR only if every one of its tasks reached `[Done]` (none terminal-without-`[Done]`) and its whole batch end completed.
+**Stop predicate, checked after each PR's own §8 completes:** Proceed to the next PR only if every one of its tasks reached `[Done]` (none terminal-without-`[Done]`) and its whole batch end completed.
 
 Both opt-in gates count as "completed" only when the interview turned them on - a declined gate never ran, so requiring it to have passed would block every PR after the first.
 
 Otherwise stop: create no next PR's branch, dispatch none of its tasks, and report the batch as it stands - the remaining PRs stay untouched.
 
-This mirrors §5.3's task-level chain-abort at the PR level: a task failure already chain-aborts that PR's own dependents, and this predicate also keeps a failed PR from starting the *next* one.
-A chain-aborted dependent (`reason: "blocked-upstream"`) is terminal-without-`[Done]` too, so it fails this PR's every-task-`[Done]` check and halts here.
+This mirrors §5.3's task-level chain-abort at the PR level: a task failure already chain-aborts that PR's own dependents, and this predicate also keeps a failed PR from starting the *next* one. A chain-aborted dependent (`reason: "blocked-upstream"`) is terminal-without-`[Done]` too, so it fails this PR's every-task-`[Done]` check and halts here.
