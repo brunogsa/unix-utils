@@ -74,6 +74,14 @@ Each task produces at least one base commit (tests, code, IaC/docs together; RED
 
 - The block is enforced in Linear, not locally: `implement` treats a dependency outside the current PR as satisfied and never checks it.
 
+**Gate task**: a task with no code - a Stage proof of concept, a read-only query, a team notice, a prod check - is the other exception to "Each task produces at least one base commit".
+
+- [Instruction] Head a gate task `### N. [Gate] <check to run>`, with `**Tests (planned)**: N/A - gate task, no code`.
+  - [Why] `check-pr-task-projection.py` exempts a task from "claimed by no PR" only by its `[Gate]` or `[Clarify]` heading tag.
+
+- [Instruction] Name a gate task under the `**Gates**:` of each PR it guards, never under a PR's `**Tasks**:`.
+  - [Why] It has no commit, so `check-pr-task-projection.py` rejects it under `**Tasks**:`.
+
 Sub-step breadcrumb: optional, semicolon-separated parenthetical after the title - `### N. Title (sub-step; sub-step)`; keep ~4 items, else split the task.
 
 **Brief Description**: a short paragraph of at most 4 sentences, or a bullet list of one sentence per bullet - never a longer prose block.
