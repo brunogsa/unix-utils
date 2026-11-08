@@ -29,6 +29,8 @@ Why never `spec-reviewer` over a plan: a plan raises questions a spec never does
 
 Run the deterministic bucket first, to exhaustion under SKILL.md's recovery loop, then the judged one.
 
+Why: a script catches breakage a judged dispatch would cost.
+
 ## Qualitative pass
 
 Dispatch the routed judge (`title=Qualitative review of spec and plan`) over both docs; only the PR-size item blocks.
@@ -66,6 +68,8 @@ Both measure rather than judge - never inline.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 
+Why: an unrenderable diagram is broken outright; reflowing prose is a judgment call that has split bullets.
+
 ## Every AC has a test
 
 Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped coverage list (mechanics: `plan-tasks-and-appendix.md`, Test Design).
@@ -82,6 +86,8 @@ Every `### AC-N:` in the spec is proven by ≥1 test in the plan's AC-grouped co
 ## Every template section is written
 
 `scripts/check-sections.sh <doc> <template>` asserts every `## ` heading the template defines is present; exit 1 blocks, listing each absent one.
+
+Never judge a missing section by eye.
 
 Run it on the plan against `assets/plan-template.md`, and on any spec against `assets/spec-template.md`.
 
