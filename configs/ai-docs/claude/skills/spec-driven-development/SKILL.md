@@ -143,6 +143,7 @@ The formal checks run in sequence:
 | How would this break? | `check-coverage-checklists.sh`, then `spec-reviewer` | checklist completeness + inversion sweep, merged | Always on |
 | PR dependencies form a DAG | `check-pr-dag.sh` | cyclic, dangling, or duplicate PR-N label in the PR Breakdown | Always on |
 | Task dependencies form a DAG | `check-tasks-dag.sh` | cyclic, dangling, or duplicate task id in the Task Breakdown | Always on |
+| Task graph fits the PR order | `check-pr-task-projection.py` | a code task in no PR or in 2+ PRs, a `[Gate]`/`[Clarify]` task under a PR's `**Tasks**:`, or a task depending on one in a non-ancestor PR | Always on |
 | Every task file is in the files union | `check-files-union.sh` | a per-task `Files (logical order)` path missing from the plan-level `## Files to Create or Modify` union | Always on |
 | Every line traces to an AC | `plan-reviewer` | machinery↔AC traceability | Toggle |
 | Right-sized plan | `plan-reviewer` | scope vs. request, simplest design | Toggle |

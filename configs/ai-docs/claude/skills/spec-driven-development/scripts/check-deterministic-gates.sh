@@ -186,6 +186,7 @@ run_spec_gate gate spec check-sections.sh bash "$script_dir/check-sections.sh" "
 run_plan_gate gate plan check-test-distribution.sh bash "$script_dir/check-test-distribution.sh" "$plan"
 run_plan_gate gate plan check-pr-dag.sh bash "$script_dir/check-pr-dag.sh" "$plan"
 run_plan_gate gate plan check-tasks-dag.sh bash "$script_dir/check-tasks-dag.sh" "$plan"
+run_plan_gate gate plan check-pr-task-projection.py "$script_dir/check-pr-task-projection.py" "$plan"
 run_plan_gate gate plan check-files-union.sh bash "$script_dir/check-files-union.sh" "$plan"
 run_plan_gate gate plan check-ac-task-consistency.py "$script_dir/check-ac-task-consistency.py" "$plan"
 

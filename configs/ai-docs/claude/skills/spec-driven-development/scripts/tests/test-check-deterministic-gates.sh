@@ -130,8 +130,8 @@ build_tree() {
   : > "$sdd/assets/spec-template.md"
   local g
   for g in check-mermaid-renders.sh check-sections.sh check-test-distribution.sh \
-    check-pr-dag.sh check-tasks-dag.sh check-files-union.sh check-ac-task-consistency.py \
-    check-ac-coverage.sh check-coverage-checklists.sh check-ac-references.py; do
+    check-pr-dag.sh check-tasks-dag.sh check-pr-task-projection.py check-files-union.sh \
+    check-ac-task-consistency.py check-ac-coverage.sh check-coverage-checklists.sh check-ac-references.py; do
     make_stub "$sdd/scripts/$g" "$g" 0
   done
   make_stub "$doc/scripts/check-density.sh" check-density.sh 0
@@ -177,6 +177,7 @@ check-sections.sh $SPEC $TREE/spec-driven-development/assets/spec-template.md
 check-test-distribution.sh $PLAN
 check-pr-dag.sh $PLAN
 check-tasks-dag.sh $PLAN
+check-pr-task-projection.py $PLAN
 check-files-union.sh $PLAN
 check-ac-task-consistency.py $PLAN
 check-ac-coverage.sh $PLAN $SPEC
@@ -186,7 +187,7 @@ check-ac-references.py $SPEC
 EOF2
 )
   assert_eq "should invoke every member in the reference order, plan before spec for check-ac-coverage" "$expected" "$(cat "$CALL_LOG")"
-  assert_eq "should print one line per gate invocation" "21" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
+  assert_eq "should print one line per gate invocation" "22" "$(printf '%s\n' "$RUN_OUT" | grep -c '^PASS ')"
 }
 
 it_should_skip_the_spec_taking_gates_and_report_them_as_skipped_when_given_no_spec() {
