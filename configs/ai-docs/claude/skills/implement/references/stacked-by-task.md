@@ -78,7 +78,7 @@ A plan that numbered the library change before the contract change still ships c
 
 ## Layer branches
 
-**Layer 1 needs no new branch.** It is whatever branch §3.1 already left checked out - the current branch on a `<task-ids>` run, `<feat_branch>/pr<N>` on a PR-label run.
+**Layer 1 needs no new branch.** It is whatever branch §3.1 already left checked out - the current branch on a `<task-ids>` run, `<feat_branch>-pr<N>` on a PR-label run.
 
 Every rule in [`pr-branch-creation.md`](pr-branch-creation.md) about resolving a unit's starting point still applies unchanged, diamond PR-level dependencies included.
 

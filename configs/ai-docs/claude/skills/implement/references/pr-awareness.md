@@ -62,7 +62,9 @@ That leftover file is a visible record of work that never started.
 
 `need-git-checkout.sh` (SKILL.md §3.1) answers from the plan alone: this PR's `Depends on:` field, plus whether any PR entry already carries a `Branch:` field from an earlier batch's push.
 
-On `no`, this PR's `Branch:` clause isn't written here - see "Branch recording", below.
+On `no`, the PR's commits land on the current branch, `<feat_branch>`, and its `Branch:` clause isn't written here - see "Branch recording", below.
+
+A later PR then branches as `<feat_branch>-pr<N>`, never `<feat_branch>/pr<N>`, which git refuses while `<feat_branch>` exists.
 
 On `yes`, [`pr-branch-creation.md`](pr-branch-creation.md) owns resolving and creating this PR's branch; a `no` run never reads it.
 
