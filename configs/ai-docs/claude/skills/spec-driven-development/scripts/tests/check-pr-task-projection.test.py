@@ -359,3 +359,81 @@ def test_should_pass_every_deterministic_plan_gate_and_the_projection_check_on_a
     assert gates.returncode == 0, gates.stdout
     projection = _run(plan)
     assert projection.returncode == 0, projection.stderr
+
+
+GATE_TASK_BODY = """\
+### 1. First task
+
+**Depends on**: none
+
+### 2. [Gate] Prove on Stage that a 10k-row export finishes under 30s
+
+**Depends on**: none
+
+**Tests (planned)**: N/A - gate task, no code
+
+### 3. Third task
+
+**Depends on**:
+- Task 2
+"""
+
+GATE_PR_BODY_WITHOUT_THE_GATE = (
+    "### PR-1. First slice\n\n"
+    "**Tasks**: 1\n\n"
+    "**Depends on**: none\n\n"
+    "### PR-2. Second slice\n\n"
+    "**Tasks**: 3\n\n"
+    "**Depends on**: none\n\n"
+    "**Gates**: Task 2\n"
+)
+
+
+def test_should_exit_0_when_a_gate_task_is_claimed_by_no_pr_and_a_code_task_in_a_pr_with_no_ancestor_depends_on_it(tmp_path):
+    # A gate task runs before the PR it guards merges, outside
+    # the PR graph, so PR-2 needs no dependency edge toward it.
+    plan = _write_plan(tmp_path, task_body=GATE_TASK_BODY, pr_body=GATE_PR_BODY_WITHOUT_THE_GATE)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("OK:")
+
+
+def test_should_report_a_pr_that_lists_a_gate_task_because_a_gate_task_has_no_commit(tmp_path):
+    pr_body = (
+        "### PR-1. First slice\n\n"
+        "**Tasks**: 1\n\n"
+        "**Depends on**: none\n\n"
+        "### PR-2. Second slice\n\n"
+        "**Tasks**: 2, 3\n\n"
+        "**Depends on**: none\n"
+    )
+    plan = _write_plan(tmp_path, task_body=GATE_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "PR-2" in result.stderr
+    assert "Task 2" in result.stderr
+    assert "gate task has no commit and belongs to no PR" in result.stderr
+
+
+def test_should_report_a_no_code_task_claimed_by_no_pr_when_its_heading_lacks_the_gate_tag(tmp_path):
+    # Only the heading tag exempts a task - a body that reads
+    # like a gate does not.
+    task_body = GATE_TASK_BODY.replace("### 2. [Gate] ", "### 2. ")
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=GATE_PR_BODY_WITHOUT_THE_GATE)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "Task 2 is defined in the Task Breakdown but claimed by no PR" in result.stderr
+
+
+def test_should_pass_every_deterministic_plan_gate_and_the_projection_check_on_a_plan_with_a_gate_task():
+    fixture_dir = Path(__file__).parent / "fixtures" / "gate-task"
+    plan = fixture_dir / "plan_gate.md"
+    spec = fixture_dir / "spec_widget.md"
+    gates = subprocess.run(
+        ["bash", str(SCRIPT.parent / "check-deterministic-gates.sh"), str(plan), str(spec)],
+        capture_output=True,
+        text=True,
+    )
+    assert gates.returncode == 0, gates.stdout
+    projection = _run(plan)
+    assert projection.returncode == 0, projection.stderr

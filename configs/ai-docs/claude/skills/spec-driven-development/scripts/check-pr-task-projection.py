@@ -19,19 +19,23 @@ Extracts "## Task Breakdown" and "## PR Breakdown" via plan-section.sh
 (never a per-line regex - PR Breakdown entries wrap across physical
 lines, and a line-oriented read silently drops the wrapped clause).
 A "### N. [Clarify] ..." task settles a question only an outside
-party can answer. It makes no commit, so it sits outside the PR
-partition, and a dependency on it is satisfied outside the PR graph.
+party can answer. A "### N. [Gate] ..." task is a no-code check
+(a Stage proof, a read-only query, a prod check) a PR names under
+its **Gates**:. Neither makes a commit, so both sit outside the PR
+partition, and a dependency on either is satisfied outside the PR
+graph.
 
 Detects, each with its own diagnostic:
-  - a task id claimed by no PR (a [Clarify] task is exempt);
+  - a task id claimed by no PR (a [Clarify] or [Gate] task is
+    exempt);
   - a task id claimed by more than one PR;
   - a PR entry naming a task id the Task Breakdown does not define;
-  - a PR entry naming a [Clarify] task;
+  - a PR entry naming a [Clarify] or [Gate] task;
   - a task whose dependency lives in a PR that is neither the same
     PR nor a transitive ancestor of it in the PR graph (the
     cross-level violation - subsumes both a cross-level cycle and
     the silent early-PR-assumption defect above). A dependency on a
-    [Clarify] task is never one.
+    [Clarify] or [Gate] task is never one.
 
 Exit codes:
   0 - PR Breakdown is absent, reads "Single PR.", or every task's
@@ -73,7 +77,7 @@ PR_BOLD_SPAN_SPLIT_RE = re.compile(r"\*\*[^*]*PR-(\d+)[^*]*\*\*")
 TASKS_FIELD_RE = re.compile(r"\*?\*?Tasks\*?\*?:\s*(?P<tasks>[^.\n]*)")
 DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 
-CLARIFY_HEADING_RE = re.compile(r"^###[ \t]+(\d+)\.[ \t]*\[Clarify\]", re.M)
+NO_CODE_HEADING_RE = re.compile(r"^###[ \t]+(\d+)\.[ \t]*\[(Clarify|Gate)\]", re.M)
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
@@ -150,20 +154,21 @@ def get_ancestor_prs(pid: str, pr_deps: dict[str, list[str]]) -> set[str]:
     return seen
 
 
-def parse_clarify_task_ids(plan_file: Path) -> set[str]:
-    """Return the ids of tasks headed "### N. [Clarify] ...". Such a
-    task settles a question only an outside party can answer, makes
-    no commit, and so sits outside the PR partition."""
+def parse_no_code_task_tags(plan_file: Path) -> dict[str, str]:
+    """Return task id -> tag ("Clarify" or "Gate") for every task
+    headed "### N. [Clarify] ..." or "### N. [Gate] ...". Neither
+    makes a commit, so both sit outside the PR partition."""
     task_section = extract_section(plan_file, "^Task Breakdown[[:space:]]*$")
-    return set(CLARIFY_HEADING_RE.findall(task_section))
+    return dict(NO_CODE_HEADING_RE.findall(task_section))
 
 
-def find_projection_problems(task_deps, pr_tasks, pr_deps, clarify_ids) -> list[str]:
+def find_projection_problems(task_deps, pr_tasks, pr_deps, no_code_tags) -> list[str]:
     """Return one diagnostic string per defect found, in a fixed
-    category order (unowned, clarify-in-PR/duplicate/undefined,
+    category order (unowned, no-code-in-PR/duplicate/undefined,
     cross-level) with ids sorted numerically within each category
-    for deterministic output. A clarify task is never unowned, and a
-    dependency on one is satisfied outside the PR graph."""
+    for deterministic output. A [Clarify] or [Gate] task is never
+    unowned, and a dependency on one is satisfied outside the PR
+    graph."""
     problems: list[str] = []
 
     owning_prs: dict[str, list[str]] = {}
@@ -171,7 +176,7 @@ def find_projection_problems(task_deps, pr_tasks, pr_deps, clarify_ids) -> list[
         for tid in task_ids:
             owning_prs.setdefault(tid, []).append(pid)
 
-    unowned = sorted(set(task_deps) - set(owning_prs) - clarify_ids, key=int)
+    unowned = sorted(set(task_deps) - set(owning_prs) - set(no_code_tags), key=int)
     for tid in unowned:
         problems.append(
             f"Task {tid} is defined in the Task Breakdown but claimed by no PR"
@@ -180,11 +185,12 @@ def find_projection_problems(task_deps, pr_tasks, pr_deps, clarify_ids) -> list[
     owner: dict[str, str] = {}
     for tid in sorted(owning_prs, key=int):
         prs = owning_prs[tid]
-        if tid in clarify_ids:
+        tag = no_code_tags.get(tid)
+        if tag is not None:
             for pid in sorted(prs, key=int):
                 problems.append(
-                    f"PR-{pid} Tasks: list names Task {tid}, a [Clarify] "
-                    "task - a clarify task has no commit and belongs to no PR"
+                    f"PR-{pid} Tasks: list names Task {tid}, a [{tag}] "
+                    f"task - a {tag.lower()} task has no commit and belongs to no PR"
                 )
             continue
         if tid not in task_deps:
@@ -249,8 +255,8 @@ def main() -> int:
 
     task_deps = parse_task_entries(plan_file)
 
-    clarify_ids = parse_clarify_task_ids(plan_file)
-    problems = find_projection_problems(task_deps, pr_tasks, pr_deps, clarify_ids)
+    no_code_tags = parse_no_code_task_tags(plan_file)
+    problems = find_projection_problems(task_deps, pr_tasks, pr_deps, no_code_tags)
     if problems:
         print(
             "FAIL (task-to-PR projection): the task graph, projected "
