@@ -259,7 +259,7 @@ Per task, as it becomes the active one - the only orchestrator work between two 
 - Give it a **breadcrumb** - a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles).
 - **Claim its Linear issue** per [`references/linear-issue-start.md`](references/linear-issue-start.md); a Linear failure never halts the run.
   - Only when `~/.claude/scripts/get-enabled-modules.py`, run once per run, prints `linear=true`.
-  - Only when the task's `### PR-N.` entry has a non-empty `**Linear**:` field this run has not claimed yet.
+  - Only when the task's `### PR-N.` entry has a non-empty `**Linear**:` field with no outcome recorded in `notes.md` yet.
 
 **The checklist file is the subagent's, end to end.** The orchestrator supplies only the `<run-label>` key that names it.
 

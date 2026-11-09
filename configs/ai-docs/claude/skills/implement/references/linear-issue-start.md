@@ -16,7 +16,7 @@ Why at task activation, not at run start: a `<task-ids>` run spanning PR-1 and P
 
 ## The write, decided by the issue's current status
 
-Call `whoami` once per run for the user's id, then read the issue with `get_issue`, fields `status`, `statusType`, `assigneeId`, `team`.
+Call `whoami` once per run for the user's id, then read the issue with `get_issue`, fields `status`, `statusType`, `assignee`, `assigneeId`, `team`.
 
 - **`statusType` is `triage`, `backlog` or `unstarted`** → one `save_issue` with `assignee: "me"` and `state` set to the team's `In Progress` status.
 
