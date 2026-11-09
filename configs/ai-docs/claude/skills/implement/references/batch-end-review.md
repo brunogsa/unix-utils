@@ -67,7 +67,8 @@ What this skill does with the result:
 
 - Record each verdict file **path** into `.quality_gate.reports`, never its content.
 - Carry its closing report into the package (§8.4), showing which findings landed, skipped, and why.
-- Treat any finding it left unapplied as a `[Scout]`, so nothing it declined silently disappears.
+- Never file a finding it left unapplied as a `[Scout]` - it stays in its verdict file, which the package names by path.
+  - The human reviews the verdict files directly, so a `[Scout]` per finding only copies them into the TaskList, and one 11-PR series once filed 85 such copies.
 
 With the tail behind it, set `phase: "tails"` - the Stop hook blocks on `tails` too, so the run cannot end before Finalize.
 
@@ -124,7 +125,7 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 
 - **Missing planned tests** - the `test-sdd` leg's misses, called out on their own line, not buried in the finding list; the gap this batch exists to close, attempted every run.
 
-- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.2, §8.3) - reported, never fixed by this run.
+- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.3) - reported, never fixed by this run.
 - **The literal diff range** - print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted.
 - **"Unexpected extras"** - §8.3's runner's Fixed list: each commit it produced to reach green, with the failure that commit closed.
 - **Repo-green result** - carries §8.3's verdict, its log path, and final pass/fail counts into the package.

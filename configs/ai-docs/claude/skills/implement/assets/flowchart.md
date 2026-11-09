@@ -310,8 +310,9 @@ def run_unit(unit):
         # 41a · inside it: refactor ∥ auto-review ∥ test-sdd legs → their
         #       verdict_*.md files, then per-finding apply → commit → mark [Done].
         # 41b · hook: check-reviewer-writes (only verdict_*.md writes approved).
-        state.record_verdict_paths()   # 41c · PATHS, never content; every finding
-        scout(quality_gate.declined)   #       it declined becomes a [Scout];
+        state.record_verdict_paths()   # 41c · PATHS, never content; a declined
+                                       #       finding stays in its verdict file,
+                                       #       never a [Scout];
         state.phase = "tails"          #       then phase=tails
 
     if answers.repo_green_gate:                             # 42 · else skipped by request
@@ -611,7 +612,7 @@ flowchart TD
     n41["41. Step 8.2 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>always carrying --report-only (never omitted - that<br/>drops /quality-gate into its own interview and stalls<br/>the batch on an unwatched prompt). The human applies<br/>verdicts manually afterward via /address-verdicts.<br/>Spec argument goes in only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
     n41a["41a. Inside it: refactor ∥ auto-review ∥ test-sdd leg<br/>→ their verdict_*.md files, then per-finding<br/>apply → commit → mark [Done]"]:::dispatch
     n41b["41b. Hook: check-reviewer-writes<br/>(only verdict_*.md writes are approved)"]:::hook
-    n41c["41c. Record each verdict PATH into the state file<br/>(never its content); every finding it declined<br/>becomes a [Scout]; then phase=tails"]:::state
+    n41c["41c. Record each verdict PATH into the state file<br/>(never its content); a declined finding stays<br/>in its verdict file, never a [Scout]; then phase=tails"]:::state
     n42{"42. Repo-green gate requested?"}
     n43["43. Step 8.3 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding the test-sdd leg's written tests<br/>- the tail's other two legs, refactor and auto-review,<br/>are always report-only and never touch the tree. Why<br/>no 'it applied something, so re-run the suite' rule<br/>exists"]:::gate
     n43a{"43a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
