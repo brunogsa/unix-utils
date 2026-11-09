@@ -1,6 +1,6 @@
 # Linear issue start - assign a task's issue to the user and set it In Progress
 
-One caller loads this: §3.4, as a task becomes active, only when `~/.claude/scripts/get-enabled-modules.py` printed `linear=true` and the task's PR entry carries an issue this run has not claimed yet.
+One caller loads this: §3.4, as a task becomes active, only when `~/.claude/scripts/get-enabled-modules.py` printed `linear=true` and the task's PR entry carries an issue with no outcome recorded in `notes.md` yet.
 
 ## Which issue belongs to a task
 
