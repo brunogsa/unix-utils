@@ -361,6 +361,14 @@ def run_one_task(task):
     #      status, hand over a breadcrumb. The checklist key, if any, is
     #      lane-conditional - decided at 24 below, not here.
     task_update(task, "in_progress", breadcrumb=plan.acceptance_titles(task))
+    # 23 · also per task: when get-enabled-modules.py (run ONCE per run) said
+    #      linear=true and this task's PR-N entry has a non-empty **Linear**: field
+    #      not yet claimed this run, assign that issue to the user and set it In
+    #      Progress per references/linear-issue-start.md. Status-guarded: never moves
+    #      an issue already past In Progress; reassigns a teammate's issue. A Linear
+    #      failure never halts the run.
+    if linear_enabled and not already_claimed(plan.pr_entry_for(task).linear_issue):
+        claim_linear_issue(task)
 
     while True:   # retry loop: 28c's "retry" comes back HERE, not to activation -
                    # 24 re-picks the lane on every attempt, never cached from a
@@ -569,7 +577,7 @@ flowchart TD
     n22d["22d. Opens one worktree + branch per task in this subset<br/>and dispatches one tdd-coder or direct-coder into each -<br/>whichever this lane is (agent-pinned, background, ∥),<br/>marking every task in_progress in THIS state file first -<br/>its ledger is ours, because --eligible-set is what reads<br/>that mark back to skip a task already in flight"]:::dispatch
     n22e["22e. Step 5.1 · Accept each report as it lands, so a failure<br/>re-dispatches - into its OWN worktree - while its siblings<br/>still work. A failure or block is that task's alone"]
     n22f["22f. Once every task in this lane is accepted it merges each<br/>branch back in ascending task-id order (mixed across lanes<br/>where both ran) and removes that worktree per merge,<br/>leaving history identical to a sequential run's"]:::state
-    n23["23. Step 3.4 · Activate a task: TaskUpdate<br/>in_progress + breadcrumb. The checklist key,<br/>if any, is lane-conditional - decided at 24,<br/>not here"]:::state
+    n23["23. Step 3.4 · Activate a task: TaskUpdate<br/>in_progress + breadcrumb. The checklist key,<br/>if any, is lane-conditional - decided at 24,<br/>not here. Also per task: when get-enabled-modules.py<br/>(run once per run) said linear=true and this task's PR-N<br/>entry has a non-empty **Linear**: field not yet claimed<br/>this run, assign that issue to the user and set it In<br/>Progress per linear-issue-start.md (never moves an issue<br/>past In Progress; reassigns a teammate's; a Linear<br/>failure never halts the run)"]:::state
     n24{"24. Step 4.0 · Pick the lane, before EVERY dispatch<br/>(including every retry): extract-planned-tests-for-task.sh<br/>&lt;plan-path&gt; &lt;task-N&gt; - exit code / stdout?"}:::hook
     n24a(["24a. Stop: non-zero exit (malformed task section)<br/>- a plan defect, per §1.3's non-zero-exit rule"])
     n24b["24b. Load references/direct-coder-dispatch.md<br/>- empty stdout, direct-coder lane"]:::skill

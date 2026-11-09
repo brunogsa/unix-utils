@@ -84,7 +84,7 @@ Resolve candidates with this decision tree - it never prompts; ambiguity becomes
 
 A plan present means proceed, the plan file its only input, through the user's own `tdd-coder`, `quality-gate`, `create-pr` and `address-pr-comments`.
 
-`implement` reads and writes nothing in Linear and runs no drift detection: every Linear write belongs to `sdd-to-linear` alone, and a connected Linear MCP changes no branch here. It has no module opt-in to offer on any machine, so it never asks one.
+`implement`'s one Linear write is §3.4's: when a task starts, assign its PR's issue to the user and set it In Progress. Every other Linear write belongs to `sdd-to-linear`, and `implement` runs no drift detection. It has no module opt-in to offer on any machine, so it never asks one - §3.4's claim runs whenever the Linear module is enabled.
 
 ### 1.2. One up-front interview
 
@@ -257,6 +257,9 @@ Per task, as it becomes the active one - the only orchestrator work between two 
 
 - `TaskUpdate` that task to `in_progress`. Task-level status only; sub-steps never become TaskList items.
 - Give it a **breadcrumb** - a coarse outline of its sub-steps (e.g. the plan's acceptance-criteria titles).
+- **Claim its Linear issue** per [`references/linear-issue-start.md`](references/linear-issue-start.md); a Linear failure never halts the run.
+  - Only when `~/.claude/scripts/get-enabled-modules.py`, run once per run, prints `linear=true`.
+  - Only when the task's `### PR-N.` entry has a non-empty `**Linear**:` field this run has not claimed yet.
 
 **The checklist file is the subagent's, end to end.** The orchestrator supplies only the `<run-label>` key that names it.
 

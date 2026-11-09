@@ -137,9 +137,11 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Worktree merge-back reminder** - only when a worktree exists (read its path + branch from the state file); omit when the interview declined it.
   - Its path, its branch, and "nothing was merged or deleted - merge back and remove it yourself".
 
+- **Linear issues** - only when `notes.md` records a Linear outcome: each issue's URL and outcome, per [`linear-issue-start.md`](linear-issue-start.md)'s "Reporting".
+
 ## Degraded - modules that vanished mid-run
 
-`implement` calls no module itself, so nothing it does degrades; this section collects what its **task subagents** report.
+Besides §3.4's Linear claim, `implement` calls no module itself; this section collects what its **task subagents** report.
 
 A subagent whose own opt-in module failed mid-task falls back to the user's own path and says so in its report.
 
