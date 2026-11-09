@@ -38,9 +38,14 @@ Also read every `verdict_scouts*.md` in CWD, with the same `[AI!]` heading test 
 
 - A finding in a section with no branch (e.g. "Local planning docs (uncommitted, no branch)") is applied in CWD and left uncommitted.
 
-- Each scouts branch is its own PR, not a link in one chain: skip the stack walk and merge-up.
-  - Check out the branch, apply through §3-§5, validate, then push with a plain `git push`.
-  - Why: scouts branches are independent PRs, so a merge-up would drag unrelated changes between them.
+- Each scouts branch is its own PR, so skip the stack walk and the merge forward from the branch below.
+  - Check out the branch, apply through §3-§5, validate, then push with a plain `git push`, never force.
+  - Why: scouts branches are independent PRs, so merging the trunk-ward neighbor in would drag unrelated changes between them.
+
+- After that push, run `gh pr list --base <branch> --state open`: scouts branches can themselves be stacked.
+  - For each open child PR, merge the branch up into it, as the stack walk does.
+  - Push the child with a plain `git push`, never force.
+  - With no open child, nothing more.
 
 - Quality-gate files keep the stack walk, merge-up, and CI watch in the rest of this file.
 

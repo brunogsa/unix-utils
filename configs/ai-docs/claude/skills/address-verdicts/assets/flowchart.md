@@ -254,13 +254,24 @@ def run_marked_stack(arg):
     #      verdict_quality-gate_*.md counts (not the newest per lens); other
     #      verdict files never fire here. Headings listed fence-aware, since
     #      a finding may quote a heading inside a code fence.
+    #      verdict_scouts*.md counts too, its findings grouped under
+    #      `## ... `<branch>`` section headings.
     files = glob("verdict_quality-gate_*.md")               # 1b
-    marked = {f: awk_marked_headings(f) for f in files}     # 1b
+    scouts_files = glob("verdict_scouts*.md")               # 1b
+    marked = {f: awk_marked_headings(f) for f in files + scouts_files}   # 1b
 
     if not any(marked.values()):                            # 1c
         # 1c1 · NEVER fall back to `all` - tell the human to tag a heading
         #       `### N. [AI!][...]` first.
         return stop("nothing is marked")                    # 1c1
+
+    # 1c2 · Only scouts findings are marked: no stack to walk, so go straight
+    #       to the scouts flow and return to the starting branch after it.
+    if not any(marked[f] for f in files):                   # 1c2
+        start_branch = current_branch()                     # 1y
+        findings = apply_scouts(scouts_files, marked, start_branch)   # 1y-1y6
+        git("checkout", start_branch)                       # 1x
+        return findings
 
     # 1d · Fetch once, FIRST, so every branch check and remote comparison is
     #      fresh. Each file's branch comes from its first header line, never
@@ -416,8 +427,51 @@ def run_marked_stack(arg):
         if i == len(chain.branches):                        # 1w
             break
 
+    # 1y · Scouts findings marked too: each applies on the branch of its
+    #      enclosing `##` heading, pushed alone (see apply_scouts below).
+    if any(marked[f] for f in scouts_files):                # 1y
+        findings += apply_scouts(scouts_files, marked, start_branch)   # 1y1-1y6
+
     # 1x · Clean finish only: return to where the run started.
     git("checkout", start_branch)                           # 1x
+    return findings
+
+
+def apply_scouts(scouts_files, marked, start_branch):
+    findings = []
+    # 1y1 · Branch = the backticked branch in the finding's enclosing `##`
+    #       heading, never the file name (one scouts file spans many PRs).
+    for finding in marked_findings(scouts_files, marked):   # 1y1
+        # 1y2 · What does the finding target?
+        if finding.targets_pr_body_or_title:                # 1y2a
+            # 1y2a · From the live body, no checkout, no commit.
+            gh_api_patch_pull(finding.pr_number)            # 1y2a
+            annotate(finding)
+            continue
+        if finding.section_branch is None:                  # 1y2b
+            # 1y2b · Applied in CWD, left uncommitted.
+            apply_in_cwd(finding); annotate(finding)        # 1y2b
+            continue
+        git("checkout", finding.section_branch)             # 1y2c
+        findings += apply_lens_entries(finding.section_branch, marked, never_stage=[], answers=None)   # 1y2c -> 21
+        # 1y3 · Validate the branch: lint plus the specs covering what the
+        #       apply commits changed.
+        if not lint_and_specs_green(finding.section_branch):    # 1y3
+            halt(finding.section_branch, "validate branch", "red")   # 1y3
+        # 1y4 · Plain git push, NEVER --force; a rejection stops the chain.
+        if not git_ok("push"):                              # 1y4
+            halt(finding.section_branch, "push", "rejected")   # 1y4
+        # 1y5 · Scouts branches can be stacked: merge up into each open child
+        #       PR and push it plainly. No child: nothing more.
+        for child in open_child_prs(finding.section_branch):    # 1y5
+            git("checkout", child)
+            if not git_ok("merge", "--no-edit", finding.section_branch):
+                if merge_in_progress():
+                    git("merge", "--abort")
+                halt(child, "merge forward", "merge failed")
+            if not git_ok("push"):
+                halt(child, "push", "rejected")
+        # 1y6 · Loop: more marked scouts findings left?     # 1y6
     return findings
 ```
 
@@ -457,8 +511,9 @@ flowchart TD
   n14a["14a. tdd-coder and direct-coder commit their own work under<br/>commit-standards, so confirm the SHA exists rather than<br/>re-committing - even for a refactor-lens finding direct-coder took"]
   n14b["14b. The refactor agent leaves its change uncommitted<br/>by design, so commit it HERE, in this session,<br/>where the permission prompt can render"]:::gate
 
-  n1b["1b. Step 1 · Marked mode: read references/stack-mode.md and<br/>follow it. Read EVERY verdict_quality-gate_*.md (not the<br/>newest per lens; other verdict files never fire here) and<br/>list each file's [AI!] / [AI!: msg] headings, fence-aware since a finding<br/>may quote a heading inside a code fence"]
-  n1c{"1c. Step 1 · Is any finding marked [AI!] in any file?"}
+  n1b["1b. Step 1 · Marked mode: read references/stack-mode.md and<br/>follow it. Read EVERY verdict_quality-gate_*.md (not the<br/>newest per lens) and every verdict_scouts*.md; other verdict files never fire here and<br/>list each file's [AI!] / [AI!: msg] headings, fence-aware since a finding<br/>may quote a heading inside a code fence"]
+  n1c{"1c. Step 1 · Is any finding marked [AI!] in any file (quality-gate or scouts)?"}
+  n1c2{"1c2. Step 1 · Is any quality-gate finding marked? No = only<br/>verdict_scouts*.md findings are marked, so there is no stack to walk"}
   n1c1(["1c1. STOP - nothing is marked; tag a heading<br/>### N. [AI!][...] first. NEVER fall back to all"])
   n1d["1d. Step 1 · git fetch origin once, FIRST, so every check below is fresh.<br/>Resolve each file's branch from its first header line (never its<br/>filename, which turned / into -); git rev-parse --verify<br/>origin/&lt;branch&gt; must accept it. Build the stack from ONE<br/>gh pr list --limit 1000, never a gh pr view per branch: walk down<br/>each PR's base to the trunk, walk up to the top. The chain is the<br/>WHOLE stack, from the branch directly above the trunk to the top,<br/>including branches below the lowest marked one"]
   n1e{"1e. Step 1 · Is it one valid stack? Stop on an unparsable<br/>header, a branch origin/&lt;branch&gt; rejects, a PR count equal to<br/>the limit (a cut-off list can drop a middle PR), a marked branch<br/>with no open PR, two open PRs sharing one base (a fork), or<br/>marked branches in two different stacks"}
@@ -491,7 +546,21 @@ flowchart TD
     n1w{"1w. Step 1 · More chain branches left above this one?"}
   end
 
+  n1y{"1y. Step 1 · Are any verdict_scouts*.md findings marked? A scouts-only run<br/>records the starting branch first"}
   n1x(["1x. Clean finish only: git checkout the starting branch,<br/>then go to the report"])
+  subgraph scouts_loop["Per marked scouts finding - each scouts branch is its own PR, never merged up from the branch below"]
+    direction TB
+    n1y1["1y1. Read the finding's branch from the backticked branch in its<br/>enclosing ## heading, never from the file name"]
+    n1y2{"1y2. What does the finding target?"}
+    n1y2a["1y2a. A PR body or title: apply it with gh api -X PATCH<br/>repos/&lt;owner&gt;/&lt;repo&gt;/pulls/&lt;n&gt; from the live body.<br/>No checkout, no commit; annotate it"]
+    n1y2b["1y2b. A section with no branch (e.g. local planning docs):<br/>apply in CWD, left uncommitted; annotate it"]
+    n1y2c["1y2c. A branch: git checkout it, then apply through the same<br/>lens loop (nodes 21-18)"]
+    n1y3{"1y3. Is lint plus the specs covering this branch's apply commits red?"}
+    n1y4{"1y4. git push, plain - NEVER --force. Was it accepted?"}
+    n1y5["1y5. gh pr list --base &lt;branch&gt; --state open. For each open child PR:<br/>git merge --no-edit the branch into it, then plain git push<br/>(scouts branches can be stacked). No child: nothing more"]
+    n1y6{"1y6. More marked scouts findings left?"}
+  end
+
   n24(["24. STOP the chain ON the stopped branch: abort a conflicted merge<br/>first, leave no merge in progress, name the branch, the step and<br/>the cause. Branches already pushed stay pushed, branches above<br/>stay untouched, and NEVER return to the starting branch -<br/>the human resumes from where it broke"])
 
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes - a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
@@ -503,7 +572,7 @@ flowchart TD
 
   n17{"17. Step 4 · More findings left in this lens's batch?"}
   n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
-  n18a{"18a. Step 4 · Running in marked mode?<br/>Yes = this branch's lens loop is done, so control<br/>returns to the stack loop; no = go straight to the report"}
+  n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the stack loop; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
   n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per chain branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, plus every [AI!]<br/>tag ignored in a non-quality-gate file"]
   n20{"20. Step 6 · Who invoked this run?"}
   n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer.<br/>Marked mode also says every finding still tagged [AI!]<br/>is retried by the next marked run, and deleting the tag<br/>drops it"])
@@ -513,7 +582,9 @@ flowchart TD
   n1a -->|"yes, marked mode"| n1b --> n1c
   n1a -->|"no, any other selection"| n2
   n1c -->|"no"| n1c1
-  n1c -->|"yes"| n1d --> n1e
+  n1c -->|"yes"| n1c2
+  n1c2 -->|"yes, quality-gate marked"| n1d --> n1e
+  n1c2 -->|"no, scouts only"| n1y
   n1e -->|"no"| n24
   n1e -->|"yes"| n1e1 --> n1f
   n1f -->|"yes"| n24
@@ -544,7 +615,18 @@ flowchart TD
   n1v -->|"run failed or poll timed out"| n24
   n1v -->|"pass"| n1w
   n1w -->|"yes, next branch up"| n1j
-  n1w -->|"no"| n1x --> n19
+  n1w -->|"no"| n1y
+  n1y -->|"yes"| n1y1 --> n1y2
+  n1y -->|"no"| n1x --> n19
+  n1y2 -->|"PR body or title"| n1y2a --> n1y6
+  n1y2 -->|"no branch"| n1y2b --> n1y6
+  n1y2 -->|"a branch"| n1y2c --> n21
+  n1y3 -->|"red"| n24
+  n1y3 -->|"green"| n1y4
+  n1y4 -->|"rejected"| n24
+  n1y4 -->|"accepted"| n1y5 --> n1y6
+  n1y6 -->|"yes, next finding"| n1y1
+  n1y6 -->|"no"| n1x
   n2 --> n3
   n3 -->|"no file for any lens"| n3a
   n3 -->|"at least one"| n4
@@ -572,8 +654,9 @@ flowchart TD
   n17 -->|"no"| n18
   n18 -->|"yes, next lens entry"| n21
   n18 -->|"no"| n18a
-  n18a -->|"no, single-branch flow"| n19
-  n18a -->|"yes, back to the stack loop"| n1r
+  n18a -->|"single-branch flow"| n19
+  n18a -->|"quality-gate stack loop"| n1r
+  n18a -->|"scouts loop"| n1y3
   n19 --> n20
   n20 -->|"a human"| n20a
   n20 -->|"a skill"| n20b
