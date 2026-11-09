@@ -39,6 +39,10 @@
 #   loudly here instead of silently branching off the wrong
 #   base.
 #
+# Once every parent clears both, (c) HEAD must carry no
+# non-merge commit outside every parent's branch, so a HEAD
+# left on an unrelated sibling PR's tip blocks too.
+#
 # PR-N with no parents (Depends on: none) passes immediately - a
 # DAG root has nothing to wait for.
 #
@@ -48,12 +52,13 @@
 # registers as a phantom task status.
 #
 # Exit codes:
-# - 0: PR-N has no parents, or every parent clears both checks.
+# - 0: PR-N has no parents, or every parent clears all three
+#   checks.
 #
-# - 1: PR-N label not found in the PR Breakdown, or at least one
+# - 1: PR-N label not found in the PR Breakdown, at least one
 #   parent is not ready (outstanding task and/or ancestry
-#   mismatch); diagnostic naming every offending task id /
-#   branch on stderr.
+#   mismatch), or HEAD carries stray commits; diagnostic
+#   naming every offending task id / branch / commit on stderr.
 #
 # - 2: usage error (wrong arg count, plan/worktree path missing,
 #   PR Breakdown section unparsable, or a ``` / ~~~ fence left
@@ -196,6 +201,7 @@ branch_for_pr() {
 }
 
 diagnostics=""
+parent_branches=()
 
 # add_diagnostic - appends a diagnostic line, newline-separated.
 add_diagnostic() {
@@ -241,6 +247,8 @@ for raw_parent_label in "${dep_labels[@]}"; do
     continue
   fi
 
+  parent_branches+=("$parent_branch")
+
   if ! git -C "$worktree_path" merge-base --is-ancestor "$parent_branch" HEAD 2>/dev/null; then
     add_diagnostic "error: worktree HEAD does not descend from $parent_label's recorded branch: $parent_branch"
   fi
@@ -251,5 +259,30 @@ if [ -n "$diagnostics" ]; then
   exit 1
 fi
 
-echo "OK: every parent of $pr_label is Done and an ancestor of HEAD."
+# Every parent being an ancestor of HEAD does not mean HEAD
+# holds only parent commits: a chain PR-1 -> PR-2 run in order
+# leaves HEAD on PR-2's tip, which still descends from PR-1.
+#
+# Branching a PR-1-only dependent from there would carry PR-2's
+# commits into it, so any non-merge commit reachable from HEAD
+# but from no parent branch blocks.
+#
+# Merge commits are excluded so a diamond PR's own merges of its
+# parents never count as stray.
+if ! stray_commits=$(git -C "$worktree_path" log --no-merges --format='%h %s' HEAD --not "${parent_branches[@]}"); then
+  echo "error: could not list the commits HEAD carries beyond $pr_label's parent branches: ${parent_branches[*]}" >&2
+  exit 1
+fi
+
+if [ -n "$stray_commits" ]; then
+  stray_count=$(printf '%s\n' "$stray_commits" | wc -l | tr -d ' ')
+  {
+    echo "error: worktree HEAD carries $stray_count commit(s) from none of $pr_label's parent branches (${parent_branches[*]}):"
+    printf '%s\n' "$stray_commits" | sed 's/^/  /'
+    echo "Branch $pr_label from its parent's branch explicitly, e.g. git checkout -b <pr_branch> ${parent_branches[0]}, then re-run this guard."
+  } >&2
+  exit 1
+fi
+
+echo "OK: every parent of $pr_label is Done and an ancestor of HEAD, and HEAD carries no commit from outside them."
 exit 0

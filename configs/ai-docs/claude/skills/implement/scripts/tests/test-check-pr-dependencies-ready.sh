@@ -105,9 +105,9 @@ write_plan() {
 }
 
 # init_repo_with_ancestor_branch - builds a real git repo at
-# <dir> where <parent_branch> is an actual ancestor of HEAD
+# <dir> where HEAD sits exactly at <parent_branch>'s tip
 # (mirrors /implement creating a dependent PR's branch from its
-# parent's tip).
+# parent's branch, before any of its own tasks commit).
 init_repo_with_ancestor_branch() {
   local dir="$1" parent_branch="$2"
   mkdir -p "$dir"
@@ -124,9 +124,6 @@ init_repo_with_ancestor_branch() {
   git -C "$dir" commit -q -m "parent PR commit"
 
   git -C "$dir" checkout -q -b "current-pr-branch"
-  printf 'dependent\n' > "$dir/dependent.txt"
-  git -C "$dir" add dependent.txt
-  git -C "$dir" commit -q -m "dependent PR commit"
 }
 
 # init_repo_with_sibling_branch - builds a real git repo at
@@ -361,6 +358,31 @@ it_should_ignore_a_task_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_
   assert_eq "should ignore a phantom Task 2 heading quoted inside a nested four-backtick sample within a five-backtick fence (exit code)" "0" "$VERDICT_EXIT"
 }
 
+# A chain PR-1 -> PR-2 ran in order, so HEAD sits on PR-2's tip;
+# PR-3 depends on PR-1 alone. PR-1's branch is an ancestor of
+# HEAD, yet branching PR-3 from HEAD would carry PR-2's commit.
+it_should_block_when_head_carries_a_commit_from_a_pr_the_dependent_pr_does_not_depend_on() {
+  local slug="failure-stray-sibling-commit" worktree_dir plan_file
+  worktree_dir="$work_dir/$slug-worktree"
+  init_repo_with_ancestor_branch "$worktree_dir" "feat-foo-pr1"
+  git -C "$worktree_dir" checkout -q -b "feat-foo-pr2" "feat-foo-pr1"
+  printf 'sibling\n' > "$worktree_dir/sibling.txt"
+  git -C "$worktree_dir" add sibling.txt
+  git -C "$worktree_dir" commit -q -m "add PR-2 order export"
+
+  plan_file=$(write_plan "$slug" \
+    '### 1. [Done] Naming and validators
+### 2. [Done] Order export
+### 3. [Done] Account hierarchy' \
+    '1. **[Done] PR-1** - Naming and validators. Tasks: 1. Depends on: none. Branch: `feat-foo-pr1`.
+2. **[Done] PR-2** - Order export. Tasks: 2. Depends on: PR-1. Branch: `feat-foo-pr2`.
+3. **PR-3** - Account hierarchy. Tasks: 3. Depends on: PR-1.')
+
+  run_script "$plan_file" "PR-3" "$worktree_dir"
+  assert_eq "should block when HEAD carries a commit from a PR the dependent PR does not depend on (exit code)" "1" "$VERDICT_EXIT"
+  assert_contains "should block when HEAD carries a commit from a PR the dependent PR does not depend on (diagnostic names the stray commit)" "$VERDICT_ERR" "add PR-2 order export"
+  assert_contains "should block when HEAD carries a commit from a PR the dependent PR does not depend on (diagnostic names the parent branch to branch from)" "$VERDICT_ERR" "git checkout -b <pr_branch> feat-foo-pr1"
+}
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_parents_branch
@@ -372,6 +394,7 @@ it_should_block_naming_the_second_parents_outstanding_task_when_a_pr_has_two_par
 it_should_read_a_task_heading_that_follows_a_fenced_line_starting_with_a_heading_marker
 it_should_read_a_task_heading_that_follows_a_longer_fence_wrapping_a_shorter_fenced_sample
 it_should_ignore_a_task_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_sample
+it_should_block_when_head_carries_a_commit_from_a_pr_the_dependent_pr_does_not_depend_on
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
