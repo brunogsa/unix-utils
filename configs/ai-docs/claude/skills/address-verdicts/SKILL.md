@@ -62,7 +62,7 @@ Ask ONE clarifying question, with your recommended reading, on any of these:
 - A lens name that looks like a typo.
 - An `[AI!: <message>]` whose instruction still leaves a choice open, or contradicts the finding in a way the message does not settle.
 
-Never guess past an ambiguity like these - a wrong guess silently works the wrong finding.
+Never guess past an ambiguity - a wrong guess silently works the wrong finding.
 
 A severity floor compares the ordinal `HIGH`/`MEDIUM`/`LOW` tag each lens stamps in its finding headings, so all three filter alike. A `[QUESTION]` finding carries no ordinal, so no floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
 
@@ -74,7 +74,7 @@ A missing test command under `--no-ask` skips only findings that need one - refa
 
 ## 3. Seed the whole TaskList upfront - one entry per lens, never one per finding
 
-Before applying anything, group §2's selection by lens and create one entry per lens that contributed at least one finding - the list is this run's whole timeline, nothing appears later, out of order, as it becomes relevant.
+Before applying anything, group §2's selection by lens and create one entry per lens that contributed a finding - the list is this run's whole timeline, so nothing appears later, out of order.
 
 ```
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
@@ -84,9 +84,9 @@ A merged-file finding joins the `auto-review` or `refactor` entry its heading ta
 
 Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`** - each stage hands the next a stronger safety net.
 
-A lens with no finding gets no entry at all, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
+A lens with no finding gets no entry, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
 
-**One entry per lens is the rule, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
+**One entry per lens, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
 Each entry names its own count, and §5 still annotates every finding individually in its verdict file.
 Add one closing `[Reminder]` entry for the final report (§6) - it survives a mid-run compaction, so the wrap-up step can't get silently skipped.
@@ -103,7 +103,7 @@ A `test-sdd` finding whose planned test covers prose is **not written at all**. 
 
 This overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally" - see [`references/design-rationale.md`](references/design-rationale.md).
 
-A lens whose findings are all non-code dispatches its own agent zero times, which is a correct outcome, not a failure. §3 still seeds its entry, and §5 still annotates every finding.
+A lens whose findings are all non-code dispatches its own agent zero times - a correct outcome. §3 still seeds its entry, and §5 still annotates every finding.
 
 **A finding tagged `[AI!: <message>]` (or `[AI! <message>]`) carries its message into the dispatch verbatim, as the human's instruction.**
 
@@ -124,13 +124,13 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - **`refactor` entry** (from `verdict_refactor_*.md`, or a `[refactor]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
 
-**Size all three entries to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch on its own.
+**Size all three entries to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch itself.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
 - Aim for ~10 units per dispatch, a guide that clustering or bundling may override.
 
-Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch, same seeded order, never one uncapped batch.
+Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch and order, never one uncapped batch.
 
 Why the cap, and why code refactor findings keep their own agent: [`references/design-rationale.md`](references/design-rationale.md).
 
