@@ -383,6 +383,30 @@ it_should_block_when_head_carries_a_commit_from_a_pr_the_dependent_pr_does_not_d
   assert_contains "should block when HEAD carries a commit from a PR the dependent PR does not depend on (diagnostic names the stray commit)" "$VERDICT_ERR" "add PR-2 order export"
   assert_contains "should block when HEAD carries a commit from a PR the dependent PR does not depend on (diagnostic names the parent branch to branch from)" "$VERDICT_ERR" "git checkout -b <pr_branch> feat-foo-pr1"
 }
+
+it_should_pass_when_head_is_the_merge_of_every_parent_of_a_diamond_pr() {
+  local slug="happy-diamond-merge" worktree_dir plan_file
+  worktree_dir="$work_dir/$slug-worktree"
+  init_repo_with_ancestor_branch "$worktree_dir" "feat-foo-pr1"
+  git -C "$worktree_dir" checkout -q -b "feat-foo-pr2" main
+  printf 'parent2\n' > "$worktree_dir/parent2.txt"
+  git -C "$worktree_dir" add parent2.txt
+  git -C "$worktree_dir" commit -q -m "parent PR-2 commit"
+  git -C "$worktree_dir" checkout -q -b "feat-foo-pr3" "feat-foo-pr1"
+  git -C "$worktree_dir" merge -q --no-edit "feat-foo-pr2" -m "Merge PR-2 into PR-3"
+
+  plan_file=$(write_plan "$slug" \
+    '### 1. [Done] First slice
+### 2. [Done] Second slice
+### 3. [Done] Third slice' \
+    '1. **[Done] PR-1** - First slice. Tasks: 1. Depends on: none. Branch: `feat-foo-pr1`.
+2. **[Done] PR-2** - Second slice. Tasks: 2. Depends on: none. Branch: `feat-foo-pr2`.
+3. **PR-3** - Diamond merge. Tasks: 3. Depends on: PR-1, PR-2.')
+
+  run_script "$plan_file" "PR-3" "$worktree_dir"
+  assert_eq "should pass when HEAD is the merge of every parent of a diamond PR, since the merge commit itself is not a stray commit (exit code)" "0" "$VERDICT_EXIT"
+}
+
 it_should_fail_closed_when_a_backtick_fence_is_left_open_at_eof
 it_should_fail_closed_when_a_tilde_fence_is_left_open_at_eof
 it_should_pass_when_every_parent_prs_tasks_are_done_and_head_descends_from_each_parents_branch
@@ -395,6 +419,7 @@ it_should_read_a_task_heading_that_follows_a_fenced_line_starting_with_a_heading
 it_should_read_a_task_heading_that_follows_a_longer_fence_wrapping_a_shorter_fenced_sample
 it_should_ignore_a_task_heading_quoted_inside_a_longer_fence_wrapping_a_shorter_sample
 it_should_block_when_head_carries_a_commit_from_a_pr_the_dependent_pr_does_not_depend_on
+it_should_pass_when_head_is_the_merge_of_every_parent_of_a_diamond_pr
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
