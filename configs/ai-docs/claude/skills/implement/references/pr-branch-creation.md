@@ -32,7 +32,7 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
   - The guard already ran, and passed, the first time this branch was created - re-running it on an adopted branch is redundant, not merely safe-to-repeat.
 
-  - This guarantee holds for the diamond case too: its guard already ran by branch-creation time, in the diamond-specific position after the checkout and merges.
+  - This guarantee holds for the diamond case too: its guard already ran by branch-creation time, after the checkout and merges.
 
   - That run validated ancestry against every parent, not just one, so an adopted diamond branch inherits the same completed guarantee.
 
@@ -46,13 +46,19 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
     - No parent to guard against or record.
 
-  - **Exactly one parent** → first, the dependency guard:
+  - **Exactly one parent** → resolve the parent's branch name from column 4 of `parse-pr-breakdown.sh <plan-file>`, the field `check-pr-dependencies-ready.sh`'s own `branch_for_pr()` uses.
 
-    ```bash
-    ~/.claude/skills/implement/scripts/check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
-    ```
+    - `git checkout -b <pr_branch> <parent-branch>` - explicit base ref, same as the "Zero parents" bullet, never bare HEAD.
 
-    Exit 1 refuses to create this PR's branch or dispatch any of its tasks. Surface the script's own stderr diagnostic verbatim and stop; do not retry. Exit 2 (usage/parse error) surfaces the same way.
+    - Never from current HEAD - HEAD may sit at a sibling PR's tip that still descends from the parent.
+
+      - A plan chain PR-1 → PR-2 run in order leaves HEAD on PR-2's tip, so a PR depending only on PR-1 cut from HEAD would carry PR-2's commits.
+
+    - Then the dependency guard, against the new branch's HEAD:
+
+      ```bash
+      ~/.claude/skills/implement/scripts/check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
+      ```
 
     The guard's own `branch_for_pr()` hard-requires the parent's PR Breakdown entry to already carry a `Branch:` field - no fallback ancestry source, absence is always a hard block. That precondition always holds here.
 
@@ -60,7 +66,11 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
     So this step writes nothing itself; the parent's own write always got there first.
 
-    Exit 0 → `git checkout -b <pr_branch>` with no explicit base ref, i.e. from current HEAD. Correct because a DAG root needs no branch of its own - the `no`-checkout case owned by [`pr-awareness.md`](pr-awareness.md). Its commits land on the pre-existing branch, so HEAD already sits at the parent's tip when a single dependent PR runs.
+    The guard also blocks when HEAD carries a non-merge commit from none of the parent branches, so a branch cut from the wrong base never passes.
+
+    Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks; do not retry. Discard the half-built branch before stopping: `git checkout <parent-branch>` then `git branch -D <pr_branch>`, for the same reason as the diamond case below. Exit 2 (usage/parse error) surfaces the same way, discarding the branch identically.
+
+    Exit 0 → dispatch this PR's tasks.
 
   - **Two or more parents** (diamond dependency) → resolve each parent's branch name from its own PR Breakdown entry first, in the order listed in `Depends on:`.
 
@@ -90,7 +100,7 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
       ~/.claude/skills/implement/scripts/check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
       ```
 
-      Same script as the single-parent case, just called *after* the checkout and merges instead of before. Its ancestry check (`git merge-base --is-ancestor <parent_branch> HEAD`) cannot pass for the second and later parents until their commits land via merge. Calling it earlier would always fail here, even when every parent legitimately is Done.
+      Same script as the single-parent case, called after the checkout as there, and here after the merges too. Its ancestry check (`git merge-base --is-ancestor <parent_branch> HEAD`) cannot pass for the second and later parents until their commits land via merge. Calling it earlier would always fail here, even when every parent legitimately is Done.
 
       Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks. Discard the half-built branch before stopping: `git checkout <first-listed-parent-branch>` then `git branch -D <pr_branch>`.
 
