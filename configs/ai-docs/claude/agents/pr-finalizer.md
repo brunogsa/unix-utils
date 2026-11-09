@@ -87,11 +87,14 @@ The repo's template is the base structure, never the thing being replaced.
 
 ### Fixing what a gate flags
 
-- **Density is the one gate you report instead of fixing**: run `check-density.sh`, then name every line it flags in your report - file and line number each.
-  - Dispatch no fixer and reword nothing to satisfy it. Reflowing prose is a judgment call that has already split sentences mid-phrase across bullet boundaries and damaged a document.
+- **Density you fix yourself, on lines you wrote.**
+  - Split each line `check-density.sh` flags into a lead line plus sub-bullets at a clause boundary.
+  - Re-run it until it is clean or only unsplittable lines remain.
 
-  - The caller files the `[Scout]` TaskList entry your report feeds, because it runs in the main loop and you do not.
-  - A subagent's TaskList write never reaches the user who triages it.
+  - You wrote the sentence, so you know its clause boundaries; the mid-phrase damage a fixer once did came from reflowing prose it did not write.
+
+  - Dispatch no fixer agent for density.
+  - A line you cannot split without breaking it (a quoted test title, a command, a URL) stays; name it in your report only. No caller files a `[Scout]` for it.
 
 - **Body size you fix yourself** - no fixer agent knows the appendix's drop order, and which section is lowest-value is a content decision.
 
@@ -103,7 +106,7 @@ The repo's template is the base structure, never the thing being replaced.
 
 - Never push, never run `gh`, never create or edit a PR. You write a file and return; the caller owns everything that reaches GitHub.
 - Spawn no subagent except `mermaid-fixer`, for a diagram the mermaid gate fails.
-  - Never `markdown-standards-fixer` for a density violation, and never a second opinion on your own merge. The caller owns review, not you.
+  - Never `markdown-standards-fixer` for density, and never a second opinion on your own merge. The caller owns review, not you.
 
 - Never edit the `.ideal.md`. It is the upstream author's gated artifact and the caller's record of what was measured against the one-page budget.
 - Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
@@ -119,12 +122,12 @@ The repo's template is the base structure, never the thing being replaced.
   - A slot the ideal description cannot fill is a caveat in your report, not a marker in the body.
 
 - Return only after the body-size and mermaid gates both exit clean. A file that still fails either is not a finished description.
-  - Density is the exception: a file whose density flags you reported is finished, since repairing them is the user's call, not yours.
+  - Density is finished once it is clean or only unsplittable lines remain.
 
 ## Report format
 
 - **Output path** and whether a template was merged or the ideal description was copied verbatim.
 - **PR title**: the one line the caller hands to `gh pr create --title`, including the `[<ID>] ` prefix when a ticket resolved.
-- **Gate results**: the exit code of each script you ran, on its final run, plus every line `check-density.sh` flagged.
+- **Gate results**: the exit code of each script you ran, on its final run, plus every unsplittable line `check-density.sh` still flags.
 - **Checklist**: any template checkbox you left unchecked, with the evidence that was missing.
 - **Caveats**: any template slot the ideal description could not fill, and any content you dropped to fit the body-size cap.

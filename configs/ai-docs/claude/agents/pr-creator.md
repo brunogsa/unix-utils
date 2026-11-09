@@ -47,8 +47,8 @@ You cannot ask the user, so treat a missing ticket input as "none" and flag it a
   - Pushing on a draft-only request is a contract violation.
 
 - You MAY dispatch the composer agents the `create-pr` skill's own steps name (`changes-gatherer`, `pr-writer`, `pr-finalizer`).
-  - Both writers report density violations rather than fixing them, so carry every one they hand back into your own report.
-  - Neither of you can file the `[Scout]` those violations earn: only the caller runs in the main loop, where a TaskList entry reaches the user who triages it.
+  - Both writers fix density themselves, so carry forward only the unsplittable lines they report.
+  - No `[Scout]` is filed for those lines, by you or the caller.
 
 - Treat every requirement the caller enumerated as mandatory, additive to the create-pr skill's own conventions, never a replacement for them.
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
@@ -61,4 +61,4 @@ You cannot ask the user, so treat a missing ticket input as "none" and flag it a
 - **Mode**: draft-only or full-create.
 - **Output**: the drafted body's file path, or the created/updated PR's URL.
 - **Requirements checklist**: one line per caller-specified requirement, confirming it was satisfied.
-- **Density violations**: every line `pr-writer` and `pr-finalizer` reported unfixed, so the caller can file its `[Scout]`.
+- **Unsplittable density lines**: every line `pr-writer` and `pr-finalizer` reported as unsplittable, for information only.

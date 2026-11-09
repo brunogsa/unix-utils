@@ -97,8 +97,8 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
 
 - It loops `check-pr-page-fit.py`, `check-pr-evidence.sh` and `check-pr-mermaid.sh` until all pass, so a main-session re-run re-measures an already-measured file and pays for a second dispatch.
 
-- **Density is the one gate it reports instead of fixing** -- a file whose density flags it named IS finished, so never send it back for them.
-  - File those flags as a `[Scout]` from its report; a subagent cannot, its TaskList write never reaching the user who triages it.
+- **The agent fixes density itself** -- never send the file back for it.
+  - File no `[Scout]` for the unsplittable lines it reports.
 
 **CRITICAL: It writes the IDEAL description in this skill's own format, ignoring any repo template** -- the repo's template is step 3's problem, not its.
 - The format has to stay stable, because `check-pr-page-fit.py` can only hold a section to its budget when it recognizes that section.
