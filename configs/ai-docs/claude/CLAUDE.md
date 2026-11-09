@@ -126,6 +126,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **CRITICAL: Push for simplicity - surface the simpler alternative** -- challenge decisions and name simpler paths.
   - [Why] The simpler path is usually invisible from inside the complex one, so only deliberate questioning surfaces it.
   - [Example] Bad: a script to rename three files; an AI rewrite where a deterministic converter exists. Good: `git mv`; run the converter, then edit.
+  - [Example] Bad: recommending a duplicate merge gated on a cap overflowing, or a "dropped" marker kept in a generated report. Good: always merge before ranking; let the human review re-cut repeats.
 
 - [Instruction] **Verify the simpler path doesn't work before committing to the complex one**.
   - [Why] Without evidence the simpler path fails, the complex path wins by default and ships unjustified machinery.
@@ -275,9 +276,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Within that directory, keep two files with two contracts: `notes.md` for terse, continuous working notes, and `<skill>-brief.md` for a zero-context hand-off.
   - [Why] One file serving a terse-memory reader and a zero-context reader at once inflated notes past what the first wants.
 
-`notes.md` is organized under five fixed headings: `## Findings`, `## Decisions`, `## Rejected`, `## Open questions`, `## Artifacts`.
-
-- [Instruction] Route each note under its matching fixed heading as a trigger plus a short why after a spaced hyphen, aiming for ~128 chars as an unenforced guide.
+- [Instruction] Route each `notes.md` note under one fixed heading (`## Findings`, `## Decisions`, `## Rejected`, `## Open questions`, `## Artifacts`) as `trigger - short why`, aiming ~128 chars, unenforced.
   - [Why] Headings keep notes findable without taxing every turn, and a hard cap would fight a rare longer note.
 
 - [Instruction] **Write every note-worthy item to its surface the moment it appears - never carry it in working memory.**
@@ -372,7 +371,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Route a change to `tdd-coder` when you can name an input for which the pre- and post-change versions behave differently, and to `direct-coder` when you cannot.
   - [Why] With no such input there is no RED to write, so a TDD cycle manufactures a test that asserts the text you typed.
-  - [Example] No such input: a comment, prose, a rename, a file move, a config or frontmatter value, a dead-code deletion.
 
 - [Instruction] Never route a document, spec, plan, or other non-code artifact edit through TDD (`tdd-coder`) - TDD applies to code only, even when a distinguishing input can be named.
   - [Why] Tests over prose have a bad ROI - authoring and maintaining them costs more than the regressions they'd ever catch.
