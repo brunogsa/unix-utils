@@ -16,6 +16,10 @@ Principles and paired examples for any documentation work; not every principle n
 - [Instruction] Default to no comment - prefer tests and logs, and add a comment only when the WHY is genuinely non-obvious to names, types, and error/log messages.
   - [Why] A comment isn't bound to the code, so it drifts and misleads - tests and logs stay bound to behavior instead.
 
+- [Instruction] When a comment is wrong or stale, re-run the default-to-no-comment test on it and delete it if it fails - reword only a comment that still earns its place.
+  - [Why] A reworded comment drifts again, while a deleted one that restated the code never drifts.
+  - [Example] Bad: a fix rewording `// query is LIMIT 1` to `LIMIT 2`. Good: ask whether the query and fixture already say it, then propose deleting it.
+
 - [Instruction] **CRITICAL: When you must comment, the maximum scope is why this code exists in this shape** - never restate what the code shows (rename/restructure instead) or explain how it works.
   - [Why] Only the reason code exists like this survives commits, refactors, and restating - history and mechanics don't.
 
