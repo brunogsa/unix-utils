@@ -12,12 +12,13 @@ disable-model-invocation: false
 
 `<which ones>` selects which findings to work. It matches, in this order:
 
-- Empty, or `marked` - **marked mode**: every finding whose heading the human tagged `[AI!]` (`### 3. [AI!][MEDIUM][refactor] ...`), across every `verdict_quality-gate_*.md`.
+- Empty, or `marked` - **marked mode**: every finding whose heading the human tagged `[AI!]` (`### 3. [AI!][MEDIUM][refactor] ...`), across every `verdict_quality-gate_*.md` and `verdict_scouts*.md`.
   - `[AI!: <message>]` in the same slot selects the finding too, and its message is the human's instruction for the fix (§4).
 
   - The colon is optional: `[AI! <message>]` carries a message the same way.
 
-  - Each finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
+  - Each quality-gate finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
+  - A scouts finding goes on its `##` section heading's branch, pushed alone with no merge-up.
   - Before the first apply, it launches one lateral `/improve-from-user` run over every file's `[AI!]` marks and notes, no ask, and carries on.
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
 

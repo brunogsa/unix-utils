@@ -11,7 +11,7 @@ Why each rule holds: [`design-rationale.md`](design-rationale.md).
 
 Read every `verdict_quality-gate_*.md` in CWD - all of them, not the newest per lens.
 
-- Other verdict files are out of scope here: an `[AI!]` or `[AI!: <message>]` in `verdict_test-sdd_*`, `verdict_scouts_*`, or a standalone lens file does not fire.
+- Other verdict files are out of scope here: an `[AI!]` or `[AI!: <message>]` in `verdict_test-sdd_*` or a standalone lens file does not fire.
   - List each such ignored tag in §6's report, so the human knows it never ran.
 
   - Name such a finding through an explicit list instead, which runs on the current branch only.
@@ -24,6 +24,25 @@ awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!([: ][^]]*)?\]/' <
 
 - No marked finding in any file → stop: nothing is marked; tag a heading `### N. [AI!][...]` first.
 - Two files reviewing the same branch → work both, since the human marked both.
+
+## Scouts files
+
+Also read every `verdict_scouts*.md` in CWD, with the same `[AI!]` heading test as above. Its findings use `### N. [AI!...][SEV][scout #id] <target>`, grouped under `## ... \`<branch>\`` section headings.
+
+- The branch a finding applies on is the backticked branch in its enclosing `##` heading, never the file name.
+  - Why: one scouts file spans many PRs, so the file name carries no branch.
+
+- A finding whose target is a PR body or title (e.g. "PR #2873 body, line 27") is applied from the live body, with no checkout and no commit.
+  - Use `gh api -X PATCH repos/<owner>/<repo>/pulls/<n>`.
+  - Why: a PR body lives on GitHub, so a checkout could not reach it.
+
+- A finding in a section with no branch (e.g. "Local planning docs (uncommitted, no branch)") is applied in CWD and left uncommitted.
+
+- Each scouts branch is its own PR, not a link in one chain: skip the stack walk and merge-up.
+  - Check out the branch, apply through §3-§5, validate, then push with a plain `git push`.
+  - Why: scouts branches are independent PRs, so a merge-up would drag unrelated changes between them.
+
+- Quality-gate files keep the stack walk, merge-up, and CI watch in the rest of this file.
 
 ## Resolve each file's branch and the stack order
 
