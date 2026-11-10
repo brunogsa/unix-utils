@@ -93,7 +93,7 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - Before listing a finding as fixed, re-check its checklist item at its places in the new doc.
 
-   - Fixed findings go in one "Resolvidos" line under 30 words. Unfixed ones get `[recorrente]`; a cluster fixed in part keeps only its remaining places.
+   - Fixed findings go in one "Resolvidos" line (the template caps its length). Unfixed ones get `[recorrente]`; a cluster fixed in part keeps only its remaining places.
 
 7. Write the report from `assets/report-template.md`; read it now. Never overwrite an existing report.
 

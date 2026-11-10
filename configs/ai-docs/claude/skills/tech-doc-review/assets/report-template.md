@@ -24,7 +24,7 @@ Regras que o script não confere:
 
 **Resolvidos desde o último relatório:** <N> achados corrigidos: <título 1>; <título 2>; <título 3>.
 
-<!-- A linha "Resolvidos" tem menos de 30 palavras. Sem relatório anterior, ou com 0 corrigidos, a linha não existe. -->
+<!-- Sem relatório anterior, ou com 0 corrigidos, a linha não existe. -->
 
 Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que mais nos trava ao que é só boa prática. Cada um traz a lacuna, por que ela importa para quem consome e, quando ajuda, um exemplo. A decisão de como resolver é de vocês.
 
