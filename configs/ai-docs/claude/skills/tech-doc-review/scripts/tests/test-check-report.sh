@@ -91,6 +91,11 @@ build_report "$WORKDIR/far-over-cap.md" 2600 "Bloqueia"
 assert_case "should exit 1 and print words=2600 when the report has 2,600 words, whatever its tiers" \
   1 "words=2600" "$WORKDIR/far-over-cap.md"
 
+# Unit 6
+build_report "$WORKDIR/accented-only.md" 2500 "Gera dúvida" "Boa prática"
+assert_case "should recognize the accented headings Gera dúvida and Boa prática" \
+  1 "words=2500" "$WORKDIR/accented-only.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
