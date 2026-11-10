@@ -41,7 +41,9 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 2. Confirm every source was read whole and parsed. On any sign below, stop, name the source and the sign, ask, and write no report.
 
-   - Unreadable source: permission, not found, timeout, 5xx, 429 or network drop. Retry nothing on your own: name the source and the cause, and offer the engineer a retry, a local export or an abort.
+   - Unreadable source: permission, not found, timeout, 5xx, 429 or network drop.
+
+   - Retry nothing on your own: name the source and the cause, and offer the engineer a retry, a local export or an abort.
 
    - Incomplete read: only "a tool note that the content may be incomplete" inside a read's result counts, never the tool's standing description.
 
