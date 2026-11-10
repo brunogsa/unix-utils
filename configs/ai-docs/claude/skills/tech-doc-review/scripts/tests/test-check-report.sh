@@ -115,6 +115,11 @@ build_report "$WORKDIR/boa-before-bloqueia.md" 100 "Boa prática" "Bloqueia"
 assert_case "should exit 2 when Boa prática precedes Bloqueia" \
   2 "words=100" "$WORKDIR/boa-before-bloqueia.md"
 
+# Unit 9
+build_report "$WORKDIR/duplicate-tier.md" 100 "Bloqueia" "Gera dúvida" "Bloqueia"
+assert_case "should exit 2 when a tier heading appears twice" \
+  2 "words=100" "$WORKDIR/duplicate-tier.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
