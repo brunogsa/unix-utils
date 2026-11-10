@@ -71,29 +71,23 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 4. Ask every operation whose goal you cannot tell, in one batch of 1-line questions.
 
+   - When the engineer declines or does not know a goal, rank that operation as a generic consumer and say so in chat.
+
    - Why: one batch costs one wait.
 
 5. Review against `references/checklist.md`; read it now.
 
-   - Each checklist gap becomes a finding. Apply its "Como aplicar" rules: open markers, empty tabs, domain extras.
+   - Each checklist gap becomes a finding. Apply its "Como aplicar" rules: clusters, open markers, empty tabs, domain extras, event items, items not applicable.
 
-   - Cluster before ranking, then tier by goal: Bloqueia, Gera dúvida, Boa prática.
-
-     - Why: ranking duplicates inflates the report.
+   - Tier by goal: Bloqueia, Gera dúvida, Boa prática.
 
    - Tag a gap the doc comments or thread raised or answered, with the link, per the template's "Etiqueta".
 
-   - Take the example from the reference contract where it covers the finding. Otherwise invent a generic one, never copied from the doc under review.
-
-   - Report each empty tab or section as a finding that names it.
-
-   - OpenAPI and AsyncAPI files take the same checklist; event docs use items 17-19 in place of the HTTP-only ones.
-
-   - Tell the engineer in chat which items you judged not applicable and why. They raise no finding.
+   - Never copy the example from the doc under review: take it from the reference contract or invent a generic one.
 
 6. Baseline (re-run only): match each baseline finding by checklist item plus place.
 
-   - When the source line differs from the baseline's, ask the engineer to confirm the doc is the new version (example: a new version uploaded as a new file).
+   - When the `**Fonte revisada:**` line differs from the baseline's, ask the engineer to confirm the doc is the new version (example: a new version uploaded as a new file).
 
    - Only the answer "different doc" is the different-doc baseline stop: write no report.
 
@@ -107,17 +101,19 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - An empty slug becomes `doc`; keep only `[a-z0-9-]`. A name collision appends `-2`.
 
-8. Run `scripts/check-report.sh <report>`; it prints `words=<n>`.
+8. Run `bash <this skill's dir>/scripts/check-report.sh <report>`; it prints `words=<n>`.
 
    - Exit 1 (over 2,400 words): cut the lowest-ranked finding of the lowest tier and record the cut (title, item, place). Rerun.
 
    - Never cut Bloqueia: when only Bloqueia is left, keep it and relay the word count in chat.
 
-   - Exit 2 or 3 is a skill defect: fix the report shape, rerun.
+   - Exit 2 is a skill defect: fix the report shape, rerun.
+
+   - Exit 3 means the path was wrong, missing or unreadable: rerun with the report's path.
 
 9. Dispatch one general-purpose subagent with `model=opus`, once per run, with the text of `references/checklist-check.md` below its line.
 
-   - Fill its placeholders: scratchpad paths of the doc and thread text, the context, the report, the baseline path (re-run).
+   - Fill its placeholders: scratchpad paths of the doc and thread text, the context, the report, the baseline path (re-run), the absolute path of this skill's `references/checklist.md`.
 
    - Also pass the findings cut for length and the items judged not applicable, as already decided.
 
@@ -125,7 +121,9 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
     - Add a finding for each `missed`, fix or drop each `unbacked`, drop each unbacked Resolvidos entry.
 
-    - A reply that leaves any item 1-19 without a verdict, returns nothing or errors: say "check incomplete" in chat. Never present the report as checked.
+    - A reply that leaves any item 1-19 without a verdict: apply the verdicts it did give, then say "check incomplete" in chat. Never present the report as checked.
+
+    - A reply that returns nothing or errors: apply nothing, say "check incomplete" in chat.
 
 11. Rerun `check-report.sh`. On exit 1 with non-Bloqueia findings left, return to step 8's cut and name each cut in chat.
 

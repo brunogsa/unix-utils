@@ -16,7 +16,7 @@ Read only these files:
 
 - The report to check: `<scratchpad path of the report>`.
 
-- The checklist: `~/unix-utils/configs/ai-docs/claude/skills/tech-doc-review/references/checklist.md`. Its numbered item names are the only names you may use in your reply. Read its "Como aplicar" rules and apply them.
+- The checklist: `<absolute path of this skill's references/checklist.md>`. Its numbered item names are the only names you may use in your reply. Read its "Como aplicar" rules and apply them.
 
 - Re-run only: the baseline report at `<path of the previous report, or "none">`. Its absence means this is a first run.
 
@@ -119,10 +119,4 @@ Reply with exactly the sections below and nothing before or after them. Main app
 
 ## Completeness
 
-Main counts the item numbers in your Verdicts section.
-
-- A reply that leaves any checklist item without a line means the check is incomplete.
-
-- On an incomplete reply, main tells the engineer in chat, outside the report, that the check is incomplete, and never presents the report as checked.
-
-- Before replying, confirm every number from 1 to 19 appears.
+Before replying, confirm every number from 1 to 19 appears in your Verdicts section: main counts them, and a missing one marks the whole check incomplete.
