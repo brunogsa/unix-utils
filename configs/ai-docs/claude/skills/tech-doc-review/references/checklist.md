@@ -1,6 +1,7 @@
 # Checklist de revisão de documento técnico
 
-Cada item tem um nome estável. A correspondência com o relatório anterior (item do checklist mais lugar), a linha "Item do checklist" de cada achado e o prompt de verificação usam exatamente estes nomes.
+Cada item tem um nome estável.
+Usam exatamente estes nomes: a correspondência com o relatório anterior (item do checklist mais lugar), a linha "Item do checklist" de cada achado e o prompt de verificação.
 
 ## Como aplicar
 
@@ -24,7 +25,8 @@ Cada item tem um nome estável. A correspondência com o relatório anterior (it
 ## Itens para qualquer documento
 
 1. **Caminho feliz** - endpoints, métodos, requisição e resposta.
-2. **Caminhos de erro** - formato do corpo de erro, códigos 4xx (por exemplo 404 contra 500) e não só 5xx, a condição por trás de cada um e quais erros admitem nova tentativa.
+2. **Caminhos de erro** - formato do corpo de erro e códigos 4xx (por exemplo 404 contra 500), não só 5xx.
+   - A condição por trás de cada código e quais erros admitem nova tentativa.
 3. **Autenticação**
 4. **Ambientes** - hosts, caminhos base, URL do token e um ambiente de teste ou homologação.
 5. **Filtros e parâmetros** - obrigatório ou opcional, tipos, restrições, comportamento com filtro vazio e como os filtros se combinam (E ou OU).
@@ -37,14 +39,22 @@ Cada item tem um nome estável. A correspondência com o relatório anterior (it
 10. **Nomes de campos** - nomes óbvios, ou com descrição e exemplo de uso.
 11. **Paginação** - listas e lotes paginados, com paginação estável sob alterações simultâneas.
 12. **Idempotência em escritas** - escritas e atualizações dizem o que acontece quando o mesmo pedido chega duas vezes.
-13. **Consistência interna** - um nome, um tamanho e um tipo por campo entre seções e entre consulta e resposta, nenhum título de seção ou aba que a descreva errado e nenhuma regra que contradiga outra.
+13. **Consistência interna** - um nome, um tamanho e um tipo por campo entre seções e entre consulta e resposta.
+   - Nenhum título de seção ou aba que a descreva errado.
+   - Nenhuma regra que contradiga outra.
 14. **Limite de requisições** - `429` e `Retry-After`.
 15. **Marcadores abertos** - "a definir", "a ser customizado", "faz sentido?" e similares, sem diferenciar maiúsculas de minúsculas, todos em um achado só.
 16. **Aba ou seção vazia** - ver a regra acima.
 
 ## Itens só para evento
 
-Para um evento (por exemplo, AsyncAPI), os 3 itens abaixo substituem os itens só de HTTP: `Caminho feliz` na parte de endpoints e métodos, os códigos de status de `Caminhos de erro` e `Limite de requisições`. Os itens compartilhados (tipos, datas, enumerações, nomes de campos, exemplos, idempotência) continuam valendo, e nenhum achado só de HTTP é levantado.
+Para um evento (por exemplo, AsyncAPI), os 3 itens abaixo substituem os itens só de HTTP.
+
+- Os itens só de HTTP são `Caminho feliz` na parte de endpoints e métodos, os códigos de status de `Caminhos de erro` e `Limite de requisições`.
+
+- Os itens compartilhados (tipos, datas, enumerações, nomes de campos, exemplos, idempotência) continuam valendo.
+
+- Nenhum achado só de HTTP é levantado.
 
 17. **Garantia de entrega** - por exemplo, ao menos uma vez, o que obriga quem consome a descartar repetições.
 18. **Ordem dos eventos** - se os eventos de uma mesma entidade chegam em ordem e qual chave os ordena.
