@@ -92,9 +92,23 @@ assert_case "should exit 1 and print words=2600 when the report has 2,600 words,
   1 "words=2600" "$WORKDIR/far-over-cap.md"
 
 # Unit 6
-build_report "$WORKDIR/accented-only.md" 2500 "Gera dúvida" "Boa prática"
+build_report "$WORKDIR/accented-only.md" 100 "Gera dúvida" "Boa prática"
 assert_case "should recognize the accented headings Gera dúvida and Boa prática" \
-  1 "words=2500" "$WORKDIR/accented-only.md"
+  0 "words=100" "$WORKDIR/accented-only.md"
+
+# Unit 7
+# "### Bloqueia" contains "## Bloqueia" as a substring, so a substring
+# match would count a second Bloqueia heading.
+build_report "$WORKDIR/tier-in-body.md" 100 "Bloqueia" "Gera dúvida"
+{
+  echo
+  echo "Veja a Boa prática descrita abaixo."
+  echo "Bloqueia"
+  echo "### Bloqueia"
+} >> "$WORKDIR/tier-in-body.md"
+words=$(wc -w < "$WORKDIR/tier-in-body.md" | tr -d ' ')
+assert_case "should ignore a tier name written in body text rather than as a heading" \
+  0 "words=$words" "$WORKDIR/tier-in-body.md"
 
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
