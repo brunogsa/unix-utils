@@ -21,21 +21,23 @@ lines, and a line-oriented read silently drops the wrapped clause).
 A "### N. [Clarify] ..." task settles a question only an outside
 party can answer. A "### N. [Gate] ..." task is a no-code check
 (a Stage proof, a read-only query, a prod check) a PR names under
-its **Gates**:. Neither makes a commit, so both sit outside the PR
-partition, and a dependency on either is satisfied outside the PR
-graph.
+its **Gates**:. Neither makes a commit. A "### N. [Direct] ..."
+task commits straight to a branch, outside any PR. So all three
+sit outside the PR partition, and a dependency on any of them is
+satisfied outside the PR graph. A plan-status marker may precede
+the tag ("### N. [Done][Direct] ...").
 
 Detects, each with its own diagnostic:
-  - a task id claimed by no PR (a [Clarify] or [Gate] task is
-    exempt);
+  - a task id claimed by no PR (a [Clarify], [Gate] or [Direct]
+    task is exempt);
   - a task id claimed by more than one PR;
   - a PR entry naming a task id the Task Breakdown does not define;
-  - a PR entry naming a [Clarify] or [Gate] task;
+  - a PR entry naming a [Clarify], [Gate] or [Direct] task;
   - a task whose dependency lives in a PR that is neither the same
     PR nor a transitive ancestor of it in the PR graph (the
     cross-level violation - subsumes both a cross-level cycle and
     the silent early-PR-assumption defect above). A dependency on a
-    [Clarify] or [Gate] task is never one.
+    [Clarify], [Gate] or [Direct] task is never one.
 
 Exit codes:
   0 - PR Breakdown is absent, reads "Single PR.", or every task's
@@ -85,6 +87,11 @@ NO_CODE_HEADING_RE = re.compile(
     r"\[(Clarify|Gate|Direct)\]",
     re.M,
 )
+NO_CODE_TAG_REASONS = {
+    "Clarify": "has no commit and belongs to no PR",
+    "Gate": "has no commit and belongs to no PR",
+    "Direct": "lands its commits outside any PR",
+}
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
@@ -162,9 +169,10 @@ def get_ancestor_prs(pid: str, pr_deps: dict[str, list[str]]) -> set[str]:
 
 
 def parse_no_code_task_tags(plan_file: Path) -> dict[str, str]:
-    """Return task id -> tag ("Clarify" or "Gate") for every task
-    headed "### N. [Clarify] ..." or "### N. [Gate] ...". Neither
-    makes a commit, so both sit outside the PR partition."""
+    """Return task id -> tag ("Clarify", "Gate" or "Direct") for
+    every task headed "### N. [<tag>] ...", a plan-status marker
+    allowed before the tag. None of them commits inside a PR, so
+    all three sit outside the PR partition."""
     task_section = extract_section(plan_file, "^Task Breakdown[[:space:]]*$")
     return dict(NO_CODE_HEADING_RE.findall(task_section))
 
@@ -173,9 +181,9 @@ def find_projection_problems(task_deps, pr_tasks, pr_deps, no_code_tags) -> list
     """Return one diagnostic string per defect found, in a fixed
     category order (unowned, no-code-in-PR/duplicate/undefined,
     cross-level) with ids sorted numerically within each category
-    for deterministic output. A [Clarify] or [Gate] task is never
-    unowned, and a dependency on one is satisfied outside the PR
-    graph."""
+    for deterministic output. A [Clarify], [Gate] or [Direct]
+    task is never unowned, and a dependency on one is satisfied
+    outside the PR graph."""
     problems: list[str] = []
 
     owning_prs: dict[str, list[str]] = {}
@@ -194,10 +202,11 @@ def find_projection_problems(task_deps, pr_tasks, pr_deps, no_code_tags) -> list
         prs = owning_prs[tid]
         tag = no_code_tags.get(tid)
         if tag is not None:
+            reason = NO_CODE_TAG_REASONS[tag]
             for pid in sorted(prs, key=int):
                 problems.append(
                     f"PR-{pid} Tasks: list names Task {tid}, a [{tag}] "
-                    f"task - a {tag.lower()} task has no commit and belongs to no PR"
+                    f"task - a {tag.lower()} task {reason}"
                 )
             continue
         if tid not in task_deps:

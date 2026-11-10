@@ -479,3 +479,28 @@ def test_should_exempt_a_tagged_task_claimed_by_no_pr_when_a_plan_status_marker_
     plan = _write_plan(tmp_path, task_body=task_body, pr_body=DIRECT_PR_BODY_WITHOUT_THE_DIRECT_TASK)
     result = _run(plan)
     assert result.returncode == 0, result.stderr
+
+
+def test_should_report_a_pr_that_lists_a_direct_task_because_a_direct_task_lands_outside_any_pr(tmp_path):
+    pr_body = (
+        "### PR-1. Export job slice\n\n"
+        "**Tasks**: 1, 2\n\n"
+        "**Depends on**: none\n"
+    )
+    plan = _write_plan(tmp_path, task_body=DIRECT_TASK_BODY, pr_body=pr_body)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "PR-1" in result.stderr
+    assert "Task 1" in result.stderr
+    assert "direct task lands its commits outside any PR" in result.stderr
+
+
+def test_should_report_a_task_claimed_by_no_pr_when_its_heading_lacks_the_direct_tag(tmp_path):
+    # Only the heading tag exempts a task - committing
+    # straight to a branch is a claim the plan must make
+    # explicitly.
+    task_body = DIRECT_TASK_BODY.replace("### 1. [Direct] ", "### 1. ")
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=DIRECT_PR_BODY_WITHOUT_THE_DIRECT_TASK)
+    result = _run(plan)
+    assert result.returncode == 1
+    assert "Task 1 is defined in the Task Breakdown but claimed by no PR" in result.stderr
