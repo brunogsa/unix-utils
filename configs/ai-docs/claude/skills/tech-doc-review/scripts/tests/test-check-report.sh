@@ -76,6 +76,11 @@ build_report "$WORKDIR/no-middle-tier.md" 90 "Bloqueia" "Boa prática"
 assert_case "should exit 0 when a tier heading is absent because that tier has no finding" \
   0 "words=90" "$WORKDIR/no-middle-tier.md"
 
+# Unit 3
+build_report "$WORKDIR/at-cap.md" 2400 "Bloqueia" "Gera dúvida" "Boa prática"
+assert_case "should exit 0 when the report has exactly 2,400 words" \
+  0 "words=2400" "$WORKDIR/at-cap.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
