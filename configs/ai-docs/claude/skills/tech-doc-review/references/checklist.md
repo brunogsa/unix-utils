@@ -16,7 +16,6 @@ Usam exatamente estes nomes: a correspondência com o relatório anterior (item 
   - Lacunas do mesmo item com correções diferentes são achados separados.
 
   - Um grupo assume a faixa mais alta entre os seus lugares.
-  - Um grupo assume a faixa mais alta entre os seus lugares.
 
 - Regra do marcador aberto: todos os marcadores abertos do documento entram em um único achado, com um lugar por marcador.
   - Um campo que traz só um marcador ("a definir") não é vazio: ele entra neste achado, e não no de aba vazia.
