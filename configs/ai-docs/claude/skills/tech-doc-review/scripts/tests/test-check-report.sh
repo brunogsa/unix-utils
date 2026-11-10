@@ -169,6 +169,53 @@ fi
 assert_case "should exit 3 and print nothing on stdout when the file does not exist" \
   3 "" "$WORKDIR/no-such-report.md"
 
+# Unit 14
+# A last line with no trailing newline must still be checked.
+printf '## Boa prática\n## Bloqueia' > "$WORKDIR/no-trailing-newline.md"
+assert_case "should exit 2 when the defect is on a last line with no trailing newline" \
+  2 "words=5" "$WORKDIR/no-trailing-newline.md"
+
+# Unit 15
+# A path that is not a readable regular file is a usage error.
+printf '## Bloqueia\n' > "$WORKDIR/unreadable.md"
+chmod 000 "$WORKDIR/unreadable.md"
+assert_case "should exit 3 and print nothing on stdout when the file is unreadable" \
+  3 "" "$WORKDIR/unreadable.md"
+chmod 600 "$WORKDIR/unreadable.md"
+
+mkdir "$WORKDIR/a-directory"
+assert_case "should exit 3 and print nothing on stdout when the path is a directory" \
+  3 "" "$WORKDIR/a-directory"
+
+# Unit 16
+printf '## Bloqueia\r\n' > "$WORKDIR/crlf-heading.md"
+assert_case "should count a tier heading ending with CRLF as that tier" \
+  0 "words=2" "$WORKDIR/crlf-heading.md"
+
+printf '## Bloqueia \n' > "$WORKDIR/trailing-space-heading.md"
+assert_case "should count a tier heading with trailing whitespace as that tier" \
+  0 "words=2" "$WORKDIR/trailing-space-heading.md"
+
+build_report "$WORKDIR/bulleted-resolved-46.md" 100 "Bloqueia"
+{
+  printf '\n- **Resolvidos desde o último relatório:**'
+  for ((i = 0; i < 41; i++)); do printf ' item'; done
+  echo
+} >> "$WORKDIR/bulleted-resolved-46.md"
+words=$(wc -w < "$WORKDIR/bulleted-resolved-46.md" | tr -d ' ')
+assert_case "should exit 2 when a bulleted resolvidos line has more than 29 words" \
+  2 "words=$words" "$WORKDIR/bulleted-resolved-46.md"
+
+build_report "$WORKDIR/quoted-prefix.md" 100 "Bloqueia"
+{
+  printf '\nO texto cita **Resolvidos desde o último relatório:**'
+  for ((i = 0; i < 41; i++)); do printf ' item'; done
+  echo
+} >> "$WORKDIR/quoted-prefix.md"
+words=$(wc -w < "$WORKDIR/quoted-prefix.md" | tr -d ' ')
+assert_case "should not count the resolvidos prefix quoted mid-sentence" \
+  0 "words=$words" "$WORKDIR/quoted-prefix.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1

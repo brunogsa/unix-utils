@@ -11,7 +11,8 @@
 #       2 when a tier heading is out of order or repeated, a "## " heading is
 #         outside the tier set, or the resolvidos line has 30 or more words
 #         (wins over 1)
-#       3 on a usage error: no argument, or the file does not exist
+#       3 on a usage error: no argument, or the path is missing, not a
+#         regular file, or unreadable
 #         (a message goes to stderr and no words= line is printed)
 
 MAX_WORDS=2400
@@ -20,8 +21,8 @@ RESOLVED_PREFIX="**Resolvidos desde o último relatório:**"
 TIERS=("Bloqueia" "Gera dúvida" "Boa prática")
 
 report="$1"
-if [ -z "$report" ] || [ ! -f "$report" ]; then
-  echo "usage: check-report.sh <report-file> (missing argument or file not found: '$report')" >&2
+if [ -z "$report" ] || [ ! -f "$report" ] || [ ! -r "$report" ]; then
+  echo "usage: check-report.sh <report-file> (argument missing, or the path is missing, not a regular file, or unreadable: '$report')" >&2
   exit 3
 fi
 words=$(wc -w < "$report" | tr -d ' ')
@@ -30,7 +31,9 @@ echo "words=$words"
 # A tier heading is a whole line "## <tier>"; any other line is body text.
 last_tier_index=-1
 has_shape_defect=false
-while IFS= read -r line; do
+while IFS= read -r line || [ -n "$line" ]; do
+  # A CRLF or trailing whitespace must not turn a tier into a foreign heading.
+  line="${line%"${line##*[![:space:]]}"}"
   is_tier=false
   for i in "${!TIERS[@]}"; do
     if [ "$line" = "## ${TIERS[$i]}" ]; then
@@ -46,7 +49,9 @@ while IFS= read -r line; do
     has_shape_defect=true
   fi
   # The resolvidos line is a summary, so a long one is a shape defect.
-  if [[ "$line" == "$RESOLVED_PREFIX"* ]]; then
+  # Only at line start, after one optional bullet marker.
+  if [[ "$line" == "$RESOLVED_PREFIX"* || "$line" == "- $RESOLVED_PREFIX"* \
+    || "$line" == "* $RESOLVED_PREFIX"* ]]; then
     line_words=$(echo "$line" | wc -w | tr -d ' ')
     if [ "$line_words" -gt "$MAX_RESOLVED_WORDS" ]; then
       has_shape_defect=true
