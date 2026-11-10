@@ -465,3 +465,17 @@ def test_should_exit_0_when_the_only_task_claimed_by_no_pr_is_a_direct_task_comm
     result = _run(plan)
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("OK:")
+
+
+@pytest.mark.parametrize(
+    "status, tag",
+    [("Done", "Direct"), ("Doing", "Direct"), ("Done", "Gate")],
+    ids=["done-direct", "doing-direct", "done-gate"],
+)
+def test_should_exempt_a_tagged_task_claimed_by_no_pr_when_a_plan_status_marker_precedes_its_tag(tmp_path, status, tag):
+    # The plan-status marker sits right after the task number,
+    # ahead of every other tag.
+    task_body = DIRECT_TASK_BODY.replace("### 1. [Direct] ", f"### 1. [{status}][{tag}] ")
+    plan = _write_plan(tmp_path, task_body=task_body, pr_body=DIRECT_PR_BODY_WITHOUT_THE_DIRECT_TASK)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
