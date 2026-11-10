@@ -65,7 +65,9 @@ Both measure rather than judge - never inline.
 - **Density**: run `doc-standards`' `scripts/check-density.sh`, `scripts/check-bullet-gap.py`, `scripts/check-bullet-structure.py`, and `scripts/check-hard-wrap.py` on the resolved docs.
   - Runs after mermaid validation: repairing a diagram adds lines density must measure.
 
-  - On any violation, file ONE `[Scout]` entry naming the file and what is off standard.
+  - On any violation, name the file and the off-standard lines in the self-review output - never file a `[Scout]` for it.
+
+  - Why: the writer and editor agents fix density as they write, so a residue is reported once, never queued as later work.
 
 **No toggle switches either off, but only the mermaid failure repairs itself.**
 

@@ -40,9 +40,15 @@ Compose under those conventions rather than reconstructing them from memory. Nev
    - With a notes path, read it too and add its decisions and rejected approaches the brief lacks. A conflict with the brief becomes a `**QUESTION:**`.
 
 2. Read sources 1 and 2, then write every section of the template - no section gets dropped; one the change doesn't need still gets its own `N/A - <reason>` line.
+
 3. Fold the brief's `## Decisions` into the Functional Decisions section: the chosen approach as one marker, discarded alternatives as sub-bullets naming why they lost.
 4. A gap the brief doesn't cover never withholds the spec - write around it and record a `**QUESTION:**` under Open Questions, stating what's missing. Never invent to fill it.
+
 5. Write in English regardless of the brief's language, per source 1's Guidelines.
+
+6. Before reporting, run `~/.claude/skills/doc-standards/scripts/check-density.sh`, `check-hard-wrap.py`, `check-bullet-gap.py`, and `check-bullet-structure.py` on the spec you wrote.
+   - Fix every violation in place, reflowing without dropping information.
+   - Why: the self-review reports density without filing a `[Scout]`, so a violation not fixed while writing never gets fixed.
 
 ## Boundaries
 

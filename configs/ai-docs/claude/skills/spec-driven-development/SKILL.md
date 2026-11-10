@@ -199,4 +199,4 @@ A toggled-off check or pass is omitted; self-review's output states what was ski
 
 - **Bullet gaps follow `doc-standards`' rule** - gap any bullet that has a sub-bullet or exceeds 80% of the density cap.
   - Two consecutive task-list items (`- [ ]`, `- [x]`, `- [X]`, any nesting) need no gap.
-  - The self-review's density check verifies both this and the density cap deterministically, then reports any violation as a `[Scout]`.
+  - The self-review's density check verifies both this and the density cap deterministically, then reports any violation without filing a `[Scout]`.

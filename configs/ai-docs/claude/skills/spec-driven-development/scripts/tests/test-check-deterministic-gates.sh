@@ -233,7 +233,7 @@ it_should_warn_without_failing_the_run_when_a_density_check_finds_a_violation() 
   build_tree
   make_stub "$TREE/doc-standards/scripts/check-density.sh" check-density.sh 1 "TOO-DENSE-MARKER"
   run_runner "$PLAN" "$SPEC"
-  assert_eq "should exit 0 when only density reports violations (a Scout, not a blocker)" "0" "$RUN_EXIT"
+  assert_eq "should exit 0 when only density reports violations (reported, not a blocker)" "0" "$RUN_EXIT"
   assert_contains "should label the density result WARN" "WARN exit=1 check-density.sh" "$RUN_OUT"
   assert_contains "should show the density output" "TOO-DENSE-MARKER" "$RUN_OUT$RUN_ERR"
 }
@@ -242,7 +242,7 @@ it_should_warn_without_failing_the_run_when_a_plan_or_spec_has_a_hard_wrapped_pa
   build_tree
   make_stub "$TREE/doc-standards/scripts/check-hard-wrap.py" check-hard-wrap.py 1 "HARD-WRAP-MARKER"
   run_runner "$PLAN" "$SPEC"
-  assert_eq "should exit 0 when only hard-wrap reports violations (a Scout, not a blocker)" "0" "$RUN_EXIT"
+  assert_eq "should exit 0 when only hard-wrap reports violations (reported, not a blocker)" "0" "$RUN_EXIT"
   assert_contains "should label the plan's hard-wrap result WARN" "WARN exit=1 check-hard-wrap.py (plan)" "$RUN_OUT"
   assert_contains "should label the spec's hard-wrap result WARN" "WARN exit=1 check-hard-wrap.py (spec)" "$RUN_OUT"
   assert_contains "should show the hard-wrap output" "HARD-WRAP-MARKER" "$RUN_OUT$RUN_ERR"

@@ -38,8 +38,8 @@
 # WARN is check-density.sh / check-bullet-gap.py /
 # check-bullet-structure.py / check-hard-wrap.py exiting 1.
 #
-# The reference reports these prose-format findings as a
-# [Scout], never a blocker, so they do not fail the run. Any
+# The reference reports these prose-format findings, never
+# as a blocker, so they do not fail the run. Any
 # other non-zero exit from them (a usage error) is a FAIL.
 #
 # Runs every gate even after one fails, so the caller gets

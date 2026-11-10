@@ -33,6 +33,11 @@ Read only the existing spec and the caller's instructions otherwise - an edit wo
 4. Adding a decision appends a new `<details>` entry below the execution divider, inside `## Functional Decisions` in the appendix.
 5. Nothing moves across the literal H1 `# Appendix` line: an edit to body content stays in the body, an edit to appendix content stays in the appendix.
 
+6. Before reporting, run `~/.claude/skills/doc-standards/scripts/check-density.sh`, `check-hard-wrap.py`, `check-bullet-gap.py`, and `check-bullet-structure.py` on the spec.
+   - Fix every violation on the lines you wrote or changed this run, reflowing without dropping information.
+   - A violation on a line you did not touch is out of scope: leave it verbatim and mention it in the report.
+   - Why: the self-review reports density without filing a `[Scout]`, so a violation not fixed while editing never gets fixed.
+
 ## Boundaries
 
 - Never author a new spec from scratch, and never write to a path that doesn't already exist - report blocked instead of creating one.
