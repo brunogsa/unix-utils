@@ -28,7 +28,7 @@ missing = operations_without_goal()                   # 6 ·
 if missing:
     ask_engineer_in_one_batch(missing)                # 6a ·
 findings = review_against_checklist()                 # 7 · clusters, tiers, tags, baseline match
-if baseline:
+if baseline:                                          # 7b ·
     if source_line_differs():                         # 8 ·
         if engineer_says_different_doc():             # 8a ·
             return halt("different doc, no report")
@@ -47,9 +47,9 @@ while rc != 0:                                        # 12 · exit code
         report = rerun_with_report_path()             # 12d · exit 3: wrong, missing or unreadable path
     rc = check_report(report)
 verdicts = opus_check(report)                         # 13 · general-purpose, once per run
-apply_verdicts_once(report, verdicts)                 # 15 · the verdicts it gave, no second check
-if not covers_items_1_to_19(verdicts):                # 14 ·
-    say_in_chat("check incomplete")                   # 14a · never present as checked
+apply_verdicts_once(report, verdicts)                 # 14 · the verdicts it gave, no second check
+if not covers_items_1_to_19(verdicts):                # 15 ·
+    say_in_chat("check incomplete")                   # 15a · never present as checked
 rc = check_report(report)                             # 16 ·
 while rc == 1 and non_bloqueia_left(report):          # 17 ·
     cut_lowest_finding_of_lowest_tier(report)         # 17a · name the cut in chat
@@ -71,7 +71,10 @@ flowchart TD
   n6{"6. Goal known for every operation?"}:::gate
   n6 -- no --> n6a["6a. Ask every missing goal in one batch; declined goal ranks as generic consumer"]:::gate --> n7
   n6 -- yes --> n7
-  n7["7. Review against checklist: findings, clusters, tiers, tags"] --> n8
+  n7["7. Review against checklist: findings, clusters, tiers, tags"] --> n7b
+  n7b{"7b. Baseline given?"}:::gate
+  n7b -- no --> n10
+  n7b -- yes --> n8
   n8{"8. Baseline source differs from new doc?"}:::gate
   n8 -- yes --> n8a{"8a. Engineer says different doc?"}:::gate
   n8a -- yes --> n4a
@@ -86,11 +89,11 @@ flowchart TD
   n12 -- "2" --> n12c["12c. Skill defect: fix the report shape"] --> n11
   n12 -- "3" --> n12d["12d. Wrong path: rerun with the report's path"] --> n11
   n12 -- 0 --> n13
-  n13["13. Opus subagent checks report, cuts and N/A as decided, serial"]:::dispatch --> n15
-  n15["15. Apply verdicts once"]:::state --> n14
-  n14{"14. Verdicts cover items 1 to 19?"}:::gate
-  n14 -- no --> n14a(["14a. Apply verdicts given, say check incomplete"]):::gate --> n16
-  n14 -- yes --> n16
+  n13["13. Opus subagent checks report, cuts and N/A as decided, serial"]:::dispatch --> n14
+  n14["14. Apply verdicts once"]:::state --> n15
+  n15{"15. Verdicts cover items 1 to 19?"}:::gate
+  n15 -- no --> n15a(["15a. Apply verdicts given, say check incomplete"]):::gate --> n16
+  n15 -- yes --> n16
   n16["16. Re-run check-report.sh"]:::hook --> n17
   n17{"17. Exit 1 with non-Bloqueia left?"}:::gate
   n17 -- yes --> n17a["17a. Cut again, name the cut in chat"] --> n16
