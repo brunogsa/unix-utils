@@ -125,6 +125,11 @@ build_report "$WORKDIR/wrong-order-over-cap.md" 2600 "Boa prática" "Bloqueia"
 assert_case "should exit 2 on a wrong tier order even when the report is over the cap" \
   2 "words=2600" "$WORKDIR/wrong-order-over-cap.md"
 
+# Unit 11
+build_report "$WORKDIR/foreign-heading.md" 100 "Bloqueia" "Gera Duvida"
+assert_case "should exit 2 on a ## heading outside the template's set, such as ## Gera Duvida" \
+  2 "words=100" "$WORKDIR/foreign-heading.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
