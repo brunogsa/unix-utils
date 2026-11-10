@@ -1,6 +1,7 @@
 # Checklist de revisão de documento técnico
 
 Cada item tem um nome estável.
+
 Usam exatamente estes nomes: a correspondência com o relatório anterior (item do checklist mais lugar), a linha "Item do checklist" de cada achado e o prompt de verificação.
 
 ## Como aplicar
@@ -13,6 +14,8 @@ Usam exatamente estes nomes: a correspondência com o relatório anterior (item 
 
 - Agrupe antes de ranquear: duas lacunas formam um achado só quando têm o mesmo item e o mesmo pedido de correção. O achado nomeia todos os lugares.
   - Lacunas do mesmo item com correções diferentes são achados separados.
+
+  - Um grupo assume a faixa mais alta entre os seus lugares.
   - Um grupo assume a faixa mais alta entre os seus lugares.
 
 - Regra do marcador aberto: todos os marcadores abertos do documento entram em um único achado, com um lugar por marcador.
@@ -28,6 +31,7 @@ Usam exatamente estes nomes: a correspondência com o relatório anterior (item 
 1. **Caminho feliz** - endpoints, métodos, requisição e resposta.
 2. **Caminhos de erro** - formato do corpo de erro e códigos 4xx (por exemplo 404 contra 500), não só 5xx.
    - A condição por trás de cada código e quais erros admitem nova tentativa.
+
 3. **Autenticação**
 4. **Ambientes** - hosts, caminhos base, URL do token e um ambiente de teste ou homologação.
 5. **Filtros e parâmetros** - obrigatório ou opcional, tipos, restrições, comportamento com filtro vazio e como os filtros se combinam (E ou OU).
@@ -43,6 +47,7 @@ Usam exatamente estes nomes: a correspondência com o relatório anterior (item 
 13. **Consistência interna** - um nome, um tamanho e um tipo por campo entre seções e entre consulta e resposta.
    - Nenhum título de seção ou aba que a descreva errado.
    - Nenhuma regra que contradiga outra.
+
 14. **Limite de requisições** - `429` e `Retry-After`.
 15. **Marcadores abertos** - "a definir", "a ser customizado", "faz sentido?" e similares, sem diferenciar maiúsculas de minúsculas, todos em um achado só.
 16. **Aba ou seção vazia** - ver a regra acima.

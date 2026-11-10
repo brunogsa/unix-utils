@@ -1,11 +1,21 @@
 # Revisão técnica: <título do documento>
 
 <!--
+
 Modelo literal do relatório. O texto fora de comentários HTML é copiado; <...> é preenchido.
-Regras de forma que o script de verificação confere:
+
+Regras que o script de verificação confere:
+
 - Os únicos títulos `## ` são as 3 faixas abaixo, nesta ordem. Uma faixa sem achados é omitida.
-- A linha de fonte é a primeira linha do relatório. Uma nova execução a compara com a do relatório anterior.
+
+- A linha "Resolvidos" tem menos de 30 palavras.
+
+Regras que o script não confere:
+
+- A linha "**Fonte revisada:**" vem logo depois do título. Uma nova execução a compara com a do relatório anterior.
+
 - A linha "Resolvidos" e a marca "recorrente" só existem numa nova execução com relatório anterior.
+
 -->
 
 **Fonte revisada:** <ID do arquivo no Drive, ou caminho local do arquivo>
@@ -30,16 +40,27 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 - **Etiqueta:** já reportado - <link do comentário ou da mensagem onde foi levantado>
 
 <!--
+
 - "[recorrente]" no título aparece só numa nova execução, quando o achado do relatório anterior continua sem correção.
+
   Num achado agrupado e corrigido em parte dos lugares, "Onde" lista só os lugares que restam.
+
 - A linha "Etiqueta" é opcional e traz UMA das duas etiquetas, só quando o comentário ou a conversa tocou a lacuna:
-    - já reportado - <link>
-    - respondido fora do doc - <link>
+
+  - já reportado - <link>
+
+  - respondido fora do doc - <link>
+
 - "respondido fora do doc" pede, com cordialidade, que o time escreva a resposta no documento. Exemplo de frase:
-    "Vimos a resposta no link acima, obrigado! Podem escrevê-la também no documento? Assim ela fica valendo para todo mundo."
+
+  "Vimos a resposta no link acima, obrigado! Podem escrevê-la também no documento? Assim ela fica valendo para todo mundo."
+
 - Sem comentário nem conversa sobre a lacuna, o achado não leva a linha "Etiqueta".
+
 - O primeiro uso de um termo técnico traz uma explicação de uma oração. Exemplo de frase:
-    "paginação (devolver a lista em partes, página a página)".
+
+  "paginação (devolver a lista em partes, página a página)".
+
 -->
 
 ## Gera dúvida
