@@ -11,6 +11,8 @@
 #       2 when a tier heading is out of order or repeated, a "## " heading is
 #         outside the tier set, or the resolvidos line has 30 or more words
 #         (wins over 1)
+#       3 on a usage error: no argument, or the file does not exist
+#         (a message goes to stderr and no words= line is printed)
 
 MAX_WORDS=2400
 MAX_RESOLVED_WORDS=29
@@ -18,6 +20,10 @@ RESOLVED_PREFIX="**Resolvidos desde o último relatório:**"
 TIERS=("Bloqueia" "Gera dúvida" "Boa prática")
 
 report="$1"
+if [ -z "$report" ] || [ ! -f "$report" ]; then
+  echo "usage: check-report.sh <report-file> (missing argument or file not found: '$report')" >&2
+  exit 3
+fi
 words=$(wc -w < "$report" | tr -d ' ')
 echo "words=$words"
 

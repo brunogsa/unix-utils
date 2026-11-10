@@ -155,6 +155,20 @@ words=$(wc -w < "$WORKDIR/resolved-29.md" | tr -d ' ')
 assert_case "should exit 0 when the resolvidos line has 29 words by wc -w" \
   0 "words=$words" "$WORKDIR/resolved-29.md"
 
+# Unit 13
+# No file exists to count on a usage error, so stdout must stay empty.
+got_out=$(bash "$SCRIPT" 2>/dev/null)
+got_exit=$?
+if [ "$got_exit" = 3 ] && [ -z "$got_out" ]; then
+  echo "PASS: should exit 3 and print nothing on stdout when no argument is given"
+else
+  echo "FAIL: should exit 3 and print nothing on stdout when no argument is given (exit want=3 got=$got_exit; stdout got='$got_out')"
+  failures=$((failures + 1))
+fi
+
+assert_case "should exit 3 and print nothing on stdout when the file does not exist" \
+  3 "" "$WORKDIR/no-such-report.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
