@@ -61,7 +61,7 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - OpenAPI or AsyncAPI JSON: run `python3 -m json.tool <file>` first.
 
-   - YAML: parse with PyYAML when `python3 -c 'import yaml'` succeeds. Otherwise the report header says the parse was not checked.
+   - YAML: parse with `yaml.safe_load` when `python3 -c 'import yaml'` succeeds. Otherwise the report header says the parse was not checked.
 
    - A parse failure is the unparseable stop: name the file and the parse error, ask, write no report.
 
