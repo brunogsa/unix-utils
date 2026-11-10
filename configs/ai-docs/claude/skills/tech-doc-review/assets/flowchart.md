@@ -51,8 +51,16 @@ apply_verdicts_once(report, verdicts)                 # 14 · the verdicts it ga
 if not covers_items_1_to_19(verdicts):                # 15 ·
     say_in_chat("check incomplete")                   # 15a · never present as checked
 rc = check_report(report)                             # 16 ·
-while rc == 1 and non_bloqueia_left(report):          # 17 ·
-    cut_lowest_finding_of_lowest_tier(report)         # 17a · name the cut in chat
+while rc != 0:                                        # 17 · exit code
+    if rc == 1 and non_bloqueia_left(report):
+        cut_lowest_finding_of_lowest_tier(report)     # 17a · name the cut in chat
+    elif rc == 1:
+        relay_word_count_in_chat()                    # 17b · only Bloqueia left, kept
+        break
+    elif rc == 2:
+        fix_report_shape(report)                      # 17c · skill defect
+    else:
+        report = rerun_with_report_path()             # 17d · exit 3: wrong, missing or unreadable path
     rc = check_report(report)
 chat_notes(report, cuts, not_applicable, check_result, words)   # 18 ·
 ```
@@ -95,9 +103,12 @@ flowchart TD
   n15 -- no --> n15a(["15a. Apply verdicts given, say check incomplete"]):::gate --> n16
   n15 -- yes --> n16
   n16["16. Re-run check-report.sh"]:::hook --> n17
-  n17{"17. Exit 1 with non-Bloqueia left?"}:::gate
-  n17 -- yes --> n17a["17a. Cut again, name the cut in chat"] --> n16
-  n17 -- no --> n18
+  n17{"17. Exit code?"}:::gate
+  n17 -- "1, non-Bloqueia left" --> n17a["17a. Cut again, name the cut in chat"] --> n16
+  n17 -- "1, only Bloqueia left" --> n17b["17b. Relay word count in chat"] --> n18
+  n17 -- "2" --> n17c["17c. Skill defect: fix the report shape"] --> n16
+  n17 -- "3" --> n17d["17d. Wrong path: rerun with the report's path"] --> n16
+  n17 -- 0 --> n18
   n18(["18. Chat: path, cuts, N/A items, check result, word count"]):::start
 
   classDef state fill:#dcfce7,stroke:#16a34a,stroke-width:2px

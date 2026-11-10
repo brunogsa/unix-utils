@@ -125,7 +125,7 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
     - A reply that returns nothing or errors: apply nothing, say "check incomplete" in chat.
 
-11. Rerun `check-report.sh`. On exit 1 with non-Bloqueia findings left, return to step 8's cut and name each cut in chat.
+11. Rerun `check-report.sh` and handle its exit code as in step 8; name each cut in chat.
 
 12. Chat: report path, cuts, items not applicable, check result, word count.
 
