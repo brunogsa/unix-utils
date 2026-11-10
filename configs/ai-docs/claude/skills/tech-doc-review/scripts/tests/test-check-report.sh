@@ -130,6 +130,31 @@ build_report "$WORKDIR/foreign-heading.md" 100 "Bloqueia" "Gera Duvida"
 assert_case "should exit 2 on a ## heading outside the template's set, such as ## Gera Duvida" \
   2 "words=100" "$WORKDIR/foreign-heading.md"
 
+# append_resolved_line <file> <line-words>
+# Appends a resolvidos line that has exactly line-words words by wc -w,
+# counting the 5 words of the literal prefix.
+append_resolved_line() {
+  local file="$1" line_words="$2" i
+  {
+    printf '\n**Resolvidos desde o último relatório:**'
+    for ((i = 0; i < line_words - 5; i++)); do printf ' item'; done
+    echo
+  } >> "$file"
+}
+
+# Unit 12
+build_report "$WORKDIR/resolved-30.md" 100 "Bloqueia"
+append_resolved_line "$WORKDIR/resolved-30.md" 30
+words=$(wc -w < "$WORKDIR/resolved-30.md" | tr -d ' ')
+assert_case "should exit 2 when the resolvidos line has 30 or more words by wc -w" \
+  2 "words=$words" "$WORKDIR/resolved-30.md"
+
+build_report "$WORKDIR/resolved-29.md" 100 "Bloqueia"
+append_resolved_line "$WORKDIR/resolved-29.md" 29
+words=$(wc -w < "$WORKDIR/resolved-29.md" | tr -d ' ')
+assert_case "should exit 0 when the resolvidos line has 29 words by wc -w" \
+  0 "words=$words" "$WORKDIR/resolved-29.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1

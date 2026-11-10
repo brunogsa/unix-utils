@@ -8,10 +8,13 @@
 # stdout: words=<n>, the wc -w count of the report
 # exit: 0 when the report is within the word cap and its tier headings are in order
 #       1 when the report is over the word cap
-#       2 when a tier heading is out of order or repeated, or a "## " heading
-#         is outside the tier set (wins over 1)
+#       2 when a tier heading is out of order or repeated, a "## " heading is
+#         outside the tier set, or the resolvidos line has 30 or more words
+#         (wins over 1)
 
 MAX_WORDS=2400
+MAX_RESOLVED_WORDS=29
+RESOLVED_PREFIX="**Resolvidos desde o último relatório:**"
 TIERS=("Bloqueia" "Gera dúvida" "Boa prática")
 
 report="$1"
@@ -35,6 +38,13 @@ while IFS= read -r line; do
   # Any other "## " heading is outside the template's set.
   if [ "$is_tier" = false ] && [[ "$line" == "## "* ]]; then
     has_shape_defect=true
+  fi
+  # The resolvidos line is a summary, so a long one is a shape defect.
+  if [[ "$line" == "$RESOLVED_PREFIX"* ]]; then
+    line_words=$(echo "$line" | wc -w | tr -d ' ')
+    if [ "$line_words" -gt "$MAX_RESOLVED_WORDS" ]; then
+      has_shape_defect=true
+    fi
   fi
 done < "$report"
 
