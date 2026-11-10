@@ -437,3 +437,31 @@ def test_should_pass_every_deterministic_plan_gate_and_the_projection_check_on_a
     assert gates.returncode == 0, gates.stdout
     projection = _run(plan)
     assert projection.returncode == 0, projection.stderr
+
+
+DIRECT_TASK_BODY = """\
+### 1. [Direct] Add the shared helper to the personal dotfiles repo
+
+**Depends on**: none
+
+### 2. Call the shared helper from the export job
+
+**Depends on**:
+- Task 1
+"""
+
+DIRECT_PR_BODY_WITHOUT_THE_DIRECT_TASK = (
+    "### PR-1. Export job slice\n\n"
+    "**Tasks**: 2\n\n"
+    "**Depends on**: none\n"
+)
+
+
+def test_should_exit_0_when_the_only_task_claimed_by_no_pr_is_a_direct_task_committed_straight_to_a_branch(tmp_path):
+    # A direct task's commits land on a branch with no PR at
+    # all, so no PR can claim it, and PR-1 needs no edge toward
+    # it.
+    plan = _write_plan(tmp_path, task_body=DIRECT_TASK_BODY, pr_body=DIRECT_PR_BODY_WITHOUT_THE_DIRECT_TASK)
+    result = _run(plan)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("OK:")

@@ -77,7 +77,7 @@ PR_BOLD_SPAN_SPLIT_RE = re.compile(r"\*\*[^*]*PR-(\d+)[^*]*\*\*")
 TASKS_FIELD_RE = re.compile(r"\*?\*?Tasks\*?\*?:\s*(?P<tasks>[^.\n]*)")
 DEPENDS_FIELD_RE = re.compile(r"\*?\*?Depends on\*?\*?:\s*(?P<deps>[^.\n]*)")
 
-NO_CODE_HEADING_RE = re.compile(r"^###[ \t]+(\d+)\.[ \t]*\[(Clarify|Gate)\]", re.M)
+NO_CODE_HEADING_RE = re.compile(r"^###[ \t]+(\d+)\.[ \t]*\[(Clarify|Gate|Direct)\]", re.M)
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
