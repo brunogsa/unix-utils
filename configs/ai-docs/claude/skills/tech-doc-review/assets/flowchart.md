@@ -35,16 +35,21 @@ if baseline:
     findings = mark_resolved_and_recurring(findings)  # 9 · re-check item at its places first
 report = write_report_from_template(findings)         # 10 · never overwrite
 rc = check_report(report)                             # 11 ·
-while rc == 1 and non_bloqueia_left(report):          # 12 · over 2,400 words
-    cut_lowest_finding_of_lowest_tier(report)         # 12a · record the cut
+while rc != 0:                                        # 12 · exit code
+    if rc == 1 and non_bloqueia_left(report):
+        cut_lowest_finding_of_lowest_tier(report)     # 12a · record the cut
+    elif rc == 1:
+        relay_word_count_in_chat()                    # 12b · only Bloqueia left, kept
+        break
+    elif rc == 2:
+        fix_report_shape(report)                      # 12c · skill defect
+    else:
+        report = rerun_with_report_path()             # 12d · exit 3: wrong, missing or unreadable path
     rc = check_report(report)
-if rc == 1:
-    relay_word_count_in_chat()                        # 12b · only Bloqueia left, kept
 verdicts = opus_check(report)                         # 13 · general-purpose, once per run
+apply_verdicts_once(report, verdicts)                 # 15 · the verdicts it gave, no second check
 if not covers_items_1_to_19(verdicts):                # 14 ·
     say_in_chat("check incomplete")                   # 14a · never present as checked
-else:
-    apply_verdicts_once(report, verdicts)             # 15 · no second check
 rc = check_report(report)                             # 16 ·
 while rc == 1 and non_bloqueia_left(report):          # 17 ·
     cut_lowest_finding_of_lowest_tier(report)         # 17a · name the cut in chat
@@ -64,7 +69,7 @@ flowchart TD
   n4 -- yes --> n5
   n5["5. Save fetched text to the scratchpad"]:::state --> n6
   n6{"6. Goal known for every operation?"}:::gate
-  n6 -- no --> n6a["6a. Ask every missing goal in one batch"]:::gate --> n7
+  n6 -- no --> n6a["6a. Ask every missing goal in one batch; declined goal ranks as generic consumer"]:::gate --> n7
   n6 -- yes --> n7
   n7["7. Review against checklist: findings, clusters, tiers, tags"] --> n8
   n8{"8. Baseline source differs from new doc?"}:::gate
@@ -74,15 +79,18 @@ flowchart TD
   n8 -- no --> n9
   n9["9. Mark resolved and recurring after re-checking each item"] --> n10
   n10["10. Write report from template, never overwriting"]:::state --> n11
-  n11["11. Run check-report.sh"]:::hook --> n12
-  n12{"12. Exit 1 with non-Bloqueia left?"}:::gate
-  n12 -- yes --> n12a["12a. Cut lowest finding of lowest tier, record the cut"] --> n11
-  n12 -- no --> n12b["12b. Only Bloqueia left: relay word count in chat"] --> n13
-  n13["13. Opus subagent checks report, cuts and N/A as decided, serial"]:::dispatch --> n14
+  n11["11. Run bash check-report.sh"]:::hook --> n12
+  n12{"12. Exit code?"}:::gate
+  n12 -- "1, non-Bloqueia left" --> n12a["12a. Cut lowest finding of lowest tier, record the cut"] --> n11
+  n12 -- "1, only Bloqueia left" --> n12b["12b. Relay word count in chat"] --> n13
+  n12 -- "2" --> n12c["12c. Skill defect: fix the report shape"] --> n11
+  n12 -- "3" --> n12d["12d. Wrong path: rerun with the report's path"] --> n11
+  n12 -- 0 --> n13
+  n13["13. Opus subagent checks report, cuts and N/A as decided, serial"]:::dispatch --> n15
+  n15["15. Apply verdicts once"]:::state --> n14
   n14{"14. Verdicts cover items 1 to 19?"}:::gate
-  n14 -- no --> n14a(["14a. Say check incomplete, never present as checked"]):::gate --> n16
-  n14 -- yes --> n15
-  n15["15. Apply verdicts once"]:::state --> n16
+  n14 -- no --> n14a(["14a. Apply verdicts given, say check incomplete"]):::gate --> n16
+  n14 -- yes --> n16
   n16["16. Re-run check-report.sh"]:::hook --> n17
   n17{"17. Exit 1 with non-Bloqueia left?"}:::gate
   n17 -- yes --> n17a["17a. Cut again, name the cut in chat"] --> n16
