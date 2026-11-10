@@ -41,15 +41,19 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 2. Confirm every source was read whole and parsed. On any sign below, stop, name the source and the sign, ask, and write no report.
 
-   - Unreadable source (permission, not found).
+   - Unreadable source: permission, not found, timeout, 5xx, 429 or network drop. Retry nothing on your own: name the source and the cause, and offer the engineer a retry, a local export or an abort.
 
    - Incomplete read: only "a tool note that the content may be incomplete" inside a read's result counts, never the tool's standing description.
 
    - Unparseable, incomplete (a tab or section not read) or ambiguous (two candidate docs) source.
 
+   - A Slack link that resolves to no doc, to several docs, or to a format outside Doc, Sheet, .md, OpenAPI and AsyncAPI.
+
    - Why: a review of half a doc reports gaps that are not gaps.
 
    - Only the reference contract may be dropped at a stop, when the engineer says so. The report then says it was dropped.
+
+   How to check:
 
    - Sheet tab count: export as xlsx, save the base64 to a file, count `xl/worksheets/sheet*.xml`.
 
