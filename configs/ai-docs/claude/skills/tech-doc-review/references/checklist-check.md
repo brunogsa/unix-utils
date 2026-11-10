@@ -14,7 +14,7 @@ Read only these files:
 
 - Context the engineer gave: `<context text, or "none">`.
 
-- The report to check: `<scratchpad path of the report>`.
+- The report to check: `<absolute path of the report>`.
 
 - The checklist: `<absolute path of this skill's references/checklist.md>`. Its numbered item names are the only names you may use in your reply. Read its "Como aplicar" rules and apply them.
 
