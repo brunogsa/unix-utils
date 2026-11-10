@@ -19,6 +19,10 @@
 #         So is a resolvidos line of 30 or more words.
 #         This wins over 1.
 #
+#         Lines inside a fenced code block are not checked.
+#         An unclosed fence covers the rest of the report.
+#         The word count still includes fenced text.
+#
 #       3 on a usage error: no argument was given.
 #         The path must be a readable regular file.
 #         A message goes to stderr.
@@ -28,6 +32,10 @@ MAX_WORDS=2400
 MAX_RESOLVED_WORDS=29
 RESOLVED_PREFIX="**Resolvidos desde o último relatório:**"
 TIERS=("Bloqueia" "Gera dúvida" "Boa prática")
+
+# A fence line is 3 backticks after at most 3 spaces.
+# This is the CommonMark rule.
+FENCE_PATTERN='^ {0,3}```'
 
 report="$1"
 if [ -z "$report" ] || [ ! -f "$report" ] || [ ! -r "$report" ]; then
@@ -41,9 +49,20 @@ echo "words=$words"
 # Any other line is body text.
 last_tier_index=-1
 has_shape_defect=false
+is_in_fence=false
 while IFS= read -r line || [ -n "$line" ]; do
   # Trailing CR or spaces must not make a tier foreign.
   line="${line%"${line##*[![:space:]]}"}"
+
+  # A fence line toggles the fence.
+  # No check runs inside a fence.
+  if [[ "$line" =~ $FENCE_PATTERN ]]; then
+    if [ "$is_in_fence" = true ]; then is_in_fence=false; else is_in_fence=true; fi
+    continue
+  fi
+  if [ "$is_in_fence" = true ]; then
+    continue
+  fi
   is_tier=false
   for i in "${!TIERS[@]}"; do
     if [ "$line" = "## ${TIERS[$i]}" ]; then

@@ -201,6 +201,31 @@ words=$(wc -w < "$WORKDIR/quoted-prefix.md" | tr -d ' ')
 assert_case "should not count the resolvidos prefix quoted mid-sentence" \
   0 "words=$words" "$WORKDIR/quoted-prefix.md"
 
+build_report "$WORKDIR/fenced-heading.md" 100 "Bloqueia"
+fence="\`\`\`"
+printf '\n%smarkdown\n## Pedidos\n%s\n' "$fence" "$fence" >> "$WORKDIR/fenced-heading.md"
+words=$(wc -w < "$WORKDIR/fenced-heading.md" | tr -d ' ')
+assert_case "should exit 0 when a finding quotes a ## heading inside a fenced code block" \
+  0 "words=$words" "$WORKDIR/fenced-heading.md"
+
+build_report "$WORKDIR/indented-fence.md" 100 "Bloqueia"
+printf '\n   %smarkdown\n## Pedidos\n   %s\n' "$fence" "$fence" >> "$WORKDIR/indented-fence.md"
+words=$(wc -w < "$WORKDIR/indented-fence.md" | tr -d ' ')
+assert_case "should treat a fence indented by up to 3 spaces as a fence" \
+  0 "words=$words" "$WORKDIR/indented-fence.md"
+
+build_report "$WORKDIR/heading-after-fence.md" 100 "Bloqueia"
+printf '\n%s\ncodigo\n%s\n\n## Pedidos\n' "$fence" "$fence" >> "$WORKDIR/heading-after-fence.md"
+words=$(wc -w < "$WORKDIR/heading-after-fence.md" | tr -d ' ')
+assert_case "should exit 2 when a foreign ## heading follows a closed fence" \
+  2 "words=$words" "$WORKDIR/heading-after-fence.md"
+
+build_report "$WORKDIR/unclosed-fence.md" 100 "Bloqueia"
+printf '\n%s\ncodigo\n\n## Pedidos\n' "$fence" >> "$WORKDIR/unclosed-fence.md"
+words=$(wc -w < "$WORKDIR/unclosed-fence.md" | tr -d ' ')
+assert_case "should treat everything after an unclosed fence as fenced" \
+  0 "words=$words" "$WORKDIR/unclosed-fence.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
