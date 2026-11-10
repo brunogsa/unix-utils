@@ -81,6 +81,8 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - Each checklist gap becomes a finding. Apply its "Como aplicar" rules: clusters, open markers, empty tabs, domain extras, event items, items not applicable.
 
+   - Read `references/examples.md` for invented sample findings (tone, tiers, fiscal checks) when tiering or wording a finding.
+
    - Tier by goal: Bloqueia, Gera dúvida, Boa prática.
 
    - Tag a gap the doc comments or thread raised or answered, with the link, per the template's "Etiqueta".
