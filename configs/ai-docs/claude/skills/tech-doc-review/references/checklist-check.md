@@ -1,6 +1,6 @@
 # Fresh-eyes checklist check prompt
 
-The main session sends everything below the line to a fresh-context general-purpose subagent on model opus, on every run, after the report is written and before the engineer sees it. Main fills each `<...>` placeholder with a value and sends no other text.
+SKILL.md step 9 sends everything below the line to the checker. Main fills each `<...>` placeholder with a value and sends no other text.
 
 ---
 
