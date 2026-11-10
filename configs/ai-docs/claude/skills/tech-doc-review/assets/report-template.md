@@ -16,6 +16,8 @@ Regras que o script não confere:
 
 - A linha "Resolvidos" e a marca "recorrente" só existem numa nova execução com relatório anterior.
 
+- Cada bullet cabe em 32 palavras e 256 caracteres. Uma lacuna longa vira um bullet principal curto, com sub-bullets de um fato cada, separados por linha em branco.
+
 -->
 
 **Fonte revisada:** <ID do arquivo no Drive, ou caminho local do arquivo>
@@ -33,10 +35,15 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 ### <Título curto do achado> [recorrente]
 
 - **Lacuna:** <o que falta ou está ambíguo no documento, em uma ou duas frases>.
+
 - **Por que isso importa:** <o que o time consumidor não consegue fazer, ou precisa adivinhar, por causa da lacuna; um caso concreto>.
+
 - **Exemplo (opcional):** <um exemplo inventado e genérico do que seria claro; ou o trecho do contrato de referência, quando houver>.
+
 - **Item do checklist:** <nome do item, igual ao de references/checklist.md>
+
 - **Onde:** <aba, seção ou operação 1>; <aba, seção ou operação 2>
+
 - **Etiqueta:** já reportado - <link do comentário ou da mensagem onde foi levantado>
 
 <!--
@@ -68,9 +75,13 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 ### <Título curto do achado>
 
 - **Lacuna:** <...>
+
 - **Por que isso importa:** <...>
+
 - **Exemplo (opcional):** <...>
+
 - **Item do checklist:** <...>
+
 - **Onde:** <...>
 
 ## Boa prática
@@ -78,7 +89,11 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 ### <Título curto do achado>
 
 - **Lacuna:** <...>
+
 - **Por que isso importa:** <...>
+
 - **Exemplo (opcional):** <...>
+
 - **Item do checklist:** <...>
+
 - **Onde:** <...>
