@@ -110,6 +110,11 @@ words=$(wc -w < "$WORKDIR/tier-in-body.md" | tr -d ' ')
 assert_case "should ignore a tier name written in body text rather than as a heading" \
   0 "words=$words" "$WORKDIR/tier-in-body.md"
 
+# Unit 8
+build_report "$WORKDIR/boa-before-bloqueia.md" 100 "Boa prática" "Bloqueia"
+assert_case "should exit 2 when Boa prática precedes Bloqueia" \
+  2 "words=100" "$WORKDIR/boa-before-bloqueia.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
