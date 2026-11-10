@@ -86,6 +86,11 @@ build_report "$WORKDIR/just-over-cap.md" 2401 "Bloqueia" "Gera d√∫vida" "Boa pr√
 assert_case "should exit 1 and print words=2401 when the report has 2,401 words" \
   1 "words=2401" "$WORKDIR/just-over-cap.md"
 
+# Unit 5
+build_report "$WORKDIR/far-over-cap.md" 2600 "Bloqueia"
+assert_case "should exit 1 and print words=2600 when the report has 2,600 words, whatever its tiers" \
+  1 "words=2600" "$WORKDIR/far-over-cap.md"
+
 if [ "$failures" -gt 0 ]; then
   echo "$failures case(s) failed"
   exit 1
