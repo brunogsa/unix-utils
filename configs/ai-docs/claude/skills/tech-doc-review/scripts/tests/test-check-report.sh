@@ -28,6 +28,10 @@ build_report() {
     echo "**Fonte revisada:** documento-exemplo.md"
     echo
     echo "Olá, time! Segue a revisão do documento."
+    echo
+    echo "## Resumo executivo"
+    echo
+    echo "Veredito de exemplo."
     local tier
     for tier in "$@"; do
       echo
@@ -158,9 +162,9 @@ assert_case "should exit 3 and print nothing on stdout when the file does not ex
   3 "" "$WORKDIR/no-such-report.md"
 
 # A last line with no trailing newline must still be checked.
-printf '## Boa prática\n## Bloqueia' > "$WORKDIR/no-trailing-newline.md"
+printf '## Resumo executivo\n## Boa prática\n## Bloqueia' > "$WORKDIR/no-trailing-newline.md"
 assert_case "should exit 2 when the defect is on a last line with no trailing newline" \
-  2 "words=5" "$WORKDIR/no-trailing-newline.md"
+  2 "words=8" "$WORKDIR/no-trailing-newline.md"
 
 # A path that is not a readable regular file is a usage error.
 printf '## Bloqueia\n' > "$WORKDIR/unreadable.md"
@@ -173,13 +177,39 @@ mkdir "$WORKDIR/a-directory"
 assert_case "should exit 3 and print nothing on stdout when the path is a directory" \
   3 "" "$WORKDIR/a-directory"
 
-printf '## Bloqueia\r\n' > "$WORKDIR/crlf-heading.md"
+printf '## Resumo executivo\n## Bloqueia\r\n' > "$WORKDIR/crlf-heading.md"
 assert_case "should count a tier heading ending with CRLF as that tier" \
-  0 "words=2" "$WORKDIR/crlf-heading.md"
+  0 "words=5" "$WORKDIR/crlf-heading.md"
 
-printf '## Bloqueia \n' > "$WORKDIR/trailing-space-heading.md"
+printf '## Resumo executivo\n## Bloqueia \n' > "$WORKDIR/trailing-space-heading.md"
 assert_case "should count a tier heading with trailing whitespace as that tier" \
-  0 "words=2" "$WORKDIR/trailing-space-heading.md"
+  0 "words=5" "$WORKDIR/trailing-space-heading.md"
+
+# Executive summary rules.
+printf 'Olá.\n\n## Bloqueia\n\n### Achado\n' > "$WORKDIR/no-summary.md"
+assert_case "should exit 2 when the report has no Resumo executivo heading" \
+  2 "words=5" "$WORKDIR/no-summary.md"
+
+printf '## Resumo executivo\n\nUm.\n\n## Resumo executivo\n\nDois.\n\n## Bloqueia\n' > "$WORKDIR/summary-twice.md"
+assert_case "should exit 2 when the Resumo executivo heading appears twice" \
+  2 "words=10" "$WORKDIR/summary-twice.md"
+
+printf '## Bloqueia\n\n## Resumo executivo\n\nUm.\n' > "$WORKDIR/summary-after-tier.md"
+assert_case "should exit 2 when the Resumo executivo comes after a tier heading" \
+  2 "words=6" "$WORKDIR/summary-after-tier.md"
+
+printf '## Resumo executivo\n\nUm.\n\n## Bloqueia\n' > "$WORKDIR/summary-once.md"
+assert_case "should exit 0 when the Resumo executivo appears once before the tiers" \
+  0 "words=6" "$WORKDIR/summary-once.md"
+
+fence_="\`\`\`"
+printf '%smarkdown\n## Resumo executivo\n%s\n\n## Resumo executivo\n\nUm.\n\n## Bloqueia\n' "$fence_" "$fence_" > "$WORKDIR/fenced-summary.md"
+assert_case "should ignore a Resumo executivo heading inside a fenced code block" \
+  0 "words=11" "$WORKDIR/fenced-summary.md"
+
+printf '## Resumo Executivo\n\nUm.\n\n## Bloqueia\n' > "$WORKDIR/summary-capital-e.md"
+assert_case "should exit 2 on Resumo Executivo with a capital E and no correct heading" \
+  2 "words=6" "$WORKDIR/summary-capital-e.md"
 
 build_report "$WORKDIR/bulleted-resolved-46.md" 100 "Bloqueia"
 {

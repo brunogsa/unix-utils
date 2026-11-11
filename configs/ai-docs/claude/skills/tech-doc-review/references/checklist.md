@@ -69,8 +69,14 @@ Para um evento (por exemplo, AsyncAPI), os 3 itens abaixo substituem os itens s�
 
 Exemplos inventados, só para mostrar o tom e o nível de detalhe. Não os copie para um relatório.
 
-- Lacuna: "O documento não diz o que a consulta de uma reserva devolve quando ela não existe."
-  - Por que isso importa: "Sem isso, quem consome não distingue 'a reserva não existe' de 'o sistema falhou', e não sabe se deve tentar de novo."
+- O que falta: "O documento não diz o que a consulta de uma reserva devolve quando ela não existe."
 
-- Lacuna: "A data de devolução aparece como `12/03/2027`."
-  - Exemplo: "`2027-03-12T00:00:00Z` deixa claro o formato e o fuso."
+  - Exemplo: "Uma reserva que não existe e um sistema fora do ar recebem a mesma resposta."
+
+  - Se não for resolvido: "Quem consome não sabe se deve tentar de novo ou avisar o cliente."
+
+- O que falta: "A data de devolução não diz o formato nem o fuso horário."
+
+  - Exemplo: "`12/03/2027` pode ser 12 de março ou 3 de dezembro."
+
+  - Sugestão: "`2027-03-12T00:00:00Z` deixa claro o formato e o fuso."

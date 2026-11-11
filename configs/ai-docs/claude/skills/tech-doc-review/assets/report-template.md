@@ -6,7 +6,9 @@ Modelo literal do relatório. O texto fora de comentários HTML é copiado; <...
 
 Regras que o script de verificação confere:
 
-- Os únicos títulos `## ` são as 3 faixas abaixo, nesta ordem. Uma faixa sem achados é omitida.
+- Um único título `## Resumo executivo`, antes de qualquer faixa.
+
+- Os outros títulos `## ` são só as 3 faixas abaixo, nesta ordem. Uma faixa sem achados é omitida.
 
 - A linha "Resolvidos" tem menos de 30 palavras.
 
@@ -18,6 +20,16 @@ Regras que o script não confere:
 
 - Cada bullet cabe em 32 palavras e 256 caracteres. Uma lacuna longa vira um bullet principal curto, com sub-bullets de um fato cada, separados por linha em branco.
 
+Linguagem simples, sempre que possível:
+
+- Escreva para que alguém de produto, sem formação técnica, entenda. Todo bullet principal começa por uma frase sem jargão.
+
+- Nomes de campo, códigos de tabela do SAP, tipos e expressões regulares vão em sub-bullets, nunca na primeira frase.
+
+- O primeiro uso de um termo técnico inevitável traz uma explicação de uma oração, como "paginação (devolver a lista em partes, página a página)".
+
+- Ruim: "`updatedAt` é DATS, sem fuso". Bom: "A data de alteração não traz a hora nem o fuso horário", com `updatedAt` e DATS num sub-bullet.
+
 -->
 
 **Fonte revisada:** <ID do arquivo no Drive, ou caminho local do arquivo>
@@ -26,19 +38,45 @@ Regras que o script não confere:
 
 <!-- Sem relatório anterior, ou com 0 corrigidos, a linha não existe. -->
 
-Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que mais nos trava ao que é só boa prática. Cada um traz a lacuna, por que ela importa para quem consome e, quando ajuda, um exemplo. A decisão de como resolver é de vocês.
+Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes vêm depois, em 3 faixas, do que mais nos trava ao que é só boa prática. Cada achado diz o que falta, dá um exemplo e o que acontece se ficar como está. A decisão de como resolver é de vocês.
+
+## Resumo executivo
+
+<Veredito em uma frase, sem jargão. Exemplo: "Ainda não dá para começar a integração: 4 definições travam o desenvolvimento.">
+
+- **Bloqueia (<N>):** o que impede o nosso time de começar ou terminar a integração.
+
+  - <Título do achado>: impede <a etapa que não começa ou não termina>.
+
+- **Gera dúvida (<N>):** <uma frase sobre o que esses achados têm em comum>.
+
+- **Boa prática (<N>):** <uma frase sobre o que esses achados têm em comum>.
+
+<!--
+
+- O resumo cabe em cerca de 200 palavras e não traz nome de campo nem detalhe técnico.
+
+- Um sub-bullet por achado de Bloqueia, com no máximo 12 palavras sobre o que ele impede.
+
+- Uma faixa sem achados não aparece no resumo. Os números batem com os achados abaixo, depois dos cortes por tamanho.
+
+-->
 
 ## Bloqueia
 
-<!-- Sem isso, o time que consome não consegue seguir. Mais lugares afetados primeiro; empate segue a ordem do checklist. -->
+<!-- Sem isso, o nosso time não consegue começar ou terminar uma etapa da integração. Mais lugares afetados primeiro; empate segue a ordem do checklist. -->
 
-### <Título curto do achado> [recorrente]
+### <Título curto, em linguagem simples> [recorrente]
 
-- **Lacuna:** <o que falta ou está ambíguo no documento, em uma ou duas frases>.
+- **O que falta:** <o que falta ou está ambíguo no documento, numa frase sem jargão>.
 
-- **Por que isso importa:** <o que o time consumidor não consegue fazer, ou precisa adivinhar, por causa da lacuna; um caso concreto>.
+  - <Um detalhe técnico por sub-bullet: campo, aba, tipo, valor.>
 
-- **Exemplo (opcional):** <um exemplo inventado e genérico do que seria claro; ou o trecho do contrato de referência, quando houver>.
+- **Exemplo:** <um caso concreto da lacuna acontecendo, que alguém de produto consiga imaginar>.
+
+- **O que bloqueia:** <a etapa do nosso time que não começa ou não termina, e por quê>.
+
+- **Sugestão (opcional):** <como poderia ficar: um exemplo inventado e genérico, ou o trecho do contrato de referência>.
 
 - **Item do checklist:** <nome do item, igual ao de references/checklist.md>
 
@@ -47,6 +85,14 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 - **Etiqueta:** já reportado - <link do comentário ou da mensagem onde foi levantado>
 
 <!--
+
+- "Exemplo" é obrigatório e mostra o problema na prática. Exemplo de frase:
+
+  "Uma nota emitida às 23h em Brasília aparece como do dia seguinte para quem lê em UTC."
+
+- "O que bloqueia" existe só nesta faixa. Nas outras, o mesmo lugar se chama "Se não for resolvido".
+
+- "Sugestão" mostra uma forma clara, sem impor a solução. Nunca é copiada do documento revisado.
 
 - "[recorrente]" no título aparece só numa nova execução, quando o achado do relatório anterior continua sem correção.
 
@@ -64,21 +110,19 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 
 - Sem comentário nem conversa sobre a lacuna, o achado não leva a linha "Etiqueta".
 
-- O primeiro uso de um termo técnico traz uma explicação de uma oração. Exemplo de frase:
-
-  "paginação (devolver a lista em partes, página a página)".
-
 -->
 
 ## Gera dúvida
 
-### <Título curto do achado>
+### <Título curto, em linguagem simples>
 
-- **Lacuna:** <...>
+- **O que falta:** <...>
 
-- **Por que isso importa:** <...>
+- **Exemplo:** <...>
 
-- **Exemplo (opcional):** <...>
+- **Se não for resolvido:** <o custo de deixar como está: o que o nosso time precisa adivinhar, e o risco de adivinhar errado>.
+
+- **Sugestão (opcional):** <...>
 
 - **Item do checklist:** <...>
 
@@ -86,13 +130,15 @@ Olá, time! Segue a revisão do documento. Os achados estão em 3 faixas, do que
 
 ## Boa prática
 
-### <Título curto do achado>
+### <Título curto, em linguagem simples>
 
-- **Lacuna:** <...>
+- **O que falta:** <...>
 
-- **Por que isso importa:** <...>
+- **Exemplo:** <...>
 
-- **Exemplo (opcional):** <...>
+- **Se não for resolvido:** <...>
+
+- **Sugestão (opcional):** <...>
 
 - **Item do checklist:** <...>
 

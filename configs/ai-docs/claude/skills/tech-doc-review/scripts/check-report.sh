@@ -15,7 +15,12 @@
 #       1 when the report is over the word cap.
 #
 #       2 when a tier heading is out of order or repeated.
-#         A "## " heading outside the tier set is also 2.
+#         So is a report without exactly one
+#         "## Resumo executivo" heading.
+#         So is that heading after a tier heading.
+#
+#         A "## " heading outside the tier set and that
+#         summary heading is also 2.
 #         So is a resolvidos line of 30 or more words.
 #         This wins over 1.
 #
@@ -32,6 +37,7 @@ MAX_WORDS=2400
 MAX_RESOLVED_WORDS=29
 RESOLVED_PREFIX="**Resolvidos desde o último relatório:**"
 TIERS=("Bloqueia" "Gera dúvida" "Boa prática")
+SUMMARY_HEADING="## Resumo executivo"
 
 # A fence line is 3 backticks after at most 3 spaces.
 # This is the CommonMark rule.
@@ -50,6 +56,7 @@ echo "words=$words"
 last_tier_index=-1
 has_shape_defect=false
 is_in_fence=false
+summary_count=0
 while IFS= read -r line || [ -n "$line" ]; do
   # Trailing CR or spaces must not make a tier foreign.
   line="${line%"${line##*[![:space:]]}"}"
@@ -61,6 +68,16 @@ while IFS= read -r line || [ -n "$line" ]; do
     continue
   fi
   if [ "$is_in_fence" = true ]; then
+    continue
+  fi
+
+  # The summary heading is not a tier.
+  # It must come once, before any tier heading.
+  if [ "$line" = "$SUMMARY_HEADING" ]; then
+    summary_count=$((summary_count + 1))
+    if [ "$last_tier_index" -ge 0 ]; then
+      has_shape_defect=true
+    fi
     continue
   fi
   is_tier=false
@@ -90,6 +107,10 @@ while IFS= read -r line || [ -n "$line" ]; do
     fi
   fi
 done < "$report"
+
+if [ "$summary_count" -ne 1 ]; then
+  has_shape_defect=true
+fi
 
 if [ "$has_shape_defect" = true ]; then
   exit 2

@@ -87,7 +87,9 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - Tag a gap the doc comments or thread raised or answered, with the link, per the template's "Etiqueta".
 
-   - Never copy the example from the doc under review: take it from the reference contract or invent a generic one.
+   - Every finding carries an "Exemplo": a concrete scenario of the gap, with invented values, that a product person can picture.
+
+   - Never copy the "Sugestão" from the doc under review: take it from the reference contract or invent a generic one.
 
 6. Baseline (re-run only): match each baseline finding by checklist item plus place.
 
@@ -100,6 +102,10 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
    - Fixed findings go in one "Resolvidos" line (the template caps its length). Unfixed ones get `[recorrente]`; a cluster fixed in part keeps only its remaining places.
 
 7. Write the report from `assets/report-template.md`; read it now. Never overwrite an existing report.
+
+   - Open with its "Resumo executivo", and follow its plain-language rules.
+
+   - Why: a product person on the authoring team must understand each finding without asking an engineer.
 
    - Slug: lowercase the doc title (or file basename), turn each run of non-alphanumerics into `-`, collapse repeats, trim the ends.
 
@@ -139,4 +145,8 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 A "booking service" contract never says what the lookup of a booking returns for an unknown id.
 
-Finding: item `Caminhos de erro`, tier Bloqueia, place "GET /bookings/{id}", example `404` with `{"error":"not_found"}` against `500`.
+Finding: item `Caminhos de erro`, tier Bloqueia, place "GET /bookings/{id}".
+
+- Exemplo: a booking that does not exist and a service that is down get the same answer.
+
+- Sugestão: `404` with `{"error":"not_found"}`, against `500` for a failure.
