@@ -123,10 +123,6 @@ only - translation and business rules belong in their own named steps.
 - [Instruction] Make the controller the logging owner - avoid duplicate `info` across layers; helpers stay quiet (`debug` only, or `info` solely for what the controller can't see).
   - [Why] One owner per log line keeps the output deduplicated and tells the reader which layer to trust for each fact.
 
-- [Instruction] Never thread a parameter, or add an if/loop branch, through a pure or business-logic layer solely for a logging call - centralize logging in controllers, which already hold that context.
-  - [Why] Keeping logging out of lower layers lets each focus on its own workload, staying simpler and easier to understand.
-  - [Example] A mapper's `buildCollectionItem` carried an `if (soldChildSkus.length > 0)` guard whose only job was calling `LogContext.extendContext` - deleted; the caller already had every field needed to log it itself.
-
 - [Instruction] Let a low-level client signal failures as typed errors and let the business-aware caller decide what each one means - never bake the business reaction into the client.
   - [Why] The client sees the protocol, not the domain, so a policy chosen there binds every caller that will ever use it.
   - [Example] Bad: a contract-lookup use case throwing a terminal "no contract for this ERP" error. Good: it returns `[]`, and the sync caller decides that empty means an error callback.
@@ -205,7 +201,7 @@ work anywhere. Keep the chain synchronous.
 - [Instruction] On failure, log the full input that caused the error.
   - [Why] A failure log without input is a hunt; with input, it's a reproduction case.
 
-- [Instruction] Never add code whose only purpose is to emit a log - no log-only branch, variable, or early return.
+- [Instruction] Never add code whose only purpose is to emit a log - no log-only branch, variable, threaded parameter, or early return.
   - [Why] A log-only branch buys observability an inline log already gives, and charges every future reader for the extra path.
   - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }` - the branch exists only to gate the log. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
 
@@ -272,6 +268,12 @@ work anywhere. Keep the chain synchronous.
 
 - [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness.
   - [Why] `if (count)` treats `0` and `undefined` identically - falsiness checks paper over the distinction and ship bugs.
+
+- [Instruction] When a return type separates absent (`undefined`/`null`) from empty, state in the type or its doc comment which real case each one means.
+
+  - [Why] A bare `string[] | undefined` reads as two spellings of "nothing", so callers collapse both with `?? []`.
+
+  - [Example] Bad: `findSchoolContractedBrands(): Promise<string[] | undefined>` alone. Good: its doc says `undefined` = no allowed account holds the CNPJ, `[]` = the account holds no brand.
 
 - [Instruction] Treat every `as` / `as unknown as` cast as a defect to remove - fix the declared type at its source so the compiler and linter prove the shape.
   - [Why] A cast suppresses the only tool that checks you, so the error it hides surfaces at runtime instead of at build.

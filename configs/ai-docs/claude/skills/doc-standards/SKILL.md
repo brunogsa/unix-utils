@@ -94,10 +94,14 @@ Applies CLAUDE.md's self-describing-artifacts rule to comments and test titles -
   - [Example] OK (step order - exempted): `implement/SKILL.md` citing its own `§3-§8 repeat once per PR` - the numbers encode the loop's bounds.
   - [Example] OK (registry anchors - exempted): an HLD/LLD citing its own `D-`/`PR-`/`R-`/`OQ-` items inside that same doc, per `design-docs`.
 
-- [Instruction] Cite only a target the reader can open - never an uncommitted scratch file; recap its finding inline instead.
+- [Instruction] Cite only a target the reader can open - never an uncommitted scratch file, nor a task name or term only such a file defines; recap its content inline instead.
   - [Why] An untracked evidence file exists only on the author's machine, so the pointer resolves to nothing for everyone else.
 
   - [Example] Bad: `// see evidence_erp-empty-stage.md §9` (untracked). Good: `// Stage proved the ERP rejects an all-bonused, kit-less payload.`
+
+  - [Example] Bad: `// until the schoolErrors task reports it`. Good: `// TODO(<ticket URL>): report it as a school error`.
+
+  - [Example] Bad: "the as-is format / the new-hierarchy format". Good: "an object on Unidade, Escola and intermediary accounts; an array on LegalUnit accounts".
 
 - [Instruction] Keep requirement IDs and source paths out of every runtime string - a test title, an error message, a log message states the rule in plain language alone.
   - [Why] In runner output, a stack trace, or a log query, a path resolves against nothing and crowds out the rule.

@@ -1,3 +1,12 @@
+---
+# performance-check budget override, not part of the diagram itself.
+# This file renders one flow twice - once as pseudo-code, once as a diagram - so
+# its size is fixed by the skill's step count, and trimming to the bundled default
+# would drop steps from the flow audit or drop a whole rendering.
+# Parked in assets/ and never loaded by the model, so its words cost no context.
+words-budget: 2048
+---
+
 # refactor - flow overview
 
 Human-facing overview for auditing the flow at a glance. Non-authoritative - the numbered steps in [`../SKILL.md`](../SKILL.md) win on any conflict. Regenerate this file whenever the skill's flow changes.
@@ -75,6 +84,12 @@ def refactor(arg):
     # 10 · Step 3 - name the report path and invite the user to open it.
     print(f"Full report: {VERDICT_PATH}")
 
+    # 10a · Step 3 - each `Scout:` line in the return (the other side
+    #       of a split convention, never migrated by a finding) becomes
+    #       its own [Scout] task, so the user triages it later.
+    for scout in agent.return_scouts:
+        task_create(f"[Scout] {scout}")
+
     # 11 · STOP. This skill never applies a finding and never seeds
     #      apply-tasks. /address-verdicts globs verdict_refactor_*.md
     #      and routes each one to the refactor AGENT, which applies it
@@ -102,6 +117,7 @@ flowchart TD
   n8["8. Step 3 · Read VERDICT_PATH end-to-end.<br/>The return carries only a count, the path, and<br/>one title line per finding, by design"]
   n9["9. Step 3 · Print the compact index - one line per<br/>finding: &lt;file&gt;:&lt;lines&gt; - &lt;title&gt;.<br/>No Suggestion inline; the user has the file open"]
   n10["10. Step 3 · Name the report path and invite<br/>the user to open it (tail -f or editor)"]
+  n10a["10a. Step 3 · File each Scout: line of the return<br/>(the other side of a split convention, never<br/>migrated by a finding) as its own [Scout] task"]:::state
   n11(["11. STOP - report only. No finding is applied and<br/>no apply-task is seeded. /address-verdicts globs<br/>verdict_refactor_*.md and routes each finding to<br/>the refactor AGENT, which applies it under a<br/>test gate; this file is what that skill consumes"])
 
   n1 --> n2
@@ -114,7 +130,7 @@ flowchart TD
   n6 -.->|"guards"| n6a
   n6 --> n7
   n7 -->|"no"| n7a --> n6
-  n7 -->|"yes"| n8 --> n9 --> n10 --> n11
+  n7 -->|"yes"| n8 --> n9 --> n10 --> n10a --> n11
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

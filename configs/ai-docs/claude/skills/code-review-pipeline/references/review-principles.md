@@ -201,8 +201,11 @@ Why: this order maximizes comprehension per minute - context → behavior → im
 - Don't raise a QUESTION the code or git history can answer - check the callers first.
 - State what that check found as a conditional recommendation: "X is always sent by Y, so make it required".
 - Don't suggest a fix that reintroduces what another finding in the same report flags.
+- **CRITICAL:** When a Suggestion changes a unit's signature or its return/throw contract, its Trade-off lists every caller (grep count plus paths) and what each one sees after the change.
 
-Why: surgical changes get merged while rewrite requests get pushback, an impact-less question gets ignored, a recommendation that grows a forbidden pattern makes the review itself the reason the defect ships, a question the code answers hands the author the reviewer's own lookup, and a fix that reintroduces a flagged defect makes the author choose which finding to break.
+Why: surgical changes get merged while rewrite requests get pushback, an impact-less question gets ignored, a recommendation that grows a forbidden pattern makes the review itself the reason the defect ships, and a question the code answers hands the author the reviewer's own lookup.
+
+A fix that reintroduces a flagged defect makes the author choose which finding to break, and a contract change with no caller audit breaks consumers the review never looked at.
 
 ## Output language matches the invoking context
 

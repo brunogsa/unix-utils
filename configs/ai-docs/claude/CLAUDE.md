@@ -174,6 +174,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
 
+  - [Example] Bad: 3 new `SCHOOL_*` constants inserted between `AGREEMENT_MISSING_PAYMENT_DATA` and `AGREEMENT_INVALID_SHIPPING_TYPE`. Good: append them after the `AGREEMENT_*` family.
+
 - [Instruction] **CRITICAL: Remove unused artifacts** -- code, configs, mocks, env vars, scripts, docs. Trace back and remove all orphans.
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt - readers spend cycles auditing dead weight.
   - [Example] Bad: a read of a field the new data model drops, left to degrade to a placeholder plus a `warn`. Good: delete every such read, found by grep.

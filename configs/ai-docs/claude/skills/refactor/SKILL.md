@@ -90,6 +90,9 @@ If the script reports nothing to refactor, inform the user and stop.
 - When changed code duplicates logic, the finding lists every copy across the repo (grep count plus paths), and its fix covers all of them.
   - This is the one exception to "no refactors outside the changed files", since a fix that dedups only this diff's copies leaves the older ones to drift.
 
+- When the repo splits on a convention (naming, file layout) and the changed code follows one side, the fix aligns only the changed code; never migrate the other side's files.
+  - Count both sides (grep count plus paths) and list the other side as a scout line in the return, so the user decides later whether to migrate it.
+
 - Prefer explicit, readable code over compact code - avoid nested ternaries in favor of `if`/`else` or `switch` for multi-way branches.
 
 - Keep the balance - do NOT over-simplify: no clever one-liners, no merging unrelated concerns into one function, no stripping helpful abstractions, no trading readability for fewer lines.
@@ -108,6 +111,8 @@ Subagent return messages are capped and **WILL truncate long lists** -- the user
 - The report file at `$VERDICT_PATH` is the source of truth (overwrite if exists).
 - The subagent's return must contain only: total count, file path, and one title line per finding.
   - Format: `1. <file>:<lines> - <one-line title>`. No code blocks in the return.
+
+  - Each split-convention scout follows as `Scout: <convention> - <N> files on the other side: <paths>`.
 
 - If the file is missing or empty after the agent returns, treat the run as failed and re-invoke (do not proceed from the truncated return alone).
 
@@ -151,6 +156,7 @@ After the agent returns:
    - Do not inline the Suggestion -- the user has the full file open.
 
 3. Tell the user the full report is at `$VERDICT_PATH` and invite them to open it (`tail -f` or editor) for the rich detail.
+4. File each `Scout:` line of the return as its own `[Scout]` TaskCreate entry, carrying its count and paths.
 
 **Stop here - this skill does not apply findings.** The user decides later which to act on.
 

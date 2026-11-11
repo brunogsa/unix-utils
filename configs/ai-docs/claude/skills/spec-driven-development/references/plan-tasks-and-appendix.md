@@ -12,6 +12,8 @@ Read alongside `plan-writing.md` when writing the Test Design, Task Breakdown, P
 
 Test titles designed before implementation - bodies come during each RED-GREEN cycle. Review before coding starts.
 
+Titles follow `test-standards`' title rules - domain language, no class, constant or field names - since implementation copies them verbatim.
+
 **Integration tests (outer layer)** - the stable user-facing contract. Design all titles upfront, grouped by scenario class so a thin class is a visible gap:
 
 - **Happy cases** - the expected success paths.

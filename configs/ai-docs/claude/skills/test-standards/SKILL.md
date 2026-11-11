@@ -51,10 +51,6 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
 
 - [Instruction] **Probe corner-case and failure-mode coverage against the canonical checklists in `references/coverage-taxonomy.md`** - that file owns the category lists; other skills only recap it.
   - [Why] One canonical taxonomy keeps probes, checklists, and test design aligned; parallel copies drift and ship gaps.
-  - [Example] Caps: a cap of N gets an explicit N+1 test proving the cap engages.
-  - [Example] Dependency calls: success, error response, AND timeout/never-responds - all three branches.
-  - [Example] Async safety: disabled-during-fetch (UI), idempotency keys (API), retry-resistant operations.
-  - [Example] Caches: both directions - populate and read back, then clear or invalidate (value gone, refetch reloads).
 
 Concrete patterns this rule generates:
 
@@ -116,9 +112,6 @@ it('should filter by assignee', ...);
 
 - [Instruction] Never commit test titles alone - a title needs its body in the same commit.
   - [Why] A title committed without its body rots as forever-pending TDD scaffolding that never gets its implementation.
-
-- [Instruction] For scripts (where we usually don't write tests), start with the usage syntax + examples in the comment header - the contract, written before the code.
-  - [Why] A script has no `it()` titles to design first, so its comment-header usage line plays that same contract role.
 
 - [Instruction] Before rewriting a `.sh` script, capture its behavior with `scripts/capture-script-behavior.py` - every row's stdout/stderr/exit code and fixture post-state as golden - then replay the table against the rewrite.
   - [Why] A script has no test suite to lean on, so capture-then-replay is the only way to prove the rewrite is equivalent.
@@ -194,11 +187,19 @@ describe('with FEAT_FLAG_DELIVERY_ADDRESS_ENABLED on', () => {
 });
 ```
 
+- [Instruction] **CRITICAL: Name in a test title only behavior the test's body exercises and asserts.**
+
+  - [Why] Reviewers read the title as the spec, so a title the body doesn't back reports coverage that doesn't exist.
+
+  - [Example] Bad: "should throw MediatorNotFoundError" on a body asserting `execute` resolves and publishes the callback. Good: a title naming that resolve-and-publish outcome.
+
+  - [Example] Bad: "...when only a Rede holds the school CNPJ", while the body stubs the lookup to return nothing. Good: the lookup returns a Rede account and the allowlist rejects it.
+
+  - [Example] Bad: "...returns both rows" on a body whose mock returns one row. Good: the mock returns two rows and the test asserts both.
+
 ## Splitting & pruning tests
 
 ### Tests that should not exist
-
-Whether a change owes a test at all is settled by CLAUDE.md → "Execution lanes". This section covers the case that passes that gate and is still not worth writing.
 
 - [Instruction] Never write a test whose system under test is prose in a committed `.md` - its heading order, its wording, its section list, its frontmatter values.
   - [Why] It can only catch an edit to the prose, never the behavior the prose asks for, because the actor reading it is an LLM.
@@ -215,8 +216,11 @@ When a committed doc really must hold a shape, encode that shape as a checker ru
   - [Why] Distinct paths are the unit of safety; duplicates on one path add upkeep and suite time with no coverage gain.
   - [Example] If "max 10" is enforced, one test at 11 covers it; tests at 12, 15, 100 are redundant - boundary + 1 is the contract.
 
-- [Instruction] When collapsing redundant tests, carry every rule a dropped title stated into a surviving title, or keep that test.
+- [Instruction] When deleting or collapsing a redundant test, quote the surviving title that states each rule the dropped title stated, or keep that test.
+
   - [Why] A collapse that loses a rule's only title keeps the coverage but erases the documentation of that rule.
+
+  - [Example] Bad: deleting "...so a CNPJ held by two accounts returns both rows" because "deleting it loses no assertion". Good: quoting the surviving title that states the two-accounts rule.
 
 - [Instruction] When multiple events produce the same outcome (different filters reset the page, different errors roll back one transaction), write ONE test on the outcome, not N one-per-trigger.
   - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome covers new triggers too.
@@ -281,6 +285,14 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
   });
 });
 ```
+
+- [Instruction] Never repeat an enclosing test group's name - a describe/context block, test class, or parent subtest - inside a nested group or test name.
+
+  - [Why] Runners join the names into one path, so the repeated name prints twice and buries the case being tested.
+
+  - [Example] Bad: `describe('GetAgreementsUseCase school errors')` nested under `describe('GetAgreementsUseCase')`, printed as "GetAgreementsUseCase GetAgreementsUseCase school errors". Good: `describe('school errors')`.
+
+  - [Example] Bad: `def test_invoice_parser_rejects_empty` inside `class TestInvoiceParser`. Good: `def test_rejects_empty`.
 
 ## Determinism & flakes
 
@@ -357,8 +369,21 @@ it('shows expired badge when past deadline', () => {
 - [Instruction] Parametrize inputs only when it keeps tests readable, or when writing them one-by-one doesn't scale; split back to separate tests once bodies diverge.
   - [Why] Parametrization's only payoff is dedup; once bodies diverge, the shared harness obscures what each case asserts.
 
-- [Instruction] Keep test-file helpers inline until a second file needs them - and even at 2+ callers, stay inline when a helper would hide what's being asserted.
-  - [Why] Grasp-at-a-glance beats DRY in tests - the body stays readable as documentation, and dedup isn't worth losing that.
+- [Instruction] Extract a same-file test helper or factory once a test file repeats the same arrange block 3+ times.
+
+  - [Why] A repeated arrange block buries what differs per test and multiplies the edits every fixture change costs.
+
+  - [Example] Bad: a 13-line order literal pasted into 24 tests. Good: `buildSaeOrder({ externalId, schoolDocNumber })`, each test passing only the fields it varies.
+
+- [Instruction] Move a test helper to a shared module only once a second test file needs it.
+
+  - [Why] A shared module with one caller moves setup out of the reader's view and couples files for no second user.
+
+- [Instruction] Keep every value an assertion checks visible in the test body - a helper takes it as a parameter, never as a hidden default.
+
+  - [Why] A hidden asserted value forces a jump into the helper to learn what is tested, so the test stops documenting it.
+
+  - [Example] Bad: `buildSaeOrder()`, then asserting the CNPJ its default supplies. Good: `buildSaeOrder({ schoolDocNumber: '12345678000195' })` before that assertion.
 
 ## Test integrity & maintenance
 
@@ -379,8 +404,6 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 
 - [Instruction] Hand-code regression baselines as explicit expected values - never `f(X) === f(X)`, which only proves `f` is deterministic and can never fail.
   - [Why] A real regression guard needs a value you wrote down that the code might get wrong - self-comparison checks nothing.
-
-Distinct from "Don't reproduce logic under test": that rule is about the test recomputing what the code does, this one is about the test asserting against its own runtime output.
 
 [Example]
 ```ts
