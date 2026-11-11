@@ -7,7 +7,7 @@ description: Review an upstream team's technical contract doc (Doc, Sheet, .md, 
 
 Reviews a contract doc another team wrote and writes `review_tech-doc_<slug>_<YYYYMMDD-HHMMSS>.md` in CWD, in PT-BR, for the authoring team.
 
-An engineer reads it before anything is sent. The control flow is in `assets/flowchart.md`, a diagram for humans: do not load it.
+An engineer reads it before anything is sent. The control flow is in [`assets/flowchart.md`](assets/flowchart.md), a diagram for humans: do not load it.
 
 ## Hard rules
 

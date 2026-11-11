@@ -1,6 +1,6 @@
 # Exemplos inventados
 
-Achados de exemplo para calibrar o tom, as faixas e os extras de domínio. Todos são inventados: o contrato, os campos e os valores não existem.
+Achados de exemplo para calibrar o tom, as faixas e os extras de domínio.
 
 - **Regra:** nunca copie um exemplo do documento revisado para um relatório; use estes só como referência de tom e de cobertura.
 
@@ -17,8 +17,6 @@ Achados de exemplo para calibrar o tom, as faixas e os extras de domínio. Todos
 - **Exemplo só quando precisa:** ele mostra o custo de deixar a lacuna como está, nunca repete a lacuna.
 
   - Ruim: "Exemplo: o status vem como um código interno." Bom: "Uma nota cancelada segue como aprovada, e o pedido é entregue sem cobrança."
-
-- **Menos é mais:** uma linha que repete outra sai do achado.
 
 - **Caso concreto:** cite o campo, a aba e o valor que não fecha, no lugar de um "há inconsistências".
 

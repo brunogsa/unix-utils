@@ -333,8 +333,8 @@ expect(result).toEqual(expect.arrayContaining([
 - [Instruction] Use realistic-looking values in mock data (real-shaped names, emails, IDs, dates) - not placeholder fragments.
   - [Why] Cryptic mock data (`name: "x"`) hides bugs that surface only with realistic shapes (encoding, length, casing).
 
-- [Instruction] Reach any test state by extending the shared factory with overrides - never monkey-patch fixture internals or build one-offs in the test body.
-  - [Why] A one-off or monkey-patch drifts from the shared fixture and hides setup from the next reader.
+- [Instruction] Once a test file has a factory, reach every test state through its overrides - never monkey-patch fixture internals or spread-patch a base object in the test body.
+  - [Why] A spread-patch or monkey-patch drifts from the factory and hides setup from the next reader.
 
 [Example]
 ```ts

@@ -284,8 +284,10 @@ work anywhere. Keep the chain synchronous.
 
 - [Example]
 ```ts
+const SGE_SIGLAS_NIVEL: readonly string[] = Object.values(SgeSiglaNivel);
+
 function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
-  if (!Object.values(SgeSiglaNivel).includes(value as SgeSiglaNivel)) {
+  if (!SGE_SIGLAS_NIVEL.includes(value)) {
     throw new SgeInvalidSiglaNivelError(value);
   }
 }
@@ -295,7 +297,7 @@ function assertSgeSiglaNivel(value: string): asserts value is SgeSiglaNivel {
 
 ### Scripts: human-friendly
 
-- [Instruction] Give every script a `--help` and a comment header with usage + examples.
+- [Instruction] Give every script a `--help` and a comment header.
   - [Why] The next user (often future-you) won't read the source - `--help` is the contract surface.
 
 - [Instruction] Route help to stdout with exit 0, bad input to stderr with exit 1, unless the script's exit 1 reports a result - then bad input exits 2.

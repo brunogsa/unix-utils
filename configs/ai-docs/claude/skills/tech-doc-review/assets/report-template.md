@@ -32,8 +32,6 @@ Linguagem simples, sempre que possível:
 
 Menos é mais:
 
-- Uma linha opcional ("Exemplo", "Sugestão") só entra quando diz algo que as outras linhas do achado não dizem.
-
 - O relatório não mostra o item do checklist de cada achado: ele serve à revisão, não a quem lê.
 
 -->
@@ -69,8 +67,6 @@ Olá, time! Segue a revisão do documento. Começa por um resumo, com o contexto
 - **<Termo>:** <o que significa, em uma frase simples. Exemplo: "Paginação: devolver uma lista longa em partes, página a página.">
 
 <!--
-
-- No resumo, ser fácil de entender vale mais que ser curto: prefira uma frase a mais a um termo sem explicação.
 
 - Fora do glossário, o resumo não traz nome de campo nem detalhe técnico.
 
@@ -108,10 +104,6 @@ Olá, time! Segue a revisão do documento. Começa por um resumo, com o contexto
 
 - "Exemplo" mostra, com valores inventados, o custo de deixar a lacuna como está. Só entra quando "O que bloqueia" sozinho não deixa alguém de produto imaginar esse custo.
 
-  - Ruim, pois só repete a lacuna: "Exemplo: a data vem sem fuso horário."
-
-  - Bom, pois mostra o custo: "Uma nota alterada às 23h59 fica fora da leitura do dia seguinte, e a alteração nunca chega até nós."
-
 - "O que bloqueia" existe só nesta faixa. Nas outras, o mesmo lugar se chama "Se não for resolvido".
 
 - "Sugestão" mostra uma forma clara, sem impor a solução, e só entra quando ajuda o time a decidir. Nunca é copiada do documento revisado.
@@ -129,8 +121,6 @@ Olá, time! Segue a revisão do documento. Começa por um resumo, com o contexto
 - "respondido fora do doc" pede, com cordialidade, que o time escreva a resposta no documento. Exemplo de frase:
 
   "Vimos a resposta no link acima, obrigado! Podem escrevê-la também no documento? Assim ela fica valendo para todo mundo."
-
-- Sem comentário nem conversa sobre a lacuna, o achado não leva a linha "Etiqueta".
 
 -->
 
