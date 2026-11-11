@@ -2,7 +2,7 @@
 
 Cada item tem um nome estável.
 
-Usam exatamente estes nomes: a correspondência com o relatório anterior (item do checklist mais lugar), a linha "Item do checklist" de cada achado e o prompt de verificação.
+Usam exatamente estes nomes: a correspondência com o relatório anterior (item do checklist mais lugar) e o prompt de verificação. O relatório não mostra o item de cada achado.
 
 ## Como aplicar
 
@@ -71,12 +71,12 @@ Exemplos inventados, só para mostrar o tom e o nível de detalhe. Não os copie
 
 - O que falta: "O documento não diz o que a consulta de uma reserva devolve quando ela não existe."
 
-  - Exemplo: "Uma reserva que não existe e um sistema fora do ar recebem a mesma resposta."
-
   - Se não for resolvido: "Quem consome não sabe se deve tentar de novo ou avisar o cliente."
+
+  - Exemplo, pois mostra o custo: "O app tenta de novo, a cada minuto, buscar uma reserva que nunca vai existir."
 
 - O que falta: "A data de devolução não diz o formato nem o fuso horário."
 
-  - Exemplo: "`12/03/2027` pode ser 12 de março ou 3 de dezembro."
+  - Se não for resolvido: "`12/03/2027` pode ser lido como 3 de dezembro, e a multa de atraso é cobrada no mês errado."
 
   - Sugestão: "`2027-03-12T00:00:00Z` deixa claro o formato e o fuso."

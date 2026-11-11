@@ -87,11 +87,13 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
    - Tag a gap the doc comments or thread raised or answered, with the link, per the template's "Etiqueta".
 
-   - Every finding carries an "Exemplo": a concrete scenario of the gap, with invented values, that a product person can picture.
+   - Add an "Exemplo" only when the finding's cost is hard to picture without one; it shows the cost of leaving the gap, never restates the gap.
+
+   - Why: less is more, and an example that repeats the gap adds reading without adding understanding.
 
    - Never copy the "Sugestão" from the doc under review: take it from the reference contract or invent a generic one.
 
-6. Baseline (re-run only): match each baseline finding by checklist item plus place.
+6. Baseline (re-run only): match each baseline finding by place plus the checklist item its content points to, since the report does not name the item.
 
    - When the `**Fonte revisada:**` line differs from the baseline's, ask the engineer to confirm the doc is the new version (example: a new version uploaded as a new file).
 
@@ -103,7 +105,9 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 7. Write the report from `assets/report-template.md`; read it now. Never overwrite an existing report.
 
-   - Open with its "Resumo executivo", and follow its plain-language rules.
+   - Open with its "Resumo executivo": context, the doc's demands, verdict and a glossary of the technical terms the report uses. There, clarity beats brevity.
+
+   - Follow its plain-language and less-is-more rules.
 
    - Why: a product person on the authoring team must understand each finding without asking an engineer.
 
@@ -145,8 +149,8 @@ An engineer reads it before anything is sent. The control flow is in `assets/flo
 
 A "booking service" contract never says what the lookup of a booking returns for an unknown id.
 
-Finding: item `Caminhos de erro`, tier Bloqueia, place "GET /bookings/{id}".
+Finding: tier Bloqueia, place "GET /bookings/{id}", checklist item `Caminhos de erro` (used for matching, not shown in the report).
 
-- Exemplo: a booking that does not exist and a service that is down get the same answer.
+- Exemplo, since it shows the cost: the app retries, every minute, a booking that will never exist.
 
 - Sugestão: `404` with `{"error":"not_found"}`, against `500` for a failure.

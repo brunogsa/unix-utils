@@ -26,9 +26,15 @@ Linguagem simples, sempre que possível:
 
 - Nomes de campo, códigos de tabela do SAP, tipos e expressões regulares vão em sub-bullets, nunca na primeira frase.
 
-- O primeiro uso de um termo técnico inevitável traz uma explicação de uma oração, como "paginação (devolver a lista em partes, página a página)".
+- Todo termo técnico que o relatório usa entra no "Glossário" do resumo, com uma explicação simples.
 
 - Ruim: "`updatedAt` é DATS, sem fuso". Bom: "A data de alteração não traz a hora nem o fuso horário", com `updatedAt` e DATS num sub-bullet.
+
+Menos é mais:
+
+- Uma linha opcional ("Exemplo", "Sugestão") só entra quando diz algo que as outras linhas do achado não dizem.
+
+- O relatório não mostra o item do checklist de cada achado: ele serve à revisão, não a quem lê.
 
 -->
 
@@ -38,11 +44,17 @@ Linguagem simples, sempre que possível:
 
 <!-- Sem relatório anterior, ou com 0 corrigidos, a linha não existe. -->
 
-Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes vêm depois, em 3 faixas, do que mais nos trava ao que é só boa prática. Cada achado diz o que falta, dá um exemplo e o que acontece se ficar como está. A decisão de como resolver é de vocês.
+Olá, time! Segue a revisão do documento. Começa por um resumo, com o contexto e um glossário; os detalhes vêm depois, em 3 faixas, do que mais nos trava ao que é só boa prática. Cada achado diz o que falta e o que acontece se ficar como está. A decisão de como resolver é de vocês.
 
 ## Resumo executivo
 
-<Veredito em uma frase, sem jargão. Exemplo: "Ainda não dá para começar a integração: 4 definições travam o desenvolvimento.">
+**Contexto:** <o que o documento define, quem o escreveu e para quem, em 1 a 3 frases sem jargão.>
+
+**Demandas:** <as demandas que o documento define, uma por bullet.>
+
+- **<Nome da demanda>:** <o que ela entrega e para quê. Exemplo: "Notas por CNPJ: lista as notas fiscais emitidas para um cliente.">
+
+**Veredito:** <uma frase sem jargão. Exemplo: "Ainda não dá para começar a integração: 4 definições travam o desenvolvimento.">
 
 - **Bloqueia (<N>):** o que impede o nosso time de começar ou terminar a integração.
 
@@ -52,9 +64,19 @@ Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes v�
 
 - **Boa prática (<N>):** <uma frase sobre o que esses achados têm em comum>.
 
+**Glossário:**
+
+- **<Termo>:** <o que significa, em uma frase simples. Exemplo: "Paginação: devolver uma lista longa em partes, página a página.">
+
 <!--
 
-- O resumo cabe em cerca de 200 palavras e não traz nome de campo nem detalhe técnico.
+- No resumo, ser fácil de entender vale mais que ser curto: prefira uma frase a mais a um termo sem explicação.
+
+- Fora do glossário, o resumo não traz nome de campo nem detalhe técnico.
+
+- Uma demanda é cada consulta, operação ou evento que o documento define. Use o nome que o documento dá a ela.
+
+- O glossário traz só os termos técnicos que o relatório usa, inclusive siglas do domínio (como CNPJ ou NF-e). Sem nenhum, ele não aparece.
 
 - Um sub-bullet por achado de Bloqueia, com no máximo 12 palavras sobre o que ele impede.
 
@@ -72,13 +94,11 @@ Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes v�
 
   - <Um detalhe técnico por sub-bullet: campo, aba, tipo, valor.>
 
-- **Exemplo:** <um caso concreto da lacuna acontecendo, que alguém de produto consiga imaginar>.
-
 - **O que bloqueia:** <a etapa do nosso time que não começa ou não termina, e por quê>.
 
-- **Sugestão (opcional):** <como poderia ficar: um exemplo inventado e genérico, ou o trecho do contrato de referência>.
+- **Exemplo (opcional):** <um caso concreto do que dá errado se a lacuna ficar>.
 
-- **Item do checklist:** <nome do item, igual ao de references/checklist.md>
+- **Sugestão (opcional):** <como poderia ficar: um exemplo inventado e genérico, ou o trecho do contrato de referência>.
 
 - **Onde:** <aba, seção ou operação 1>; <aba, seção ou operação 2>
 
@@ -86,13 +106,15 @@ Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes v�
 
 <!--
 
-- "Exemplo" é obrigatório e mostra o problema na prática. Exemplo de frase:
+- "Exemplo" mostra, com valores inventados, o custo de deixar a lacuna como está. Só entra quando "O que bloqueia" sozinho não deixa alguém de produto imaginar esse custo.
 
-  "Uma nota emitida às 23h em Brasília aparece como do dia seguinte para quem lê em UTC."
+  - Ruim, pois só repete a lacuna: "Exemplo: a data vem sem fuso horário."
+
+  - Bom, pois mostra o custo: "Uma nota alterada às 23h59 fica fora da leitura do dia seguinte, e a alteração nunca chega até nós."
 
 - "O que bloqueia" existe só nesta faixa. Nas outras, o mesmo lugar se chama "Se não for resolvido".
 
-- "Sugestão" mostra uma forma clara, sem impor a solução. Nunca é copiada do documento revisado.
+- "Sugestão" mostra uma forma clara, sem impor a solução, e só entra quando ajuda o time a decidir. Nunca é copiada do documento revisado.
 
 - "[recorrente]" no título aparece só numa nova execução, quando o achado do relatório anterior continua sem correção.
 
@@ -118,13 +140,11 @@ Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes v�
 
 - **O que falta:** <...>
 
-- **Exemplo:** <...>
-
 - **Se não for resolvido:** <o custo de deixar como está: o que o nosso time precisa adivinhar, e o risco de adivinhar errado>.
 
-- **Sugestão (opcional):** <...>
+- **Exemplo (opcional):** <...>
 
-- **Item do checklist:** <...>
+- **Sugestão (opcional):** <...>
 
 - **Onde:** <...>
 
@@ -134,12 +154,10 @@ Olá, time! Segue a revisão do documento. Começa por um resumo; os detalhes v�
 
 - **O que falta:** <...>
 
-- **Exemplo:** <...>
-
 - **Se não for resolvido:** <...>
 
-- **Sugestão (opcional):** <...>
+- **Exemplo (opcional):** <...>
 
-- **Item do checklist:** <...>
+- **Sugestão (opcional):** <...>
 
 - **Onde:** <...>
