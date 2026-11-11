@@ -25,7 +25,7 @@ Python-shaped for readability only; nothing here runs, and the function names st
 #     explicit finding list plus --no-ask, having already triaged.
 def address_verdicts(arg):
     # 1a · Step 1 - an empty arg or `marked` selects MARKED MODE: only
-    #      findings the human tagged [AI!], across a whole PR stack. Every
+    #      findings the human tagged [AI!], across a whole PR tree. Every
     #      other selection (all, a lens, a severity floor, an explicit list)
     #      is the unchanged single-branch, no-push flow from 2 onward.
     if arg.which_ones in ("", "marked"):                   # 1a
@@ -217,8 +217,10 @@ def close_with_report(arg, findings):
     #      their reasons, and anything that failed to apply with exactly
     #      what it needs to retry. Each finding line names its verdict file
     #      (quality-gate#N repeats across files). Marked mode adds one line
-    #      per chain branch: merged-from, applied/skipped counts, pushed sha,
-    #      CI result, plus every [AI!] tag ignored in a non-quality-gate file.
+    #      per tree branch: merged-from, applied/skipped counts, pushed sha,
+    #      CI result, one line per stopped subtree (branch, step, cause,
+    #      conflicting files, skipped descendants), plus every [AI!] tag
+    #      ignored in a non-quality-gate file.
     ledger = compose_ledger(findings)                       # 19
 
     if arg.invoked_by_skill:                                # 20
@@ -240,13 +242,21 @@ class StopChain(Exception):
 
 
 def halt(branch, step, cause):
-    # 24 · Many edges converge here, so it is one named helper. Any failure
-    #      stops the chain ON the stopped branch: no merge left in progress
-    #      (a conflicted merge is aborted first), branches already pushed
-    #      stay pushed, branches above stay untouched, and the repo is NEVER
-    #      returned to the starting branch - the human resumes from where it
-    #      broke. Raised as an exception so it propagates out of the helpers.
+    # 24 · A preflight failure or a scouts failure stops the whole run: no
+    #      merge left in progress, branches already pushed stay pushed, and
+    #      the repo is NEVER returned to the starting branch - the human
+    #      resumes from where it broke. Raised as an exception so it
+    #      propagates out of the helpers.
     raise StopChain(f"{branch}: {step}: {cause}")           # 24
+
+
+def stop_subtree(dead, branch, step, cause, conflicts=()):
+    # 1z · A failure on one tree branch stops only that branch and its
+    #      descendants. Record the branch, step, cause and conflicting files
+    #      for the final report; branches already pushed stay pushed, and the
+    #      walk carries on with siblings and other subtrees.
+    dead.add(branch)                                        # 1z
+    record_stop(branch, step, cause, conflicts)             # 1z
 
 
 def run_marked_stack(arg):
@@ -276,29 +286,31 @@ def run_marked_stack(arg):
     # 1d · Fetch once, FIRST, so every branch check and remote comparison is
     #      fresh. Each file's branch comes from its first header line, never
     #      its filename (the filename turned / into -), and must pass
-    #      `git rev-parse --verify origin/<branch>`. The stack comes from ONE
-    #      gh pr list (--limit 1000), never a gh pr view per branch: walk down
-    #      each PR's baseRefName to the trunk, walk up to the top. The chain is
-    #      the WHOLE stack, from the branch directly above the trunk to the
-    #      top, including branches below the lowest marked one, so a re-run
-    #      after a stop still carries forward what the stopped run pushed.
+    #      `git rev-parse --verify origin/<branch>`. The TREE comes from ONE
+    #      gh pr list (--limit 1000), never one call per branch: a PR's
+    #      parent is its baseRefName, a base heading no open PR is the trunk.
+    #      The tree is every verdict branch, its ancestors up to the trunk
+    #      (so a re-run after a stop still carries forward what the stopped
+    #      run pushed), and its descendants. Walk order: a parent before its
+    #      children, siblings by PR number. A linear stack is a tree with no
+    #      fork.
     git("fetch", "origin")                                  # 1d
     branch_of = {f: branch_from_header_line(f) for f in files}   # 1d
     prs = gh_pr_list_once(limit=1000)                       # 1d
-    chain = build_chain(branch_of, prs)                     # 1d
+    chain = build_tree(branch_of, prs)                      # 1d
 
     # 1e · Stop on an unparsable header, a branch origin/<branch> rejects, a
     #      PR count equal to the limit (a cut-off list can drop a middle PR),
-    #      a marked branch with no open PR, two open PRs sharing one base (a
-    #      fork, not a stack), or marked branches in two different stacks.
-    if not chain.is_one_valid_stack or len(prs) == 1000:    # 1e
-        halt("(preflight)", "resolve stack", chain.problem) # 1e
+    #      a marked branch with no open PR, or roots based on two different
+    #      trunks. A fork is NOT a stop.
+    if not chain.is_valid_tree or len(prs) == 1000:         # 1e
+        halt("(preflight)", "resolve tree", chain.problem)  # 1e
 
     # 1e1 · Record the starting branch first, to return to on a clean finish.
     start_branch = current_branch()                         # 1e1
 
     # 1f · git refuses a checkout of a branch held by another worktree.
-    if any(b in worktree_list() for b in chain.branches):   # 1f
+    if any(b in worktree_list() for b in chain.walk_order): # 1f
         halt("(preflight)", "worktree check", "branch checked out elsewhere")  # 1f
 
     # 1h · Step 2 - ALL questions for ALL marked findings, in one
@@ -325,9 +337,9 @@ def run_marked_stack(arg):
     never_stage = tracked_modifications()                   # 1g
 
     # 1g1 · A listed file that differs between chain branches makes checkout
-    #       refuse to carry it.
-    if differs_between(chain.branches[0], chain.branches[-1], never_stage):   # 1g1
-        halt("(preflight)", "never-stage files", "differ between chain branches")  # 1g1
+    #       refuse to carry it (compared against every other tree branch).
+    if differs_between_any(chain.walk_order, never_stage):  # 1g1
+        halt("(preflight)", "never-stage files", "differ between tree branches")  # 1g1
 
     # 1g2 · The repo's documented pre-test setup (its CLAUDE.md names it, e.g.
     #       starting and migrating a test DB), run once for the whole chain.
@@ -339,7 +351,7 @@ def run_marked_stack(arg):
     #       None found: CI is never watched, and the report says so.
     gate = resolve_gate_workflow(trunk=chain.trunk)         # 1g3
 
-    # 1i · Step 3 - per chain branch, in chain order: "Merge forward <branch>",
+    # 1i · Step 3 - per tree branch, in walk order: "Merge forward <branch>",
     #      then one entry per lens with marked findings on it (lens order),
     #      then "Validate, push, watch CI <branch>" so it is not done before
     #      the push it names; plus one closing [Reminder] for the report. The
@@ -349,32 +361,41 @@ def run_marked_stack(arg):
     #      mid-chain loses nothing.
     tasklist.seed(entries_per_branch(chain, marked))        # 1i
 
-    findings, i = [], 0
-    while True:                                             # 1w · loop-check, bottom-up
-        branch = chain.branches[i]
+    findings, dead = [], set()        # dead = stopped branches and skipped descendants
+    for branch in chain.walk_order:                         # 1w · loop-check, top-down
+        # 1i1 · A branch whose parent is stopped or skipped is skipped too: it
+        #       would build on a head that never got the parent's fixes.
+        #       Siblings and other subtrees carry on.
+        if chain.parent_of(branch) in dead:                 # 1i1
+            dead.add(branch)                                # 1i1
+            continue                                        # 1w
         # 1j · Untracked verdict files survive the checkout, so step 5's
         #      annotations keep landing in CWD.
         git("checkout", branch)                             # 1j
-        # 1k · A diverged branch stops the chain.
+        # 1k · A diverged branch stops its subtree.
         if not git_ok("merge", "--ff-only", f"origin/{branch}"):    # 1k
-            halt(branch, "ff-only", "local branch diverged from origin")  # 1k
+            stop_subtree(dead, branch, "ff-only", "local branch diverged from origin")  # 1z
+            continue                                        # 1w
         # 1j · Then the repo's documented build steps (its CLAUDE.md names
         #      them, e.g. a library build and a generated client), since the
         #      previous branch's build outputs do not match this one's sources.
         run_build_steps()                                   # 1j
 
         pre_merge_sha = head_sha()
-        if i > 0:                                           # 1l
-            # 1m · Merge forward: the chain branch below, on every branch
-            #      except the one directly above the trunk. The trunk is never
-            #      merged into the stack.
-            merged = git_ok("merge", "--no-edit", chain.branches[i - 1])   # 1m
+        if not chain.is_root(branch):                       # 1l
+            # 1m · Merge forward: its parent's new head, one merge commit, on
+            #      every branch except a root (one based on the trunk). The
+            #      trunk is never merged into the tree.
+            merged = git_ok("merge", "--no-edit", chain.parent_of(branch))   # 1m
             if not merged:                                  # 1n
                 # 1n · Any merge failure, not only a conflict: a refusal over
-                #      local changes stops too.
+                #      local changes stops too. Read the conflicting files
+                #      first, then abort, for the report.
+                conflicts = conflicting_files()             # 1n
                 if merge_in_progress():
                     git("merge", "--abort")                 # 1n
-                halt(branch, "merge forward", "merge failed")   # 1n
+                stop_subtree(dead, branch, "merge forward", "merge failed", conflicts)  # 1z
+                continue                                    # 1w
             # 1o · Re-run the build steps when the merge touched the paths
             #      they cover.
             run_build_steps_if_paths_changed(changed_since(pre_merge_sha))   # 1o
@@ -382,7 +403,8 @@ def run_marked_stack(arg):
             #      the specs covering the merged diff. The apply agents need
             #      a green start to tell their own RED from an inherited one.
             if changed_since(pre_merge_sha) and not lint_and_specs_green(pre_merge_sha):   # 1p
-                halt(branch, "validate merge", "red")       # 1p
+                stop_subtree(dead, branch, "validate merge", "red")   # 1z
+                continue                                    # 1w
 
         branch_start_sha = head_sha()
         if marked_for(branch, marked):                      # 1q
@@ -395,19 +417,22 @@ def run_marked_stack(arg):
             # 1r · Validate the branch: lint plus the specs covering what
             #      the apply commits changed.
             if not lint_and_specs_green(branch_start_sha):  # 1r
-                halt(branch, "validate branch", "red")      # 1r
+                stop_subtree(dead, branch, "validate branch", "red")   # 1z
+                continue                                    # 1w
 
         pushed = False
         # 1s · Skip the push when HEAD already equals origin/<branch>.
         if head_sha() != origin_sha(branch):                # 1s
             # 1s1 · The tree must be clean apart from the never-stage list;
-            #       a change left by a failed apply stops the chain.
+            #       a change left by a failed apply stops the subtree.
             if not clean_apart_from(never_stage):           # 1s1
-                halt(branch, "clean tree", "change left by a failed apply")  # 1s1
+                stop_subtree(dead, branch, "clean tree", "change left by a failed apply")  # 1z
+                continue                                    # 1w
             # 1t · NEVER --force, and never asked in chat. A rejection
-            #      stops the chain.
+            #      stops the subtree.
             if not git_ok("push"):                          # 1t
-                halt(branch, "push", "rejected")            # 1t
+                stop_subtree(dead, branch, "push", "rejected")   # 1z
+                continue                                    # 1w
             pushed = True
 
         # 1u · Watch CI only when step 1t pushed and the PR's base is the
@@ -419,21 +444,21 @@ def run_marked_stack(arg):
             #      from counting). Then `gh run watch <id> --exit-status` in
             #      the background (a full gate outlives the Bash foreground
             #      cap), and WAIT for it before the next branch. A failed run
-            #      or a poll timeout stops the chain.
+            #      or a poll timeout stops the subtree.
             if not watch_ci_in_background(gate, head_sha()):    # 1v
-                halt(branch, "CI", "failed run or poll timeout")  # 1v
-
-        i += 1
-        if i == len(chain.branches):                        # 1w
-            break
+                stop_subtree(dead, branch, "CI", "failed run or poll timeout")   # 1z
+                continue                                    # 1w
+        # 1w · The for loop moves on to the next branch in walk order.
 
     # 1y · Scouts findings marked too: each applies on the branch of its
     #      enclosing `##` heading, pushed alone (see apply_scouts below).
     if any(marked[f] for f in scouts_files):                # 1y
         findings += apply_scouts(scouts_files, marked, start_branch)   # 1y1-1y6
 
-    # 1x · Clean finish only: return to where the run started.
-    git("checkout", start_branch)                           # 1x
+    # 1x · Return to where the run started only when no subtree stopped;
+    #      otherwise stay on the last branch the walk checked out.
+    if not stopped_subtrees():                              # 1x
+        git("checkout", start_branch)                       # 1x
     return findings
 
 
@@ -480,7 +505,7 @@ def apply_scouts(scouts_files, marked, start_branch):
 ```mermaid
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
-  n1a{"1a. Step 1 · Is &lt;which ones&gt; empty or 'marked'?<br/>Yes = MARKED MODE: only findings the human tagged [AI!],<br/>across a whole PR stack, with push. Any other selection<br/>(all, a lens, a severity floor, an explicit list) is the<br/>single-branch, no-push flow from node 2"}
+  n1a{"1a. Step 1 · Is &lt;which ones&gt; empty or 'marked'?<br/>Yes = MARKED MODE: only findings the human tagged [AI!],<br/>across a whole PR tree, with push. Any other selection<br/>(all, a lens, a severity floor, an explicit list) is the<br/>single-branch, no-push flow from node 2"}
   n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for both refactor<br/>and auto-review). Several timestamped generations<br/>can exist per lens"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
@@ -513,27 +538,28 @@ flowchart TD
 
   n1b["1b. Step 1 · Marked mode: read references/stack-mode.md and<br/>follow it. Read EVERY verdict_quality-gate_*.md (not the<br/>newest per lens) and every verdict_scouts*.md; other verdict files never fire here and<br/>list each file's [AI!] / [AI!: msg] headings, fence-aware since a finding<br/>may quote a heading inside a code fence"]
   n1c{"1c. Step 1 · Is any finding marked [AI!] in any file (quality-gate or scouts)?"}
-  n1c2{"1c2. Step 1 · Is any quality-gate finding marked? No = only<br/>verdict_scouts*.md findings are marked, so there is no stack to walk"}
+  n1c2{"1c2. Step 1 · Is any quality-gate finding marked? No = only<br/>verdict_scouts*.md findings are marked, so there is no tree to walk"}
   n1c1(["1c1. STOP - nothing is marked; tag a heading<br/>### N. [AI!][...] first. NEVER fall back to all"])
-  n1d["1d. Step 1 · git fetch origin once, FIRST, so every check below is fresh.<br/>Resolve each file's branch from its first header line (never its<br/>filename, which turned / into -); git rev-parse --verify<br/>origin/&lt;branch&gt; must accept it. Build the stack from ONE<br/>gh pr list --limit 1000, never a gh pr view per branch: walk down<br/>each PR's base to the trunk, walk up to the top. The chain is the<br/>WHOLE stack, from the branch directly above the trunk to the top,<br/>including branches below the lowest marked one"]
-  n1e{"1e. Step 1 · Is it one valid stack? Stop on an unparsable<br/>header, a branch origin/&lt;branch&gt; rejects, a PR count equal to<br/>the limit (a cut-off list can drop a middle PR), a marked branch<br/>with no open PR, two open PRs sharing one base (a fork), or<br/>marked branches in two different stacks"}
+  n1d["1d. Step 1 · git fetch origin once, FIRST, so every check below is fresh.<br/>Resolve each file's branch from its first header line (never its<br/>filename, which turned / into -); git rev-parse --verify<br/>origin/&lt;branch&gt; must accept it. Build the tree from ONE<br/>gh pr list --limit 1000, never one call per branch: a PR's parent is<br/>its base, a base heading no open PR is the trunk. The tree is every<br/>verdict branch, its ancestors up to the trunk, and its descendants.<br/>Walk order: parent before children, siblings by PR number"]
+  n1e{"1e. Step 1 · Is it a valid tree? Stop on an unparsable<br/>header, a branch origin/&lt;branch&gt; rejects, a PR count equal to<br/>the limit (a cut-off list can drop a middle PR), a marked branch<br/>with no open PR, or roots based on two different trunks.<br/>A fork is not a stop"}
   n1e1["1e1. Preflight · Record the starting branch first,<br/>to return to on a clean finish"]
-  n1f{"1f. Preflight · Is a chain branch checked out in another<br/>worktree? git refuses that checkout"}
+  n1f{"1f. Preflight · Is a tree branch checked out in another<br/>worktree? git refuses that checkout"}
   n1h["1h. Step 2 · Ask ALL questions for ALL marked findings, upfront,<br/>in one AskUserQuestion.<br/>A question asked mid-chain blocks a run that has already<br/>pushed half the stack"]:::gate
   n1h2["1h2. Preflight · No ask, no wait: launch ONE learn run, Mode D over<br/>every verdict_quality-gate_*.md (absolute paths), in a lateral<br/>session per improve-from-user/references/lateral-learn.md. One run<br/>over every file, so clustering sees recurrence across branches.<br/>Carry on to the chain in the same message.<br/>Unless any verdict file already has a [Done] heading: launch nothing, say so in one line"]:::skill
   n1g["1g. Preflight · Record the tracked modifications as the<br/>NEVER-STAGE list. Never stash them (the stash<br/>stack is shared across worktrees), never discard them, stage explicit<br/>file paths only, and every dispatch prompt carries the list since<br/>a subagent's git add -A would sweep them in"]
-  n1g1{"1g1. Preflight · Does a never-stage file differ between the first and<br/>last chain branch? checkout refuses to carry it"}
+  n1g1{"1g1. Preflight · Does a never-stage file differ between<br/>any two tree branches? checkout refuses to carry it"}
   n1g2["1g2. Preflight · Run the repo's documented pre-test setup once<br/>(its CLAUDE.md names it, e.g. start and migrate a test DB)"]
   n1g3["1g3. Preflight · Resolve the gate workflow: the one whose<br/>on.pull_request.branches lists the trunk. A workflow with no<br/>branches filter is never the gate. None found = CI is never<br/>watched, and the report says so"]
-  n1i["1i. Step 3 · Add to TaskList, per chain branch in chain order:<br/>'Merge forward &lt;branch&gt;', then one entry per lens with marked<br/>findings (lens order), then 'Validate, push, watch CI &lt;branch&gt;';<br/>plus one closing [Reminder]. Runtime-sized, so one node.<br/>Progress (pre-merge SHA, branch-start SHA, pushed SHA, CI run id<br/>and result) goes in task metadata the moment it happens"]:::state
+  n1i["1i. Step 3 · Add to TaskList, per tree branch in walk order:<br/>'Merge forward &lt;branch&gt;', then one entry per lens with marked<br/>findings (lens order), then 'Validate, push, watch CI &lt;branch&gt;';<br/>plus one closing [Reminder]. Runtime-sized, so one node.<br/>Progress (pre-merge SHA, branch-start SHA, pushed SHA, CI run id<br/>and result) goes in task metadata the moment it happens"]:::state
 
-  subgraph chain_loop["Per chain branch, bottom-up - any failure stops the chain on that branch"]
+  subgraph chain_loop["Per tree branch, top-down - any failure stops that branch's subtree, never the walk"]
     direction TB
+    n1i1{"1i1. Step 1 · Is this branch's parent stopped or skipped?<br/>Then this branch is skipped too, since it would build on a head<br/>that never got the parent's fixes. Siblings and other subtrees carry on"}
     n1j["1j. git checkout the branch, then git merge --ff-only<br/>origin/&lt;branch&gt;, then run the repo's documented build steps<br/>(its CLAUDE.md names them), since the previous branch's build<br/>outputs do not match this one's sources. Untracked verdict<br/>files survive the checkout, so step 5's annotations keep<br/>landing in CWD"]
     n1k{"1k. Step 1 · Did the branch diverge from origin?"}
-    n1l{"1l. Step 1 · Is this the branch directly above the trunk?"}
-    n1m["1m. Merge forward: git merge --no-edit the chain branch below,<br/>on every branch except the one directly above the trunk.<br/>The trunk is never merged into the stack"]
-    n1n{"1n. Step 1 · Did the merge fail (a conflict, or a refusal<br/>over local changes)?"}
+    n1l{"1l. Step 1 · Is this a root (a branch based on the trunk)?"}
+    n1m["1m. Merge forward: git merge --no-edit its parent's new head,<br/>on every branch except a root.<br/>The trunk is never merged into the tree"]
+    n1n{"1n. Step 1 · Did the merge fail (a conflict, or a refusal<br/>over local changes)? Read the conflicting files first, then<br/>git merge --abort when in progress"}
     n1o["1o. Re-run the repo's documented build steps, only when<br/>the merge touched the paths they cover"]
     n1p{"1p. Step 1 · Did the merge change anything, and is lint plus<br/>the specs covering the merged diff red? The apply agents<br/>need a green start to tell their own RED from an inherited one"}
     n1q{"1q. Steps 3-5 · Does this branch have marked findings?<br/>Yes = apply them through the same lens loop (nodes 21-18),<br/>annotating each lens as it returns, re-running the build steps<br/>when an apply touched their paths. A branch with none still<br/>gets the merge, push and CI steps, so the fixes below<br/>reach every PR above them"}
@@ -543,11 +569,12 @@ flowchart TD
     n1t{"1t. Step 1 · git push - NEVER --force, never asked in chat.<br/>Was it accepted?"}
     n1u{"1u. Step 1 · Did 1t push, does a gate workflow exist, and is the PR's<br/>base the trunk it triggers on?"}
     n1v{"1v. Step 1 · Poll gh run list --workflow &lt;gate&gt; --commit &lt;pushed sha&gt;<br/>until it prints a run id (10-minute timeout; keying on the SHA<br/>keeps the previous commit's green run from counting). Then<br/>gh run watch &lt;id&gt; --exit-status in the background (a full gate<br/>outlives the Bash foreground cap) and WAIT for it. Did it pass?"}
-    n1w{"1w. Step 1 · More chain branches left above this one?"}
+    n1z["1z. Step 1 · Stop this branch's SUBTREE: mark the branch and every<br/>descendant stopped or skipped, record the branch, step, cause and<br/>conflicting files for the report. Branches already pushed stay pushed"]
+    n1w{"1w. Step 1 · More tree branches left in walk order?"}
   end
 
   n1y{"1y. Step 1 · Are any verdict_scouts*.md findings marked? A scouts-only run<br/>records the starting branch first"}
-  n1x(["1x. Clean finish only: git checkout the starting branch,<br/>then go to the report"])
+  n1x(["1x. git checkout the starting branch only if no subtree stopped<br/>(otherwise stay on the last branch the walk checked out),<br/>then go to the report"])
   subgraph scouts_loop["Per marked scouts finding - each scouts branch is its own PR, never merged up from the branch below"]
     direction TB
     n1y1["1y1. Read the finding's branch from the backticked branch in its<br/>enclosing ## heading, never from the file name"]
@@ -561,7 +588,7 @@ flowchart TD
     n1y6{"1y6. More marked scouts findings left?"}
   end
 
-  n24(["24. STOP the chain ON the stopped branch: abort a conflicted merge<br/>first, leave no merge in progress, name the branch, the step and<br/>the cause. Branches already pushed stay pushed, branches above<br/>stay untouched, and NEVER return to the starting branch -<br/>the human resumes from where it broke"])
+  n24(["24. STOP the whole run (a preflight or scouts failure): leave no<br/>merge in progress, name the branch, the step and the cause.<br/>Branches already pushed stay pushed, and NEVER return to the<br/>starting branch - the human resumes from where it broke"])
 
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes - a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
     direction TB
@@ -572,8 +599,8 @@ flowchart TD
 
   n17{"17. Step 4 · More findings left in this lens's batch?"}
   n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
-  n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the stack loop; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
-  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per chain branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, plus every [AI!]<br/>tag ignored in a non-quality-gate file"]
+  n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the tree walk; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
+  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per tree branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, one line per stopped<br/>subtree (branch, step, cause, conflicting files, skipped descendants),<br/>plus every [AI!] tag ignored in a non-quality-gate file"]
   n20{"20. Step 6 · Who invoked this run?"}
   n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer.<br/>Marked mode also says every finding still tagged [AI!]<br/>is retried by the next marked run, and deleting the tag<br/>drops it"])
   n20b(["20b. Hand the same ledger back to the caller rather than<br/>only printing it - the caller composes the report the<br/>human actually reads, and can only name what it was told"])
@@ -591,30 +618,33 @@ flowchart TD
   n1f -->|"no"| n1h --> n1h2 --> n1g
   n1g --> n1g1
   n1g1 -->|"yes, differs"| n24
-  n1g1 -->|"no"| n1g2 --> n1g3 --> n1i --> n1j --> n1k
-  n1k -->|"yes, diverged"| n24
+  n1g1 -->|"no"| n1g2 --> n1g3 --> n1i --> n1i1
+  n1i1 -->|"yes, skipped with its parent"| n1w
+  n1i1 -->|"no"| n1j --> n1k
+  n1k -->|"yes, diverged"| n1z
   n1k -->|"no"| n1l
-  n1l -->|"yes, first"| n1q
+  n1l -->|"yes, root"| n1q
   n1l -->|"no"| n1m --> n1n
-  n1n -->|"yes, git merge --abort when in progress"| n24
+  n1n -->|"yes, conflicts read, merge aborted"| n1z
   n1n -->|"no"| n1o --> n1p
-  n1p -->|"red"| n24
+  n1p -->|"red"| n1z
   n1p -->|"green, or nothing merged"| n1q
   n1q -->|"yes"| n21
   n1q -->|"no"| n1s
-  n1r -->|"red"| n24
+  n1r -->|"red"| n1z
   n1r -->|"green"| n1s
   n1s -->|"yes, nothing to push"| n1w
   n1s -->|"no"| n1s1
-  n1s1 -->|"no, dirty"| n24
+  n1s1 -->|"no, dirty"| n1z
   n1s1 -->|"yes, clean"| n1t
-  n1t -->|"rejected"| n24
+  n1t -->|"rejected"| n1z
   n1t -->|"accepted"| n1u
   n1u -->|"no, CI not run"| n1w
   n1u -->|"yes"| n1v
-  n1v -->|"run failed or poll timed out"| n24
+  n1v -->|"run failed or poll timed out"| n1z
   n1v -->|"pass"| n1w
-  n1w -->|"yes, next branch up"| n1j
+  n1z --> n1w
+  n1w -->|"yes, next branch in walk order"| n1i1
   n1w -->|"no"| n1y
   n1y -->|"yes"| n1y1 --> n1y2
   n1y -->|"no"| n1x --> n19

@@ -3,7 +3,9 @@
 words-budget: 2048
 ---
 
-# Stack mode - `[AI!]`-marked findings across a branch stack
+# Stack mode - `[AI!]`-marked findings across a branch tree
+
+PR series are trees: a parent branch may have several child PRs. A linear stack is a tree with no fork, so every rule below covers it.
 
 Why each rule holds: [`design-rationale.md`](design-rationale.md).
 
@@ -38,18 +40,18 @@ Also read every `verdict_scouts*.md` in CWD, with the same `[AI!]` heading test 
 
 - A finding in a section with no branch (e.g. "Local planning docs (uncommitted, no branch)") is applied in CWD and left uncommitted.
 
-- Each scouts branch is its own PR, so skip the stack walk and the merge forward from the branch below.
+- Each scouts branch is its own PR, so skip the tree walk and the merge forward from the parent branch.
   - Check out the branch, apply through §3-§5, validate, then push with a plain `git push`, never force.
   - Why: scouts branches are independent PRs, so merging the trunk-ward neighbor in would drag unrelated changes between them.
 
 - After that push, run `gh pr list --base <branch> --state open`: scouts branches can themselves be stacked.
-  - For each open child PR, merge the branch up into it, as the stack walk does.
+  - For each open child PR, merge the branch up into it, as the tree walk does.
   - Push the child with a plain `git push`, never force.
   - With no open child, nothing more.
 
-- Quality-gate files keep the stack walk, merge-up, and CI watch in the rest of this file.
+- Quality-gate files keep the tree walk, merge-up, and CI watch in the rest of this file.
 
-## Resolve each file's branch and the stack order
+## Resolve each file's branch and the tree
 
 Run `git fetch origin` once, first, so every branch check and remote comparison below is fresh.
 
@@ -61,29 +63,32 @@ head -1 <file> | sed -nE 's/^# [^:]+: ([^ ]+) vs [^ ]+.*$/\1/p'
 
 - Empty output, or a branch `git rev-parse --verify origin/<branch>` rejects → stop, naming the file.
 
-Build the stack from one call, never one `gh pr view` per branch:
+Build the tree from one call, never one `gh pr list`/`gh pr view` per branch:
 
 ```bash
 gh pr list --state open --json number,headRefName,baseRefName --limit 1000
 ```
 
-- A result count equal to the limit → stop, since a cut-off list can drop a middle PR and end the chain early.
-- Walk down from a marked branch through each PR's `baseRefName` until a base that heads no open PR - the trunk.
-- Walk up through each PR whose base is the current head, to the top of the stack.
+- A result count equal to the limit → stop, since a cut-off list can drop a middle PR and cut a subtree off.
 
-- The chain is the whole stack, from the branch directly above the trunk to the top - including branches below the lowest marked one.
+- The parent of a PR's branch is its `baseRefName`; a base that heads no open PR is the trunk, so a PR based on it is a root.
+
+- Walk down from each branch that has a verdict file through `baseRefName` to the trunk, then collect every descendant of it (every PR whose base is a collected head).
+
+- The tree is every branch with a verdict file, its ancestors up to the trunk (so fixes already pushed below it still merge forward), and its descendants.
+
+- Siblings (one shared parent) are ordered by PR number, so a re-run walks the same order.
 
 Stop, naming the branches, on any of these:
 
 - A marked branch with no open PR.
-- Two open PRs sharing one base inside the chain - a fork, not a stack.
-- Marked branches in two different stacks.
+- Roots based on two different trunks.
 
 ## Preflight, once, before the first checkout
 
 - Record the starting branch, to return to on a clean finish.
 
-- `git worktree list` showing a chain branch checked out in another worktree → stop, since git refuses that checkout.
+- `git worktree list` showing a tree branch checked out in another worktree → stop, since git refuses that checkout.
 
 - Ask every pre-flight question in one `AskUserQuestion`: §2's questions for every marked finding across every file.
 
@@ -100,7 +105,7 @@ Stop, naming the branches, on any of these:
 
   - The list binds main and every dispatch prompt alike: stage explicit file paths only, never a directory such as `docs/` that holds a listed file.
 
-  - A listed file that differs between chain branches (`git diff --quiet <first> <last> -- <files>` exits non-zero) → stop, since checkout refuses to carry it.
+  - A listed file that differs between tree branches (`git diff --quiet <first branch> <other branch> -- <files>` exits non-zero for any other branch) → stop, since checkout refuses to carry it.
 
 - Run the repo's documented pre-test setup once (its CLAUDE.md names it, e.g. starting and migrating a test DB).
 
@@ -109,7 +114,7 @@ Stop, naming the branches, on any of these:
 
   - No such workflow → CI is never watched; say so in the report.
 
-- Seed the TaskList per chain branch, in chain order, replacing §3's one-entry-per-lens rule:
+- Seed the TaskList per tree branch, in walk order (parent before children, siblings by PR number), replacing §3's one-entry-per-lens rule:
   - `Merge forward <branch>`, then one entry per lens with marked findings on that branch, in §3's lens order.
 
   - Then `Validate, push, watch CI <branch>`, so the entry is not done before the push it names.
@@ -126,15 +131,23 @@ Stop, naming the branches, on any of these:
 - A changed path no spec covers passes on lint alone.
 - A red caused by infrastructure (an unreachable DB, a missing build output) stops with that cause named apart from a failing test.
 
-## Per branch, bottom-up
+## Per branch, top-down
 
-1. `git checkout <branch>`, then `git merge --ff-only origin/<branch>`. A diverged branch stops the chain.
+Walk the tree parent before children, siblings by PR number. Every "stop" below stops that branch's subtree (the branch and every descendant), never the walk: skip the subtree and carry on with the siblings and the other subtrees.
+
+1. `git checkout <branch>`, then `git merge --ff-only origin/<branch>`. A diverged branch stops its subtree.
    - Then run the repo's documented build steps (its CLAUDE.md names them, e.g. a library build and a generated client).
 
-2. Merge forward: every branch except the one directly above the trunk runs `git merge --no-edit <the chain branch below>`, recording HEAD before it as the pre-merge SHA.
-   - The trunk is never merged into the stack.
+2. Merge forward: every branch except a root (one based on the trunk) runs `git merge --no-edit <its parent branch>`, recording HEAD before it as the pre-merge SHA.
+   - The parent is at its new head by now, since the walk finished it first.
 
-   - Any merge failure → `git merge --abort` when a merge is in progress, then stop. A conflict is the common case; a refusal over local changes is another.
+   - The trunk is never merged into the tree.
+
+   - Any merge failure stops the subtree: first read the conflicting files with `git diff --name-only --diff-filter=U`.
+
+   - Then `git merge --abort` when a merge is in progress.
+
+   - A conflict is the common case; a refusal over local changes is another.
 
 3. When the merge touched paths the build steps cover, re-run them.
 
@@ -150,36 +163,44 @@ Stop, naming the branches, on any of these:
 
    - `git push`, never `--force`, and never confirmed in chat: the human authorized marked-mode pushes without a confirmation.
 
-   - Skip it when HEAD equals `origin/<branch>`; a rejection stops the chain.
+   - Skip it when HEAD equals `origin/<branch>`; a rejection stops the subtree.
 
-8. Watch CI only when step 7 pushed and the PR's base is the trunk the gate workflow triggers on.
+8. Watch CI only when step 7 pushed and the PR's base is the trunk the gate workflow triggers on; a PR based on another branch is never watched.
    - Poll `gh run list --workflow <gate file> --commit <pushed sha> --json databaseId --jq '.[0].databaseId'` until it prints an id, timing out after 10 minutes.
 
    - Then run `gh run watch <id> --exit-status` with `run_in_background`, since a full gate outlives the Bash foreground cap.
 
-   - Wait for that result before step 9. A failed run or a poll timeout stops the chain.
+   - Wait for that result before step 9. A failed run or a poll timeout stops the subtree.
 
-9. Move to the next branch up.
+9. Move to the next branch in walk order.
 
-A branch with no marked finding still runs steps 1-4 and 7-8, so the fixes below reach every PR above them.
+A branch with no marked finding still runs steps 1-4 and 7-8, so a parent's fixes reach every descendant: the merge brings them in, and the push follows whenever the merge changed HEAD.
 
 ## Stop and finish
 
-On any stop, leave the repo on the stopped branch with no merge in progress, and name the branch, the step, and the cause.
+On any stop, leave no merge in progress, and record the branch, the step, the cause, and for a conflict the conflicting files.
 
-- Branches already pushed stay pushed; branches above the stop stay untouched.
-- Never return to the starting branch on a stop.
+- Branches already pushed stay pushed; the stopped branch's descendants stay untouched and are listed as skipped.
+- Siblings and other subtrees still run.
 
-On a clean finish, `git checkout <starting branch>`.
+When the walk ends with no subtree stopped, `git checkout <starting branch>`.
+
+When any subtree stopped, never return to the starting branch: leave the repo on the last branch the walk checked out.
 
 ## Report lines
 
 Every finding line names its verdict file, since `quality-gate#N` repeats across files: `quality-gate#N [<lens>] <verdict file> (<file>:<lines>) - ...`.
 
-Add one line per chain branch to §6's report:
+Add one line per tree branch to §6's report:
 
 ```
-<branch> (#<pr>) - merged <branch below> (<sha> | no-op | first) · <n> applied, <m> skipped · pushed <sha> | nothing to push · CI pass | fail | not run (<reason>)
+<branch> (#<pr>) - merged <parent branch> (<sha> | no-op | root) · <n> applied, <m> skipped · pushed <sha> | nothing to push · CI pass | fail | not run (<reason>)
+```
+
+Then one line per stopped subtree, naming the stopped branch, its step, its cause, the conflicting files for a merge conflict, and every skipped descendant:
+
+```
+STOPPED <branch> (#<pr>) at <step>: <cause> [conflicts: <files>] · skipped: <descendant branches>
 ```
 
 List every `[AI!]` tag §"Select the marked findings" ignored, with its file and finding number.

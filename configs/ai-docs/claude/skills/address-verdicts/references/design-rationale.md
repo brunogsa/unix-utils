@@ -69,7 +69,11 @@ The note stays in the body after `[Done]` replaces the tag, so the ledger shows 
 ## Why marked mode reads only `verdict_quality-gate_*` files
 
 The human chose this scope: each quality-gate file is one branch's merged review, and a standalone lens file can be an older generation of findings a merged file already carries.
-## Why the chain covers the whole stack, not just from the lowest marked branch
+## Why a stop covers a subtree
+
+Siblings share only the clean parent; descendants would lack its fixes.
+
+## Why the tree includes ancestors
 
 A stopped run leaves pushed fixes on the branches below the stop, and their findings are now `[Done]`.
 

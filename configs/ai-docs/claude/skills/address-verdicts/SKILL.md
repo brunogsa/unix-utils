@@ -17,9 +17,12 @@ disable-model-invocation: false
 
   - The colon is optional: `[AI! <message>]` carries a message the same way.
 
-  - Each quality-gate finding is applied on the branch its file reviewed, then pushed and merged up the stack (§1).
+  - Each quality-gate finding is applied on the branch its file reviewed, then pushed and merged forward into its child PRs (§1).
+
   - A scouts finding goes on its `##` section heading's branch, pushed alone with no merge-up.
+
   - Before the first apply, it launches one lateral `/improve-from-user` run over every file's `[AI!]` marks and notes, no ask, and carries on.
+
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
 
 - `all` - every finding in every located verdict file, on the current branch.
@@ -182,7 +185,7 @@ State plainly, every time:
 - Every finding not selected in §2 is untouched and carries no annotation.
 - This run never re-ran either reviewer - it only consumed their existing reports.
 
-In marked mode, also report one line per stack branch, per [`references/stack-mode.md`](references/stack-mode.md).
+In marked mode, also report one line per tree branch and stopped subtree, per [`references/stack-mode.md`](references/stack-mode.md).
 
 Invoked by a skill, hand that same list back to the caller rather than only printing it - the caller composes the closing report the human reads, and can only name what it was told.
 
