@@ -1,6 +1,6 @@
 # Launching a learn run in a lateral session
 
-`to-spec`, `to-plan` and `address-verdicts` read this file by path, each time the human's feedback should teach the rules.
+`to-spec`, `to-plan`, `address-verdicts` and `address-pr-comments` read this file by path, each time the human's feedback should teach the rules.
 
 The goal is that the human never repeats a correction: lessons reach the global `CLAUDE.md` and skills while the caller keeps working.
 
@@ -12,7 +12,7 @@ The goal is that the human never repeats a correction: lessons reach the global 
 - Carry on in the same message as the launch (the editor dispatch, the apply loop), and never read the window back.
   - Why: waiting would serialize work the user wants in parallel.
 
-- Launch once per round, where a round is one human message or one `AskUserQuestion` call's answers - never once per correction.
+- Launch once per round, where a round is one human message or one `AskUserQuestion` call's answers - never once per correction. `address-pr-comments` launches once per run.
 
 - A learn run also never runs in main or in a subagent.
   - Why: `improve-from-user` asks per-item approval and its edits need permission prompts, which only render in a main session, and a separate window keeps its reads out of the caller's context.
@@ -38,6 +38,8 @@ The goal is that the human never repeats a correction: lessons reach the global 
 - Verdict marks (address-verdicts): write no feedback file; the source is Mode D over the absolute paths of the verdict files.
   - The caller launches nothing when any of those files already carries a `[Done]` heading.
   - Why: an earlier run likely mined its marks, so a second launch would propose the same lesson as if the human had repeated it.
+- PR comments (address-pr-comments): write no feedback file; the source is Mode B over the repo-qualified PR `<owner>/<repo>#<n>`, using step 2's `OWNER_REPO`.
+  - Why: the learn session runs in `~/unix-utils`, so a bare PR number would resolve against the wrong repo.
 
 ## The launch
 
@@ -51,6 +53,7 @@ Write a prompt file in the caller's own scratchpad, then run:
   - Why: the user wants the lessons in the global `CLAUDE.md` and global skills.
 
 - The prompt file says to run `/improve-from-user feedback in <absolute feedback file>`.
+  - For PR comments it says `/improve-from-user PR <owner>/<repo>#<n>` instead.
   - For verdict marks it says `/improve-from-user verdict marks on <absolute paths>` instead.
 
 - It also says the human decides in that window which proposals to apply.

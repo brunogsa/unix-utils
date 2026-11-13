@@ -120,6 +120,8 @@ matches and stop - don't cluster.
 Return ONLY the proposal block - never the raw fetched JSON.
 ```
 
+When the subagent returns at least 1 candidate, launch the learn run for `/improve-from-user PR <OWNER_REPO>#<n>`, following `~/.claude/skills/improve-from-user/references/lateral-learn.md` for the protocol. Do it in the same message as step 4, and never wait on the window. Zero candidates launch nothing.
+
 ## Step 4: Create the TaskList (main)
 
 The subagent returns per-cluster data in `references/fetch-cluster-propose.md`'s 3g format - main never relays it raw. Right after it returns, before any chat or edit, create the TaskList so the ledger survives compaction.

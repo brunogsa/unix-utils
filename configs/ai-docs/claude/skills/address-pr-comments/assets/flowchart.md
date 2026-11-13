@@ -72,6 +72,9 @@ def address_pr_comments(pr, filters):
     if not clusters:                                       # 12
         return stop("no candidate comments")               # 12a
 
+    # 12b · same message as step 4, never waits on the window; once per run.
+    launch_learn_run(f"/improve-from-user PR {owner_repo}#{pr}")   # 12b
+
     # 13 · Step 4 - TaskList BEFORE any chat or edit, so it survives compaction.
     #      One parent [Task] per cluster, one [Sub-Step] per marker with
     #      metadata.kind = command | question. Parent metadata holds
@@ -218,6 +221,7 @@ flowchart TD
   n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background<br/><br/>Fetch, filter, cluster, rank, propose<br/>Self-AI gate: unresolved items where ME left an AI!/AI?/AI: note<br/><br/>AI! cluster: generalizes the note into a PR-wide Rule,<br/>sweeps every added line, returns Sites (before -&gt; after previews)<br/>AI? cluster: returns a Draft answer<br/>Returns only the proposal block"]:::dispatch
   n12{"12. Subagent found zero<br/>candidate comments?"}
   n12a["12a. Stop - no candidate comments"]
+  n12b["12b. Step 3: launch lateral learn run<br/>/improve-from-user PR &lt;OWNER_REPO&gt;#&lt;n&gt;<br/>same message as step 4, never wait on the window"]:::dispatch
   n13["13. Step 4: Create the TaskList (before any chat or edit)<br/>one parent [Task] per cluster<br/>one [Sub-Step] per marker, metadata.kind = command | question<br/>parent metadata: comment_ids, thread_ids, urls<br/>(an answer-only cluster still gets a [Task])"]:::state
   n14["14. Step 5: ONE chat message<br/>answer EVERY AI? from its Draft answer first,<br/>then challenge each AI! that looks wrong, over-reaching,<br/>or already handled (seeded by its Concern:)<br/>each tied to path:line"]:::gate
   n15{"15. Debate: any question<br/>or challenge still open?"}
@@ -285,7 +289,8 @@ flowchart TD
   n10 --> n11
   n11 --> n12
   n12 -->|"yes"| n12a
-  n12 -->|"no"| n13
+  n12 -->|"no"| n12b
+  n12b --> n13
   n13 --> n14
   n14 --> n15
   n15 -->|"yes"| n15a

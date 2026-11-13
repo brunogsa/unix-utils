@@ -27,7 +27,7 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 | Form | Mode |
 |---|---|
 | omitted, `this session`, `current session` (± `--since <days>`) | **A. Session sweep** - verbatim user turns from on-disk transcripts across the last `<days>` (default 7); survives compaction |
-| `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>` | **B. PR comments** - your `AI:`-prefixed comments on PR `<n>` (other users and un-prefixed comments ignored) |
+| `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>`, a full PR URL, `<owner>/<repo>#<n>` | **B. PR comments** - your comments carrying an `AI!`, `AI?` or `AI:` marker on PR `<n>` (other users and unmarked comments ignored); the URL and `<owner>/<repo>#<n>` forms name the repo, a bare number uses CWD's |
 | `AI! comments` (± `on <paths>`) | **C. AI! comments** - `AI!` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 | `verdict marks` (± `on <files>`) | **D. Verdict marks** - the `verdict_*.md` findings you tagged `[AI!]` and your `[AI!: <message>]` notes; untagged findings are ignored |
 | `feedback in <path>` | **E. Feedback file** - the corrections a caller skill (`to-spec`, `to-plan`) recorded in `<path>`; launched by [`lateral-learn.md`](references/lateral-learn.md) |
@@ -37,6 +37,7 @@ Examples:
 - `/improve-from-user this session`
 - `/improve-from-user this session --since 30`
 - `/improve-from-user PR 169`
+- `/improve-from-user PR acme/shop#169`
 - `/improve-from-user AI! comments`
 - `/improve-from-user AI! comments on files src/foo.ts, plan_<slug>.md`
 - `/improve-from-user AI! comments on src/components, docs/`
@@ -68,7 +69,7 @@ Modes B and C keep reading PR comments and `AI!` markers globally, from any repo
 
 ## Execution
 
-If step 1 yields zero items (no quote-worthy session moments, no `AI:`-prefixed PR comments from your login, no AI! matches, or no verdict file carrying an `[AI!]` tag), report that and stop - never run analysis on nothing.
+If step 1 yields zero items (no quote-worthy session moments, no marked (`AI!`, `AI?`, `AI:`) PR comments from your login, no AI! matches, or no verdict file carrying an `[AI!]` tag), report that and stop - never run analysis on nothing.
 
 ## Step 1: Extract User Feedback Items (main context)
 
