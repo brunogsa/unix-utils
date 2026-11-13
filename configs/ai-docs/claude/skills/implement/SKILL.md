@@ -180,6 +180,7 @@ Never one shared chain: one `completed` flag per task would hide step-level skip
 
 ```
 §8.1 (push, record, open draft PR) - always seed
+§8.1 (plan-ID leak check, between the push and the PR dispatch) - always seed
 §8.2 (quality-gate tail) - seed only when quality_gate.wanted
 §8.3 (repo-green gate) - seed only when repo_green_gate.wanted
 §8.4 (re-push, refresh PR description, package) - always seed
@@ -187,7 +188,7 @@ Never one shared chain: one `completed` flag per task would hide step-level skip
 
 Number the entries seeded as `Batch-end <i>/<N>` in the fixed order above.
 
-`N` is however many of the four apply (2, 3, or 4); `i` is that step's position among the seeded ones.
+`N` is however many of the five apply (3, 4, or 5); `i` is that step's position among the seeded ones.
 
 Prefix each with the owning `PR-N ·` on a PR-label run.
 
@@ -447,6 +448,11 @@ Never auto-invoke `/refactor`, `/auto-review`, `/test-sdd`, or `/quality-gate` *
 **Entry: `phase` is `gates`**, set only by §5.4's `gates` verdict.
 
 Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the batch for your async review.
+
+- [Instruction] Get `~/.claude/skills/implement/scripts/check-plan-id-leaks.py --base <BATCH_BASE_SHA>` to exit 0 right after §8.1's push and before its PR dispatch, committing and re-pushing a fix for each line it prints.
+  - [Why] A plan `AC-<n>`/`T<n>` ID in code points at a plan never committed, so the PR ships shorthand no reviewer can decode.
+
+  - [Example] Bad: `// AC-9 T4`. Good: the rule in plain language, or a committed doc cited as `// AC-4 - docs/designs/<doc>.md#ac-4`.
 
 **Stage order: §8.1 → §8.2 → §8.3 → §8.4**, strictly serial, each waiting for the previous to land:
 

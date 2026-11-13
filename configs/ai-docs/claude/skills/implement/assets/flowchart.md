@@ -237,6 +237,11 @@ def run_unit(unit):
                                                               #      non-fast-forward,
                                                               #      missing credentials)
 
+    # 33a · §8.1 - check-plan-id-leaks.py --base BATCH_BASE_SHA until exit 0;
+    #       a fix per printed line is committed and re-pushed.
+    while run("check-plan-id-leaks.py", "--base", BATCH_BASE_SHA) != 0:
+        commit_fix(); git_push("origin", *branches)
+
     # The three batch-end-pr* files load under three separate conditions - each
     # `if` below reads only its own, so no run pays for a branch it skips.
     if unit.is_pr:                                          # 34
@@ -601,7 +606,8 @@ flowchart TD
     n31["31. Load references/batch-end-review.md"]:::skill
     n32["32. Step 8.1 · git push -u origin &lt;branch(es)&gt; -<br/>ALWAYS, on every batch end, whatever pr.wanted says, and<br/>BEFORE either gate: two audited batches sat with the<br/>repo-green gate in_progress and no verdict, stranding 9<br/>and 16 local commits for ~40 hours because push waited<br/>behind it. A stacked unit pushes EVERY layer branch, in<br/>layer order, in one command; else just the unit's single<br/>branch. A pushed branch with no PR is the ordinary<br/>outcome, not a half-finished state. Record the SHA it<br/>pushed - step 44 reads it back"]:::gate
     n33{"33. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
-    n34{"34. PR-label run?"}
+    n33a["33a. Step 8.1 · check-plan-id-leaks.py --base &lt;BATCH_BASE_SHA&gt;<br/>until exit 0; commit and re-push a fix per printed line"]:::gate
+  n34{"34. PR-label run?"}
     n34a["34a. Load references/batch-end-pr-branch-record.md"]:::skill
     n35["35. Step 8.1 · Record the Branch:<br/>clause (the unit's LAST layer's branch when stacked,<br/>else the unit's own branch) + the PR-level [Done]<br/>marker on this PR's own plan line (PR-label runs only)"]:::state
     n36{"36. Unit stacked (state.stack.wanted)?"}
@@ -706,7 +712,7 @@ flowchart TD
   n30 -->|"halted / halt-budget"| n47
   n31 --> n32 --> n33
   n33 -->|"no"| n47
-  n33 -->|"yes"| n34
+  n33 -->|"yes"| n33a --> n34
   n34 -->|"yes"| n34a --> n35 --> n36
   n34 -->|"no / task-ids run"| n36
   n36 -->|"yes"| n36a --> n37

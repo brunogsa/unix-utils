@@ -26,6 +26,9 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** - no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further.
 
+1a. **Run `~/.claude/skills/implement/scripts/check-plan-id-leaks.py --base <BATCH_BASE_SHA>` until it exits 0** - right after the push and before the PR dispatch, committing and re-pushing a fix for each line it prints.
+   - The rule is owned by [`../SKILL.md`](../SKILL.md) §8.
+
 2. **Record the branch, then open the draft PR** - mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and [`batch-end-pr.md`](batch-end-pr.md).
    - The `Branch:` clause and PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
    - Step 1 already pushed, so that dispatch must never push or force-push, only create the PR.
