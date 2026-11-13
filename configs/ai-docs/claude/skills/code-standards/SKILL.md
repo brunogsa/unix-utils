@@ -245,6 +245,9 @@ work anywhere. Keep the chain synchronous.
 - [Instruction] Make batch operations idempotent and resumable, so a crash mid-flight can safely re-run from where it stopped.
   - [Why] Long batches eventually crash; without idempotent resumability you re-run the whole thing and risk duplicates.
 
+- [Instruction] Retry a transient failure - a timeout, a rate limit, a dropped connection - at least once before escalating it.
+  - [Why] A transient failure often clears on its own (a busy machine slows a tool past its timeout), so escalating the first one reports a gap that does not exist.
+
 - [Instruction] On fatal failure, emit a best-effort report of what completed before aborting.
   - [Why] A partial-progress report turns a crashed batch into a known state instead of a guess about what landed.
 
