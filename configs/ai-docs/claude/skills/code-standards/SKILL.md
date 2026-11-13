@@ -22,11 +22,9 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor - reduce it by extracting inner units or early returns.
   - [Why] Each nesting level multiplies the mental state the reader holds - bugs hide where "I don't understand" lives.
 
-- [Instruction] Break multi-clause one-liners across 2-3 short lines.
-  - [Why] Spreading the logic moves work from the reader's mental stack into discrete, scannable steps.
-
-- [Instruction] Break unfamiliar APIs, nested callbacks into named intermediate variables.
-  - [Why] A dense expression forces mental unpacking before judging it; named intermediates do that unpacking once, in the code.
+- [Instruction] **CRITICAL: Split a statement that chains 3+ array operations (filter/map/flatMap/reduce/groupBy), nests callbacks, or wraps an unfamiliar API into intermediate variables, each named for what it holds, not for the operation.**
+  - [Why] A chained one-liner hides what each step holds; the reviewer asked 3 times on arco2-integrator PR 2719.
+  - [Example] Bad/good pair: `references/more-examples.md`, "Chained array operations and nested callbacks".
 
 ### Comments
 

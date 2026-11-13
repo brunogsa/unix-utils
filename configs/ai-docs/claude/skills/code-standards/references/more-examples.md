@@ -42,6 +42,19 @@ for (let i = 1; i <= count; i++) {
 }
 ```
 
+### Chained array operations and nested callbacks
+
+- [Example]
+```typescript
+// Bad - 3 chained operations
+const placed = skus.filter(s => !s.isChild).map(s => ({ ...s, segment: toSegment(s) })).filter(s => s.grade);
+
+// Good - one named variable per step
+const nonChildSkus = skus.filter(s => !s.isChild);
+const nonChildSkusWithSegment = nonChildSkus.map(s => ({ ...s, segment: toSegment(s) }));
+const nonChildSkusWithSegmentAndGrade = nonChildSkusWithSegment.filter(s => s.grade);
+```
+
 ## Extraction: helpers, components, wrappers
 
 - [Example]
