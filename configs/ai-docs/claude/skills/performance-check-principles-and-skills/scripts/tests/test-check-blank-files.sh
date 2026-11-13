@@ -77,7 +77,35 @@ it_should_report_zero_claude_md_lines_and_the_unmigrated_failure_when_claude_md_
         "$(report_has "$out" "| CLAUDE.md [Instruction] count | 0 |")"
 }
 
+it_should_count_a_blank_skill_md_as_zero_lines_and_still_print_the_report() {
+    echo "it_should_count_a_blank_skill_md_as_zero_lines_and_still_print_the_report"
+    local d out rc
+    d=$(new_fixture)
+    printf '%s' "$BLANK_CONTENT" > "$d/skills/real-skill/SKILL.md"
+
+    out=$(HOME="$FAKE_HOME" bash "$CHECK" "$d" 2>&1)
+    rc=$?
+    assert_eq "report shows the blank skill passing its line/word checks" "yes" \
+        "$(report_has "$out" "| Skills failing line/word checks (excl. synced/) | 0 of 1 |")"
+    assert_eq "check.sh exits 0 when the only blank file is a SKILL.md" "0" "$rc"
+}
+
+it_should_count_a_blank_bundled_reference_as_zero_lines_and_still_print_the_report() {
+    echo "it_should_count_a_blank_bundled_reference_as_zero_lines_and_still_print_the_report"
+    local d out rc
+    d=$(new_fixture)
+    printf '%s' "$BLANK_CONTENT" > "$d/skills/real-skill/references/blank.md"
+
+    out=$(HOME="$FAKE_HOME" bash "$CHECK" "$d" 2>&1)
+    rc=$?
+    assert_eq "report shows the blank reference passing its size and heading checks" "yes" \
+        "$(report_has "$out" "| Bundled files failing size or heading checks (references/ + assets/, excl. synced/) | 0 of 1 |")"
+    assert_eq "check.sh exits 0 when the only blank file is a bundled reference" "0" "$rc"
+}
+
 it_should_report_zero_claude_md_lines_and_the_unmigrated_failure_when_claude_md_is_blank
+it_should_count_a_blank_skill_md_as_zero_lines_and_still_print_the_report
+it_should_count_a_blank_bundled_reference_as_zero_lines_and_still_print_the_report
 
 echo
 echo "$passed passed, $failed failed"

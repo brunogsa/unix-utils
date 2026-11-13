@@ -394,7 +394,8 @@ why_over_rows=""
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
     # grep -c exits 1 on 0 matches, which set -e turns into a
-    # silent abort on a blank file.
+    # silent abort on a blank file. The per-skill and
+    # bundled-file counts below need the same || true.
     claude_lines=$(grep -c '\S' "$CLAUDE_MD" || true)
     claude_chars=$(count_chars < "$CLAUDE_MD")
     claude_max_words=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print max+0 }' "$CLAUDE_MD")
@@ -474,7 +475,7 @@ skill_instr_over=0
 for f in "$SKILLS_DIR"/*/SKILL.md; do
     [ -f "$f" ] || continue
     name=$(basename "$(dirname "$f")")
-    lines=$(grep -c '\S' "$f")
+    lines=$(grep -c '\S' "$f" || true)
     words=$(wc -w < "$f" | tr -d ' ')
     desc=$(extract_description "$f")
     desc_chars=$(printf '%s' "$desc" | count_chars)
@@ -609,7 +610,7 @@ while IFS= read -r bf; do
     [ -f "$bf" ] || continue
     bundled_count=$((bundled_count + 1))
     rel=${bf#"$SKILLS_DIR"/}
-    b_lines=$(grep -c '\S' "$bf")
+    b_lines=$(grep -c '\S' "$bf" || true)
     b_words=$(wc -w < "$bf" | tr -d ' ')
 
     b_words_override=$(extract_frontmatter_budget "words-budget" "$bf")
