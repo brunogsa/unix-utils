@@ -60,18 +60,17 @@
 #   The counter is managed by SessionStart hooks: a bump on
 #   `compact`, --reset-counter on every other source.
 #
-#   --reset-counter reads the SessionStart `source` from stdin
-#   ({"source": ...}).
+#   --reset-counter takes the same path for every SessionStart
+#   source, /clear included, and reads nothing from stdin.
 #
-#   For every source it drops the root and the first-title flag,
-#   so the next session titles itself afresh.
+#   It drops the root and the first-title flag, so the next
+#   session titles itself afresh.
 #
-#   On `clear` it writes no window name -- the SessionEnd
-#   restore hook owns the name on /clear -- and sets the last
-#   title to the live name minus its counter.
+#   A live counter is shed with the root, keeping the compact
+#   focus.
 #
-#   On every other source a live counter is shed with the
-#   root, keeping the compact focus.
+#   Nothing restores the pre-Claude window name on /clear or on
+#   exit: the title stays until the user renames the window.
 #
 #   A first "/" segment starting with "." is the user's own
 #   root and is kept instead: a tmux-resurrect window has no
@@ -242,14 +241,15 @@
 #   whatever window
 #     is currently focused.
 #
-# - On the first rename for a pane (any mode), captures the
-#   pre-Claude window name and automatic-rename flag into pane
-#   options ($TMUX_PANE-scoped @claude_prev_window_name /
-#   @claude_prev_auto_rename).
+# - On the first title or bump for a pane, captures the
+#   pre-Claude window name into the pane option
+#   @claude_prev_window_name.
 #
-#   Before overwriting either -- first-set-wins, so later calls
-#   in the same session don't clobber the captured original.
-#   A separate SessionEnd hook restores it.
+#   First-set-wins, so later calls in the same session don't
+#   clobber the captured original.
+#
+#   It only tells a pane Claude never titled from one it did,
+#   when a root is frozen. --reset-counter unsets it.
 #
 #   The whole title is capped, counter included: 16 chars
 #   before any compaction, 32 once a counter exists (16 root +
@@ -276,7 +276,7 @@
 #
 #   tmux-window-title.sh --reset-counter
 #     drops the counter and the root, keeping the rendered
-#     label: "hook-tests" (on source `clear` no name is written)
+#     label: "hook-tests"
 #
 #   tmux-window-title.sh --reset-counter
 #     on ".cityCode/is-cleanup[7+2]" keeps the user's dotted
@@ -479,13 +479,13 @@ current_title() {
   tmux display-message -t "$TMUX_PANE" -p '#{window_name}'
 }
 
-# First-set-wins capture of the window's pre-Claude name and
-# automatic-rename flag, into pane options (not window options)
-# so the "original" ties to this specific Claude pane/session --
-# relevant if the window ever holds more than one pane.
+# First-set-wins capture of the window's pre-Claude name, into
+# a pane option (not a window option) so the "original" ties to
+# this specific Claude pane/session -- relevant if the window
+# ever holds more than one pane.
 #
-# A SessionEnd hook (separate script) reads these back to
-# restore the window once Claude's session ends.
+# freeze_root_title reads it back, to tell a pane Claude never
+# titled from one it did.
 #
 # `show-options -v` on an option that was never set exits
 # non-zero with nothing on stdout, and exits 0 with the
@@ -496,20 +496,7 @@ capture_prev_state() {
     return 0  # already captured earlier in this session
   fi
 
-  local prev_name prev_auto
-  prev_name=$(current_title)
-
-  # automatic-rename is a window option; an unset local value
-  # means the window inherits the global default, so fall back
-  # to that -- the restore hook needs a literal "on"/"off"
-  # captured here, never an empty string.
-  prev_auto=$(tmux show-options -w -t "$TMUX_PANE" -v automatic-rename)
-  if [ -z "$prev_auto" ]; then
-    prev_auto=$(tmux show-options -g -v automatic-rename)
-  fi
-
-  tmux set-option -p -t "$TMUX_PANE" -- "@claude_prev_window_name" "$prev_name"
-  tmux set-option -p -t "$TMUX_PANE" "@claude_prev_auto_rename" "$prev_auto"
+  tmux set-option -p -t "$TMUX_PANE" -- "@claude_prev_window_name" "$(current_title)"
 }
 
 # Echo this pane's frozen root title, or nothing when none was
@@ -690,9 +677,8 @@ apply_title() {
 # whether the root freezes (main-only -- see freeze_root_title's
 # header).
 #
-# capture_prev_state only writes the @claude_prev_window_name /
-# @claude_prev_auto_rename pane options (first-set-wins, see its
-# own header).
+# capture_prev_state only writes the @claude_prev_window_name
+# pane option (first-set-wins, see its own header).
 #
 # It never calls apply_title and never touches the counter body,
 # so reading main_count/subagent_count before or after it is
@@ -874,31 +860,21 @@ case "$MODE" in
     # first title, so every source releases it.
     tmux set-option -p -u -t "$TMUX_PANE" "@claude_first_title_used" 2>/dev/null || true
 
-    # SessionStart passes {"source": ...} on stdin.
-    # An empty or unreadable source takes the non-clear path.
-    # `|| true` keeps a jq failure from aborting the reset
-    # under `set -e`.
-    source=$(jq -r '.source // empty' 2>/dev/null || true)
+    # Forget the pre-Claude name a bump or title captured: this
+    # session is over, and the next one captures its own.
+    #
+    # The automatic-rename flag an older script captured is
+    # unset too, since nothing reads it any more.
+    tmux set-option -p -u -t "$TMUX_PANE" "@claude_prev_window_name" 2>/dev/null || true
+    tmux set-option -p -u -t "$TMUX_PANE" "@claude_prev_auto_rename" 2>/dev/null || true
 
     current=$(current_title)
-
-    # On /clear the SessionEnd restore hook alone owns the name.
-    # Hook order is undocumented and hooks run in parallel, so
-    # write no name here.
-    #
-    # Record the live name minus its counter as the last title
-    # the script wrote, so a never-titled "zsh[0+1]" does not
-    # keep "[0+1]" once the restore hook has run.
-    if [ "$source" = clear ]; then
-      tmux set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$(strip_counter "$current")"
-      exit 0
-    fi
 
     # With no counter present, leave the window name alone --
     # it's the user's shell title, not one of ours.
     #
-    # The last title still gets set: the rollout shim reads an
-    # unset one as a pre-rollout window.
+    # The last title still gets set, so a later hand rename
+    # reads as one.
     if [ -z "$(parse_counter "$current")" ]; then
       tmux set-option -p -t "$TMUX_PANE" -- "@claude_last_title" "$current"
       exit 0
@@ -923,7 +899,6 @@ case "$MODE" in
       base=$first_segment
     fi
 
-    capture_prev_state
     apply_title "$(render_title "$base" "")"
     ;;
 
@@ -977,25 +952,6 @@ case "$MODE" in
     # title.
     if [ -z "$(root_title)" ] && [ "$(has_no_main_compaction "$existing")" = no ]; then
       tmux set-option -p -t "$TMUX_PANE" -- "@claude_root_title" "$clean"
-    fi
-
-    # Rollout shim -- remove after 2026-11-12, once no
-    # pre-rollout session is open.
-    #
-    # A window titled by the pre-rollout script already spent
-    # its first title but never recorded the flag, so seed it
-    # as spent.
-    #
-    # Only a window with no @claude_last_title, a captured prev
-    # name, and a live name that differs from it qualifies.
-    #
-    # The reset sets @claude_last_title on every source, so a
-    # cleared flag after /resume or /fork is not misread.
-    if [ "$(first_title_spent)" = no ] && [ -z "$last" ]; then
-      prev_seed=$(tmux show-options -p -t "$TMUX_PANE" -v "@claude_prev_window_name" 2>/dev/null || true)
-      if [ -n "$prev_seed" ] && [ "$current" != "$prev_seed" ]; then
-        tmux set-option -p -t "$TMUX_PANE" -- "@claude_first_title_used" 1
-      fi
     fi
 
     # Before the first main compaction a session gets ONE title.

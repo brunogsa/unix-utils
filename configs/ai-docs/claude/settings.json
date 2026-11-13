@@ -362,7 +362,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/hooks/claude-tmux-title-restore.sh"
+            "command": "bash ~/.claude/scripts/tmux-window-title.sh --release-owner"
           }
         ]
       }

@@ -78,7 +78,6 @@ Every `convert` verdict below targets `py` - no script in either repo carries a 
 | `configs/ai-docs/claude/hooks/claude-tmux-notification.sh` | convert | py | jq; 174 lines (>128) | - |
 | `configs/ai-docs/claude/hooks/claude-tmux-title-compact-reminder.sh` | convert | py | jq+here-doc | - |
 | `configs/ai-docs/claude/hooks/claude-tmux-title-reminder.sh` | convert | py | jq+here-doc | - |
-| `configs/ai-docs/claude/hooks/claude-tmux-title-restore.sh` | convert | py | jq | - |
 | `configs/ai-docs/claude/hooks/check-reviewer-writes.sh` | stays-sh | py | per-call hook exemption (fires every tool call) | - |
 | `configs/ai-docs/claude/hooks/tests/test-claude-agent-contract-stop-hook.sh` | convert | py | jq; 167 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/hooks/tests/test-claude-comment-format-stop-hook.sh` | convert | py | jq; 255 lines (>128) | Delete alongside subject's conversion |
