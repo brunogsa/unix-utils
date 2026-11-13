@@ -22,6 +22,9 @@ METRIC_NAMES = (
     "dependency_direction",
 )
 
+PER_UNIT_MODE = "per-unit"
+BATCH_END_MODE = "batch-end"
+
 
 class DeclarationError(ValueError):
     """The declaration, or the library that reads it, is unusable."""
@@ -52,6 +55,15 @@ def load_declaration(path):
         ignored_extensions=ignored_extensions,
         per_unit=per_unit,
     )
+
+
+def metrics_to_run(declaration, language, mode):
+    declared = declaration.languages[language].metrics
+    if mode == BATCH_END_MODE:
+        return declared
+    if mode == PER_UNIT_MODE:
+        return tuple(metric for metric in declared if metric in declaration.per_unit)
+    raise DeclarationError(f"unknown mode '{mode}'; expected {PER_UNIT_MODE} or {BATCH_END_MODE}")
 
 
 def _read_yaml(path):

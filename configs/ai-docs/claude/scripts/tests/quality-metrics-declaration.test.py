@@ -55,11 +55,36 @@ class TestHappyPath:
         assert with_rust.languages["go"] == without_rust.languages["go"]
         assert with_rust.languages["html"] == without_rust.languages["html"]
 
+    def test_should_run_per_unit_only_the_metrics_the_per_unit_list_names_and_every_metric_at_batch_end(
+        self, tmp_path
+    ):
+        body = DECLARATION_WITH_GO_AND_WEB.replace("per_unit: []", "per_unit: [size]")
+        loaded = load_text(tmp_path, body)
+
+        per_unit = declaration.metrics_to_run(loaded, language="go", mode="per-unit")
+        batch_end = declaration.metrics_to_run(loaded, language="go", mode="batch-end")
+
+        assert set(per_unit) == {"size"}
+        assert set(batch_end) == {"crap", "size", "code_duplication"}
+
     def test_should_load_the_shipped_declaration_with_all_seven_languages(self):
         loaded = declaration.load_declaration(SHIPPED_DECLARATION)
 
         assert set(loaded.languages) == {"js", "ts", "html", "css", "python", "bash", "go"}
         assert loaded.per_unit == ()
+
+
+class TestCornerCases:
+    def test_should_run_a_check_at_batch_end_when_the_per_unit_list_does_not_name_it(
+        self, tmp_path
+    ):
+        loaded = load_text(tmp_path, DECLARATION_WITH_GO_AND_WEB)
+
+        per_unit = declaration.metrics_to_run(loaded, language="go", mode="per-unit")
+        batch_end = declaration.metrics_to_run(loaded, language="go", mode="batch-end")
+
+        assert "crap" not in per_unit
+        assert "crap" in batch_end
 
 
 class TestFailureScenarios:
