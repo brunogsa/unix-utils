@@ -25,9 +25,16 @@ METRIC_NAMES = (
 PER_UNIT_MODE = "per-unit"
 BATCH_END_MODE = "batch-end"
 
+APPLIES = "applies"
+NOT_APPLICABLE = "not applicable"
+
 
 class DeclarationError(ValueError):
     """The declaration, or the library that reads it, is unusable."""
+
+
+class NoLanguageEntryError(DeclarationError):
+    """A code file has an extension no language entry claims."""
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,33 @@ def load_declaration(path):
         ignored_extensions=ignored_extensions,
         per_unit=per_unit,
     )
+
+
+def language_for_file(declaration, file_path):
+    """Return the language name, or None for an ignored or excluded file.
+
+    Raises NoLanguageEntryError for a code file no language entry claims,
+    so the caller can run its fix-now-or-defer ask.
+    """
+    normalized_path = str(file_path)
+    if any(normalized_path.startswith(prefix) for prefix in declaration.excluded_paths):
+        return None
+    extension = Path(normalized_path).suffix
+    if extension in declaration.ignored_extensions:
+        return None
+    for name, language in declaration.languages.items():
+        if extension in language.extensions:
+            return name
+    raise NoLanguageEntryError(f"no language entry claims '{normalized_path}'")
+
+
+def metric_status(declaration, language, metric):
+    """Return APPLIES, or NOT_APPLICABLE for a metric the language opts out of."""
+    if metric not in METRIC_NAMES:
+        raise DeclarationError(f"unknown metric '{metric}'")
+    if metric in declaration.languages[language].metrics:
+        return APPLIES
+    return NOT_APPLICABLE
 
 
 def metrics_to_run(declaration, language, mode):

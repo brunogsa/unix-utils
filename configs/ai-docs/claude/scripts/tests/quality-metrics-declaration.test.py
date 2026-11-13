@@ -86,6 +86,39 @@ class TestCornerCases:
         assert "crap" not in per_unit
         assert "crap" in batch_end
 
+    @pytest.mark.parametrize("source_file", ["index.html", "styles.css"])
+    def test_should_mark_complexity_and_crap_not_applicable_for_html_and_css_files(
+        self, tmp_path, source_file
+    ):
+        loaded = load_text(tmp_path, DECLARATION_WITH_GO_AND_WEB)
+        language = declaration.language_for_file(loaded, source_file)
+
+        assert declaration.metric_status(loaded, language, "complexity") == "not applicable"
+        assert declaration.metric_status(loaded, language, "crap") == "not applicable"
+        assert declaration.metric_status(loaded, language, "size") == "applies"
+        assert declaration.metric_status(loaded, language, "code_duplication") == "applies"
+
+    @pytest.mark.parametrize(
+        "prose_file",
+        ["README.md", "notes.txt", "package.json", "settings.yaml", "pyproject.toml"],
+    )
+    def test_should_ignore_markdown_plain_text_json_yaml_and_toml_files_without_asking_for_a_language_entry(
+        self, tmp_path, prose_file
+    ):
+        loaded = load_text(tmp_path, DECLARATION_WITH_GO_AND_WEB)
+
+        assert declaration.language_for_file(loaded, prose_file) is None
+
+    def test_should_read_an_opted_out_metric_as_not_applicable_never_as_passed(self, tmp_path):
+        with_size = load_text(tmp_path, DECLARATION_WITH_GO_AND_WEB + RUST_ENTRY)
+        size_opted_out = RUST_ENTRY.replace("[crap, size]", "[crap]")
+        without_size = load_text(tmp_path, DECLARATION_WITH_GO_AND_WEB + size_opted_out)
+
+        assert declaration.metric_status(with_size, "rust", "size") == "applies"
+        status = declaration.metric_status(without_size, "rust", "size")
+        assert status == "not applicable"
+        assert status != "passed"
+
 
 class TestFailureScenarios:
     def test_should_fail_before_measuring_and_name_the_entry_when_a_metric_name_is_unknown(
