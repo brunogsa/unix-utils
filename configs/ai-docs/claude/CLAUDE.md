@@ -170,6 +170,14 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
   - [Why] The gap should teach the next reader once; the "blocks the task" trigger keeps the fix in scope, not a derail.
 
+- [Instruction] When a tool in my global setup is missing or crashes mid-task, ask me "fix now or defer" before patching it.
+  - [Why] Fixing my global tools needs only you and me, so it is cheap, but making a delivery wait on it is my call.
+
+- [Instruction] Never block a delivery on a work repo's missing or broken tooling - report the gap to me instead.
+  - [Why] Repo tooling is the team's work and can take days, while I only need to know the gap exists to fix it for the team.
+
+  - [Example] The repo has no coverage tool: measure with my global one, and list "repo lacks a coverage tool" in the report.
+
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
