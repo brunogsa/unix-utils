@@ -162,7 +162,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
   - [Why] The gap should teach the next reader once; the "blocks the task" trigger keeps the fix in scope, not a derail.
 
-- [Instruction] When a tool in my global setup is missing or crashes mid-task, ask me "fix now or defer" before patching it.
+- [Instruction] When a tool in my global setup is missing or crashes mid-task, ask me "fix now or defer" before patching it, even when it blocks the task.
   - [Why] Fixing my global tools needs only you and me, so it is cheap, but making a delivery wait on it is my call.
 
 - [Instruction] Never block a delivery on a work repo's missing or broken tooling - report the gap to me instead.
