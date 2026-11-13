@@ -32,12 +32,10 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 
 Examples:
 - `/improve-from-user`
-- `/improve-from-user this session`
 - `/improve-from-user this session --since 30`
 - `/improve-from-user PR 169`
 - `/improve-from-user PR acme/shop#169`
 - `/improve-from-user AI! comments`
-- `/improve-from-user AI markers`
 - `/improve-from-user AI! comments on files src/foo.ts, plan_<slug>.md`
 - `/improve-from-user AI! comments on src/components, docs/`
 - `/improve-from-user verdict marks`
@@ -80,6 +78,8 @@ Detect the mode from the arg (see the Usage table), then load and run the matchi
 - **Mode C** (mentions `AI!`, `AI?`, `AI markers` or `AI comments`) → [`references/mode-c-ai-comments.md`](references/mode-c-ai-comments.md)
 
 - **Mode E** (`feedback in <path>`) → [`references/mode-e-feedback-file.md`](references/mode-e-feedback-file.md)
+
+Then drop items an earlier run already decided, per [`references/learn-ledger.md`](references/learn-ledger.md).
 
 **All modes emit items in the same unified format below** so steps 2-7 treat them uniformly, whether step 1 ran inline or fanned out to subagents.
 
@@ -132,7 +132,6 @@ When the launch prompt or feedback file carries `Repo:`, `Snapshot:` or `Referen
    - New topic not covered by existing skills → propose a new skill
 
    If the resolved target repo has no `CLAUDE.md` yet, propose creating one at its root - under the same per-item approval gate as any other edit.
-   - A repo with no `CLAUDE.md` is the repo that most needs one.
 
    In every mode and from every repo, consider both target sets (see Scope) for each candidate, and place it by the global CLAUDE.md's Foundations rule:
    - Cross-cutting and always-needed → the global CLAUDE.md.
@@ -166,6 +165,7 @@ current wording isn't landing.** Diagnose why it didn't land, then propose the m
    - Repo-specific findings dropped from a unix-utils sweep (not written), each labeled with its originating repo
 
 7. **Apply changes only with approval** - Wait for user confirmation before modifying any file.
+   - Record each item's verdict the moment it is final, per [`references/learn-ledger.md`](references/learn-ledger.md).
 
 ## Step 8: Post-edit audit reminder (main context)
 
@@ -220,8 +220,6 @@ Number these alongside the additions above so they share the same approve-by-num
 
 - [Finding] - repo: [originating repo name]
 ```
-
-Post-edit audits are not embedded - see Step 8 (main-context reminder).
 
 ## Guidelines for Generalization
 
