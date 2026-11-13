@@ -1,16 +1,16 @@
 ---
 name: improve-from-user
-description: "Mine current session, a PR's comments, AI! comments you left in files, your [AI!] picks and notes in verdict files, or a feedback file a spec/plan skill wrote, for CLAUDE.md / skill updates."
+description: "Mine current session, a PR's comments, AI!/AI?/AI: comments you left in files, your [AI!] picks and notes in verdict files, or a feedback file a spec/plan skill wrote, for CLAUDE.md / skill updates."
 disable-model-invocation: false
 ---
 
 # Improve from User
 
-Review user feedback - from the current session, a pull request's comments, AI! comments left in files, the findings picked in verdict files, or a feedback file a spec/plan skill wrote - and identify learnings to add to CLAUDE.md or skills.
+Review user feedback - from the current session, a pull request's comments, AI!/AI?/AI: comments left in files, the findings picked in verdict files, or a feedback file a spec/plan skill wrote - and identify learnings to add to CLAUDE.md or skills.
 
 Steps 2-7 run inline; only step 1's read stage can fan out to background subagents (Mode A only, per its reference).
 
-This skill is **read-only on input artifacts**: it does NOT strip AI! comments, resolve PR comments, or address the questions they raise.
+This skill is **read-only on input artifacts**: it does NOT strip AI markers, resolve PR comments, or address the questions they raise.
 
 Those downstream actions are the `address-ai-comments` skill's job.
 
@@ -28,7 +28,7 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 |---|---|
 | omitted, `this session`, `current session` (± `--since <days>`) | **A. Session sweep** - verbatim user turns from on-disk transcripts across the last `<days>` (default 7); survives compaction |
 | `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>`, a full PR URL, `<owner>/<repo>#<n>` | **B. PR comments** - your comments carrying an `AI!`, `AI?` or `AI:` marker on PR `<n>` (other users and unmarked comments ignored); the URL and `<owner>/<repo>#<n>` forms name the repo, a bare number uses CWD's |
-| `AI! comments` (± `on <paths>`) | **C. AI! comments** - `AI!` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
+| `AI! comments`, `AI? comments`, `AI markers`, `AI comments` (± `on <paths>`) | **C. AI markers in files** - `AI!`, `AI?` and `AI:` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 | `verdict marks` (± `on <files>`) | **D. Verdict marks** - the `verdict_*.md` findings you tagged `[AI!]` and your `[AI!: <message>]` notes; untagged findings are ignored |
 | `feedback in <path>` | **E. Feedback file** - the corrections a caller skill (`to-spec`, `to-plan`) recorded in `<path>`; launched by [`lateral-learn.md`](references/lateral-learn.md) |
 
@@ -39,6 +39,7 @@ Examples:
 - `/improve-from-user PR 169`
 - `/improve-from-user PR acme/shop#169`
 - `/improve-from-user AI! comments`
+- `/improve-from-user AI markers`
 - `/improve-from-user AI! comments on files src/foo.ts, plan_<slug>.md`
 - `/improve-from-user AI! comments on src/components, docs/`
 - `/improve-from-user verdict marks`
@@ -65,11 +66,11 @@ Running from any repo other than unix-utils adds a second set, that repo's own `
 
 This write-target rule covers all five modes, but repo-scoping the **read** side only applies to Mode A - which `~/.claude/projects/*` transcripts the session sweep mines.
 
-Modes B and C keep reading PR comments and `AI!` markers globally, from any repo. Mode D reads the verdict files in CWD, or the paths it is given. Mode E reads only the feedback file it is given.
+Modes B and C keep reading PR comments and AI markers (`AI!`, `AI?`, `AI:`) globally, from any repo. Mode D reads the verdict files in CWD, or the paths it is given. Mode E reads only the feedback file it is given.
 
 ## Execution
 
-If step 1 yields zero items (no quote-worthy session moments, no marked (`AI!`, `AI?`, `AI:`) PR comments from your login, no AI! matches, or no verdict file carrying an `[AI!]` tag), report that and stop - never run analysis on nothing.
+If step 1 yields zero items (no quote-worthy session moments, no marked (`AI!`, `AI?`, `AI:`) PR comments from your login, no AI-marker matches, or no verdict file carrying an `[AI!]` tag), report that and stop - never run analysis on nothing.
 
 ## Step 1: Extract User Feedback Items (main context)
 
@@ -80,7 +81,7 @@ Detect the mode from the arg (see the Usage table), then load and run the matchi
 - **Mode D** (mentions `verdict`) → [`references/mode-d-verdict-marks.md`](references/mode-d-verdict-marks.md)
   - Check it before Mode C, since a verdict mark is also spelled `[AI!]` and would otherwise route to Mode C.
 
-- **Mode C** (mentions `AI!`) → [`references/mode-c-ai-comments.md`](references/mode-c-ai-comments.md)
+- **Mode C** (mentions `AI!`, `AI?`, `AI markers` or `AI comments`) → [`references/mode-c-ai-comments.md`](references/mode-c-ai-comments.md)
 
 - **Mode E** (`feedback in <path>`) → [`references/mode-e-feedback-file.md`](references/mode-e-feedback-file.md)
 
@@ -189,7 +190,7 @@ Why a reminder instead of an automatic run:
 ## User Feedback Learnings Identified
 
 1. [Learning description]
-   - Context: [Session moment | PR comment | AI! comment line]
+   - Context: [Session moment | PR comment | AI marker line]
    - Generalized principle: [Language-agnostic version]
    - Target: [global | repo] [CLAUDE.md > SECTION or skills/skill-name/SKILL.md]
    - Status: [New / Already covered / Needs clarification]

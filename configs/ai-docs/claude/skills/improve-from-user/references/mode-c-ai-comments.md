@@ -1,12 +1,14 @@
-# Mode C - AI! comments
+# Mode C - AI markers in files
 
-Load this only when Step 1 detected Mode C: the arg mentions `AI!` (e.g. `AI! comments`).
+Load this only when Step 1 detected Mode C: the arg mentions `AI!`, `AI?`, `AI:`, `AI markers` or `AI comments` (e.g. `AI! comments`, `AI? comments`) and does not mention `verdict`.
 
 Optional path restriction via `on <paths>` - comma-separated, where each entry can be a **file or folder**.
 
-`AI!` is the same marker the `address-ai-comments` skill sweeps - but that skill *executes and strips* it, whereas this one only *mines it for a learning* (read-only).
+`AI!`, `AI?` and `AI:` are the same markers the `address-ai-comments` skill sweeps - but that skill *executes or answers, then strips* them, whereas this one only *mines them for a learning* (read-only).
 
-`AI?` questions and `TODO`/`XXX` are different conventions; do not scan them here.
+- Why: mining never conflicts with `address-ai-comments` answering an `AI?` and stripping it, and a question the user had to ask shows where the AI fell short, which is a lesson.
+
+`TODO`/`XXX` are a different convention; do not scan them here.
 
 Steps:
 
@@ -30,13 +32,14 @@ Steps:
 
    - Drop every `verdict_*.md` from either list: an `[AI!]` there is a finding pick, which Mode D mines.
 
-3. Scan each file for the literal string `AI!`, regardless of comment syntax.
-   - Catches `// AI!`, `# AI!`, `<!-- AI! ... -->`, and bare-text `AI!` in `.md` files alike.
-   - Match `AI!` only - never the `AI?` question marker (that's the live-answer path `address-ai-comments` owns).
+3. Scan each file for lines carrying an `AI!`, `AI?` or `AI:` marker, regardless of comment syntax.
+   - Matching rule: section "3d" of [`address-pr-comments/references/fetch-cluster-propose.md`](../../address-pr-comments/references/fetch-cluster-propose.md) - strip the comment syntax (`//`, `#`, `<!--`) first, then the first non-blank, non-list-marker token on the line starts with the marker, case-insensitive; the colon is optional after `AI!`/`AI?` and required on `AI:`.
+   - Catches `// AI!`, `# AI?`, `<!-- AI: ... -->`, and bare-text markers in `.md` files alike.
+   - Why: the first-token rule skips prose that merely mentions a marker, such as skill docs describing it.
 
 Per-item field hints:
 - **Source** - `path/to/file.ext:LINE`.
-- **Verbatim** - the full `AI!` comment line (you may trim leading comment markers like `//` or `<!--` for readability; do not paraphrase the body).
+- **Verbatim** - the full marker line (`AI!`, `AI?` or `AI:`) (you may trim leading comment markers like `//` or `<!--` for readability; do not paraphrase the body).
 - **Context** - ±3 lines around the marker.
-- **Outcome** - `still open` (this skill never strips AI! comments).
+- **Outcome** - `still open` (this skill never strips AI markers).
 - **Lesson drawn** - one sentence, generalizable.
