@@ -114,9 +114,11 @@ Return this block as your final message - one `### Cluster N` section per cluste
     <url>
     Draft answer: <answer to the user, in English, with path:line evidence>
 
-### Dropped as already answered (omit when none)
+### Dropped as already answered
 N. <html_url> - "<first ~60 chars of ME's latest marked note>"
 ```
+
+Omit the `Dropped as already answered` section when the gate dropped nothing as already answered.
 
 Each `question` marker carries a `Draft answer` - never a GitHub reply, which is composed later.
 
