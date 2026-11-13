@@ -22,15 +22,20 @@ The origin must stay stable while the source is edited, so it carries no line nu
 | A | `<session-id>#<turn timestamp>` - the transcript file name without `.jsonl`, plus the `#### turn @ <ts>` value from the extractor |
 | B | the comment's `html_url` |
 | C | the repo-relative path of the file holding the marker |
-| D | `<verdict file path>#<finding heading text>` |
-| E | the origin the feedback file names for the item; otherwise `<feedback file path>#<item heading text>` |
+| D | `<verdict file path>#<finding heading text>`, with the status tag and any annotation stripped (see below) |
+| E | the item's `Origin:` line; otherwise `<feedback file path>#<item heading text>` |
 
 - Mode A: the extractor emits no message uuid, only the session file path and a timestamp per turn.
   - The pair is stable across re-runs and compactions, since compaction only appends.
 
-- Mode E gap: `address-ai-comments` step 3 writes `Document:` (target paths) and a snapshot-copy path in each item's Context, not a per-item origin.
-  - The fallback origin applies today, and it changes whenever the caller writes a new feedback file.
-  - A re-run over a new file therefore re-proposes the same marker, until each item carries the marker's repo-relative path.
+- Mode D: strip the status tag from the heading text before keying, keeping the number, severity and lens tags.
+  - Status tags are `[AI!]`, `[AI!: <message>]`, `[AI! <message>]` and `[Done]`; `address-verdicts` swaps `[AI!]` for `[Done]` when it applies a finding, so the raw heading changes between runs.
+
+  - `address-verdicts` writes `APPLIED (<sha>)` and `SKIPPED (<reason>)` in the finding's body, not its heading; strip them too should one appear in the heading.
+
+  - Example: `### 3. [AI!: use helper X][MEDIUM][refactor] Foo` and `### 3. [Done][MEDIUM][refactor] Foo` both key as `### 3. [MEDIUM][refactor] Foo`.
+
+  - Why: a changed heading changes the key, so the same mark would be learned again after `address-verdicts` handled it.
 
 ## Filter at the end of step 1
 

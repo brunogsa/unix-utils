@@ -67,6 +67,9 @@ See "When a subagent might still help" below for the one case worth revisiting.
 
    - Write one item per marker, in improve-from-user's unified item format.
      - **Verbatim**: the marker line exactly.
+     - **Origin**: the marker's repo-relative file path, the same string `improve-from-user` Mode C uses as its origin.
+       - Why: a learn run relaunched from a new snapshot must not re-propose the same marker, and the feedback file's own path changes every run.
+
      - **Context**: `<snapshot copy>:<line>` plus one line on what it annotates.
      - **Outcome**: `still open`.
      - **Lesson drawn**: a first draft.

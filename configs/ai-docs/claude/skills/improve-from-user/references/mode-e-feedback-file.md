@@ -25,6 +25,10 @@ This mode is read-only on the feedback file and on the document it names.
 - **Source** - `<feedback file>:<item heading line>`.
 - **Verbatim** - the human's exact words, as the caller recorded them; never reword.
 - **Context** - what the item says about the document, from the item itself.
+- **Origin** (optional) - an `Origin:` line the caller sets to the item's stable source, such as a marker's repo-relative file path.
+  - The ledger keys the item on it, per [`learn-ledger.md`](learn-ledger.md) "Origin per mode"; an item without one falls back to `<feedback file path>#<item heading text>`.
+  - Why: the feedback file's path changes on every caller run, so only an item-carried origin survives a relaunch.
+
 - **Outcome** - as the caller recorded it.
 - **Lesson drawn** - the caller's first draft; step 2 challenges it, since the caller wrote it with the document in mind and not the rule files.
 
