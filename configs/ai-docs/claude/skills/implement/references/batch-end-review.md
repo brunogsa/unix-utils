@@ -9,8 +9,6 @@ words-budget: 2048
 ---
 # Batch-end - push, PR, quality gate, repo-green & package
 
-Detail for /implement's batch-end steps. Load when the batch reaches its end.
-
 SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the only place it's written down; this file expands each step without restating it.
 
 ## Push, branch record & the draft PR (§8.1)
@@ -31,7 +29,6 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 2. **Record the branch, then open the draft PR** - mechanics in [`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md) and [`batch-end-pr.md`](batch-end-pr.md).
    - The `Branch:` clause and PR-level `[Done]` marker land on a PR-label run; the `pr-creator` dispatch runs only on `pr.wanted: true`.
-   - Step 1 already pushed, so that dispatch must never push or force-push, only create the PR.
    - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
    - `pr.wanted: false` is not a failure - proceed to §8.2 with no PR outcome to report.
 
@@ -99,7 +96,6 @@ This still guards a baseline dispatch that halted or timed out, leaving both key
 
 - `GREEN` - proceed to Finalize (§8.4).
 - `GREEN-WITH-EXCEPTIONS` - proceed to §8.4, carrying the runner's Scout list AND its Unclassifiable list into the package, so nothing it declined to fix, or couldn't classify, disappears.
-  - The Unclassifiable list is flagged separately from Scout, since a changed suite inventory is evidence of neither pre-existing red nor a real fix.
 
 - `HALT` - [`failure-and-halt.md`](failure-and-halt.md)'s §5.5, halt, with the runner's surviving red set named. The human clears it, not this run.
 
