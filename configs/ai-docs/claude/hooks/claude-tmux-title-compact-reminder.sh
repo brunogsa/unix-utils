@@ -100,6 +100,13 @@ input=$(cat)
 agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
+# Only the Claude that owns the tmux window re-assesses its
+# title. Check only, never claim: a claim belongs to session
+# start, see tmux-window-title.sh's Ownership section.
+if ! bash "$(dirname "${BASH_SOURCE[0]}")/../scripts/tmux-window-title.sh" --is-owner; then
+  exit 0
+fi
+
 read -r -d '' DIRECTIVE <<'EOF' || true
 A compaction just happened. The tmux window's compaction counter was already bumped mechanically (a companion hook does that unconditionally), but the tail of the title was NOT re-derived -- that needs your judgment, not a shell script. Set the tail to the current sub-goal, phrased as a goal. Re-assess right now whether it still names what you are working toward: scope can drift across many compacted turns even without an obvious topic switch. Refresh it via:
   ~/.claude/scripts/tmux-window-title.sh '<tail>'

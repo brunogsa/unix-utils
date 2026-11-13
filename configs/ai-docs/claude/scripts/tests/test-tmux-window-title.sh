@@ -67,6 +67,11 @@ start_server() {
   TMUX_PANE=$(tmux -L "$SOCK" display-message -p '#{pane_id}')
   TMUX="$socket_path,0,0"
   export TMUX TMUX_PANE
+
+  # The pane under test is the Claude that owns its window's
+  # title, as after a real SessionStart claim. Tests of the
+  # non-owner and unclaimed cases change this explicitly.
+  tmux -L "$SOCK" set-option -w -t "$TMUX_PANE" "@claude_title_owner" "$TMUX_PANE"
 }
 
 stop_server() {
@@ -1642,6 +1647,218 @@ it_should_render_ledger_then_ledger_x_1_after_a_resume_on_a_pane_left_with_root_
 it_should_count_from_1_and_freeze_ledger_as_root_after_a_reset_with_source_startup
 it_should_allow_the_first_title_after_a_resume_reset_on_a_pane_with_prev_zsh_and_a_rooted_title
 it_should_allow_the_first_title_after_a_startup_reset_with_a_stale_prev_left_by_a_crash
+
+# second_pane - split the test window and print the new pane's
+# id: a second Claude in the same window.
+second_pane() {
+  tmux -L "$SOCK" split-window -d -t "$TMUX_PANE" -P -F '#{pane_id}' cat
+}
+
+# title_owner - the window option naming the pane that owns the
+# window's title, empty when unclaimed.
+title_owner() {
+  tmux -L "$SOCK" show-options -w -t "$TMUX_PANE" -v "@claude_title_owner" 2>/dev/null || true
+}
+
+# release_window_title - leave the window unclaimed, as when
+# its owner's Claude exited.
+release_window_title() {
+  tmux -L "$SOCK" set-option -w -u -t "$TMUX_PANE" "@claude_title_owner"
+}
+
+# as_pane - run the script as if launched from pane `$1`.
+as_pane() {
+  local pane="$1"
+  shift
+  TMUX_PANE="$pane" bash "$SCRIPT_UNDER_TEST" "$@"
+}
+
+it_should_let_the_first_pane_claim_the_window_title_and_refuse_a_second_pane() {
+  start_server
+  local first="$TMUX_PANE" second
+  second=$(second_pane)
+  release_window_title
+
+  as_pane "$first" --claim-owner; local first_exit=$?
+  as_pane "$second" --claim-owner; local second_exit=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should let the first pane claim the window title" \
+    "0" "$first_exit"
+  assert_eq "TmuxWindowTitle > ownership > should refuse a second pane in the same window with exit 1" \
+    "1" "$second_exit"
+  assert_eq "TmuxWindowTitle > ownership > should keep the first pane as owner after the second pane's claim" \
+    "$first" "$(title_owner)"
+  stop_server
+}
+
+it_should_keep_the_window_name_when_a_non_owner_pane_sets_a_title_and_say_it_was_refused() {
+  start_server
+  local first="$TMUX_PANE" second stderr_file
+  second=$(second_pane)
+  stderr_file=$(mktemp)
+  as_pane "$first" --claim-owner
+  as_pane "$first" "owner-title"
+
+  as_pane "$second" "intruder-title" 2>"$stderr_file"; local exit_code=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should leave the window name as the owner set it when a non-owner pane sets a title" \
+    "owner-title" "$(window_name)"
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a non-owner pane sets a title" \
+    "0" "$exit_code"
+  assert_eq "TmuxWindowTitle > ownership > should say on stderr that the title was refused when a non-owner pane sets a title" \
+    "yes" "$(grep -q 'title refused' "$stderr_file" && echo yes || echo no)"
+  rm -f "$stderr_file"
+  stop_server
+}
+
+it_should_change_nothing_and_print_nothing_when_a_non_owner_pane_resets_the_counter() {
+  start_server
+  local first="$TMUX_PANE" second stdout
+  second=$(second_pane)
+  as_pane "$first" --claim-owner
+  as_pane "$first" "billing-sync"
+  as_pane "$first" --bump-counter >/dev/null
+  local name_before options_before
+  name_before=$(window_name)
+  options_before=$(tmux -L "$SOCK" show-options -p -t "$first")
+
+  stdout=$(echo '{"source":"startup"}' | as_pane "$second" --reset-counter 2>&1); local exit_code=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a non-owner pane resets the counter" \
+    "0" "$exit_code"
+  assert_eq "TmuxWindowTitle > ownership > should print nothing when a non-owner pane resets the counter" \
+    "" "$stdout"
+  assert_eq "TmuxWindowTitle > ownership > should keep the owner's window name when a non-owner pane resets the counter" \
+    "$name_before" "$(window_name)"
+  assert_eq "TmuxWindowTitle > ownership > should keep the owner's pane options when a non-owner pane resets the counter" \
+    "$options_before" "$(tmux -L "$SOCK" show-options -p -t "$first")"
+  stop_server
+}
+
+it_should_change_nothing_and_print_nothing_when_a_non_owner_pane_bumps_a_counter() {
+  start_server
+  local first="$TMUX_PANE" second stdout subagent_stdout
+  second=$(second_pane)
+  as_pane "$first" --claim-owner
+  as_pane "$first" "billing-sync"
+  as_pane "$first" --bump-counter >/dev/null
+  local name_before options_before
+  name_before=$(window_name)
+  options_before=$(tmux -L "$SOCK" show-options -p -t "$first")
+
+  stdout=$(as_pane "$second" --bump-counter 2>&1); local main_exit=$?
+  subagent_stdout=$(as_pane "$second" --bump-subagent-counter 2>&1); local subagent_exit=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a non-owner pane bumps the main counter" \
+    "0" "$main_exit"
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a non-owner pane bumps the subagent counter" \
+    "0" "$subagent_exit"
+  assert_eq "TmuxWindowTitle > ownership > should print nothing when a non-owner pane bumps either counter" \
+    "" "$stdout$subagent_stdout"
+  assert_eq "TmuxWindowTitle > ownership > should keep the owner's window name when a non-owner pane bumps either counter" \
+    "$name_before" "$(window_name)"
+  assert_eq "TmuxWindowTitle > ownership > should keep the owner's pane options when a non-owner pane bumps either counter" \
+    "$options_before" "$(tmux -L "$SOCK" show-options -p -t "$first")"
+  stop_server
+}
+
+it_should_take_over_the_window_title_when_the_recorded_owner_pane_no_longer_exists() {
+  start_server
+  local first="$TMUX_PANE" second
+  second=$(second_pane)
+  tmux -L "$SOCK" set-option -w -t "$first" "@claude_title_owner" "$second"
+  tmux -L "$SOCK" kill-pane -t "$second"
+
+  as_pane "$first" --claim-owner; local exit_code=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should let a live pane claim a window whose recorded owner pane was killed" \
+    "0" "$exit_code"
+  assert_eq "TmuxWindowTitle > ownership > should record the live pane as owner after taking over from a killed pane" \
+    "$first" "$(title_owner)"
+  stop_server
+}
+
+it_should_release_ownership_only_when_the_owner_s_process_exits() {
+  start_server
+  local pane="$TMUX_PANE" reason
+  for reason in other logout prompt_input_exit; do
+    as_pane "$pane" --claim-owner
+    echo "{\"reason\":\"$reason\"}" | as_pane "$pane" --release-owner
+    assert_eq "TmuxWindowTitle > ownership > should release the window title when the owning session ends with reason $reason" \
+      "" "$(title_owner)"
+  done
+  for reason in clear resume ""; do
+    as_pane "$pane" --claim-owner
+    echo "{\"reason\":\"$reason\"}" | as_pane "$pane" --release-owner
+    assert_eq "TmuxWindowTitle > ownership > should keep the window title when the owning session ends with reason '$reason' because the same process continues" \
+      "$pane" "$(title_owner)"
+  done
+  stop_server
+}
+
+it_should_never_release_the_owner_s_claim_when_a_non_owner_pane_session_ends() {
+  start_server
+  local first="$TMUX_PANE" second
+  second=$(second_pane)
+  as_pane "$first" --claim-owner
+
+  echo '{"reason":"other"}' | as_pane "$second" --release-owner; local exit_code=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a non-owner pane's session ends" \
+    "0" "$exit_code"
+  assert_eq "TmuxWindowTitle > ownership > should keep the owner's claim when a non-owner pane's session ends" \
+    "$first" "$(title_owner)"
+  stop_server
+}
+
+it_should_claim_ownership_on_a_start_reset_when_the_window_is_unclaimed() {
+  start_server
+  release_window_title
+  echo '{"source":"startup"}' | title --reset-counter
+  assert_eq "TmuxWindowTitle > ownership > should claim the window when the first Claude's startup reset finds it unclaimed" \
+    "$TMUX_PANE" "$(title_owner)"
+  stop_server
+}
+
+it_should_refuse_a_title_and_keep_the_window_name_when_no_pane_owns_the_window() {
+  start_server
+  tmux -L "$SOCK" rename-window -t "$TMUX_PANE" "zsh"
+  release_window_title
+
+  title "first-title" 2>/dev/null; local exit_code=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should exit 0 when a pane sets a first title on a window nobody owns" \
+    "0" "$exit_code"
+  assert_eq "TmuxWindowTitle > ownership > should leave the window name unchanged when a pane sets a first title on a window nobody owns" \
+    "zsh" "$(window_name)"
+  stop_server
+}
+
+it_should_refuse_both_bumps_and_check_ownership_as_false_when_no_pane_owns_the_window() {
+  start_server
+  title "before-release"
+  release_window_title
+
+  title --bump-counter; title --bump-subagent-counter
+  title --is-owner; local is_owner_exit=$?
+
+  assert_eq "TmuxWindowTitle > ownership > should leave the window name unchanged when counters are bumped on a window nobody owns" \
+    "before-release" "$(window_name)"
+  assert_eq "TmuxWindowTitle > ownership > should report not-owner with exit 1 when nobody owns the window" \
+    "1" "$is_owner_exit"
+  stop_server
+}
+
+it_should_let_the_first_pane_claim_the_window_title_and_refuse_a_second_pane
+it_should_keep_the_window_name_when_a_non_owner_pane_sets_a_title_and_say_it_was_refused
+it_should_change_nothing_and_print_nothing_when_a_non_owner_pane_resets_the_counter
+it_should_change_nothing_and_print_nothing_when_a_non_owner_pane_bumps_a_counter
+it_should_take_over_the_window_title_when_the_recorded_owner_pane_no_longer_exists
+it_should_release_ownership_only_when_the_owner_s_process_exits
+it_should_never_release_the_owner_s_claim_when_a_non_owner_pane_session_ends
+it_should_claim_ownership_on_a_start_reset_when_the_window_is_unclaimed
+it_should_refuse_a_title_and_keep_the_window_name_when_no_pane_owns_the_window
+it_should_refuse_both_bumps_and_check_ownership_as_false_when_no_pane_owns_the_window
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

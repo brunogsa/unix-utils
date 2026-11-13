@@ -82,6 +82,17 @@ input=$(cat)
 agent=$(printf '%s' "$input" | jq -r '.agent_id // empty' 2>/dev/null || true)
 [ -n "$agent" ] && exit 0
 
+# Only the first Claude of a tmux window titles it. This is
+# the claim point, placed after the guards above so a
+# subagent never claims.
+#
+# It runs in parallel with the script's own --reset-counter,
+# which claims through the same atomic primitive, so
+# whichever runs first wins.
+if ! bash "$(dirname "${BASH_SOURCE[0]}")/../scripts/tmux-window-title.sh" --claim-owner; then
+  exit 0
+fi
+
 read -r -d '' DIRECTIVE <<'EOF' || true
 You are running inside tmux. Set the tmux window title ONCE, now, to the SHORTEST name that conveys the session's goal. Rules: hyphen-separated (no spaces), no prefixes, at most 16 characters (the script truncates longer ones), only lowercase letters, digits and hyphens ([a-z0-9-]) so a quote, "$", backtick or ";" copied from a PR title or branch name never reaches the command, and shorter is always better -- prefer "auth-fix" over "fix-the-auth-bug". The title names the goal, never a skill name, a step name, or an issue-tracker ID. Set it by running:
   ~/.claude/scripts/tmux-window-title.sh '<title>'

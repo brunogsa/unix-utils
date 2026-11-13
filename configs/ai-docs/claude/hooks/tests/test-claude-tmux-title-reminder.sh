@@ -46,7 +46,7 @@ assert_eq() {
 # Sets HOOK_STDOUT and HOOK_EXIT.
 run_hook() {
   HOOK_STDOUT=$(printf '%s' "$1" \
-    | TMUX="/tmp/fake-tmux-socket,1234,0" CLAUDE_CODE_ENTRYPOINT="cli" \
+    | env -u TMUX_PANE TMUX="/tmp/fake-tmux-socket,1234,0" CLAUDE_CODE_ENTRYPOINT="cli" \
       bash "$HOOK_SCRIPT" 2>/dev/null)
   HOOK_EXIT=$?
 }
@@ -102,7 +102,40 @@ it_should_carry_no_instruction_to_re_title_on_a_topic_shift() {
     "no" "$(emitted_directive | grep -Eiq 'shift|new topic' && echo yes || echo no)"
 }
 
+# run_hook_in_pane - run the hook as a Claude living in pane
+# `$2` of the private tmux server on socket `$1`, so the
+# window-ownership check reads real tmux state. Sets
+# HOOK_STDOUT and HOOK_EXIT.
+run_hook_in_pane() {
+  local sock="$1" pane="$2" socket_path
+  socket_path=$(tmux -L "$sock" display-message -p '#{socket_path}')
+  HOOK_STDOUT=$(printf '{}' \
+    | TMUX="$socket_path,0,0" TMUX_PANE="$pane" CLAUDE_CODE_ENTRYPOINT="cli" \
+      bash "$HOOK_SCRIPT" 2>/dev/null)
+  HOOK_EXIT=$?
+}
+
+it_should_emit_the_directive_only_to_the_first_claude_of_a_tmux_window() {
+  local sock="tmux-title-hook-test-$$-${RANDOM}" first second
+  tmux -f /dev/null -L "$sock" new-session -d -s t cat 2>/dev/null
+  first=$(tmux -L "$sock" display-message -p '#{pane_id}')
+  second=$(tmux -L "$sock" split-window -d -t "$first" -P -F '#{pane_id}' cat)
+
+  run_hook_in_pane "$sock" "$first"
+  assert_eq "should tell the first Claude in a tmux window to title it" \
+    "yes" "$([ -n "$(emitted_directive)" ] && echo yes || echo no)"
+
+  run_hook_in_pane "$sock" "$second"
+  assert_eq "should exit 0 for a second Claude in a window another Claude already titles" \
+    "0" "$HOOK_EXIT"
+  assert_eq "should hand a second Claude in the same tmux window no retitle directive" \
+    "" "$(emitted_directive)"
+
+  tmux -L "$sock" kill-server 2>/dev/null
+}
+
 it_should_emit_the_directive_for_the_orchestrator_when_no_agent_field_is_present
+it_should_emit_the_directive_only_to_the_first_claude_of_a_tmux_window
 it_should_carry_no_instruction_to_re_title_on_a_topic_shift
 it_should_stay_silent_when_a_subagent_identified_by_agent_id_starts
 it_should_emit_the_directive_when_a_main_session_started_with_agent_flag_starts

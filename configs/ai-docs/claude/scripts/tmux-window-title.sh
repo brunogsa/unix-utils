@@ -20,6 +20,11 @@
 #     --bump-counter            # +1 main-session compaction
 #     --reset-counter           # reset title state
 #
+#   Window ownership (see Ownership below):
+#     --claim-owner             # claim if free; 0 = we own it
+#     --is-owner                # 0 = this pane owns the window
+#     --release-owner           # SessionEnd: free it on exit
+#
 # Compaction counter:
 #   The title carries an optional trailing counter -- how many
 #   context compactions this Claude session has survived.
@@ -165,6 +170,62 @@
 #   A pane that Claude never titled grows no root, so the window
 #   keeps the plain behavior instead of anchoring to the user's
 #   shell name.
+#
+# Ownership:
+#   The window name belongs to the WINDOW, but all this
+#   script's state (counter, root, last title) belongs to a
+#   PANE.
+#
+#   Two Claudes in two panes of one window would both rename
+#   it, and the second one's start would shed the first one's
+#   root and counter.
+#
+#   So the window option @claude_title_owner holds the pane id
+#   of the one Claude allowed to title the window: the first
+#   to start. `tmux set-option -o` makes the claim atomic.
+#
+#   A pane that does not own the window is refused.
+#
+#   Refusal: a title exits 0 with a stderr note, and
+#   --reset-counter and both bumps exit 0 with no output and
+#   no tmux write.
+#
+#   A window nobody owns refuses the same way.
+#
+#   Only a SessionStart claim creates an owner, so a Claude
+#   started before ownership existed gets no title until its
+#   next start.
+#
+#   The claim happens only at session start: --reset-counter
+#   and --claim-owner (the SessionStart reminder hook) claim a
+#   free window. Every other mode only checks.
+#
+#   A mid-session takeover would read the previous owner's
+#   live "[M+S]" counter as its own, because a pane that never
+#   ran its reset has no @claude_last_title.
+#
+#   An owner is stale, and replaced at a claim, when its pane
+#   no longer exists or moved to another window.
+#
+#   An owner equal to the claiming pane counts as ours, so a
+#   Claude that crashed and relaunched in the same pane keeps
+#   its window.
+#
+#   --release-owner reads {"reason": ...} from the SessionEnd
+#   JSON on stdin. It frees the window only when the process
+#   exits (`other`, `logout`, `prompt_input_exit`) and this
+#   pane is the owner.
+#
+#   `clear` and `resume` keep it, because the same process
+#   continues, and an empty or unknown reason keeps it too.
+#   It always exits 0.
+#
+#   Known gap: a Claude killed with no SessionEnd, whose pane
+#   lives on, keeps ownership until that pane closes or runs
+#   Claude again.
+#
+#   Recover by hand with
+#   `tmux set-option -w -u @claude_title_owner`.
 #
 # Behavior:
 # - Outside tmux ($TMUX unset): no-op, exit 0.
@@ -550,6 +611,57 @@ clear_root_title() {
   tmux set-option -p -u -t "$TMUX_PANE" "@claude_root_title" 2>/dev/null || true
 }
 
+# Window option naming the pane whose Claude owns this window's
+# title (see Ownership in the header).
+OWNER_OPTION="@claude_title_owner"
+
+# Echo the pane id recorded as this window's title owner, or
+# nothing when none is.
+title_owner() {
+  tmux show-options -w -t "$TMUX_PANE" -v "$OWNER_OPTION" 2>/dev/null || true
+}
+
+# Succeed when `owner` (a pane id) no longer holds a Claude in
+# this window: the pane is gone, or break-pane moved it to
+# another window.
+#
+# tmux exits 0 with empty output for a pane id that does not
+# exist, so an empty window id is the dead-pane signal.
+owner_is_stale() {
+  local owner=$1 own_window owner_window
+  own_window=$(tmux display-message -t "$TMUX_PANE" -p '#{window_id}')
+  owner_window=$(tmux display-message -t "$owner" -p '#{window_id}' 2>/dev/null || true)
+  [ -z "$owner_window" ] || [ "$owner_window" != "$own_window" ]
+}
+
+# Succeed when this pane owns the window's title.
+is_title_owner() {
+  [ "$(title_owner)" = "$TMUX_PANE" ]
+}
+
+# Make this pane the window's title owner when the window is
+# free or its owner is stale, and succeed when this pane owns
+# the window afterwards.
+#
+# `set-option -o` fails when the option is already set, so the
+# claim is atomic inside the tmux server: of two panes racing
+# for a free window, exactly one wins.
+#
+# An owner equal to this pane counts as ours, so a Claude that
+# crashed and relaunched in the same pane keeps its window.
+claim_title_ownership() {
+  local owner
+  owner=$(title_owner)
+  if [ -n "$owner" ] && [ "$owner" != "$TMUX_PANE" ] && owner_is_stale "$owner"; then
+    tmux set-option -w -u -t "$TMUX_PANE" "$OWNER_OPTION" 2>/dev/null || true
+  fi
+
+  if tmux set-option -w -o -t "$TMUX_PANE" "$OWNER_OPTION" "$TMUX_PANE" 2>/dev/null; then
+    return 0
+  fi
+  is_title_owner
+}
+
 # Disable auto-rename for this window so the manual name
 # persists, then set it.
 # `--` ends option parsing so a title starting with
@@ -679,11 +791,49 @@ if [ -z "${TMUX:-}" ] || [ -z "${TMUX_PANE:-}" ]; then
 fi
 
 case "$MODE" in
+  --claim-owner)
+    # Silent: the exit code is the answer, for the SessionStart
+    # reminder hook.
+    if claim_title_ownership; then
+      exit 0
+    fi
+    exit 1
+    ;;
+
+  --is-owner)
+    if is_title_owner; then
+      exit 0
+    fi
+    exit 1
+    ;;
+
+  --release-owner)
+    # SessionEnd passes {"reason": ...} on stdin. Only a reason
+    # that ends the process frees the window; an empty or
+    # unknown one keeps it, because freeing a window whose
+    # Claude lives on would let a second Claude take it.
+    reason=$(jq -r '.reason // empty' 2>/dev/null || true)
+    case "$reason" in
+      other|logout|prompt_input_exit)
+        if is_title_owner; then
+          tmux set-option -w -u -t "$TMUX_PANE" "$OWNER_OPTION" 2>/dev/null || true
+        fi
+        ;;
+    esac
+    exit 0
+    ;;
+
   --bump-counter)
     # A MAIN-session compaction: increment the left half
     # (absent -> starts at 1). Freezes the root on the FIRST
     # main compaction only -- see bump_counter's header and
     # freeze_root_title's for the full reasoning.
+    #
+    # A pane that does not own the window never ran its reset,
+    # so it would read the owner's live counter as its own.
+    if ! is_title_owner; then
+      exit 0
+    fi
     bump_counter main
     ;;
 
@@ -694,10 +844,23 @@ case "$MODE" in
     # A subagent's compaction erases nothing this session
     # remembers, so there is no anchor at risk -- the root
     # exists to survive an erasure that did not happen here.
+    #
+    # Same ownership gate as --bump-counter.
+    if ! is_title_owner; then
+      exit 0
+    fi
     bump_counter subagent
     ;;
 
   --reset-counter)
+    # Only the Claude that owns the window may reset it: the
+    # root and counter on the window are that Claude's, and a
+    # second Claude's start must not shed them. A fresh start
+    # claims a free or stale window here.
+    if ! claim_title_ownership; then
+      exit 0
+    fi
+
     # /clear or a fresh start: drop the counter and the root, so
     # the next session anchors to its own first title rather
     # than inheriting this one's.
@@ -787,6 +950,11 @@ case "$MODE" in
     if [ -z "$clean" ]; then
       echo "tmux-window-title: <title> is empty after sanitizing" >&2
       exit 1
+    fi
+
+    if ! is_title_owner; then
+      echo "tmux-window-title: title refused (expected, not an error): another Claude in this tmux window owns its title. Do not retry." >&2
+      exit 0
     fi
 
     current=$(current_title)
