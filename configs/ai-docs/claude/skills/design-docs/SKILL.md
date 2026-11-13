@@ -49,6 +49,8 @@ The recap is enough to read standalone; the link is the drill-down for readers w
 
 Recap *and* link, never link alone and never a bare number.
 
+This holds for an OpenAPI/AsyncAPI `description` too: a param or field that introduces a domain concept defines it in 1-2 sentences and links the LLD, never a bare name.
+
 **Point only at what already exists** - a committed doc, a merged ADR, a thread, an incident ticket.
 
 Never mention another tracker issue or a doc not yet written ("see the upcoming ADR on X"); its scope shifts or it never ships, and the reader can't open it. The doc's own origin issue is the exception.
