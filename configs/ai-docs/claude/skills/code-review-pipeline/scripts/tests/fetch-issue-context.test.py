@@ -24,13 +24,18 @@ JIRA_BLOCK = "## Jira Card: PAY-482 - Retry failed charges\n\nCharges retry twic
 UNKNOWN_KEY = "NOPE-1"
 
 
-def _make_linear(tmp_path, sleep_seconds=0, fail_after_output=False, spawn_marker_child=False):
+def _make_linear(
+    tmp_path, sleep_seconds=0, fail_after_output=False, spawn_marker_child=False, slow_first_start=False,
+):
     """Fake `linear` on a PATH dir: prints LINEAR_BLOCK for LINEAR_KEY,
     exits 1 otherwise, and appends its argv to argv.log.
 
     fail_after_output makes the hit path print LINEAR_BLOCK and then exit 1.
     spawn_marker_child makes it start a background child that sleeps 30 s and
-    only then writes tmp_path/child-finished.marker, records its pid in tmp_path/child.pid, then waits on it."""
+    only then writes tmp_path/child-finished.marker, records its pid in tmp_path/child.pid, then waits on it.
+
+    slow_first_start makes only its first invocation stall 1.5 s before anything else, the way a
+    loaded machine delays a fresh process, so a 1 s timeout kills it before it can spawn the child."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "linear"
@@ -39,9 +44,14 @@ def _make_linear(tmp_path, sleep_seconds=0, fail_after_output=False, spawn_marke
         f'echo $! > "{tmp_path}/child.pid"\nwait\n'
         if spawn_marker_child else ""
     )
+    stall = (
+        f'if [ ! -e "{tmp_path}/slow-start.done" ]; then touch "{tmp_path}/slow-start.done"; sleep 1.5; fi\n'
+        if slow_first_start else ""
+    )
     hit_exit = 1 if fail_after_output else 0
     script.write_text(
         "#!/bin/bash\n"
+        f"{stall}"
         f'echo "$@" >> "{tmp_path}/argv.log"\n'
         f"sleep {sleep_seconds}\n"
         f"{child}"
@@ -81,13 +91,14 @@ def _env(
     sleep_seconds=0,
     fail_after_output=False,
     spawn_marker_child=False,
+    slow_first_start=False,
 ):
     """Environment with HOME at the fixture tree and PATH holding the fake
     linear first (or, when absent, only the system dirs bash needs)."""
     env = dict(os.environ)
     env["HOME"] = str(tmp_path / "home")
     if with_linear:
-        env["PATH"] = f"{_make_linear(tmp_path, sleep_seconds, fail_after_output, spawn_marker_child)}{os.pathsep}{os.environ['PATH']}"
+        env["PATH"] = f"{_make_linear(tmp_path, sleep_seconds, fail_after_output, spawn_marker_child, slow_first_start)}{os.pathsep}{os.environ['PATH']}"
     else:
         env["PATH"] = _path_without_linear()
     if jira_url is None:
@@ -269,15 +280,24 @@ def test_outcome_lines_on_stderr_follow_the_input_order_of_three_references(tmp_
 
 def test_timeout_also_kills_the_children_the_linear_cli_spawned(tmp_path):
     _make_jira_helper(tmp_path)
-    env = _env(tmp_path, spawn_marker_child=True)
+    env = _env(tmp_path, spawn_marker_child=True, slow_first_start=True)
     marker = tmp_path / "child-finished.marker"
-    started = time.monotonic()
-    result = _run(f"linear {LINEAR_KEY}\n", env, "--timeout", "1")
-    elapsed = time.monotonic() - started
-    assert result.returncode == 1
-    assert "timed out" in result.stderr
-    assert elapsed < 4
-    child_pid = int((tmp_path / "child.pid").read_text())
+    pid_file = tmp_path / "child.pid"
+
+    # A loaded machine can burn the 1 s timeout before the fake
+    # CLI spawns its child, so that run proves nothing about
+    # cleanup. Retry it; a script that leaves the child alive
+    # still fails below, because the pid file exists then.
+    for _ in range(3):
+        started = time.monotonic()
+        result = _run(f"linear {LINEAR_KEY}\n", env, "--timeout", "1")
+        elapsed = time.monotonic() - started
+        assert result.returncode == 1
+        assert "timed out" in result.stderr
+        assert elapsed < 4
+        if pid_file.exists():
+            break
+    child_pid = int(pid_file.read_text())
     deadline = time.monotonic() + 3
     while _is_alive(child_pid) and time.monotonic() < deadline:
         time.sleep(0.2)
