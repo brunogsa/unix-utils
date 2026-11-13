@@ -116,6 +116,9 @@ Revisit dropping it only if `~/.ccburn/collect_last.json` still shows `"has_rate
   - When you add/remove an MCP server, npm global, symlink target, config file, OS package, or plugin, mirror the change in `install.sh`.
   - If unsure, ask.
 
+- **Prefer CLI scripts + skills over MCP servers** - use MCP only for capabilities CLI + skills can't provide.
+  - Why: CLI is cheaper in context, easier to debug, and composes via pipes.
+
 - **`install.sh` installs plugins; `settings.json` tracks which are enabled** -- `enabledPlugins: true` only activates an *already-installed* plugin, it does not fetch it.
   - `install.sh` still needs an explicit `claude plugin install <name>@<marketplace>` line for every plugin, mirroring `enabledPlugins`.
   - Non-official marketplaces are version-controlled the same way, under `extraKnownMarketplaces` in `configs/ai-docs/claude/settings.json`.

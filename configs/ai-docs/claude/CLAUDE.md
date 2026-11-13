@@ -19,9 +19,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
   - [Example] Always needed → the global CLAUDE.md; lazy-loadable how-tos → a skill; repo gotchas, conventions, architecture → that repo's CLAUDE.md / agents.md.
 
-- [Instruction] **Prefer CLI scripts + skills over MCP servers** - use MCP only for capabilities CLI + skills can't provide.
-  - [Why] CLI is cheaper in context, easier to debug, and composes via pipes.
-
 - [Instruction] **Teach the *why*, not just the *what*** -- pair every directive with **decision-shaping** reasoning when authoring rules, skills, comments, or commit messages.
   - [Why] Anthropic research: reasoning in alignment training cut misalignment ~5× (15% → 3%) vs. demonstrations alone.
 
@@ -99,10 +96,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Scannable means structure, not length** -- one thought per bullet, and only for thoughts that earn a bullet. Applies to code, comments, chat.
   - [Why] Structure is what makes text fast to read; treating it as permission to write more moves the cost to the reader.
-  - [Example] Markdown: bad crams setup and fix into one paragraph; good splits it into bullets. Comment: bad restates the code; good keeps only `// why: retry avoids a cold-start race`.
-
-- [Instruction] **Cut filler and hedges** -- no preambles, emojis, or vague words ("generally", "often"); give the number or exact condition instead of a hedge.
-  - [Why] Filler burns budget on words that carry no decision, and a hedge is uncheckable where a number is verifiable.
 
 - [Instruction] **CRITICAL: Replace every vague word with the fact behind it** -- an amount gets its count, a judgment its measure, a claim its evidence and what you did not check.
   - [Why] A vague word hands the measuring back to me: I must re-open the source to learn what "several" or "cheap" meant.
@@ -126,7 +119,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Push for simplicity - surface the simpler alternative** -- challenge decisions and name simpler paths.
   - [Why] The simpler path is usually invisible from inside the complex one, so only deliberate questioning surfaces it.
-  - [Example] Bad: a script to rename three files; an AI rewrite where a deterministic converter exists. Good: `git mv`; run the converter, then edit.
   - [Example] Bad: recommending a duplicate merge gated on a cap overflowing, or a "dropped" marker kept in a generated report. Good: always merge before ranking; let the human review re-cut repeats.
 
 - [Instruction] **Verify the simpler path doesn't work before committing to the complex one**.
@@ -161,7 +153,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Self-describing artifacts
 
-- [Instruction] **CRITICAL: Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
+- [Instruction] **Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
   - [Example] Bad: `RN-01`, `AC-8`, "the Apendice", a bare "callback" or "that flag". Good: a committed path or URL, the rule recapped inline, "error callback", `FEAT_FLAG_PIC_SYNC_<ERP>_ENABLED`.
 
@@ -215,7 +207,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Persist a manual verification to a `.md` file in CWD only when the check is multi-step, environment-dependent, or irreversible.
   - [Why] Those three are the checks a future regression must re-run; anything else is cheaper to re-run than to read back.
-  - [Example] Earns no file: a single command whose output you read in-session, a grep confirming a count, one script run.
 
 ## Tool Use
 
@@ -341,13 +332,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Truncated file content in system reminders is not exhaustive** -- with `[N lines truncated]` or similar, treat the visible portion as a snippet.
   - [Why] The truncation marker says you're seeing partial data, so acting on the snippet ships wrong counts.
 
-- [Instruction] **When a static check fails, fix the underlying issue - never delete, disable, or silence the check.**
-  - [Why] Silencing a failing check ships the defect it flagged and drops the guard for every future change.
-
-  - [Example] Don't reach for `// eslint-disable`, `# type: ignore`, `--no-verify`, or editing the config to mute the rule.
-
 - [Instruction] When a check or a written convention genuinely misfires on content its rationale never covered, carve a narrow explicit exception rather than loosening it for everyone.
-  - [Why] Forbidding silence says nothing about a genuinely wrong rule, so the pressure escapes into a raised limit.
+  - [Why] A genuinely wrong rule still needs a way out, or the pressure escapes into a raised limit.
 
 - [Instruction] Before carving that exception, implement the compliant version and show it fails - an exception is never the first response to a rule your own code broke.
   - [Why] Documenting a deviation costs less than restructuring code, so without this gate the exception wins by default.
@@ -390,9 +376,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
   - [Why] Width multiplies count and per-subagent cost, so fanning past the independent chunks pays for nothing.
-
-- [Instruction] **Leverage Explore/Grep and other subagents to minimize compaction on main session** -- broad searches, fan-out reads, "where is X handled?" hunts, etc;
-  - [Why] Main session is capped at 200k tokens; inline exploration dumps every touched file into it, forcing compactions.
 
 - [Instruction] Execute any TaskList item whose goal diverges from main's (e.g. `[Side]`/`[Scout]`) through a subagent, or `lateral-session` only if I ask for a new session, window or tmux - never inline.
   - [Why] Inline execution pulls the off-goal task's files into the main context, taxing the budget the actual goal needs.
