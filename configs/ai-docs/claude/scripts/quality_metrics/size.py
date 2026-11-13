@@ -1,14 +1,17 @@
 """Measures function length and file length in non-blank, non-comment lines.
 
-Code files count lines the way lizard counts NLOC. HTML and CSS have no
-function syntax, so only their file length is measured, with a plain
-count that drops blank lines and comment text.
+Code files count lines the way lizard counts NLOC; Bash counts logical
+lines, as shellmetrics reads them. HTML and CSS have no function syntax,
+so only their file length is measured, with a plain count that drops
+blank lines and comment text.
 """
 
 import re
 
 from quality_metrics.functions import (
+    BASH,
     ToolError,
+    bash_file_lloc,
     function_measurement,
     measure_functions,
     run_tool,
@@ -69,6 +72,8 @@ def _count_web_lines(target):
 
 
 def _count_code_lines(target):
+    if target.language == BASH:
+        return bash_file_lloc(target.path)
     output = run_tool(["lizard", "--xml", str(target.path)])
     match = LIZARD_FILE_NCSS.search(output)
     if match is None:

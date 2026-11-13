@@ -198,6 +198,9 @@ if [[ "$OS" == "macos" ]]; then
     brew install deno
     brew install uv
 
+    # shfmt: Bash function end lines, via its syntax tree
+    brew install shfmt
+
     # lizard: touched-function metrics (not Bash)
     pipx install lizard
 
@@ -233,6 +236,9 @@ elif [[ "$OS" == "linux" ]]; then
 
     # uv (official installer; no apt package)
     curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # shfmt: Bash function end lines, via its syntax tree
+    sudo apt-get install -y shfmt
 
     # lizard: touched-function metrics (not Bash)
     pipx install lizard

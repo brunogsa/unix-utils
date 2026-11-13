@@ -36,6 +36,9 @@ languages:
   css:
     extensions: [.css]
     metrics: [size]
+  bash:
+    extensions: [.sh]
+    metrics: [size]
 """
 
 
@@ -280,6 +283,23 @@ class TestBashComplexity:
         assert {measure_.name: measure_.complexity for measure_ in measures} == {"pick": 4}
 
 
+def bash_function_with_statements(name, statements, with_heredoc=False):
+    """A Bash function of exactly `statements` logical lines.
+
+    The heredoc form opens with one statement whose body holds a bare `}`
+    line and a quoted brace, which a brace-counting reader takes for the
+    end of the function.
+    """
+    lines = [f"{name}() {{"]
+    remaining = statements
+    if with_heredoc:
+        lines += ["  cat <<TEXT", "}", "TEXT", '  echo "}"']
+        remaining -= 2
+    lines += [f"  total=$((total + {number}))" for number in range(1, remaining + 1)]
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
 class TestReviewMode:
     def test_should_measure_only_functions_the_diff_changes_adds_or_removes_in_review_mode(
         self, tmp_path
@@ -350,3 +370,53 @@ class TestReviewMode:
         assert report["resolved"] == []
 
 # --- end of review mode tests ---
+
+
+class TestBashSize:
+    def test_should_count_a_touched_bash_function_in_logical_lines_whatever_braces_its_heredoc_and_strings_hold(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path,
+            {
+                "report.sh": bash_function_with_statements("untouched_big", 35)
+                + bash_function_with_statements("with_heredoc", 31, with_heredoc=True)
+            },
+        )
+        base = head_of(repo)
+        edited_tail = (
+            bash_function_with_statements("with_heredoc", 31, with_heredoc=True)
+            .replace("total + 29", "total + 290")
+        )
+        (repo / "report.sh").write_text(
+            bash_function_with_statements("untouched_big", 35)
+            + edited_tail
+            + bash_function_with_statements("statements_30", 30)
+        )
+        declaration_path = write_declaration(tmp_path, ["size"])
+
+        report = measure(repo, declaration_path, "--per-unit", "--base", base)
+
+        assert measured_functions(report, "size") == ["statements_30", "with_heredoc"]
+        assert violation_summary(report) == [("with_heredoc", "size", 31, 30)]
+
+    def test_should_count_a_bash_file_in_logical_lines_and_flag_301_but_not_300(self, tmp_path):
+        repo = make_repo(tmp_path, {"README.txt": "base\n"})
+        header = "#!/bin/bash\n# header comment\n\n"
+        (repo / "at_limit.sh").write_text(
+            header + "".join(f"value_{number}={number}\n" for number in range(300))
+        )
+        (repo / "over_limit.sh").write_text(
+            header + "".join(f"value_{number}={number}\n" for number in range(301))
+        )
+        declaration_path = write_declaration(tmp_path, ["size"])
+
+        report = measure(repo, declaration_path, "--files", "at_limit.sh", "over_limit.sh")
+
+        assert {item["file"]: item["value"] for item in report["measurements"]} == {
+            "at_limit.sh": 300,
+            "over_limit.sh": 301,
+        }
+        assert [item["file"] for item in report["violations"]] == ["over_limit.sh"]
+
+# --- end of Bash size tests ---
