@@ -27,7 +27,7 @@ Skip every `verdict_*.md` file, even inside a named folder: an `[AI!]` tag in a 
 
 ## Workflow
 
-This runs entirely inline in the main session - no subagent fan-out.
+This runs entirely inline in the main session - no subagent fan-out. The learn run in step 3 is a separate tmux session, not a subagent.
 
 It's the current experiment: earlier versions delegated gather+classify+cluster to a Haiku subagent, but on real usage that added a full agent round-trip (tokens, tool calls, latency).
 
@@ -60,7 +60,23 @@ See "When a subagent might still help" below for the one case worth revisiting.
 
    - Be exhaustive: don't stop at the first few hits, don't skip content past a default read window - read whole files when the target is a single file.
 
-3. **Create one TaskList task per cluster** you identified - don't file a task per raw marker if several belong to one theme.
+3. **Freeze, then launch the learn run, then create one TaskList task per cluster** you identified - don't file a task per raw marker if several belong to one theme.
+   - When step 2 found at least 1 marker, freeze first: copy every file that holds a marker into the snapshot dir, per [`improve-from-user/references/lateral-learn.md`](../improve-from-user/references/lateral-learn.md) "Code context".
+
+   - Write `<scratchpad>/feedback_ai-markers_<ts>.md` in Mode E format, opening with `Document:` (the target paths), `Repo:` and `References:` (the snapshot copies).
+
+   - Write one item per marker, in improve-from-user's unified item format.
+     - **Verbatim**: the marker line exactly.
+     - **Context**: `<snapshot copy>:<line>` plus one line on what it annotates.
+     - **Outcome**: `still open`.
+     - **Lesson drawn**: a first draft.
+
+   - Launch `/improve-from-user feedback in <absolute feedback file>` per `lateral-learn.md`, in the same message as the TaskList creation below, and never wait on the window.
+
+   - All of this happens before step 4 strips any marker, and zero markers launch nothing.
+
+   - Persist the feedback file path in the run-state JSON.
+
    - Put the cluster's file:line references and each marker's original text in the task's `metadata` field, not the description.
    - The description stays a concise, human-readable summary of the cluster's theme - metadata carries the machine-checkable state.
    - Populate the full TaskList before investigating or executing any single cluster.

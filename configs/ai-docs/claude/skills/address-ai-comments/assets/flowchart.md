@@ -43,6 +43,14 @@ def address_ai_comments(arg):
     clusters = cluster_into_themes(hits)
     state.append(clusters)
 
+    # 6a · Step 3 - freeze BEFORE any marker is stripped, then launch; same message as the
+    #      TaskList creation, never waits on the window. Zero markers launch nothing.
+    if hits:                                               # 6a
+        snapshot = copy_files_holding_markers(hits)
+        feedback = write_feedback_file(targets, snapshot, hits)   # Mode E format
+        state.write(feedback_file=feedback)
+        launch_learn_run(f"/improve-from-user feedback in {feedback}")
+
     # 7 · Step 3 - the FULL list is populated before any cluster executes.
     for c in clusters:
         TaskCreate(description=c.theme, metadata={"refs": c.file_lines, "text": c.markers})
@@ -92,6 +100,7 @@ flowchart TD
   n5c2["5c2. AI? -&gt; question item"]
   n6["6. Cluster markers into themes;<br/>append classification + theme to run-state file as produced"]:::state
   n5d[["5d. (optional, not default) Dispatch subagents in parallel (∥)<br/>pin: general-purpose · haiku · low<br/>one per subdirectory, mechanical locate+classify only"]]:::dispatch
+  n6a["6a. Step 3 · Freeze + launch learn run (at least 1 marker):<br/>copy every marker-holding file to the snapshot dir, write<br/>feedback_ai-markers_&lt;ts&gt;.md (Mode E), persist its path in run-state,<br/>launch /improve-from-user feedback in &lt;file&gt;<br/>same message as step 7, never wait on the window"]:::dispatch
   n7["7. Step 3 · Create one TaskList task per cluster -<br/>metadata: file:line refs + marker text;<br/>description: theme summary.<br/>Populate full list before executing any"]:::state
   n8{"8. Clusters remaining?<br/>(loop runs sequentially - inline in main<br/>session by design, nothing to parallelize)"}
   n8a{"8a. Cluster's marker type?<br/>(mixed clusters: markers process in file order)"}
@@ -121,7 +130,8 @@ flowchart TD
   n5c -->|"AI?"| n5c2
   n5c1 --> n6
   n5c2 --> n6
-  n6 --> n7
+  n6 --> n6a
+  n6a --> n7
   n7 --> n8
   n8 -->|"yes, cluster remains"| n8a
   n8a -->|"AI!"| n8a1
