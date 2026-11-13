@@ -186,7 +186,7 @@ For each `apply` cluster, **in the plan's order**:
 
 4. Capture the commit SHA into the cluster's TaskList metadata and the run-state file - step 9's reply link needs it. Mark the cluster's command sub-steps done.
 
-If a cluster's edits touch files outside its scope (drift), always split them into a separate `[Drift]` commit per CLAUDE.md and list it in step 10's report. The user is away, and a separate commit stays revertable.
+If a cluster's edits touch files outside its scope (drift), always split them into a separate `[Drift]` commit per the `task-breakdown` skill and list it in step 10's report. The user is away, and a separate commit stays revertable.
 
 ### Repo-green gate (opt-in, after all apply clusters are committed, before step 8's push)
 
