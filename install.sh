@@ -200,6 +200,12 @@ if [[ "$OS" == "macos" ]]; then
 
     # lizard: touched-function metrics (not Bash)
     pipx install lizard
+
+    # shellmetrics: Bash function complexity. No releases
+    # exist, so the script is pinned to one commit.
+    mkdir -p ~/.local/bin
+    curl -fsSL https://raw.githubusercontent.com/shellspec/shellmetrics/b3bfff2af6880443112cdbf2ea449440b30ab9b0/shellmetrics -o ~/.local/bin/shellmetrics
+    chmod +x ~/.local/bin/shellmetrics
 elif [[ "$OS" == "linux" ]]; then
     # Already installed shellcheck in core utilities above
 
@@ -230,6 +236,12 @@ elif [[ "$OS" == "linux" ]]; then
 
     # lizard: touched-function metrics (not Bash)
     pipx install lizard
+
+    # shellmetrics: Bash function complexity. No releases
+    # exist, so the script is pinned to one commit.
+    mkdir -p ~/.local/bin
+    curl -fsSL https://raw.githubusercontent.com/shellspec/shellmetrics/b3bfff2af6880443112cdbf2ea449440b30ab9b0/shellmetrics -o ~/.local/bin/shellmetrics
+    chmod +x ~/.local/bin/shellmetrics
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh

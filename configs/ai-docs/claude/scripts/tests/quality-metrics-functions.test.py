@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 import subprocess
@@ -169,6 +170,8 @@ class TestNestingOfTouchedFunctions:
         assert violation_summary(report) == []
         assert measured_functions(report, "nesting") == ["trim_cell"]
 
+# --- end of nesting tests ---
+
 
 class TestSizeLimits:
     def test_should_pass_30_lines_5_parameters_and_a_300_line_file_and_flag_31_6_and_301(
@@ -243,3 +246,24 @@ class TestSizeLimits:
             "over_limit.css",
             "over_limit.html",
         ]
+
+# --- end of size tests ---
+
+
+class TestBashComplexity:
+    def test_should_pin_the_complexity_shellmetrics_reads_for_a_bash_function_holding_a_case_statement(
+        self, tmp_path
+    ):
+        # shellmetrics counts a four-branch case as 3 added
+        # paths, so it reads complexity 4 where a hand count
+        # of 1 + 4 branches gives 5.
+        script = tmp_path / "pick.sh"
+        script.write_text(
+            'pick() {\n  case "$1" in\n    a) echo a ;;\n    b) echo b ;;\n'
+            "    c) echo c ;;\n    *) echo other ;;\n  esac\n}\n"
+        )
+        functions = importlib.import_module("quality_metrics.functions")
+
+        measures = functions.measure_functions(script, "bash")
+
+        assert {measure_.name: measure_.complexity for measure_ in measures} == {"pick": 4}

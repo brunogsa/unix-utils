@@ -13,9 +13,17 @@ from dataclasses import dataclass
 NESTING_LIMIT = 3
 PARAMETER_LIMIT = 5
 
+BASH = "bash"
+
 # Columns of `lizard --csv -E nd`.
 LIZARD_NLOC, LIZARD_COMPLEXITY, LIZARD_PARAMETERS = 0, 1, 3
 LIZARD_NAME, LIZARD_START, LIZARD_END, LIZARD_NESTING = 7, 9, 10, 11
+
+# Columns of `shellmetrics --csv`; its pseudo-rows are not
+# functions.
+SHELLMETRICS_NAME, SHELLMETRICS_START = 1, 2
+SHELLMETRICS_LLOC, SHELLMETRICS_COMPLEXITY = 3, 4
+SHELLMETRICS_PSEUDO_FUNCTIONS = ("<begin>", "<main>", "<end>")
 
 
 class ToolError(RuntimeError):
@@ -36,6 +44,8 @@ class FunctionMeasure:
 
 
 def measure_functions(path, language):
+    if language == BASH:
+        return _measure_bash_functions(path)
     return _measure_functions_with_lizard(path)
 
 
@@ -90,3 +100,20 @@ def _measure_functions_with_lizard(path):
         for row in csv.reader(io.StringIO(output))
     ]
 
+
+def _measure_bash_functions(path):
+    output = run_tool(["shellmetrics", "--csv", str(path)])
+    rows = list(csv.reader(io.StringIO(output)))[1:]
+    return [
+        FunctionMeasure(
+            name=row[SHELLMETRICS_NAME],
+            start=int(row[SHELLMETRICS_START]),
+            end=None,
+            nloc=int(row[SHELLMETRICS_LLOC]),
+            complexity=int(row[SHELLMETRICS_COMPLEXITY]),
+            nesting=None,
+            parameters=None,
+        )
+        for row in rows
+        if row[SHELLMETRICS_NAME] not in SHELLMETRICS_PSEUDO_FUNCTIONS
+    ]
