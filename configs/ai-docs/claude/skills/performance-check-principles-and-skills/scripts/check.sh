@@ -393,7 +393,9 @@ why_over_rows=""
 
 # CLAUDE.md measurements
 if [ "$has_claude_md" -eq 1 ]; then
-    claude_lines=$(grep -c '\S' "$CLAUDE_MD")
+    # grep -c exits 1 on 0 matches, which set -e turns into a
+    # silent abort on a blank file.
+    claude_lines=$(grep -c '\S' "$CLAUDE_MD" || true)
     claude_chars=$(count_chars < "$CLAUDE_MD")
     claude_max_words=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print max+0 }' "$CLAUDE_MD")
     claude_max_words_line=$(awk '{ if (NF > max) { max = NF; ln = NR } } END { print ln+0 }' "$CLAUDE_MD")
