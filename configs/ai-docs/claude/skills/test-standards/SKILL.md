@@ -121,7 +121,7 @@ it('should filter by assignee', ...);
 - [Instruction] **CRITICAL: Write test titles in domain language a non-engineer (PM, QA, designer) could understand - observable behavior, not internal field names or implementation tokens.**
   - [Why] Titles get scanned more than bodies; one tied to an internal field name breaks on rename even when behavior holds.
 
-- [Instruction] State the business rule a test checks in its title, never a count or label standing in for the rules.
+- [Instruction] State the business rule a test checks in its title, naming the cases the rule leaves out, never a count or label standing in for the rules.
   - [Why] Titles read together document the logic; a title naming only a group guards the rules without teaching them.
   - [Example] Bad: `should pick the address of each of the four scenarios`. Good: one test per scenario, each title naming which address wins and when.
 

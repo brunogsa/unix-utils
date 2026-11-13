@@ -16,13 +16,13 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 ### Lower reviewer load: nesting & dense lines
 
-- [Instruction] **CRITICAL: Treat the human reviewer as the bottleneck - favor any tactic that lowers reviewer cognitive load over author keystrokes.**
+- [Instruction] **CRITICAL: Minimize reviewer context - each name, helper, literal and test must read without opening another file, the plan, or a term the change coined.**
   - [Why] AI writes in seconds; the reviewer pays minutes on every read - optimize the recurring cost, not the one-time write.
 
 - [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor - reduce it by extracting inner units or early returns.
   - [Why] Each nesting level multiplies the mental state the reader holds - bugs hide where "I don't understand" lives.
 
-- [Instruction] **CRITICAL: Split a statement that chains 3+ array operations (filter/map/flatMap/reduce/groupBy), nests callbacks, or wraps an unfamiliar API into intermediate variables, each named for what it holds, not for the operation.**
+- [Instruction] **CRITICAL: Split a statement that chains 2+ array operations (filter/map/flatMap/reduce/groupBy), nests callbacks, or wraps an unfamiliar API into intermediate variables, each named for what it holds, not for the operation.**
   - [Why] A chained one-liner hides what each step holds; the reviewer asked 3 times on arco2-integrator PR 2719.
   - [Example] Bad/good pair: `references/more-examples.md`, "Chained array operations and nested callbacks".
 
@@ -52,7 +52,7 @@ return over a mutated accumulator) - not a documentation task.
 - [Instruction] Cognitive-load bar: extraction must shrink the working set the reader holds.
   - [Why] A 10-line helper hiding a 2-line pattern spreads the same load across two files the reader must chase.
 
-- [Instruction] A wrapper must earn its keep - by adding behavior (retry, logging, validation) or by giving a counter-intuitive API an intuitive interface; never by merely forwarding to what it wraps.
+- [Instruction] A wrapper, including a test helper around the code under test, must add behavior (retry, logging, validation) or tame a counter-intuitive API, never just forward.
   - [Why] Each counter-intuitive-API site is a future bug, so taming it pays off; wrapping `Date.now()` only adds indirection.
   - [Example] Bad: `const getKitBimestre = (kit) => kit.bimestre;`, or a body that is one call to what it wraps. Good: `kit.bimestre` at the call site, and call the callee directly.
 
@@ -64,7 +64,7 @@ return over a mutated accumulator) - not a documentation task.
 
 ### Name by purpose, clearly
 
-- [Instruction] **CRITICAL: Name functions and variables by what the caller gets, not how it works.**
+- [Instruction] **CRITICAL: Name functions and variables by what the caller gets, in words a reader new to the change already knows, not how it works.**
   - [Why] Implementation changes with refactors but the contract shouldn't - a mechanism-named function lies after a rewrite.
 
 - [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name - name the specific operation performed instead.**
@@ -261,7 +261,7 @@ work anywhere. Keep the chain synchronous.
   - [Why] Two normalizers drift on an edge character and turn the comparison into a false alarm.
   - [Example] Bad: comparing `dOeste` (the mapper strips the apostrophe) with `d oeste` (the warn check's regex turns it into a space). Good: one shared normalizer applied to both sides.
 
-- [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values; a named constant for a standalone one.**
+- [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values, a named constant for a standalone one - repeated string literals count, even compiler-checked ones.**
   - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change - a constant is grep-able, changed once.
 
 - [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness.
