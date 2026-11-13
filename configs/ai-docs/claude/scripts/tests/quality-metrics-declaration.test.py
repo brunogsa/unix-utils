@@ -226,3 +226,49 @@ class TestTestFileMetrics:
         assert for_source == declared
         assert for_test == declared - CRAP_AND_COVERAGE
 
+
+INSTALL_SH = SCRIPTS_DIR.parent.parent.parent.parent / "install.sh"
+
+# Global tools the checks need, with each OS's install line.
+# Tools run via `uv run --with` (coverage, import-linter) are
+# exempt: uv fetches them per run, so install.sh skips them.
+# A later task declaring a global tool adds its row here.
+GLOBAL_TOOL_INSTALL_LINES = {
+    "uv": {"macos": r"brew install\b.*\buv\b", "linux": r"astral\.sh/uv/install\.sh"},
+}
+
+
+def install_lines_by_os(install_text):
+    """Group install.sh lines by the top-level OS branch that holds them."""
+    lines_by_os = {"macos": [], "linux": []}
+    current = None
+    for line in install_text.splitlines():
+        if line.startswith(("if ", "elif ", "else", "fi")):
+            current = "macos" if '"macos"' in line else "linux" if '"linux"' in line else None
+            continue
+        if current:
+            lines_by_os[current].append(line)
+    return lines_by_os
+
+
+class TestGlobalToolInstall:
+    @pytest.mark.parametrize("tool", sorted(GLOBAL_TOOL_INSTALL_LINES))
+    @pytest.mark.parametrize("operating_system", ["macos", "linux"])
+    def test_should_find_an_install_line_for_both_operating_systems_for_uv_and_every_other_global_tool_declared_so_far(
+        self, tool, operating_system
+    ):
+        lines = install_lines_by_os(INSTALL_SH.read_text())[operating_system]
+        pattern = re.compile(GLOBAL_TOOL_INSTALL_LINES[tool][operating_system])
+
+        assert any(pattern.search(line) for line in lines)
+
+    def test_should_attribute_a_line_only_to_the_operating_system_branch_that_holds_it(self):
+        sample = (
+            'if [[ "$OS" == "macos" ]]; then\n    brew install uv\n'
+            'elif [[ "$OS" == "linux" ]]; then\n    echo hi\nfi\n'
+        )
+
+        lines = install_lines_by_os(sample)
+
+        assert any("brew install uv" in line for line in lines["macos"])
+        assert not any("brew install uv" in line for line in lines["linux"])

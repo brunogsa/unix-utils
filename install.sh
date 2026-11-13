@@ -196,6 +196,7 @@ if [[ "$OS" == "macos" ]]; then
     brew install shellcheck luacheck lua-language-server
     brew install pipx
     brew install deno
+    brew install uv
 elif [[ "$OS" == "linux" ]]; then
     # Already installed shellcheck in core utilities above
 
@@ -220,6 +221,9 @@ elif [[ "$OS" == "linux" ]]; then
     # pipx
     sudo apt-get install -y pipx
     pipx ensurepath
+
+    # uv (official installer; no apt package)
+    curl -LsSf https://astral.sh/uv/install.sh | sh
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
