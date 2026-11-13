@@ -235,6 +235,7 @@ INSTALL_SH = SCRIPTS_DIR.parent.parent.parent.parent / "install.sh"
 # A later task declaring a global tool adds its row here.
 GLOBAL_TOOL_INSTALL_LINES = {
     "uv": {"macos": r"brew install\b.*\buv\b", "linux": r"astral\.sh/uv/install\.sh"},
+    "lizard": {"macos": r"pipx install\b.*\blizard\b", "linux": r"pipx install\b.*\blizard\b"},
 }
 
 

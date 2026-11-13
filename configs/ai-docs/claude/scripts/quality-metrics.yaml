@@ -30,10 +30,13 @@ per_unit: []
 languages:
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
-    metrics: []
+    metrics: [nesting]
   ts:
     extensions: [.ts, .tsx]
-    metrics: []
+    metrics: [nesting]
+
+  # HTML and CSS have no functions, so nesting reads
+  # "not applicable".
   html:
     extensions: [.html, .htm]
     metrics: []
@@ -42,10 +45,17 @@ languages:
     metrics: []
   python:
     extensions: [.py]
-    metrics: []
+    metrics: [nesting]
+
+  # Bash opts out of nesting and parameters: shellmetrics, the
+  # only tool that reads Bash functions correctly, measures
+  # neither. lizard reads Bash wrongly, so it is not used.
+  #
+  # Size and complexity join this list once Bash functions are
+  # mapped to changed lines.
   bash:
     extensions: [.sh, .bash]
     metrics: []
   go:
     extensions: [.go]
-    metrics: []
+    metrics: [nesting]

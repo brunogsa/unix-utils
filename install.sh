@@ -197,6 +197,9 @@ if [[ "$OS" == "macos" ]]; then
     brew install pipx
     brew install deno
     brew install uv
+
+    # lizard: touched-function metrics (not Bash)
+    pipx install lizard
 elif [[ "$OS" == "linux" ]]; then
     # Already installed shellcheck in core utilities above
 
@@ -224,6 +227,9 @@ elif [[ "$OS" == "linux" ]]; then
 
     # uv (official installer; no apt package)
     curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    # lizard: touched-function metrics (not Bash)
+    pipx install lizard
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
