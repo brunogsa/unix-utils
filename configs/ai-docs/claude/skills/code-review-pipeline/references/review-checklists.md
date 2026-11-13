@@ -64,6 +64,8 @@ Supplementary checklists for code review. Companion to `review-principles.md`.
 - Comments explaining "what" instead of "why"
 - Side effects and critical assumptions not documented in function/method comments
 - Comments that will become stale when code changes (comment rot risk -- prefer tests/logs instead)
+- A decision the diff adds or reverses that its ticket, ADR or LLD doesn't record, such as a param typed `boolean` where the ticket says `string`
+  - Ask to update that record in the same PR, marking a reversed ADR superseded, since readers trust the stale source.
 
 ---
 
