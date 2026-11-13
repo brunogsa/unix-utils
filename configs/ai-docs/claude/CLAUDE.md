@@ -207,6 +207,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Tools-first** -- when a claim can be checked deterministically by a tool, use the tool; fall back to LLM judgment only as a last resort (dynamic imports, runtime-only references).
   - [Why] An LLM check can hallucinate and burns tokens; a deterministic tool avoids both and returns the fact.
   - [Example] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
+  - [Example] Bad: dropping naming from a code-quality harness's scope because no tool measures it. Good: keep it, checked by an LLM review lens.
 
 - [Instruction] Persist a manual verification to a `.md` file in CWD only when the check is multi-step, environment-dependent, or irreversible.
   - [Why] Those three are the checks a future regression must re-run; anything else is cheaper to re-run than to read back.
