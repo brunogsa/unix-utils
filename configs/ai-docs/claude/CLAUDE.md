@@ -124,8 +124,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Verify the simpler path doesn't work before committing to the complex one**.
   - [Why] Without evidence the simpler path fails, the complex path wins by default and ships unjustified machinery.
 
-- [Instruction] **CRITICAL: Search before creating** -- look for existing similar code before writing anything new.
-  - [Why] Duplicate code splits maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
+- [Instruction] **CRITICAL: Search before creating** -- look for existing similar code, or an existing stage that already does a similar job, before writing or designing anything new.
+  - [Why] Duplicate code or mechanisms split maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
   - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
