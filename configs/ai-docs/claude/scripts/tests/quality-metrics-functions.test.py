@@ -1,6 +1,7 @@
 import importlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -420,3 +421,27 @@ class TestBashSize:
         assert [item["file"] for item in report["violations"]] == ["over_limit.sh"]
 
 # --- end of Bash size tests ---
+
+
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "quality-metrics"
+
+
+class TestCrossPlatformMeasurement:
+    def test_should_measure_the_fixture_repo_to_the_same_values_on_macos_and_linux(self, tmp_path):
+        # Hand-written expected values live in the fixture dir,
+        # so this test passing on macOS and in a Linux container
+        # shows both read the fixture to the same values.
+        repo = tmp_path / "repo"
+        shutil.copytree(FIXTURE_DIR / "repo", repo)
+        names = sorted(path.name for path in repo.iterdir())
+
+        result = subprocess.run(
+            [sys.executable, str(MEASURE_SCRIPT), "--files", *names],
+            cwd=repo, env=GIT_ENV, capture_output=True, text=True,
+        )
+        report = json.loads(result.stdout)
+
+        expected = json.loads((FIXTURE_DIR / "expected-measurements.json").read_text())
+        order = lambda item: (item["file"], item["scope"], item["function"] or "", item["metric"])
+        assert sorted(report["measurements"], key=order) == sorted(expected, key=order)
+        assert [item["function"] for item in report["violations"]] == ["build_report"]
