@@ -98,6 +98,23 @@ def go_function_nested(name, depth):
     return "\n".join(lines)
 
 
+def go_function_with_lines(name, code_lines):
+    """A Go function of exactly `code_lines` non-blank, non-comment lines.
+
+    A blank line and a comment sit inside the body to pin that neither counts.
+    """
+    body_statements = code_lines - 4
+    lines = [f"func {name}() int {{", "\ttotal := 0", "", "\t// comment lines do not count"]
+    lines += [f"\ttotal += {number}" for number in range(1, body_statements + 1)]
+    lines += ["\treturn total", "}", ""]
+    return "\n".join(lines)
+
+
+def go_function_with_parameters(name, parameter_count):
+    parameters = ", ".join(f"p{number} int" for number in range(1, parameter_count + 1))
+    return f"func {name}({parameters}) int {{\n\treturn p1\n}}\n"
+
+
 PACKAGE_LINE = "package main\n\n"
 
 
@@ -151,3 +168,78 @@ class TestNestingOfTouchedFunctions:
 
         assert violation_summary(report) == []
         assert measured_functions(report, "nesting") == ["trim_cell"]
+
+
+class TestSizeLimits:
+    def test_should_pass_30_lines_5_parameters_and_a_300_line_file_and_flag_31_6_and_301(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
+        functions_text = "".join(
+            [
+                go_function_with_lines("lines_30", 30),
+                go_function_with_lines("lines_31", 31),
+                go_function_with_parameters("parameters_5", 5),
+                go_function_with_parameters("parameters_6", 6),
+            ]
+        )
+        (repo / "report.go").write_text(PACKAGE_LINE + functions_text)
+        file_at_limit = PACKAGE_LINE + "// header comment\n\n" + "".join(
+            f"var at_limit_{number} = {number}\n" for number in range(1, 300)
+        )
+        file_over_limit = PACKAGE_LINE + "".join(
+            f"var over_limit_{number} = {number}\n" for number in range(1, 301)
+        )
+        (repo / "at_limit.go").write_text(file_at_limit)
+        (repo / "over_limit.go").write_text(file_over_limit)
+        declaration_path = write_declaration(tmp_path, ["size", "parameters"])
+
+        function_report = measure(repo, declaration_path, "--per-unit")
+        file_report = measure(repo, declaration_path, "--files", "at_limit.go", "over_limit.go")
+
+        function_violations = [
+            entry for entry in violation_summary(function_report) if entry[0] is not None
+        ]
+        assert function_violations == [
+            ("lines_31", "size", 31, 30),
+            ("parameters_6", "parameters", 6, 5),
+        ]
+        assert [
+            (item["file"], item["value"], item["limit"])
+            for item in file_report["violations"]
+        ] == [("over_limit.go", 301, 300)]
+        assert [
+            item["value"] for item in file_report["measurements"] if item["file"] == "at_limit.go"
+        ] == [300]
+
+    def test_should_count_html_and_css_size_as_non_blank_non_comment_lines(self, tmp_path):
+        repo = make_repo(tmp_path, {"README.txt": "base\n"})
+        css_filler = "\n/* one-line comment */\n/* multi-line\n   comment */\n\n"
+        html_filler = "\n<!-- one-line comment -->\n<!-- multi-line\n     comment -->\n\n"
+        (repo / "at_limit.css").write_text(
+            css_filler + "".join(f".rule-{n} {{ color: red; }}\n" for n in range(300))
+        )
+        (repo / "over_limit.css").write_text(
+            css_filler + "".join(f".rule-{n} {{ color: red; }}\n" for n in range(301))
+        )
+        (repo / "at_limit.html").write_text(
+            html_filler + "".join(f"<p>paragraph {n}</p>\n" for n in range(300))
+        )
+        (repo / "over_limit.html").write_text(
+            html_filler + "".join(f"<p>paragraph {n}</p>\n" for n in range(301))
+        )
+        declaration_path = write_declaration(tmp_path, ["size"])
+        names = ["at_limit.css", "over_limit.css", "at_limit.html", "over_limit.html"]
+
+        report = measure(repo, declaration_path, "--files", *names)
+
+        assert {item["file"]: item["value"] for item in report["measurements"]} == {
+            "at_limit.css": 300,
+            "over_limit.css": 301,
+            "at_limit.html": 300,
+            "over_limit.html": 301,
+        }
+        assert sorted(item["file"] for item in report["violations"]) == [
+            "over_limit.css",
+            "over_limit.html",
+        ]

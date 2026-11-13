@@ -30,22 +30,22 @@ per_unit: []
 languages:
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
-    metrics: [nesting]
+    metrics: [size, nesting, parameters]
   ts:
     extensions: [.ts, .tsx]
-    metrics: [nesting]
+    metrics: [size, nesting, parameters]
 
-  # HTML and CSS have no functions, so nesting reads
-  # "not applicable".
+  # HTML and CSS have no functions: only size applies.
+  # Complexity, nesting and parameters read "not applicable".
   html:
     extensions: [.html, .htm]
-    metrics: []
+    metrics: [size]
   css:
     extensions: [.css, .scss]
-    metrics: []
+    metrics: [size]
   python:
     extensions: [.py]
-    metrics: [nesting]
+    metrics: [size, nesting, parameters]
 
   # Bash opts out of nesting and parameters: shellmetrics, the
   # only tool that reads Bash functions correctly, measures
@@ -58,4 +58,4 @@ languages:
     metrics: []
   go:
     extensions: [.go]
-    metrics: [nesting]
+    metrics: [size, nesting, parameters]

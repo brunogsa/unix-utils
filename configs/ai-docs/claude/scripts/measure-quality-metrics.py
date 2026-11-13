@@ -36,7 +36,9 @@ DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 # Which module measures each metric. A declared metric with no
 # entry here has no module yet and is skipped.
 METRIC_MODULES = {
+    "size": "size",
     "nesting": "functions",
+    "parameters": "functions",
 }
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2

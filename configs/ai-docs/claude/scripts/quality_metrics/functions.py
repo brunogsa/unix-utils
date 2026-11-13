@@ -11,6 +11,7 @@ import subprocess
 from dataclasses import dataclass
 
 NESTING_LIMIT = 3
+PARAMETER_LIMIT = 5
 
 # Columns of `lizard --csv -E nd`.
 LIZARD_NLOC, LIZARD_COMPLEXITY, LIZARD_PARAMETERS = 0, 1, 3
@@ -39,8 +40,8 @@ def measure_functions(path, language):
 
 
 def measure(target, metrics):
-    """Measure the nesting of every touched function."""
-    limits = {"nesting": NESTING_LIMIT}
+    """Measure the nesting and parameters of every touched function."""
+    limits = {"nesting": NESTING_LIMIT, "parameters": PARAMETER_LIMIT}
     results = []
     for function in measure_functions(target.path, target.language):
         if not target.touches(function.start, function.end):
