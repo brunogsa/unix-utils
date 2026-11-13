@@ -104,6 +104,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 
   - [Example] Bad: "Effort: small", "Risk: low", "Prior: fix, cheap." Good: "Effort: 1 file, 12 lines", "Risk: no caller outside `sync/`", "Prior: fix - 1 file, 12 lines."
+
 - [Instruction] **Say it the plainest way that still carries the rule** -- no clever, compressed, or packed phrasing, in rules, task subjects, or chat.
   - [Why] Compressed wording makes the reader decode it, and a rule they decode is a rule they apply wrong.
 
@@ -127,6 +128,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **CRITICAL: Search before creating** -- look for existing similar code, or an existing stage that already does a similar job, before writing or designing anything new.
   - [Why] Duplicates split maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
   - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
+
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
 
@@ -172,6 +174,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
+
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
 
@@ -243,6 +246,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
   - [Why] Touching more than asked widens the review surface and buries the real change in incidental reformatting.
+
 - [Instruction] **CRITICAL: Change file contents with Edit or Write, never through Bash** (sed, awk, perl, heredoc), whatever the harness prompt allows - except an editor-style replace-all of the same text.
   - [Why] A Bash edit can silently change the wrong line or nothing, with no diff prompt, mismatch error or hook to catch it.
 
@@ -258,6 +262,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] The manual id is referenceable in chat immediately, and pinning the system id keeps later updates unambiguous.
 
   - [Example] Final shape ` <id>. [#<returned-id>][<category>] <description>`. Default `[Task]`; also `[Feature]`, `[Spike]`, `[Debt]`, `[Refactor]`.
+
 - [Instruction] Persist machine-checkable task state - step counters, gate outcomes, attempt counts, decisions, artifact/experiment links - in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction and reads back as structured fields, so a resumed skill needn't re-parse prose.
 

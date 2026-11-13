@@ -29,8 +29,8 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] Cap a code comment at 4 sentences of prose, or convert it to a bullet list of one sentence each.
   - [Why] A comment past a few sentences reads as prose to parse, not text to scan - the same problem bullets solve.
 
-- [Instruction] When a function needs a long or complex comment to explain itself, treat that as a signal to restructure it (clearer name, narrower params, a pure
-return over a mutated accumulator) - not a documentation task.
+- [Instruction] When a function needs a long or complex comment to explain itself, treat that as a signal to restructure it, not a documentation task.
+  - [Example] Clearer name, narrower params, or a pure return over a mutated accumulator.
   - [Why] The comment compensates for the function's shape - fixing the shape removes the need for it, not polishing it.
 
 ### Extraction: helpers, components, wrappers
@@ -110,8 +110,8 @@ return over a mutated accumulator) - not a documentation task.
 - [Instruction] **CRITICAL: One thing at one level of abstraction.**
   - [Why] A function doing two jobs has two reasons to change (SRP) - editing it for one job risks breaking the other.
 
-- [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules). "Collect" means gather
-only - translation and business rules belong in their own named steps.
+- [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules).
+  - [Example] "Collect" means gather only - translation and business rules belong in their own named steps.
 
 - [Instruction] **Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).**
   - [Why] I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.
@@ -159,8 +159,7 @@ only - translation and business rules belong in their own named steps.
 - [Instruction] Simplest correct version first. Memoization/caching needs profiling proof OR a clear Big-O reason.
   - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path - no measured benefit.
 
-- [Instruction] When a filter/dedup/build-style pipeline is hard to follow in one combined pass, split it into named sequential steps even at a performance cost, absent profiling proof
-the combined form is needed.
+- [Instruction] When a filter/dedup/build-style pipeline is hard to follow in one combined pass, split it into named steps even at a performance cost, absent profiling proof the combined form is needed.
   - [Why] Tracing a combined pass forces holding every stage in mind at once; named steps let it verify one stage at a time.
 
 ## Functions, purity & side effects
@@ -168,8 +167,7 @@ the combined form is needed.
 - [Instruction] Don't mark a function `async` (or return a `Promise`) unless it performs genuine asynchronous work.
   - [Why] Wrapping already-resolved or purely synchronous logic in `async` forces every caller to `await` for nothing.
 
-- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await - it propagated through every caller with no real async
-work anywhere. Keep the chain synchronous.
+- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await - it propagated through every caller with no real async work anywhere.
 
 - [Instruction] Keep functions pure by default - isolate I/O into thin boundary functions.
   - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure - keep it at the edges.
