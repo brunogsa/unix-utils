@@ -92,6 +92,10 @@ Cluster every question open at the same moment into one call, at most 4 per call
 
 Settle each question in the interview by default. Apply each answer through `agent(subAgent=spec-editor, title=Apply spec edits)`: remove the answered entry from `## Open Questions` and write the decision where it belongs in the spec. When the answers hold a correction, this dispatch is the second move of the correction-round block in step 3.
 
+Pass that dispatch the reasoning and every source the question cited, for the decision's `__because__` and the `[Why]` of any rule it sets.
+
+Why: the question's text is gone once `AskUserQuestion` returns, and `spec-editor` sees only what it is handed, so research left in the question is lost.
+
 Keep an entry in `## Open Questions` only when the user explicitly says to keep it open, typically because they don't know either and it needs discovery. Never keep one on your own judgment.
 
 For a question only an external party can answer (another team, a vendor), the recommended option is to keep the entry open with the link to where it was asked, and state the premise the spec proceeds on meanwhile and what a contrary answer reopens.
