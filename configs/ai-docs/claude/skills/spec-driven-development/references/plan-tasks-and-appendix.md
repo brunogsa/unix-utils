@@ -141,6 +141,9 @@ PR slicing (set by the user on 2026-11-06; replaces the earlier "prefer independ
 - [Instruction] Make a PR depend only on PRs whose code it calls; never chain PRs in sequence for ordering alone.
   - [Why] In the `sf-account-hierarchy` plan, a PDP answer gating PR-2 blocked every PR stacked after it; regrouping cut the longest dependency chain from 8 to 4.
 
+- [Instruction] Put a refactor the change needs in its own PR, ahead of the behavior PR, once it clears the ~50-line floor.
+  - [Why] Bundled in, its mechanical diff buries the behavior change under review; below the floor, `commit-standards` already isolates it as its own commit.
+
 - [Instruction] Treat a task with no code as a gate on the PR whose behavior it guards, never as a member of a PR.
   - [Why] In the `sf-account-hierarchy` plan, prod gates sat on the last PR although they guarded the first ones, so the first PRs reached prod unguarded.
 
