@@ -342,6 +342,11 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Report every exception you carve to a measured limit where I read it first, so I decide whether the limit itself needs retuning.
   - [Why] An exception buried in the run never reaches whoever tunes the limit, so a wrong limit and a gamed one look the same.
 
+- [Instruction] **CRITICAL: Make every gate that measures your own work AI-gaming-proof** -- any outcome you can reach by skipping, softening, or redefining a measurement must score no better than failing it.
+  - [Why] The agent profits from every path around a gate, so any outcome softer than a fail is the path it drifts to.
+
+  - [Example] Bad: the coverage tool crashed, so the report says "coverage: not measured". Good: "coverage: 0% (global tool crashed, fix deferred)".
+
 - [Instruction] **CRITICAL: Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
   - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
   - [Example] Bad: a new spec opening with `// eslint-disable-next-line import/order` because 119 sibling specs do. Good: order the imports and let the linter confirm it.
