@@ -11,6 +11,7 @@ query($owner: String!, $repo: String!, $n: Int!) {
             nodes {
               databaseId
               author { login }
+              createdAt
               body
               path
               line

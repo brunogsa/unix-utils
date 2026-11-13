@@ -20,9 +20,9 @@ disable-model-invocation: false
 
 **Ownership** (what `by` matches) is the author of an inline thread's **first comment** (replies never transfer it), of a top-level comment, or of a review for its summary body. Rationale: `references/reply-patterns.md`.
 
-**Self-AI gate (always applied, never a filter you pass):** an item is a candidate only if unresolved AND you (`ME`) already left a marked note in it. `AI!: <msg>` is a command and `AI?: <msg>` is a question; a bare legacy `AI:` is an alias of `AI!`.
+**Self-AI gate (always applied, not a passed filter):** an item is a candidate only if unresolved, not answered by a later reply of yours, AND you (`ME`) left a marked note in it. `AI!: <msg>` is a command and `AI?: <msg>` is a question; a bare legacy `AI:` is an alias of `AI!`.
 
-The marker is not `TODO:`, so humans read it as a note to your AI, and untriaged comments never get a reply. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
+Humans read the marker as a note to your AI, and untriaged comments never get a reply. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
 
 **CRITICAL - an `AI!` note is a PR-wide rule.** You leave it once, on one spot, and it binds every line this PR adds or changes - never just the thread it sits in.
 

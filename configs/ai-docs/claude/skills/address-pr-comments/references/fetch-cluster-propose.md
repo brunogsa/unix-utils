@@ -30,7 +30,7 @@ Include each review's `body` (when non-empty) plus its `state` - `state` feeds t
 
 ### 3d. Self-AI gate (always applied, before user filters)
 
-A candidate item - inline thread, top-level comment, or review-summary body - proceeds only if BOTH hold:
+A candidate item - inline thread, top-level comment, or review-summary body - proceeds only if ALL hold:
 
 - **Not resolved.** Inline threads need `isResolved == false`; top-level comments and review-summary bodies have no resolved concept, so they pass.
 
@@ -38,9 +38,15 @@ A candidate item - inline thread, top-level comment, or review-summary body - pr
   - Its body has a line whose first non-blank, non-list-marker token starts with `AI!`, `AI?` or `AI:`.
   - The match is case-insensitive; the colon is optional after `AI!`/`AI?` and required on `AI:`, so "AI-generated" or "AIM" never matches.
 
+- **Not already answered.** Find `ME`'s latest marked note in the item; the item is already answered, and dropped, when `ME` posted a comment after it:
+  - Inline thread: a later comment by `ME` in the same thread (order by `createdAt`), signed or not. Step 9 posts dictated replies unsigned, and they are still answers.
+  - Top-level comment or review summary: a later issue comment by `ME` (`created_at`) whose body contains `re: <that comment's html_url>`, step 9's top-level reply format in `reply-patterns.md`.
+  - A new marked note posted after that reply makes the item a candidate again, because the user is asking for more.
+    - Why: a reply means a prior run addressed the marker, and the user resolving threads by hand must not be the only thing that stops a re-run.
+
 Tag each such marker `command` for `AI!` and the legacy `AI:` alias, `question` for `AI?`. A comment holding several marked lines yields one tagged marker per line, each with its own sub-step and reply decision.
 
-Drop anything failing either check silently, before clustering: no reply is owed and no cluster entry exists.
+Drop anything failing a check silently, before clustering: no reply is owed and no cluster entry exists. Count the items dropped only as already answered, for the proposal header.
 
 ### 3e. Apply user filters
 
@@ -104,7 +110,7 @@ An `AI!` note is a rule for the whole PR, not a fix for the one line it sits on.
 Return this block as your final message - one `### Cluster N` section per cluster, nothing else. Main cannot ask follow-ups, so fill every field unambiguously.
 
 ```
-## PR <n> - <total> candidate comments in <K> clusters
+## PR <n> - <total> candidate comments in <K> clusters (<D> dropped as already answered)
 
 ### Cluster 1: <short title> [action: apply]
 - Files: src/auth/login.ts, src/auth/session.ts
