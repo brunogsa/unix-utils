@@ -26,6 +26,11 @@ set -uo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_UNDER_TEST="$script_dir/../tmux-window-title.sh"
 
+# The script skips its hook-driven modes under a headless
+# entrypoint. Pin an interactive one so a suite run from a
+# headless Claude's Bash tool measures the same thing.
+export CLAUDE_CODE_ENTRYPOINT=cli
+
 pass_count=0
 fail_count=0
 
@@ -1710,6 +1715,71 @@ as_pane() {
   TMUX_PANE="$pane" bash "$SCRIPT_UNDER_TEST" "$@"
 }
 
+# Nested headless sessions (a `claude -p` run from the parent's
+# Bash tool) inherit the parent's TMUX_PANE, so they look like
+# the owner. Their hook-driven calls must not touch the
+# parent's window.
+
+it_should_keep_the_owner_when_a_nested_headless_claude_session_ends() {
+  start_server
+
+  CLAUDE_CODE_ENTRYPOINT=sdk-cli title --release-owner <<'JSON'
+{"reason":"other"}
+JSON
+
+  assert_eq \
+    "TmuxWindowTitle > headless > should keep the owner when a nested sdk-cli session ends with reason other" \
+    "$TMUX_PANE" "$(title_owner)"
+  stop_server
+}
+
+it_should_leave_the_window_state_alone_when_a_nested_headless_claude_resets_or_bumps() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "db-store"
+  local before_name before_root
+  before_name=$(window_name)
+  before_root=$(pane_option "@claude_root_title")
+
+  CLAUDE_CODE_ENTRYPOINT=sdk-cli title --reset-counter </dev/null
+  CLAUDE_CODE_ENTRYPOINT=sdk-cli title --bump-counter
+  CLAUDE_CODE_ENTRYPOINT=sdk-cli title --bump-subagent-counter </dev/null
+
+  assert_eq \
+    "TmuxWindowTitle > headless > should leave the window name unchanged when a nested sdk-cli session resets or bumps" \
+    "$before_name" "$(window_name)"
+  assert_eq \
+    "TmuxWindowTitle > headless > should leave the frozen root unchanged when a nested sdk-cli session resets" \
+    "$before_root" "$(pane_option "@claude_root_title")"
+  assert_eq \
+    "TmuxWindowTitle > headless > should leave the spent first-title flag set when a nested sdk-cli session resets" \
+    "yes" "$([ -n "$(pane_option "@claude_first_title_used")" ] && echo yes || echo no)"
+  stop_server
+}
+
+it_should_still_release_and_reset_for_an_interactive_cli_session() {
+  start_server
+
+  title "auth-fix"
+  title --bump-counter
+  title "db-store"
+
+  CLAUDE_CODE_ENTRYPOINT=cli title --reset-counter </dev/null
+  assert_eq \
+    "TmuxWindowTitle > headless > should still reset the window to the bare label for an entrypoint of cli" \
+    "db-store" "$(window_name)"
+
+  CLAUDE_CODE_ENTRYPOINT=cli title --release-owner <<'JSON'
+{"reason":"other"}
+JSON
+  assert_eq \
+    "TmuxWindowTitle > headless > should still release the owner for an entrypoint of cli" \
+    "" "$(title_owner)"
+  stop_server
+}
+
 it_should_let_the_first_pane_claim_the_window_title_and_refuse_a_second_pane() {
   start_server
   local first="$TMUX_PANE" second
@@ -1896,6 +1966,9 @@ it_should_never_release_the_owner_s_claim_when_a_non_owner_pane_session_ends
 it_should_claim_ownership_on_a_start_reset_when_the_window_is_unclaimed
 it_should_refuse_a_title_and_keep_the_window_name_when_no_pane_owns_the_window
 it_should_refuse_both_bumps_and_check_ownership_as_false_when_no_pane_owns_the_window
+it_should_keep_the_owner_when_a_nested_headless_claude_session_ends
+it_should_leave_the_window_state_alone_when_a_nested_headless_claude_resets_or_bumps
+it_should_still_release_and_reset_for_an_interactive_cli_session
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

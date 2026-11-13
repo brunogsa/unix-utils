@@ -219,6 +219,16 @@
 #   continues, and an empty or unknown reason keeps it too.
 #   It always exits 0.
 #
+#   Headless sessions: a `claude -p` run from the parent's Bash
+#   tool inherits the parent's TMUX_PANE, so it passes for the
+#   owner.
+#
+#   --reset-counter, --release-owner and both bumps therefore
+#   exit 0 silently, before touching tmux, when
+#   CLAUDE_CODE_ENTRYPOINT is set and is not "cli".
+#
+#   Unset counts as interactive, as in the reminder hooks.
+#
 #   Known gap: a Claude killed with no SessionEnd, whose pane
 #   lives on, keeps ownership until that pane closes or runs
 #   Claude again.
@@ -775,6 +785,29 @@ fi
 if [ -z "${TMUX:-}" ] || [ -z "${TMUX_PANE:-}" ]; then
   exit 0
 fi
+
+# A headless or programmatic Claude (claude -p, SDK calls,
+# eval runs) launched from the parent's Bash tool inherits the
+# parent's TMUX_PANE, so it passes for the owner.
+#
+# Its SessionStart and SessionEnd hooks must not reset, bump
+# or release the parent's window.
+#
+# Same rule as claude-tmux-title-reminder.sh:
+# CLAUDE_CODE_ENTRYPOINT is "cli" only for a genuine
+# interactive launch. Unset means an older Claude Code that
+# predates the var, so it counts as interactive.
+#
+# Only the hook-driven modes are guarded. The default title
+# mode is a call the model chose to make, and the two
+# ownership queries sit behind the reminder hooks' own guard.
+case "$MODE" in
+  --reset-counter|--release-owner|--bump-counter|--bump-subagent-counter)
+    if [ -n "${CLAUDE_CODE_ENTRYPOINT:-}" ] && [ "${CLAUDE_CODE_ENTRYPOINT}" != "cli" ]; then
+      exit 0
+    fi
+    ;;
+esac
 
 case "$MODE" in
   --claim-owner)
