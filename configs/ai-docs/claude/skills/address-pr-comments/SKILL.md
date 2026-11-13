@@ -22,7 +22,7 @@ disable-model-invocation: false
 
 **Self-AI gate (always applied, never a filter you pass):** an item is a candidate only if unresolved AND you (`ME`) already left a marked note in it. `AI!: <msg>` is a command and `AI?: <msg>` is a question; a bare legacy `AI:` is an alias of `AI!`.
 
-Match case-insensitively; the colon is optional after `AI!`/`AI?` but required on `AI:`. The marker is not `TODO:`, so humans read it as a note to your AI, and untriaged comments never get a reply. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
+The marker is not `TODO:`, so humans read it as a note to your AI, and untriaged comments never get a reply. Full rule: `references/fetch-cluster-propose.md#3d-self-ai-gate-always-applied-before-user-filters`.
 
 **CRITICAL - an `AI!` note is a PR-wide rule.** You leave it once, on one spot, and it binds every line this PR adds or changes - never just the thread it sits in.
 
@@ -120,7 +120,7 @@ matches and stop - don't cluster.
 Return ONLY the proposal block - never the raw fetched JSON.
 ```
 
-When the subagent returns at least 1 candidate, launch the learn run for `/improve-from-user PR <OWNER_REPO>#<n>`, following `~/.claude/skills/improve-from-user/references/lateral-learn.md` for the protocol. Do it in the same message as step 4, and never wait on the window. Zero candidates launch nothing.
+On 1+ candidates, launch `/improve-from-user PR <OWNER_REPO>#<n>` per `~/.claude/skills/improve-from-user/references/lateral-learn.md`, in step 4's message.
 
 ## Step 4: Create the TaskList (main)
 
