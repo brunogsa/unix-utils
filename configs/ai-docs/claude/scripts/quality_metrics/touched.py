@@ -8,6 +8,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional, Set
 
 # A file with no recorded hunks (a new file, or one named by
 # --files) is touched on every line.
@@ -33,10 +34,10 @@ class Target:
 
     path: Path
     language: str
-    touched_lines: object
+    touched_lines: Optional[Set[int]]
 
     def touches(self, first_line, last_line):
-        if self.touched_lines is WHOLE_FILE:
+        if self.touched_lines is None:
             return True
         return any(first_line <= line <= last_line for line in self.touched_lines)
 
@@ -53,6 +54,44 @@ def touched_files_since(base_ref):
     for path in untracked:
         touched[path] = WHOLE_FILE
     return touched
+
+
+def touched_files_between(base_ref, head_ref):
+    """Map each file the range `base_ref...head_ref` changed to its touched lines."""
+    return _touched_lines_in_diff(
+        _git("-c", "core.quotepath=false", *DIFF_ARGUMENTS, f"{base_ref}...{head_ref}")
+    )
+
+
+@dataclass(frozen=True)
+class Change:
+    """A file the range changed: its path at the base, and at the head (None when deleted)."""
+
+    old_path: str
+    new_path: Optional[str]
+
+
+def changes_between(base_ref, head_ref):
+    """List the files the range modified, renamed or deleted, as base-side paths."""
+    output = _git(
+        "-c", "core.quotepath=false", "diff", "--relative", "--no-ext-diff",
+        "--name-status", "-M", f"{base_ref}...{head_ref}",
+    )
+    changes = []
+    for line in output.splitlines():
+        status, *paths = line.split("\t")
+        if status.startswith("A"):
+            continue
+        if status.startswith("D"):
+            changes.append(Change(paths[0], None))
+        else:
+            changes.append(Change(paths[0], paths[-1]))
+    return changes
+
+
+def file_text_at(ref, path):
+    """The text of `path` (relative to the working directory) as of `ref`."""
+    return _git("show", f"{ref}:./{path}")
 
 
 def _touched_lines_in_diff(diff_text):

@@ -61,6 +61,17 @@ def write_declaration(tmp_path, metrics, per_unit=None):
     return path
 
 
+def commit_all(repo, message):
+    git(repo, "add", "--all")
+    git(repo, "commit", "--quiet", "-m", message)
+
+
+def head_of(repo):
+    return subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, env=GIT_ENV, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
 def measure(repo, declaration_path, *arguments):
     result = subprocess.run(
         [sys.executable, str(MEASURE_SCRIPT), *arguments, "--declaration", str(declaration_path)],
@@ -267,3 +278,75 @@ class TestBashComplexity:
         measures = functions.measure_functions(script, "bash")
 
         assert {measure_.name: measure_.complexity for measure_ in measures} == {"pick": 4}
+
+
+class TestReviewMode:
+    def test_should_measure_only_functions_the_diff_changes_adds_or_removes_in_review_mode(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path,
+            {
+                "report.go": PACKAGE_LINE
+                + go_function_nested("untouched_deep", 5)
+                + go_function_nested("edited_deep", 5)
+                + go_function_nested("removed_deep", 5)
+            },
+        )
+        base = head_of(repo)
+        (repo / "report.go").write_text(
+            PACKAGE_LINE
+            + go_function_nested("untouched_deep", 5)
+            + go_function_nested("edited_deep", 5).replace("return 0", "return 2")
+            + go_function_nested("added_deep", 4)
+        )
+        commit_all(repo, "change the report")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert measured_functions(report, "nesting") == ["added_deep", "edited_deep"]
+        assert violation_summary(report) == [
+            ("added_deep", "nesting", 4, 3),
+            ("edited_deep", "nesting", 5, 3),
+        ]
+
+    def test_should_list_a_removed_over_limit_function_as_resolved_with_its_last_score_and_no_violation(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path,
+            {"report.go": PACKAGE_LINE + go_function_nested("legacy_parse", 5)
+             + go_function_nested("keep_small", 1)},
+        )
+        base = head_of(repo)
+        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("keep_small", 1))
+        commit_all(repo, "drop the legacy parser")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert [
+            (item["file"], item["function"], item["metric"], item["value"], item["limit"])
+            for item in report["resolved"]
+        ] == [("report.go", "legacy_parse", "nesting", 5, 3)]
+        assert report["violations"] == []
+
+    def test_should_leave_a_removed_function_under_every_limit_out_of_the_resolved_list(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path,
+            {"report.go": PACKAGE_LINE + go_function_nested("trim_cell", 1)
+             + go_function_nested("keep_small", 1)},
+        )
+        base = head_of(repo)
+        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("keep_small", 1))
+        commit_all(repo, "drop the small helper")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert report["resolved"] == []
+
+# --- end of review mode tests ---
