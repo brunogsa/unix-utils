@@ -290,6 +290,12 @@ else
     pipx install pytest
 fi
 
+# pytest's pipx venv has no system site-packages, so the
+# quality-metrics tests cannot import the --user PyYAML below.
+# Injected unconditionally on both OSes: pip is a no-op when
+# it is already present.
+pipx inject pytest pyyaml
+
 # pyrightconfig.json - point the type checker at the pipx
 # pytest venv's site-packages.
 #
@@ -349,9 +355,11 @@ fi
 #
 # So Pyright resolves it via the default python environment with
 # no extraPaths edit - verified with a whole-repo `pyright` run.
-if python3 -c 'import yaml' &> /dev/null; then
-    echo "PyYAML already importable, skipping"
-elif python3 -m pip install --user pyyaml &> /dev/null \
+#
+# Runs unconditionally on macOS and Linux, never skipped on an
+# importable `yaml`: the quality-metrics loader needs it, and
+# pip is a no-op when it is already satisfied.
+if python3 -m pip install --user pyyaml &> /dev/null \
     || python3 -m pip install --user --break-system-packages pyyaml; then
     echo "PyYAML installed to user site-packages"
 else

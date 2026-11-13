@@ -1,0 +1,51 @@
+# quality-metrics.yaml - metrics that apply per language.
+#
+# Placement rule: list a check under per_unit only when a
+# benchmark on this machine timed it at 8 seconds or less.
+# Every other check runs only at batch end.
+# Batch end runs every declared metric.
+#
+# Adding a language is one new entry under `languages`.
+# It declares the file extensions it owns and its metrics.
+# A metric left out of an entry reads "not applicable", never
+# "passed" - say why in a comment beside the entry.
+#
+# An unknown language or metric name fails the run before any
+# measuring starts, naming the entry.
+#
+# Each metric's entry lands with the module that measures it.
+
+# Path prefixes of generated and vendored files, not measured.
+excluded_paths:
+  - dist/
+  - build/
+  - node_modules/
+  - vendor/
+
+# Non-code extensions, ignored with no language entry asked.
+ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
+
+per_unit: []
+
+languages:
+  js:
+    extensions: [.js, .jsx, .mjs, .cjs]
+    metrics: []
+  ts:
+    extensions: [.ts, .tsx]
+    metrics: []
+  html:
+    extensions: [.html, .htm]
+    metrics: []
+  css:
+    extensions: [.css, .scss]
+    metrics: []
+  python:
+    extensions: [.py]
+    metrics: []
+  bash:
+    extensions: [.sh, .bash]
+    metrics: []
+  go:
+    extensions: [.go]
+    metrics: []
