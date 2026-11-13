@@ -17,6 +17,7 @@
 import importlib.util
 import os
 import re
+import stat
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -44,7 +45,18 @@ SUBSTITUTION_CLOSER = ')"'
 SHORT_FLAGS = frozenset("aqvnio")
 SHORT_VALUE_OPTIONS = {"m": "message", "F": "file"}
 LONG_FLAGS = frozenset({"--all", "--quiet", "--verbose", "--no-verify", "--include", "--only", "--allow-empty"})
-LONG_VALUE_OPTIONS = {"--message": "message", "--file": "file"}
+
+# A trailer lands after the message body, so it never changes
+# the subject. Unlisted, it made every such commit unsure.
+LONG_VALUE_OPTIONS = {"--message": "message", "--file": "file", "--trailer": "trailer"}
+
+# The hook JSON's cwd, which the git guard hands over because a
+# relative -F path resolves against the Bash tool's directory.
+COMMIT_CWD_ENV = "CLAUDE_GIT_COMMIT_CWD"
+
+# The subject sits in the first paragraph; a prefix is enough.
+MESSAGE_FILE_READ_LIMIT = 1 << 20
+DIRECTORY_COMMANDS = frozenset({"cd", "pushd", "popd"})
 
 # git global options that only pick a pager, a repository or how
 # pathspecs read, so the message git records is unchanged.
@@ -98,6 +110,17 @@ class Stage(NamedTuple):
     words: list[Word]
     heredoc_keys: list[int]
     is_sure: bool
+
+
+class ShellState:
+    """What the command's earlier stages leave for a later commit."""
+
+    def __init__(self, cwd):
+        self.cwd = cwd
+
+        # A relative path means something else after a cd, and
+        # the command text cannot say where it landed.
+        self.is_cwd_moved = False
 
 
 def _load_parse_lib():
@@ -424,7 +447,7 @@ def _read_commit_options(words):
 
     git keeps parsing options after a pathspec, until --.
     """
-    values = {"message": [], "file": []}
+    values = {"message": [], "file": [], "trailer": []}
     index = 0
     while index < len(words):
         text = words[index].text
@@ -460,7 +483,29 @@ def _join_message_options(messages):
     return buffer
 
 
-def _commit_message(stage, values):
+def _read_message_file(path, state, is_git_dir_moved):
+    """Return the text of a -F file, or None when it is not surely
+    the file git reads.
+    """
+    if not os.path.isabs(path) and (state.is_cwd_moved or is_git_dir_moved):
+        return None
+    full_path = os.path.join(state.cwd, path)
+    try:
+        # A pipe or device would block the hook on open.
+        if not stat.S_ISREG(os.stat(full_path).st_mode):
+            return None
+        with open(full_path, "rb") as handle:
+            raw = handle.read(MESSAGE_FILE_READ_LIMIT)
+    except OSError:
+        return None
+    return raw.decode("utf-8", "replace")
+
+
+def _is_directory_change(words):
+    return any(word.text.lstrip("({") in DIRECTORY_COMMANDS for word in words)
+
+
+def _commit_message(stage, values, state):
     """Return the message a git commit stage surely records, or None."""
     if not stage.is_sure or len(stage.heredoc_keys) > 1:
         return None
@@ -468,9 +513,11 @@ def _commit_message(stage, values):
     index = _command_word_index(words)
     if index is None or words[index].text != "git":
         return None
-    index = _subcommand_index(words, index + 1)
+    git_options_start = index + 1
+    index = _subcommand_index(words, git_options_start)
     if index is None or words[index].text != "commit":
         return None
+    is_git_dir_moved = "-C" in [word.text for word in words[git_options_start:index]]
     options = _read_commit_options(words[index + 1 :])
     if options is None:
         return None
@@ -482,10 +529,14 @@ def _commit_message(stage, values):
     if any(word.is_expandable for word in words[:checked_end]):
         return None
     messages, files = values_by_kind["message"], values_by_kind["file"]
-    if messages and not files:
+    if messages and files:
+        return None
+    if messages:
         return _join_message_options(messages)
-    if files == ["-"] and not messages and stage.heredoc_keys:
-        return values[stage.heredoc_keys[0]]
+    if files == ["-"]:
+        return values[stage.heredoc_keys[0]] if stage.heredoc_keys else None
+    if len(files) == 1:
+        return _read_message_file(files[0], state, is_git_dir_moved)
     return None
 
 
@@ -503,8 +554,11 @@ def _subject_of(message):
     return " ".join(subject_lines)
 
 
-def compute_subjects(command):
-    """Return the subject of each commit the command surely runs."""
+def compute_subjects(command, cwd=None):
+    """Return the subject of each commit the command surely runs.
+
+    cwd is the directory a relative -F path resolves against.
+    """
     parse_lib = _load_parse_lib()
     if parse_lib is None or PLACEHOLDER_MARK in command:
         return []
@@ -523,7 +577,12 @@ def compute_subjects(command):
         ]
     except CannotBeSure:
         return []
-    messages = [_commit_message(stage, values) for stage in stages]
+    state = ShellState(cwd or os.getcwd())
+    messages = []
+    for stage in stages:
+        messages.append(_commit_message(stage, values, state))
+        if _is_directory_change(stage.words):
+            state.is_cwd_moved = True
     return [_subject_of(message) for message in messages if message is not None]
 
 
@@ -541,7 +600,8 @@ def main(argv):
     # Undo the locale's argv decoding, so a non-ASCII subject is
     # measured in characters, not bytes.
     command = os.fsencode(argv[1]).decode("utf-8", "surrogateescape")
-    over_cap = [subject for subject in compute_subjects(command) if len(subject) > SUBJECT_CAP]
+    subjects = compute_subjects(command, os.environ.get(COMMIT_CWD_ENV))
+    over_cap = [subject for subject in subjects if len(subject) > SUBJECT_CAP]
     if over_cap:
         reason = _deny_reason(over_cap[0]) + "\n"
         sys.stdout.buffer.write(reason.encode("utf-8", "backslashreplace"))

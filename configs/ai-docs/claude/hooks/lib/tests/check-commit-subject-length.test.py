@@ -42,6 +42,7 @@ TWO_LINE_SECOND = "longer than a cap."
 NO_BREAK_SPACE_SUBJECT = SUBJECT_AT_CAP + " "
 LINE_SEPARATOR_SUBJECT = "fix(git-guard): stop a commit whose subject is longer than a cap."
 ATTRIBUTION = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+COMMIT_CWD_ENV = "CLAUDE_GIT_COMMIT_CWD"
 
 # Commit 1ac7104f landed this 66-character subject through the
 # guard, because the $D in its pathspec made the checker unsure.
@@ -307,12 +308,16 @@ FAIL_OPEN_FORMS = [
 ]
 
 
-def _run_checker(command, checker_path=CHECKER):
+def _run_checker(command, checker_path=CHECKER, cwd=None):
+    env = {key: value for key, value in os.environ.items() if key != COMMIT_CWD_ENV}
+    if cwd is not None:
+        env[COMMIT_CWD_ENV] = str(cwd)
     return subprocess.run(
         [sys.executable, str(checker_path), command],
         capture_output=True,
         text=True,
         check=False,
+        env=env,
     )
 
 
@@ -401,6 +406,109 @@ class TestFailOpen:
         shutil.copy(CHECKER, lonely_checker)
 
         result = _run_checker(f'git commit -m "{SUBJECT_OVER_CAP}"', checker_path=lonely_checker)
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+
+def _write_message_file(directory, subject, name="msg.txt"):
+    path = directory / name
+    path.write_text(f"{subject}\n\nWhy the change exists.\n\n{ATTRIBUTION}\n")
+    return path
+
+
+def _assert_denied(result, subject):
+    assert result.returncode == 0
+    assert f"subject is {len(subject)} characters" in result.stdout
+
+
+class TestMessageFile:
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "git commit -F {path}",
+            "git commit -F{path}",
+            "git commit --file {path}",
+            "git commit --file={path}",
+            "git commit -q -F {path} --no-verify",
+            "git commit -qF {path}",
+            "git commit -F {path} --trailer 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'",
+            "git add notes.txt && git commit -q -F '{path}'",
+        ],
+        ids=[
+            "-F with a separate path",
+            "-F with the path attached",
+            "--file with a separate path",
+            "--file=path",
+            "-q and --no-verify around -F",
+            "a -qF cluster",
+            "a --trailer after -F",
+            "a quoted path after an add",
+        ],
+    )
+    def test_should_deny_a_message_file_whose_subject_runs_past_the_cap(self, tmp_path, template):
+        path = _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(template.format(path=path))
+
+        _assert_denied(result, SUBJECT_OVER_CAP)
+
+    def test_should_resolve_a_relative_path_against_the_hook_cwd(self, tmp_path):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker("git commit -F msg.txt", cwd=tmp_path)
+
+        _assert_denied(result, SUBJECT_OVER_CAP)
+
+    def test_should_allow_a_message_file_whose_subject_is_exactly_64_characters(self, tmp_path):
+        path = _write_message_file(tmp_path, SUBJECT_AT_CAP)
+
+        result = _run_checker(f"git commit -F {path}")
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_join_a_two_line_first_paragraph_of_the_file_past_the_cap(self, tmp_path):
+        path = tmp_path / "msg.txt"
+        path.write_text(f"{TWO_LINE_FIRST}\n{TWO_LINE_SECOND}\n\nBody.\n")
+
+        result = _run_checker(f"git commit -F {path}")
+
+        _assert_denied(result, SUBJECT_OVER_CAP)
+
+    def test_should_allow_when_the_message_file_does_not_exist(self, tmp_path):
+        result = _run_checker(f"git commit -F {tmp_path / 'missing.txt'}")
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_allow_when_the_message_path_is_a_directory(self, tmp_path):
+        result = _run_checker(f"git commit -F {tmp_path}")
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_allow_a_relative_path_after_a_cd_since_the_directory_moved(self, tmp_path):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker("cd /tmp && git commit -F msg.txt", cwd=tmp_path)
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_allow_a_relative_path_under_git_dash_c_since_git_moves_first(self, tmp_path):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker("git -C /tmp commit -F msg.txt", cwd=tmp_path)
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_allow_when_a_message_and_a_file_are_both_given_since_git_rejects_it(self, tmp_path):
+        path = _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(f'git commit -m "{SHORT_SUBJECT}" -F {path}')
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_allow_when_the_editor_can_rewrite_the_file_message(self, tmp_path):
+        path = _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(f"git commit -e -F {path}")
 
         assert (result.returncode, result.stdout) == (0, "")
 
