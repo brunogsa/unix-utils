@@ -36,11 +36,11 @@ One live PR on the current repo's GitHub remote, self-comments included (labeled
 
 ## Execution (Hybrid)
 
-Subagents can't post replies, commit, or push (permission UIs live in main). Main runs steps 0-2 and 4-10; step 3's read-only fetch and clustering goes to a background subagent that returns only the proposal block.
+Subagents can't post replies, commit, or push (permission UIs live in main). Main runs steps 0-2 and 4-10; step 3's read-only fetch and clustering goes to a background subagent returning only the proposal block.
 
 If it reports zero candidate comments, stop before step 4.
 
-After step 6's plan approval the run asks the user nothing: they may be away, so a rule in the steps below decides every later fork.
+After step 6's plan approval the run asks the user nothing (they may be away): a rule below decides every later fork.
 
 ## Run-state file + TaskList state
 
@@ -136,21 +136,21 @@ This step ends only once every marker has its sub-step.
 
 ## Step 5: Q&A + debate (main, in chat)
 
-Send one message (the order `address-ai-comments` step 4 uses) that answers **every** `AI?` first, from its `Draft answer`, then challenges each `AI!` you disagree with, seeded by its `Concern:`. Tie each item to its `path:line`.
+Send one message (the order `address-ai-comments` step 4 uses) that answers **every** `AI?` first, from its `Draft answer`, then challenges each `AI!` you disagree with, seeded by its `Concern:`. Tie each item to its `path:line`. List the proposal's `Dropped as already answered` items; one the user names by number or URL is a candidate again.
 
 The user wants to be challenged: a command that looks wrong, over-reaching, or already handled gets named out loud, never quietly queued.
 
-Debate follows in chat. Rules:
+Debate rules:
 
-- Mark a question's sub-step done only when the user says it is clear, because an unread answer left open is the one the reply later misstates.
+- Mark a question's sub-step done only when the user says it is clear, since an unread answer gets misstated in the reply.
 
 - A bare "ok" while several items are open gets a clarifying question naming the open items - never a guess at which one it closes.
 
 - A conclusion the user names ("change X", "tell the reviewer Y", "drop it") becomes a planned command or reply right away, with no GitHub round-trip.
 
-- That conclusion also gets its own `[Sub-Step]` under the cluster's `[Task]`.
+- That conclusion gets its own `[Sub-Step]` under the cluster's `[Task]`.
 
-- Leave this step only when every question is done and no challenge is open.
+- Leave only when every question is done and no challenge is open.
 
 ## Step 6: Plan Mode (main)
 
@@ -162,7 +162,7 @@ Call `EnterPlanMode`, then write a plan listing, per cluster:
 
 - A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every cluster holding an `AI?` gets a proposed reply, or an explicit "no reply - <reason>".
 
-`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none of them fires a permission prompt. Approve with the option that returns to bypass permissions; the others prompt again for the push and replies while the user is away.
+`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none fires a permission prompt. Approve with the option that returns to bypass permissions; the others prompt again while the user is away.
 
 Rejection feedback edits the plan and re-submits it - it never restarts the debate, whose conclusions the plan holds.
 

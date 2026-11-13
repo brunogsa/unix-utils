@@ -66,7 +66,9 @@ def address_pr_comments(pr, filters):
     #      Fetch, filter, cluster, rank, propose. Self-AI gate: only unresolved,
     #      not-yet-answered items where ME left an AI!/AI?/AI: note. Per AI! it generalizes the
     #      note into a PR-wide Rule and sweeps every added line for Sites; per
-    #      AI? it returns a Draft answer. Returns only the proposal block.
+    #      AI? it returns a Draft answer. Items dropped as already answered are
+    #      listed (url + note preview), and step 5 lets the user pull one back.
+    #      Returns only the proposal block.
     clusters = dispatch("general-purpose · sonnet · high", background=True)
 
     if not clusters:                                       # 12
@@ -218,7 +220,7 @@ flowchart TD
   n8b2["8b2. Abort: fix pre-existing<br/>breakage first"]
   n9["9. Step 1d: read persisted tails answer<br/>(not a pass/fail check; default no)"]:::state
   n10["10. Step 2: Resolve owner/repo<br/>and own gh login"]
-  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background<br/><br/>Fetch, filter, cluster, rank, propose<br/>Self-AI gate: unresolved, not yet answered by a later ME reply, where ME left an AI!/AI?/AI: note<br/><br/>AI! cluster: generalizes the note into a PR-wide Rule,<br/>sweeps every added line, returns Sites (before -&gt; after previews)<br/>AI? cluster: returns a Draft answer<br/>Returns only the proposal block"]:::dispatch
+  n11["11. Step 3: Dispatch subagent<br/>general-purpose &middot; sonnet &middot; high<br/>background<br/><br/>Fetch, filter, cluster, rank, propose<br/>Self-AI gate: unresolved, not yet answered by a later ME reply, where ME left an AI!/AI?/AI: note<br/><br/>AI! cluster: generalizes the note into a PR-wide Rule,<br/>sweeps every added line, returns Sites (before -&gt; after previews)<br/>AI? cluster: returns a Draft answer<br/>Lists items dropped as already answered (url + note preview)<br/>Returns only the proposal block"]:::dispatch
   n12{"12. Subagent found zero<br/>candidate comments?"}
   n12a["12a. Stop - no candidate comments"]
   n12b["12b. Step 3: launch lateral learn run<br/>/improve-from-user PR &lt;OWNER_REPO&gt;#&lt;n&gt;<br/>same message as step 4, never wait on the window"]:::dispatch
