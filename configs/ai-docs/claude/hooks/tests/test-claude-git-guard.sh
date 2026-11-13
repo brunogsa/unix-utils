@@ -676,6 +676,48 @@ it_should_block_an_amend_whose_message_file_carries_attribution() {
   esac
 }
 
+it_should_allow_a_variable_message_file_path_whose_file_carries_attribution() {
+  local dir msg_dir cmd
+  dir=$(make_repo main)
+  msg_dir=$(mktemp -d)
+  CLEANUP_DIRS+=("$msg_dir")
+  make_message_file "$msg_dir" with-attribution >/dev/null
+  for cmd in \
+    "S=$msg_dir && git commit --allow-empty -q -F \"\$S/commit-message.txt\"" \
+    "S=$msg_dir && git commit --allow-empty -q -F \${S}/commit-message.txt"; do
+    run_hook "$cmd" "$dir"
+    assert_eq "should allow a message file reached through an assigned variable: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
+it_should_block_a_variable_message_file_path_whose_file_lacks_attribution() {
+  local dir msg_dir payload stderr_text
+  dir=$(make_repo main)
+  msg_dir=$(mktemp -d)
+  CLEANUP_DIRS+=("$msg_dir")
+  make_message_file "$msg_dir" without-attribution >/dev/null
+  payload=$(jq -n --arg c "S=$msg_dir && git commit --allow-empty -q -F \"\$S/commit-message.txt\"" --arg d "$dir" '{tool_input: {command: $c}, cwd: $d}')
+  stderr_text=$(printf '%s' "$payload" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  assert_eq "should block a variable-path message file without Co-Authored-By" "2" "$HOOK_EXIT"
+  case "$stderr_text" in
+    *"Co-Authored-By: Claude attribution"*) assert_eq "should deny through the attribution rule" "ok" "ok" ;;
+    *) assert_eq "should deny through the attribution rule" "ok" "$stderr_text" ;;
+  esac
+}
+
+# The attributed file sits in the hook cwd, so a resolver that
+# ignored the cd would find it and wrongly allow.
+it_should_block_a_relative_message_file_after_a_directory_change() {
+  local dir other
+  dir=$(make_repo main)
+  other=$(mktemp -d)
+  CLEANUP_DIRS+=("$other")
+  make_message_file "$dir" with-attribution >/dev/null
+  run_hook "cd $other && git commit --allow-empty -q -F commit-message.txt" "$dir"
+  assert_eq "should block a relative message file once a cd moved the working directory" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -747,6 +789,9 @@ it_should_block_a_commit_whose_message_file_is_missing
 it_should_block_a_commit_reading_its_message_from_stdin
 it_should_block_a_message_file_commit_when_shared_lib_is_missing
 it_should_block_an_amend_whose_message_file_carries_attribution
+it_should_allow_a_variable_message_file_path_whose_file_carries_attribution
+it_should_block_a_variable_message_file_path_whose_file_lacks_attribution
+it_should_block_a_relative_message_file_after_a_directory_change
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

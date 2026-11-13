@@ -4,6 +4,10 @@
 # Usage:
 #   python3 check-commit-subject-length.py '<raw Bash command>'
 #
+# Or, for the guard's attribution check:
+#   python3 check-commit-subject-length.py --messages '<cmd>'
+# which prints the message of each commit it surely knows.
+#
 # stdout: one deny reason when a commit in the command records
 #   a subject over 64 characters, nothing otherwise.
 # exit: 0 either way. Any other exit is a crash, which the git
@@ -53,6 +57,7 @@ LONG_VALUE_OPTIONS = {"--message": "message", "--file": "file", "--trailer": "tr
 # The hook JSON's cwd, which the git guard hands over because a
 # relative -F path resolves against the Bash tool's directory.
 COMMIT_CWD_ENV = "CLAUDE_GIT_COMMIT_CWD"
+MESSAGES_FLAG = "--messages"
 
 # The subject sits in the first paragraph; a prefix is enough.
 MESSAGE_FILE_READ_LIMIT = 1 << 20
@@ -651,10 +656,13 @@ def _is_assignment_order_known(text):
     return not ("&&" in text and (";" in text or "\n" in text))
 
 
-def compute_subjects(command, cwd=None):
-    """Return the subject of each commit the command surely runs.
+def compute_messages(command, cwd=None):
+    """Return the message of each commit the command surely records.
 
     cwd is the directory a relative -F path resolves against.
+    A commit whose message is not surely known adds nothing, so
+    each caller must pick the safe reading of a missing message:
+    the subject check allows, the attribution check denies.
     """
     parse_lib = _load_parse_lib()
     if parse_lib is None or PLACEHOLDER_MARK in command:
@@ -679,7 +687,12 @@ def compute_subjects(command, cwd=None):
     for stage, is_piped in stages:
         messages.append(_commit_message(stage, values, state))
         _update_state(stage, is_piped, state)
-    return [_subject_of(message) for message in messages if message is not None]
+    return [message for message in messages if message is not None]
+
+
+def compute_subjects(command, cwd=None):
+    """Return the subject of each commit the command surely runs."""
+    return [_subject_of(message) for message in compute_messages(command, cwd)]
 
 
 def _deny_reason(subject):
@@ -690,12 +703,20 @@ def _deny_reason(subject):
 
 
 def main(argv):
-    if len(argv) < 2:
+    is_messages_mode = len(argv) > 1 and argv[1] == MESSAGES_FLAG
+    command_index = 2 if is_messages_mode else 1
+    if len(argv) <= command_index:
         return 0
 
     # Undo the locale's argv decoding, so a non-ASCII subject is
     # measured in characters, not bytes.
-    command = os.fsencode(argv[1]).decode("utf-8", "surrogateescape")
+    command = os.fsencode(argv[command_index]).decode("utf-8", "surrogateescape")
+    if is_messages_mode:
+        # A crash here makes the guard deny, the safe side for
+        # the attribution check, so no try/except softens it.
+        messages = compute_messages(command, os.environ.get(COMMIT_CWD_ENV))
+        sys.stdout.buffer.write("\n".join(messages).encode("utf-8", "replace"))
+        return 0
     subjects = compute_subjects(command, os.environ.get(COMMIT_CWD_ENV))
     over_cap = [subject for subject in subjects if len(subject) > SUBJECT_CAP]
     if over_cap:
