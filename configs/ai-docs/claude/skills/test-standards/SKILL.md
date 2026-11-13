@@ -33,7 +33,7 @@ Principles for any test work. Each section pairs a principle with its WHY, with 
   - [Why] Blackbox survives refactors; whitebox couples to implementation, breaking on rename even when behavior holds.
 
 - [Instruction] **CRITICAL: Mock only at external/IO boundaries (DB, HTTP, queues, file system); keep everything inside the boundary real.**
-  - [Why] Integration tests survive internal refactors and exercise the path the caller actually takes.
+  - [Why] Integration tests survive internal refactors and exercise the path the caller takes.
 
 - [Instruction] Prefer fakes and localstack-style emulators over bare mocks where the cost is reasonable.
   - [Why] A fake behaves like the real dependency; a mock only replays what you encoded, and keeps passing after drift.
@@ -82,12 +82,12 @@ it('should filter by assignee', ...);
   - [Example] Price `1000` split one way never trips a rounding-reconciliation guard; `1058.33` divided across 3 shares of `33.33%` does.
 
 - [Instruction] For a guard whose contract is "never allow X", test its failure paths - missing input, parse error, unmatched case - and assert each blocks rather than allows.
-  - [Why] Two guards this fortnight failed open; every untested error branch of a deny rule is a silent allow.
+  - [Why] Two guards failed open; every untested error branch of a deny rule is a silent allow.
 
 - [Instruction] **Observably-non-empty BEFORE and AFTER** - for filter/transition tests (UI or API), baseline and final state must both be non-empty.
   - [Why] Empty-to-something only proves the filter renders/returns something - not that it changes the result meaningfully.
 
-- [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide - not the diff-scoped subset - before declaring the change done.
+- [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide - not the diff-scoped subset - before declaring done.
   - [Why] A change's blast radius exceeds its diff - a rename or removed export breaks callers a scoped run never touches.
 
 - [Instruction] Defer the full suite to push time or CI - running the diff-scoped tier meanwhile - when it outruns your iteration loop or the machine is saturated.
@@ -201,14 +201,15 @@ describe('with FEAT_FLAG_DELIVERY_ADDRESS_ENABLED on', () => {
 
 ### Tests that should not exist
 
-- [Instruction] Never write a test whose system under test is prose in a committed `.md` - its heading order, its wording, its section list, its frontmatter values.
-  - [Why] It can only catch an edit to the prose, never the behavior the prose asks for, because the actor reading it is an LLM.
+- [Instruction] Never write a test whose system under test is human-readable text - prose in a committed `.md`, or a `description`/`summary` field in a committed OpenAPI/AsyncAPI spec.
+  - [Why] It can only catch a wording edit, never behavior, because the reader acting on that text is a human or an LLM.
+  - [Example] Bad: asserting a `.md`'s heading order or frontmatter values, or `expect(schema.errorCode.description).toContain('NO_AGREEMENT_FOUND')`. Good: asserting the schema's `type`, `required` or `enum`.
 
 A fixture-driven suite is not in this class: feeding a checker a temp-dir `.md` the test itself wrote exercises the checker, and the checker is real code.
 
 The tell is which file the assertion reads. A path into the repo's own committed docs is a doc-content contract test; a `mktemp`/`TemporaryDirectory` path is a behavior test.
 
-When a committed doc really must hold a shape, encode that shape as a checker running over every file of its kind, and test the checker on fixtures.
+When a committed doc must hold a shape, encode that shape as a checker running over every file of its kind, and test the checker on fixtures.
 
 ### One test per distinct cause
 
