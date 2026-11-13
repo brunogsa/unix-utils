@@ -60,6 +60,10 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
 
    Don't drift into an unrelated critique they didn't request.
 
+   When the plan has a `## PR Breakdown`, check it against the PR slicing instructions in `~/.claude/skills/spec-driven-development/references/plan-tasks-and-appendix.md` under `## PR Breakdown section`.
+
+   Report each PR that breaks one as a finding that quotes that PR's heading or line.
+
 3. For every conclusion, gather concrete evidence: doc section or line, quoted snippet, a specific gap or contradiction. A conclusion with no evidence is not yet a conclusion.
 
 4. Form your verdict and write the report.

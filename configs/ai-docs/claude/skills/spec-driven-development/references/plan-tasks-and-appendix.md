@@ -122,10 +122,32 @@ Split past one-plan-one-PR when the work is too large to review well in one sitt
 
 Splitting rules:
 - Vertical, never horizontal - each PR ships its own tests+code+docs+infra; never "PR-1 = tests, PR-2 = code."
-- Prefer independent PRs; a dependent sequence is fine.
-- Each PR independently reviewable/mergeable, in order if dependent.
 - Sequence by `task-breakdown`'s priorities - unblockers and riskiest PoC first.
 - Don't over-split (~50-line floor) - catch one giant PR, not many tiny ones.
+
+PR slicing (set by the user on 2026-11-06; replaces the earlier "prefer independent PRs; a dependent sequence is fine" and "each PR independently reviewable/mergeable, in order if dependent" bullets). `plan-reviewer` checks each:
+
+- [Instruction] Make each PR one deliverable the author can explain to their team in one paragraph, stated as what changes for the team or the systems, not as code.
+  - [Why] In the `sf-account-hierarchy` plan, PR-2 held 5 unrelated deliverables, so no one paragraph described it; regrouping by deliverable gave 13 PRs, each the same size or smaller.
+
+- [Instruction] Add no code that has no caller until a later PR; ship a constant, type, or schema in the PR that first uses it.
+  - [Why] In the `sf-account-hierarchy` plan, PR-1 shipped constants and an OpenAPI schema with no caller until later PRs, so its review judged code with no behavior to check it against.
+
+  - [Example] Bad: PR-1 adds a constant and an OpenAPI schema, and PR-3 first calls them. Good: PR-3 adds the constant, the schema, and the call.
+
+- [Instruction] Make each PR deployable to prod by itself once its gate has run, and merge it into the main branch, never into a long-lived feature branch that ships at once.
+  - [Why] A feature branch that ships at once turns a 7-PR chain into one all-or-nothing release, so a blocked PR holds every PR stacked on it.
+
+- [Instruction] Make a PR depend only on PRs whose code it calls; never chain PRs in sequence for ordering alone.
+  - [Why] In the `sf-account-hierarchy` plan, a PDP answer gating PR-2 blocked every PR stacked after it; regrouping cut the longest dependency chain from 8 to 4.
+
+- [Instruction] Treat a task with no code as a gate on the PR whose behavior it guards, never as a member of a PR.
+  - [Why] In the `sf-account-hierarchy` plan, prod gates sat on the last PR although they guarded the first ones, so the first PRs reached prod unguarded.
+
+  - [Example] No-code tasks: a Stage proof of concept, a read-only query, a question to another team, a team notice, a prod check.
+
+- [Instruction] Run each gate before the PR it guards merges or deploys.
+  - [Why] A gate that runs after the merge can no longer stop the behavior it was meant to check.
 
 One `### PR-N.` heading per PR, one level above Task Breakdown's `### N.`.
 
