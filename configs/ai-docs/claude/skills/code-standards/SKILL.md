@@ -8,8 +8,6 @@ instructions-budget: 80
 
 # Code Standards
 
-Principles for any code edit. Each rule is an instruction with its nested why; code-fence examples sit at the margin below.
-
 Open `references/more-examples.md` when a rule's intent is unclear without a worked bad/good contrast.
 
 ## Readability & decomposition
@@ -219,7 +217,6 @@ work anywhere. Keep the chain synchronous.
   - [Example] `info` - designed outcomes: a 400 on an invalid body, a not-found lookup, a feature flag off, operation start/end, outbound calls.
   - [Example] `warn` - degradation the system itself absorbed: a fallback served after the primary failed, a retry that succeeded, an unexpected-but-recoverable state normalized.
   - [Example] `error` - a failure the system must act on: a downstream call that exhausted its retries, a payload no mapper can process.
-  - [Example] `debug` - the sorted arrays and full request/response bodies behind an `info` count.
 
 - [Instruction] Pair each `info` log (counts/IDs/status) with a `debug` log carrying the full payload (sorted arrays).
   - [Why] `info` stays cheap and scannable always-on; the heavy `debug` detail rides alongside for when you need it.
@@ -246,7 +243,7 @@ work anywhere. Keep the chain synchronous.
   - [Why] Long batches eventually crash; without idempotent resumability you re-run the whole thing and risk duplicates.
 
 - [Instruction] Retry a transient failure - a timeout, a rate limit, a dropped connection - at least once before escalating it.
-  - [Why] A transient failure often clears on its own (a busy machine slows a tool past its timeout), so escalating the first one reports a gap that does not exist.
+  - [Why] A transient failure often clears on its own, so escalating the first one reports a gap that does not exist.
 
 - [Instruction] On fatal failure, emit a best-effort report of what completed before aborting.
   - [Why] A partial-progress report turns a crashed batch into a known state instead of a guess about what landed.

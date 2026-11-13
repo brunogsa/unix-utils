@@ -125,7 +125,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Without evidence the simpler path fails, the complex path wins by default and ships unjustified machinery.
 
 - [Instruction] **CRITICAL: Search before creating** -- look for existing similar code, or an existing stage that already does a similar job, before writing or designing anything new.
-  - [Why] Duplicate code or mechanisms split maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
+  - [Why] Duplicates split maintenance across N callers; finding prior art first is cheaper than discovering it post-merge.
   - [Example] Bad: a hand-rolled CEP regex, a `Date.parse` date check, an open `string` type. Good: the repo's `isValidPostalCode`, a strict date library, the enum a sibling flow already uses.
 - [Instruction] **Use web search, preferring trusted/official sources** -- triggers: complex themes, walls, consecutive failures, confirmation requests.
   - [Why] Training-data drift makes stale answers feel current, and only current primary sources detect it.
@@ -198,12 +198,10 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Tools-first** -- when a claim can be checked deterministically by a tool, use the tool; fall back to LLM judgment only as a last resort (dynamic imports, runtime-only references).
   - [Why] An LLM check can hallucinate and burns tokens; a deterministic tool avoids both and returns the fact.
-  - [Example] Dead code: `knip`/`ts-prune`/`madge`. Coverage: coverage reports. Types: `tsc --noEmit`. Style: linters. Complexity: `eslint-plugin-sonarjs`/`lizard`. History: `git blame`/`git log`.
 
 - [Instruction] Never drop a check for lacking a tool or a tool input - use an LLM review lens, or an AI step that produces the input.
   - [Why] Tools-first decides how a concern gets checked, never whether - the user's list of concerns sets the scope.
-  - [Example] Bad: dropping naming from a code-quality harness's scope because no tool measures it. Good: keep it, checked by an LLM review lens.
-  - [Example] Bad: skipping layer checks in a repo that declares no layers. Good: when not too complex, a subagent infers the layers and feeds them to the dependency checker.
+  - [Example] Bad: dropping naming for lacking a tool, or layer checks for lacking declared layers. Good: an LLM lens for naming; a subagent inferring layers for the dependency checker.
 
 - [Instruction] Persist a manual verification to `evidence_<slug>.md` in CWD only when the check is multi-step, environment-dependent, or irreversible.
   - [Why] Anything else is cheaper to re-run than read back, and `create-pr` reads only `evidence_*.md` into Evidences.
@@ -289,14 +287,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Write every note-worthy item to its surface the moment it appears - never carry it in working memory.**
   - [Why] AI memory is lossy and silently so - unwritten items vanish on compaction or session end.
 
-- [Instruction] Tasks and reminders go to the TaskList only - never into `notes.md`, not even as a copy.
-  - [Why] The TaskList is the one surface with a status; a scratchpad copy drifts the moment that status flips.
-
 - [Instruction] Persist to `notes.md` only state expensive to reconstruct - counts, verdicts, decisions, rejected approaches - pointing at large payloads and references (path, line range, link) instead of copying them in.
   - [Why] An unneeded note buries the notes that matter, and a copied payload goes stale where a pointer re-reads fresh.
-
-- [Instruction] Mark a task done the moment it completes.
-  - [Why] A task left open reads as still-pending work and pulls attention back to something already finished.
 
 - [Instruction] Update or delete a `notes.md` entry the moment reality diverges from it.
   - [Why] A stale entry gets trusted as current and steers work wrong - currency is what keeps the surface worth consulting.
