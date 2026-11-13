@@ -184,7 +184,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Put ephemeral scratch - throwaway scripts, debug dumps - in /tmp, never the repo or CWD, UNLESS user-reviewed, then left untracked in CWD; see Note-taking discipline.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt.
 
-  - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, manual-verification `.md`. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
+  - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, an `evidence_<slug>.md` manual verification. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
 
 ### Verify before done
 
@@ -205,8 +205,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Example] Bad: dropping naming from a code-quality harness's scope because no tool measures it. Good: keep it, checked by an LLM review lens.
   - [Example] Bad: skipping layer checks in a repo that declares no layers. Good: when not too complex, a subagent infers the layers and feeds them to the dependency checker.
 
-- [Instruction] Persist a manual verification to a `.md` file in CWD only when the check is multi-step, environment-dependent, or irreversible.
-  - [Why] Those three are the checks a future regression must re-run; anything else is cheaper to re-run than to read back.
+- [Instruction] Persist a manual verification to `evidence_<slug>.md` in CWD only when the check is multi-step, environment-dependent, or irreversible.
+  - [Why] Anything else is cheaper to re-run than read back, and `create-pr` reads only `evidence_*.md` into Evidences.
 
 ## Tool Use
 
