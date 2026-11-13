@@ -25,12 +25,18 @@ Python-shaped for readability only; nothing here runs, and the function names st
 def address_pr_comments(pr, filters):
     state = create(f"/tmp/address-pr-comments_{session_id}_{ts}.json")   # 2
 
-    # 3 · Step 0 - read-only probing: is the tree dirty, and which runners exist?
+    # 3 · Step 0 - read-only probing: is the tree dirty, which runners exist,
+    #     is this checkout on the PR's branch, and does another worktree hold it?
     dirty = git("status", "--porcelain")
     runners = probe_lint_and_test_markers()
+    pr_branch, cur_branch = gh_pr_head_ref(pr), git("branch", "--show-current")
+    held_elsewhere = other_worktree_holds(pr_branch)   # from git worktree list
 
-    # 4 · Step 0 - ONE AskUserQuestion, asking only the conditions that hold.
-    answers = ask_together(
+    # 4 · Step 0 - AskUserQuestion, asking only the conditions that hold;
+    #     4 per call, so a 5th or 6th question goes in an immediate second call.
+    answers = ask_in_batches_of_4(
+        "Switch this checkout to the PR branch?"
+            if cur_branch != pr_branch and not held_elsewhere else None,
         "Dirty tree - commit now?" if dirty else None,
         "Green baseline check?",              # default no - step 1c
         "Which runner?" if ambiguous(runners) else None,
@@ -39,18 +45,28 @@ def address_pr_comments(pr, filters):
     )
     state.write(answers)   # 5 · persisted, so the answers survive compaction
 
-    # ---- Step 1 · 1a-1d run sequentially, fail-fast on the first failure ----
-    if not on_pr_branch(pr):                               # 6 · Step 1a
-        return abort("not on the PR branch - run gh pr checkout")        # 6a
-
-    # 7 · Step 1b - the persisted step-0 answer decides.
+    # ---- Step 1 · 1a-1d run sequentially, fail-fast on the first failure;
+    #      the one recovery is the branch switch the user approved in step 0 ----
+    # 6 · Step 1a - the persisted step-0 answers decide.
+    if state.answers.branch == "stop_here":                # 6
+        return abort("not on the PR branch - user chose to stop")    # 6a · before committing anything
     if state.answers.tree_is_dirty:
-        if state.answers.dirty == "commit_now":            # 7a
-            load_skill("commit-standards")                 # 7a1
-            commit_dirty_files()                           # 7a2
-        elif state.answers.dirty == "stop_here":           # 7b
-            return abort("dirty tree - user chose to stop")              # 7b1
+        if state.answers.dirty == "commit_now":            # 6b
+            load_skill("commit-standards")                 # 6b1
+            commit_dirty_files()                           # 6b2 · on the current branch, before any switch
+        elif state.answers.dirty == "stop_here":           # 6c
+            return abort("dirty tree - user chose to stop")              # 6c1
         # proceed_without_committing falls through
+
+    if cur_branch != pr_branch:                            # 7 · Step 1b
+        if state.answers.branch != "switch":               # 7a · another worktree holds it, or unanswered
+            return abort("not on the PR branch - run gh pr checkout, "
+                         "or work in the worktree holding it")           # 7a1
+        gh("pr", "checkout", pr)                           # 7a2
+        if checkout_failed() or git("branch", "--show-current") != pr_branch:  # 7a3
+            # 7a3a · never stash or force: the stash stack is shared across worktrees.
+            return abort("checkout failed - surface git's error")        # 7a3a
+        run_repo_post_checkout_steps()                     # 7a4 · e.g. rebuild a library, regenerate a client
 
     if state.answers.baseline_check:                       # 8 · Step 1c
         lint_result, test_result = run_lint(), run_test()  # 8a
@@ -156,7 +172,7 @@ def address_pr_comments(pr, filters):
             #        runner already handed back.
             return abort("repo-green gate HALT - surface surviving red")  # 20b1
 
-    # 21 · Step 8 - single batch push, no confirmation: step 1a verified the
+    # 21 · Step 8 - single batch push, no confirmation: step 1b verified the
     #      branch and step 6's approval covered the push.
     git("push")                                            # 21
     if push_rejected_remote_moved():                       # 22
@@ -202,17 +218,23 @@ def address_pr_comments(pr, filters):
 flowchart TD
   n1(["1. /address-pr-comments PR# [filters]"]):::start
   n2["2. Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
-  n3["3. Step 0: git status --porcelain;<br/>probe lint/test runner markers (read-only)"]
-  n4["4. Step 0: ONE AskUserQuestion<br/>(only conditions that hold)<br/><br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Repo-green gate after changes? (default no)<br/>- Tails after this batch? (default no)"]:::gate
+  n3["3. Step 0: git status --porcelain;<br/>probe lint/test runner markers;<br/>compare PR head branch to current branch;<br/>git worktree list (all read-only)"]
+  n4["4. Step 0: AskUserQuestion, 4 per call<br/>(only conditions that hold; a 5th/6th goes in a second call)<br/><br/>- Switch this checkout to the PR branch?<br/>(if not on it and no other worktree holds it)<br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Repo-green gate after changes? (default no)<br/>- Tails after this batch? (default no)"]:::gate
   n5["5. Persist step-0 answers to<br/>run-state file - survives compaction"]:::state
-  n6{"6. Step 1a &middot; On PR's branch?<br/>(1a-1d run sequentially, fail-fast<br/>on first failure)"}
-  n6a["6a. Abort: not on PR branch<br/>run gh pr checkout"]
-  n7{"7. Step 1b &middot; Working tree clean?<br/>(persisted step-0 answer decides)"}
-  n7a["7a. Answer commit_now"]
-  n7a1["7a1. Load commit-standards<br/>(Skill tool)"]:::skill
-  n7a2["7a2. Commit the dirty files"]
-  n7b["7b. Answer stop_here"]
-  n7b1["7b1. Abort: user chose to stop"]
+  n6{"6. Step 1a &middot; Branch answer stop_here,<br/>or working tree dirty?<br/>(1a-1d run sequentially, fail-fast on first failure;<br/>persisted step-0 answers decide)"}
+  n6a["6a. Abort before committing anything:<br/>user chose not to switch branch"]
+  n6b["6b. Dirty-tree answer commit_now"]
+  n6b1["6b1. Load commit-standards<br/>(Skill tool)"]:::skill
+  n6b2["6b2. Commit the dirty files<br/>on the current branch, before any switch"]
+  n6c["6c. Dirty-tree answer stop_here"]
+  n6c1["6c1. Abort: user chose to stop"]
+  n7{"7. Step 1b &middot; On PR's branch?"}
+  n7a{"7a. Branch answer switch?"}
+  n7a1["7a1. Abort: not on PR branch<br/>run gh pr checkout, or work in<br/>the worktree that already holds it"]
+  n7a2["7a2. gh pr checkout &lt;n&gt;<br/>then re-read the current branch"]
+  n7a3{"7a3. Checkout succeeded<br/>and branch matches?"}
+  n7a3a["7a3a. Abort with git's error<br/>never stash or force"]
+  n7a4["7a4. Run the post-checkout steps the repo's CLAUDE.md names<br/>(rebuild a library, regenerate a client)"]
   n8{"8. Step 1c &middot; Baseline check<br/>opted in (step 0)?"}
   n8a["8a. Step 1c &middot; Run lint then test"]
   n8b{"8b. Step 1c &middot; Lint and test green?"}
@@ -272,15 +294,22 @@ flowchart TD
   n3 --> n4
   n4 --> n5
   n5 --> n6
-  n6 -->|"no"| n6a
-  n6 -->|"yes"| n7
-  n7 -->|"clean / proceed_without_committing"| n8
-  n7 -->|"dirty"| n7a
-  n7a --> n7a1
-  n7a1 --> n7a2
-  n7a2 --> n8
-  n7 -->|"dirty"| n7b
-  n7b --> n7b1
+  n6 -->|"branch stop_here"| n6a
+  n6 -->|"clean / proceed_without_committing"| n7
+  n6 -->|"dirty"| n6b
+  n6b --> n6b1
+  n6b1 --> n6b2
+  n6b2 --> n7
+  n6 -->|"dirty"| n6c
+  n6c --> n6c1
+  n7 -->|"yes"| n8
+  n7 -->|"no"| n7a
+  n7a -->|"no - another worktree holds it, or unanswered"| n7a1
+  n7a -->|"yes"| n7a2
+  n7a2 --> n7a3
+  n7a3 -->|"no"| n7a3a
+  n7a3 -->|"yes"| n7a4
+  n7a4 --> n8
   n8 -->|"no / unanswered"| n9
   n8 -->|"yes"| n8a
   n8a --> n8b

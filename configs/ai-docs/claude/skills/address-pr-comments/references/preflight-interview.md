@@ -1,7 +1,12 @@
 # Step 0 pre-flight interview - candidate questions
 
-Loaded by main at Step 0, before any other step. Run `git status --porcelain` and probe for lint/test runners with 1c's table (read-only - run nothing yet). Then
-ask via **one `AskUserQuestion` call**, only the questions whose condition holds - never a freeform chat message.
+Loaded by main at Step 0, before any other step. Probe read-only - run nothing yet:
+
+- `git status --porcelain`.
+- Lint/test runners, with 1c's table.
+- The branch pair - 1b's `PR_BRANCH`/`CUR_BRANCH` commands - and `git worktree list`, to find another worktree holding `PR_BRANCH`.
+
+Then ask via `AskUserQuestion`, only the questions whose condition holds - never a freeform chat message.
 
 Each option gets a `description` (what picking it does) and a `preview` (the detail behind "what you mean" - dirty-file list, runner candidates, what the gate runs) so
 the user checks detail without a round trip. Recommended option always first, labeled "(Recommended)".
@@ -12,7 +17,8 @@ Candidate questions, in priority order (only those whose condition holds are sen
 
 | # | Header | Condition | Question | Options (default first) |
 |---|---|---|---|---|
-| 1 | `Dirty tree` | `git status --porcelain` printed output | "Working tree has uncommitted changes - what should I do before clustering?" | **Commit now (Rec.)** - commit via `commit-standards`, then continue / **Proceed without committing** - these files are untouched by cluster work (step 7 only ever stages cluster-relevant paths); skip past without aborting or committing / **Stop here** - abort so you commit/stash by hand, re-run. All three preview the dirty file list. |
+| 0 | `Branch` | `PR_BRANCH != CUR_BRANCH`, and no other worktree holds `PR_BRANCH` (when one does, skip the question - `gh pr checkout` cannot succeed, so 1b aborts naming that worktree's path) | "This checkout is on `<CUR_BRANCH>`, but PR #<n> is on `<PR_BRANCH>` - should I switch this checkout to the PR branch?" | **Switch for me (Rec.)** - 1b runs `gh pr checkout <n>`, after 1a handles the dirty tree on the current branch; preview: both branch names, "this worktree leaves `<CUR_BRANCH>`; untracked files carry over; a tracked change the checkout would overwrite aborts it" / **Stop here** - abort before committing anything, so you switch by hand or use another worktree. |
+| 1 | `Dirty tree` | `git status --porcelain` printed output | "Working tree has uncommitted changes - what should I do before clustering?" | **Commit now (Rec.)** - commit via `commit-standards` on `<CUR_BRANCH>`, before any branch switch, then continue / **Proceed without committing** - these files are untouched by cluster work (step 7 only ever stages cluster-relevant paths); skip past without aborting or committing / **Stop here** - abort so you commit/stash by hand, re-run. All three preview the dirty file list. |
 | 2 | `Baseline` | always | "Record a lint+test baseline before any cluster edit, to catch pre-existing breakage?" | **No - skip (Rec.)** - faster, only worth it if the repo might already be red; preview: "1c skipped, step 7 still runs whatever gate you pick" / **Yes - capture baseline** - runs 1c's probe now, aborts if red; preview: 1c's runner table from `opt-in-gates.md`. |
 | 3 | `Checker cmd` | 1c's table matched multiple markers or none | "Which lint/test commands should establish the baseline?" | One option per matched candidate (or best guess when none matched), each previewing its exact command; "Other" always lets the user type a custom command. Sent regardless of Q2's answer, consumed only if Q2 is "Yes". |
 | 4 | `Green gate` | always | "Gate the push on a green full-repo lint+test run, fixing any batch-caused regression?" | **No - skip (Rec.)** - faster; preview: "step 7 goes straight from commits to step 8's push" / **Yes - gate before push** - blocks push until green, pre-existing red reported never fixed; preview: gate mechanics from `opt-in-gates.md`. |
@@ -26,7 +32,8 @@ surfaced as a second baseline question.
 
 ## Batching rule
 
-`AskUserQuestion` caps at 4 per call. Rows 1+2+4+5 already fill 4 slots when the tree is dirty - then send row 3 (if its condition holds) as an
-immediate second call, before doing anything else. Otherwise everything fits in one call.
+`AskUserQuestion` caps at 4 per call. Send the first 4 rows whose condition holds, in the table's order, in one call; send the rest as an immediate second call, before doing anything else.
 
-Persist the answers the moment they arrive; steps 1b-1d consume them and never ask again.
+Rows 2, 4 and 5 always hold, so a second call happens whenever 2 or more of rows 0, 1 and 3 hold.
+
+Persist the answers the moment they arrive; steps 1a-1d consume them and never ask again.

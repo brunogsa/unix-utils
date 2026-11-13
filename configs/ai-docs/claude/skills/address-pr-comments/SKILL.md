@@ -52,37 +52,28 @@ When the repo-green gate is on, also persist its baseline and final verdict - ne
 
 Step 4 creates the TaskList. Put machine-checkable state (`action`, `commit_sha`, `status`, `kind`) in each task's `metadata`; keep narrative rationale in the run-state file.
 
-## Standards loaded on demand
-
-Load each as its scope opens, not upfront:
-
-- `code-standards` - before production edits in step 7.
-- `test-standards` - when touching or adding tests (step 7).
-- `doc-standards` - before editing comments, docstrings, logs (step 7).
-- `debug-standards` - when lint/test fails in step 1c or 7.
-- `commit-standards` - at every commit boundary (steps 1b, 7).
-
 ## Step 0: Pre-flight interview (main - before any other step)
 
-Ask via **one `AskUserQuestion` call** of up to 5 candidate questions (dirty tree, baseline, checker cmd, green gate, tails) - only those whose condition holds, never freeform chat. Conditions, wording, options, batching: [`references/preflight-interview.md`](references/preflight-interview.md) - load it now.
+Ask via `AskUserQuestion` up to 6 candidate questions (branch switch, dirty tree, baseline, checker cmd, green gate, tails) - only those whose condition holds, never freeform chat. One call holds 4, so more than 4 take a second call. Probes, conditions, wording, options, batching: [`references/preflight-interview.md`](references/preflight-interview.md) - load it now.
 
 ## Step 1: Validate preconditions (main)
 
-Run 1a-1d in order, fail-fast on the first failure (1c only when step 0 opted in). On a failure, abort with the suggested fix - never recover automatically.
+Run 1a-1d in order, fail-fast on the first failure (1c only when step 0 opted in). On a failure, abort with the suggested fix. The one recovery is the branch switch the user approved in step 0.
 
-### 1a. On the PR's branch
+### 1a. Clean working tree
+
+If step 0's branch answer is `stop_here`, abort now with the message in `references/branch-switch.md`, before committing anything.
+
+Otherwise step 0's persisted dirty-tree answer decides (`commit_now`, `proceed_without_committing`, `stop_here`) - mechanics in `references/preflight-interview.md`'s row 1.
+
+### 1b. On the PR's branch
 
 ```bash
 PR_BRANCH=$(gh pr view <n> --json headRefName -q .headRefName)
 CUR_BRANCH=$(git branch --show-current)
 ```
 
-If `PR_BRANCH != CUR_BRANCH`, abort:
-> Not on PR branch. Run: `gh pr checkout <n>`
-
-### 1b. Clean working tree
-
-Step 0's persisted answer decides (`commit_now`, `proceed_without_committing`, `stop_here`) - mechanics in `references/preflight-interview.md`'s row 1.
+If `PR_BRANCH != CUR_BRANCH`, load [`references/branch-switch.md`](references/branch-switch.md): step 0's persisted branch answer decides whether to switch or abort.
 
 ### 1c. Green baseline (lint + test - opt-in)
 
