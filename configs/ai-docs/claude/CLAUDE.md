@@ -53,6 +53,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Make every question self-contained: say why the decision exists, what changes per option, and quote the thing decided on rather than naming it by id or line number.
   - [Why] "I did not get what under :202 means" and "sry, repeat your question" are round-trips a self-contained one avoids.
+  - [Example] Bad: "Which CRAP limit: 4, 8 or 12?" Good: "Under 8 passes complexity ≤7 fully covered and ≤2 uncovered; McCabe/NIST's baseline is 10."
 
 - [Instruction] Cluster every decision that is open at the same moment into one `AskUserQuestion` call, rather than asking them one at a time.
   - [Why] One audited session lost 3h9m to 12 separate blocking prompts, each costing a full round-trip of my attention.
@@ -337,6 +338,9 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Before carving that exception, implement the compliant version and show it fails - an exception is never the first response to a rule your own code broke.
   - [Why] Documenting a deviation costs less than restructuring code, so without this gate the exception wins by default.
+
+- [Instruction] Report every exception you carve to a measured limit where I read it first, so I decide whether the limit itself needs retuning.
+  - [Why] An exception buried in the run never reaches whoever tunes the limit, so a wrong limit and a gamed one look the same.
 
 - [Instruction] **CRITICAL: Don't replicate problematic patterns** -- never extend one that these principles or your own judgment mark as a problem; new code gets the right shape regardless of its neighbours.
   - [Why] Every copy compounds the pattern, while rewriting the ones already there is scope you were never asked for.
