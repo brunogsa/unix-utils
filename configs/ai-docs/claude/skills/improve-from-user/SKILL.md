@@ -16,8 +16,6 @@ Those downstream actions are the `address-ai-comments` skill's job.
 
 It DOES write to CLAUDE.md and skill files (SKILL.md, references/, scripts/, assets/), at the repo-tracked path those symlinks resolve to (see Scope) - with user approval per step 7.
 
-Capturing learnings so the same feedback isn't needed next time is the whole point.
-
 ## Usage
 
 `/improve-from-user [feedback-source]`
@@ -30,7 +28,7 @@ The `feedback-source` arg is freeform; parse it semantically. Recognised forms:
 | `PR <n>`, `PR#<n>`, `pull <n>`, `#<n>`, a full PR URL, `<owner>/<repo>#<n>` | **B. PR comments** - your comments carrying an `AI!`, `AI?` or `AI:` marker on PR `<n>` (other users and unmarked comments ignored); the URL and `<owner>/<repo>#<n>` forms name the repo, a bare number uses CWD's |
 | `AI! comments`, `AI? comments`, `AI markers`, `AI comments` (± `on <paths>`) | **C. AI markers in files** - `AI!`, `AI?` and `AI:` markers you left; `<paths>` is comma-separated and each entry can be a file OR a folder |
 | `verdict marks` (± `on <files>`) | **D. Verdict marks** - the `verdict_*.md` findings you tagged `[AI!]` and your `[AI!: <message>]` notes; untagged findings are ignored |
-| `feedback in <path>` | **E. Feedback file** - the corrections a caller skill (`to-spec`, `to-plan`) recorded in `<path>`; launched by [`lateral-learn.md`](references/lateral-learn.md) |
+| `feedback in <path>` | **E. Feedback file** - the corrections a caller skill (`to-spec`, `to-plan`, `address-ai-comments`) recorded in `<path>`; launched by [`lateral-learn.md`](references/lateral-learn.md) |
 
 Examples:
 - `/improve-from-user`
@@ -49,8 +47,6 @@ Examples:
 
 - **CLAUDE.md** (`~/.claude/CLAUDE.md`) -- high-level principles, workflow rules, TL;DRs
 - **Skills** (`~/.claude/skills/*/SKILL.md`) -- detailed examples, domain knowledge, tool docs
-
-Learnings go to whichever file they belong in. Principles go to CLAUDE.md; detailed examples and domain-specific knowledge go to the relevant skill.
 
 All five modes share one write-target rule, resolved by `scripts/resolve-repo-targets.py`: before writing anywhere, it checks that `~/.claude/CLAUDE.md` and `~/.claude/skills/*` are still live symlinks.
 
@@ -104,10 +100,15 @@ This also lets an escalated read-stage subagent's returned items merge cleanly w
 
 This list is step 2-7's working input. When Mode A's read stage escalates to subagents, merge every subagent's returned items into this one list before step 2.
 
-- Richer input - especially verbatim quotes - matters most for an escalated read-stage subagent.
-  - It sees only its own file slice, never the parent conversation, the PR diff, or the working tree.
+- Verbatim quotes matter most for an escalated read-stage subagent, which sees only its own file slice.
 
 - Paraphrases smooth over nuance; verbatim preserves it.
+
+### Reading code for an item
+
+When the launch prompt or feedback file carries `Repo:`, `Snapshot:` or `References:`, read the code an item needs from those frozen copies whenever its Context is too thin to generalize from, never from the live tree.
+
+- Why: the caller keeps editing, per [`lateral-learn.md`](references/lateral-learn.md) "Code context".
 
 ## Steps 2-7: Analyze, Present, Apply (main context)
 
@@ -178,11 +179,11 @@ Each audit then runs in *that* fresh session's main context, with the user in th
 
 Why a reminder instead of an automatic run:
 
-- **The audit must read the final files.** `consistency-check` fans out 3 ensemble subagents; nested inside this skill's own execution, they would sample a half-applied edit set.
-  - Nesting itself works - the constraint is timing, not capability.
+- **The audit must read the final files.** Run nested here, its 3 ensemble subagents would sample a half-applied edit set.
 
-- **User-in-the-loop triage.** In a fresh main-context session the user sees every finding turn-by-turn rather than a pre-digested embedded report.
-- **Batching wins.** One audit pass after several `/improve-*` invocations beats N redundant passes per micro-edit.
+- **User-in-the-loop triage.** A fresh main-context session shows the user every finding turn-by-turn.
+
+- **Batching wins.** One audit pass after several `/improve-*` invocations beats N passes per micro-edit.
 
 ## Output Format
 

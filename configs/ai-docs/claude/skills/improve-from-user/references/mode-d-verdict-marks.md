@@ -37,6 +37,8 @@ A file where this prints nothing contributes no item.
 - **Context** - the finding's suggested fix, from its body.
   - Add its evidence only when the fix line alone does not say what the finding was about.
 
+  - Read the finding's `file:line` at its branch's SHA from the launch prompt's `<branch>: <sha>` lines: `git -C <repo> show <sha>:<path>`.
+
 - **Outcome** - `selected` or `selected with note`.
 
 - **Lesson drawn** - one sentence, generalizable:

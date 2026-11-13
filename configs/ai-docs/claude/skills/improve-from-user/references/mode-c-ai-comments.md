@@ -4,7 +4,7 @@ Load this only when Step 1 detected Mode C: the arg mentions `AI!`, `AI?`, `AI:`
 
 Optional path restriction via `on <paths>` - comma-separated, where each entry can be a **file or folder**.
 
-`AI!`, `AI?` and `AI:` are the same markers the `address-ai-comments` skill sweeps - but that skill *executes or answers, then strips* them, whereas this one only *mines them for a learning* (read-only).
+`address-ai-comments` sweeps `AI!` and `AI?`, and `AI:` is the legacy alias of `AI!` from PR comments - but that skill *executes or answers, then strips* them, whereas this one only *mines them for a learning* (read-only).
 
 - Why: mining never conflicts with `address-ai-comments` answering an `AI?` and stripping it, and a question the user had to ask shows where the AI fell short, which is a lesson.
 
@@ -33,8 +33,13 @@ Steps:
    - Drop every `verdict_*.md` from either list: an `[AI!]` there is a finding pick, which Mode D mines.
 
 3. Scan each file for lines carrying an `AI!`, `AI?` or `AI:` marker, regardless of comment syntax.
-   - Matching rule: section "3d" of [`address-pr-comments/references/fetch-cluster-propose.md`](../../address-pr-comments/references/fetch-cluster-propose.md) - strip the comment syntax (`//`, `#`, `<!--`) first, then the first non-blank, non-list-marker token on the line starts with the marker, case-insensitive; the colon is optional after `AI!`/`AI?` and required on `AI:`.
-   - Catches `// AI!`, `# AI?`, `<!-- AI: ... -->`, and bare-text markers in `.md` files alike.
+   - Matching rule: section "3d" of [`address-pr-comments/references/fetch-cluster-propose.md`](../../address-pr-comments/references/fetch-cluster-propose.md) - strip the comment syntax (`//`, `#`, `<!--`) first.
+
+   - A line matches when its first non-blank, non-list-marker token, or the first token of its trailing comment part, starts with the marker, case-insensitive.
+
+   - The colon is optional after `AI!`/`AI?` and required on `AI:`.
+
+   - Catches `// AI!`, `# AI?`, `<!-- AI: ... -->`, a trailing `code(); // AI! fix this`, and bare-text markers in `.md` files alike.
    - Why: the first-token rule skips prose that merely mentions a marker, such as skill docs describing it.
 
 Per-item field hints:

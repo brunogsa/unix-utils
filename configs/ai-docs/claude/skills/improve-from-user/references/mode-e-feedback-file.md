@@ -2,7 +2,7 @@
 
 Load this only when Step 1 detected Mode E: the arg is `feedback in <path>`.
 
-The file is written by a caller skill (`to-spec`, `to-plan`) per [`lateral-learn.md`](lateral-learn.md), from the human's corrections to a spec or plan.
+The file is written by a caller skill (`to-spec`, `to-plan`, `address-ai-comments`) per [`lateral-learn.md`](lateral-learn.md), from the human's corrections to a spec or plan, or the markers left in code.
 
 Its items are already in the unified item format, so no extraction runs: read the file and hand its items to step 2.
 
@@ -13,7 +13,9 @@ This mode is read-only on the feedback file and on the document it names.
 ## Reading the file
 
 - The file opens with `Document:`, `Repo:` and `References:` lines, then the items.
-- Open a `References:` path only when an item's Context is too thin to generalize from.
+  - `Document:` may name the target files that held the markers.
+
+- Open a `References:` path by the rule in SKILL.md "Reading code for an item", never from the live tree.
   - Why: the caller kept those paths out of its own context to stay small, so reading them is this session's job, but never a requirement.
 
 - An absent file, an empty file, or one with zero items hits the zero-items stop in SKILL.md.
@@ -40,5 +42,10 @@ The run happens from `~/unix-utils`, so every target below is in the global set.
   - Examples: a closed enum over an open string, a missing identity field is an error, a data format detected at the boundary.
 
   - Use the global `CLAUDE.md` when the principle is cross-cutting.
+
+- **About the code, from code markers** → the repo's own `CLAUDE.md`, which is listed and not written, per the work-repo rule below.
+  - Use `code-standards`, `test-standards` or `doc-standards` when the lesson holds across repos.
+
+- **About how the AI should have worked, from code markers** → the global `CLAUDE.md` or the skill involved.
 
 - **A fact true only of the work repo** → list it with that repo's name and do not write it, per SKILL.md step 4.
