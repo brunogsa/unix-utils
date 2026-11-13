@@ -1,4 +1,5 @@
 import importlib
+import re
 import sys
 from pathlib import Path
 
@@ -148,3 +149,80 @@ class TestFailureScenarios:
 
         with pytest.raises(declaration.DeclarationError, match="pyyaml"):
             declaration.load_declaration(path)
+
+
+FULL_METRICS_FIXTURE = """\
+excluded_paths: []
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  python:
+    extensions: [.py]
+    metrics: [complexity, crap, coverage, size, nesting, parameters, code_duplication]
+  ts:
+    extensions: [.ts]
+    metrics: [complexity, crap, coverage, size, nesting, parameters, code_duplication]
+"""
+
+CRAP_AND_COVERAGE = {"crap", "coverage"}
+FOUR_FULL_LANGUAGES = ["js", "ts", "python", "go"]
+
+
+class TestTestFileMetrics:
+    @pytest.mark.parametrize(
+        "test_file",
+        [
+            "src/sum.test.ts",
+            "src/sum.spec.ts",
+            "src/__tests__/sum.ts",
+            "tests/test_sum.py",
+            "pkg/test_sum.py",
+            "pkg/sum_test.py",
+        ],
+    )
+    def test_should_drop_crap_and_coverage_but_keep_every_other_declared_metric_for_a_test_file(
+        self, tmp_path, test_file
+    ):
+        language = "python" if test_file.endswith(".py") else "ts"
+        loaded = load_text(tmp_path, FULL_METRICS_FIXTURE)
+        declared = set(loaded.languages[language].metrics)
+
+        for_test_file = set(declaration.metrics_for_file(loaded, test_file))
+
+        assert for_test_file == declared - CRAP_AND_COVERAGE
+        assert for_test_file
+
+    @pytest.mark.parametrize("source_file", ["src/sum.ts", "src/testing_utils.ts", "pkg/latest.py"])
+    def test_should_keep_every_declared_metric_for_a_source_file_whose_name_only_resembles_a_test(
+        self, tmp_path, source_file
+    ):
+        language = "python" if source_file.endswith(".py") else "ts"
+        loaded = load_text(tmp_path, FULL_METRICS_FIXTURE)
+
+        for_source = set(declaration.metrics_for_file(loaded, source_file))
+
+        assert for_source == set(loaded.languages[language].metrics)
+
+    def test_should_declare_the_same_metrics_for_javascript_typescript_python_and_go_in_the_shipped_file(
+        self,
+    ):
+        loaded = declaration.load_declaration(SHIPPED_DECLARATION)
+
+        metric_sets = {loaded.languages[name].metrics for name in FOUR_FULL_LANGUAGES}
+
+        assert len(metric_sets) == 1
+
+    @pytest.mark.parametrize("language", FOUR_FULL_LANGUAGES)
+    def test_should_give_the_shipped_test_files_of_each_full_language_all_but_crap_and_coverage(
+        self, language
+    ):
+        loaded = declaration.load_declaration(SHIPPED_DECLARATION)
+        extension = loaded.languages[language].extensions[0]
+        declared = set(loaded.languages[language].metrics)
+
+        for_source = set(declaration.metrics_for_file(loaded, f"src/sum{extension}"))
+        for_test = set(declaration.metrics_for_file(loaded, f"tests/test_sum{extension}"))
+
+        assert for_source == declared
+        assert for_test == declared - CRAP_AND_COVERAGE
+
