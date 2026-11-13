@@ -563,6 +563,91 @@ it_should_block_a_commit_into_another_repo_whose_staged_file_breaks_comment_form
   assert_eq "should block a commit run with -C into a repo whose staged file carries a comment-format violation" "2" "$HOOK_EXIT"
 }
 
+# make_message_file <dir> <kind> - writes a commit message file
+# into <dir>, with or without Co-Authored-By per <kind>
+# (with-attribution | without-attribution), prints its path.
+make_message_file() {
+  local dir="$1" kind="$2" path="$1/commit-message.txt"
+  if [ "$kind" = "with-attribution" ]; then
+    printf 'fix(git-guard): read the message file\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' > "$path"
+  else
+    printf 'fix(git-guard): read the message file\n\nNo trailer in this body.\n' > "$path"
+  fi
+  printf '%s' "$path"
+}
+
+it_should_allow_a_commit_whose_message_file_carries_attribution() {
+  local dir msg_dir msg_file cmd
+  dir=$(make_repo main)
+  msg_dir=$(mktemp -d)
+  CLEANUP_DIRS+=("$msg_dir")
+  msg_file=$(make_message_file "$msg_dir" with-attribution)
+  for cmd in \
+    "git commit --allow-empty -F $msg_file" \
+    "git commit --allow-empty -F$msg_file" \
+    "git commit --allow-empty --file $msg_file" \
+    "git commit --allow-empty --file=$msg_file"; do
+    run_hook "$cmd" "$dir"
+    assert_eq "should allow a commit whose message file carries Co-Authored-By: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
+it_should_allow_a_commit_whose_message_file_path_is_relative_to_the_working_directory() {
+  local dir
+  dir=$(make_repo main)
+  make_message_file "$dir" with-attribution >/dev/null
+  run_hook "git commit --allow-empty --file=commit-message.txt" "$dir"
+  assert_eq "should allow a commit whose relative message file, read from the working directory, carries Co-Authored-By" "0" "$HOOK_EXIT"
+}
+
+it_should_block_a_commit_whose_message_file_lacks_attribution() {
+  local dir msg_file
+  dir=$(make_repo main)
+  msg_file=$(make_message_file "$dir" without-attribution)
+  run_hook "git commit --allow-empty -F $msg_file" "$dir"
+  assert_eq "should block a commit whose message file has no Co-Authored-By" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_commit_whose_message_file_is_missing() {
+  local dir
+  dir=$(make_repo main)
+  run_hook "git commit --allow-empty -F $dir/no-such-message.txt" "$dir"
+  assert_eq "should block a commit whose message file does not exist" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_commit_reading_its_message_from_stdin() {
+  local dir msg_file
+  dir=$(make_repo main)
+  msg_file=$(make_message_file "$dir" with-attribution)
+  run_hook "git commit --allow-empty -F - < $msg_file" "$dir"
+  assert_eq "should block a commit reading its message from stdin, since the hook cannot see it" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_message_file_commit_when_shared_lib_is_missing() {
+  local dir hook msg_file
+  dir=$(make_repo main)
+  msg_file=$(make_message_file "$dir" with-attribution)
+  hook=$(make_hook_without_lib)
+  run_hook_with_script "$hook" "git commit --allow-empty -F $msg_file" "$dir"
+  assert_eq "should block a commit whose attributed message file cannot be located without the shared parsing lib" "2" "$HOOK_EXIT"
+}
+
+# run_hook discards stderr, and this case must prove the deny
+# came from the amend rule, not from the attribution rule.
+it_should_block_an_amend_whose_message_file_carries_attribution() {
+  local dir msg_file payload stderr_text
+  dir=$(make_repo main)
+  msg_file=$(make_message_file "$dir" with-attribution)
+  payload=$(jq -n --arg c "git commit --amend -F $msg_file" --arg d "$dir" '{tool_input: {command: $c}, cwd: $d}')
+  stderr_text=$(printf '%s' "$payload" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  assert_eq "should block an amend even when its message file carries Co-Authored-By" "2" "$HOOK_EXIT"
+  case "$stderr_text" in
+    *"--amend"*) assert_eq "should deny the amend through the amend rule" "amend" "amend" ;;
+    *) assert_eq "should deny the amend through the amend rule" "amend" "$stderr_text" ;;
+  esac
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -625,6 +710,13 @@ it_should_block_an_unattributed_commit_behind_a_global_option
 it_should_block_a_destructive_operation_behind_a_global_option
 it_should_allow_a_safe_operation_behind_a_global_option
 it_should_block_a_commit_into_another_repo_whose_staged_file_breaks_comment_format
+it_should_allow_a_commit_whose_message_file_carries_attribution
+it_should_allow_a_commit_whose_message_file_path_is_relative_to_the_working_directory
+it_should_block_a_commit_whose_message_file_lacks_attribution
+it_should_block_a_commit_whose_message_file_is_missing
+it_should_block_a_commit_reading_its_message_from_stdin
+it_should_block_a_message_file_commit_when_shared_lib_is_missing
+it_should_block_an_amend_whose_message_file_carries_attribution
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

@@ -54,7 +54,8 @@
 #
 # The one exception is the Co-Authored-By search a few lines
 # down, which must look at the RAW command: that's the actual
-# commit message text, which always lives inside quotes.
+# commit message text, which lives inside quotes - or in a
+# -F/--file message file, which that search also reads.
 #
 # The main/master push check below is its own exception too: it
 # parses the RAW command (sink-stripped only, quotes intact),
@@ -453,12 +454,70 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\s+.*--amend'; then
   exit 2
 fi
 
+# message_file_has_attribution - succeeds when a -F/--file
+# message file of the commit carries the attribution.
+#
+# A message passed as a file never appears on the command line,
+# so the command-line search alone denies an attributed -F one.
+#
+# Unlike the subject check below, any failure here (a crash,
+# a missing lib, "-F -" stdin, an unreadable file) fails
+# closed: a lost attribution is the defect this rule prevents.
+#
+# A relative path resolves against the Bash tool's cwd only; a
+# cd or -C earlier in the command is not followed.
+message_file_has_attribution() {
+  local message_files path
+  message_files=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 - 2>/dev/null <<'PYEOF'
+import importlib.util
+import os
+import shlex
+
+_lib_path = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'parse-shell-command.py')
+_spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
+_parse_shell_command = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_parse_shell_command)
+
+cwd = os.environ.get('CLAUDE_GIT_COMMIT_CWD') or '.'
+STDIN_PATH = '-'
+
+
+def message_file_paths(args):
+    for index, arg in enumerate(args):
+        if arg in ('-F', '--file'):
+            yield args[index + 1] if index + 1 < len(args) else STDIN_PATH
+        elif arg.startswith('--file='):
+            yield arg[len('--file='):]
+        elif arg.startswith('-F'):
+            yield arg[len('-F'):]
+
+
+for stages in _parse_shell_command.split_into_pipelines(os.environ['CLAUDE_GIT_CMD']):
+    for stage in stages:
+        try:
+            tokens = shlex.split(stage)
+        except ValueError:
+            continue
+        if 'git' not in tokens or 'commit' not in tokens:
+            continue
+        for path in message_file_paths(tokens[tokens.index('commit') + 1:]):
+            if path and path != STDIN_PATH:
+                print(os.path.join(cwd, path))
+PYEOF
+  ) || return 1
+  while IFS= read -r path; do
+    [ -n "$path" ] && grep -qi "$ATTRIBUTION_PATTERN" -- "$path" 2>/dev/null && return 0
+  done <<< "$message_files"
+  return 1
+}
+
 # Block git commit without Co-Authored-By: Claude attribution.
 # The trigger checks CMD_STRUCT (a real invocation), but the
 # attribution search checks the RAW command, since the message
 # text lives inside quotes that CMD_STRUCT has blanked out.
+ATTRIBUTION_PATTERN='Co-Authored-By:.*Claude'
 if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
-  if ! echo "$CMD" | grep -qi 'Co-Authored-By:.*Claude'; then
+  if ! echo "$CMD" | grep -qi "$ATTRIBUTION_PATTERN" && ! message_file_has_attribution; then
     echo 'git commit must include Co-Authored-By: Claude attribution. Add it to the commit message.' >&2
     exit 2
   fi
