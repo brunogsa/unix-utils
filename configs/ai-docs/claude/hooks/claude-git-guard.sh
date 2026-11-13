@@ -524,7 +524,7 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
 
   # A checker that crashes or cannot load allows the commit, so
   # a broken subject check never blocks every commit.
-  reason=$(python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" "$CMD" 2>/dev/null) && [ -n "$reason" ] && { printf '%s\n' "$reason" >&2; exit 2; }
+  reason=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" "$CMD" 2>/dev/null) && [ -n "$reason" ] && { printf '%s\n' "$reason" >&2; exit 2; }
 
   # The gate resolves pathspecs against its own cwd, so it
   # runs from the Bash tool's directory, not the hook's.

@@ -58,6 +58,21 @@ COMMIT_CWD_ENV = "CLAUDE_GIT_COMMIT_CWD"
 MESSAGE_FILE_READ_LIMIT = 1 << 20
 DIRECTORY_COMMANDS = frozenset({"cd", "pushd", "popd"})
 
+# Commands that can set any variable, so none stays known.
+SHELL_STATE_COMMANDS = frozenset({"source", ".", "eval"})
+
+VARIABLE_REFERENCE = re.compile(r"\$(?:([A-Za-z_][A-Za-z0-9_]*)|\{([A-Za-z_][A-Za-z0-9_]*)\})")
+EXPANSION_CHARACTERS = re.compile(r"[$`*?\[~{}()]")
+
+# A literal the shell cannot split or glob: $NAME stays 1 word.
+SAFE_VARIABLE_VALUE = re.compile(r"[A-Za-z0-9_./@%+=:,-]*")
+
+# A word naming a variable it may write: NAME, NAME=, NAME+=.
+WRITTEN_NAME = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)(?:\+?=.*)?$", re.DOTALL)
+
+# An & that is no &&, >& or &> redirect.
+LONE_AMPERSAND = re.compile(r"(?<![&>])&(?![&>])")
+
 # git global options that only pick a pager, a repository or how
 # pathspecs read, so the message git records is unchanged.
 # --config-env is left out on purpose: it injects a config value
@@ -115,8 +130,12 @@ class Stage(NamedTuple):
 class ShellState:
     """What the command's earlier stages leave for a later commit."""
 
-    def __init__(self, cwd):
+    def __init__(self, cwd, is_assignment_trackable):
         self.cwd = cwd
+        self.is_assignment_trackable = is_assignment_trackable
+
+        # Literals of the variables assigned so far.
+        self.variables = {}
 
         # A relative path means something else after a cd, and
         # the command text cannot say where it landed.
@@ -443,17 +462,19 @@ def _read_option(text):
 
 def _read_commit_options(words):
     """Return ({"message": [...], "file": [...]}, index of the --
-    ending options or None), or None.
+    ending options or None, the word index each -F value came
+    from), or None.
 
     git keeps parsing options after a pathspec, until --.
     """
     values = {"message": [], "file": [], "trailer": []}
+    file_word_indexes = []
     index = 0
     while index < len(words):
         text = words[index].text
         index += 1
         if text == "--":
-            return values, index - 1
+            return values, index - 1, file_word_indexes
         if not text.startswith("-") or text == "-":
             continue
         option = _read_option(text)
@@ -462,13 +483,17 @@ def _read_commit_options(words):
         kind, value, has_value = option
         if not kind:
             continue
+        value_word_index = index - 1
         if not has_value:
             if index >= len(words):
                 return None
+            value_word_index = index
             value = words[index].text
             index += 1
         values[kind].append(value)
-    return values, None
+        if kind == "file":
+            file_word_indexes.append(value_word_index)
+    return values, None, file_word_indexes
 
 
 def _join_message_options(messages):
@@ -501,8 +526,58 @@ def _read_message_file(path, state, is_git_dir_moved):
     return raw.decode("utf-8", "replace")
 
 
+def _resolve_variables(path, state):
+    """Return path with each $NAME or ${NAME} replaced by the
+    literal the command assigned it, or None when any other
+    expansion remains or a name has no known literal.
+    """
+    names = [match.group(1) or match.group(2) for match in VARIABLE_REFERENCE.finditer(path)]
+    if not names or not state.is_assignment_trackable:
+        return None
+    if any(state.variables.get(name) is None for name in names):
+        return None
+    if EXPANSION_CHARACTERS.search(VARIABLE_REFERENCE.sub("", path)):
+        return None
+    resolved = VARIABLE_REFERENCE.sub(lambda match: state.variables[match.group(1) or match.group(2)], path)
+    return resolved or None
+
+
 def _is_directory_change(words):
     return any(word.text.lstrip("({") in DIRECTORY_COMMANDS for word in words)
+
+
+def _is_plain_assignment(stage, is_piped):
+    """True for a stage of only NAME=literal words that runs in
+    the main shell, so its names surely hold those literals after.
+    """
+    if is_piped or not stage.is_sure or not stage.words:
+        return False
+    for word in stage.words:
+        if not _is_assignment(word) or word.is_expandable:
+            return False
+        if not SAFE_VARIABLE_VALUE.fullmatch(word.text.partition("=")[2]):
+            return False
+    return True
+
+
+def _update_state(stage, is_piped, state):
+    """Record what a stage that is not a commit changes."""
+    if _is_directory_change(stage.words):
+        state.is_cwd_moved = True
+    if _is_plain_assignment(stage, is_piped):
+        for word in stage.words:
+            name, _, value = word.text.partition("=")
+            state.variables[name] = value
+        return
+
+    # Anything else may rewrite a name: read, export, unset, a
+    # for loop, a prefix assignment or one set by an expansion.
+    if stage.words and stage.words[0].text in SHELL_STATE_COMMANDS:
+        state.variables.clear()
+    for word in stage.words:
+        written = WRITTEN_NAME.match(word.text)
+        if written:
+            state.variables.pop(written.group(1), None)
 
 
 def _commit_message(stage, values, state):
@@ -521,23 +596,31 @@ def _commit_message(stage, values, state):
     options = _read_commit_options(words[index + 1 :])
     if options is None:
         return None
-    values_by_kind, options_end = options
+    values_by_kind, options_end, file_word_indexes = options
+    messages, files = values_by_kind["message"], values_by_kind["file"]
+    file_positions = {index + 1 + word_index for word_index in file_word_indexes}
 
     # Past a bare --, git reads every word as a pathspec, so an
-    # expansion there cannot reach the message.
+    # expansion there cannot reach the message. The one -F value
+    # may expand, since a variable assigned a literal resolves.
     checked_end = len(words) if options_end is None else index + 1 + options_end
-    if any(word.is_expandable for word in words[:checked_end]):
+    expandable_positions = {position for position in range(checked_end) if words[position].is_expandable}
+    if expandable_positions - file_positions or (expandable_positions and len(files) != 1):
         return None
-    messages, files = values_by_kind["message"], values_by_kind["file"]
     if messages and files:
         return None
     if messages:
         return _join_message_options(messages)
     if files == ["-"]:
         return values[stage.heredoc_keys[0]] if stage.heredoc_keys else None
-    if len(files) == 1:
-        return _read_message_file(files[0], state, is_git_dir_moved)
-    return None
+    if len(files) != 1:
+        return None
+    path = files[0]
+    if expandable_positions:
+        path = _resolve_variables(path, state)
+        if path is None:
+            return None
+    return _read_message_file(path, state, is_git_dir_moved)
 
 
 def _subject_of(message):
@@ -552,6 +635,20 @@ def _subject_of(message):
         elif subject_lines:
             break
     return " ".join(subject_lines)
+
+
+def _is_assignment_order_known(text):
+    """True when each assignment surely ran before a later commit.
+
+    Statements come back without their separators, so these
+    leave it open whether an assignment ran at all: || and a
+    background & (own subshell), and && mixed with ; or a newline
+    (a failed && leaves a later ; statement running unassigned).
+    A quoted ; or newline only makes this answer False.
+    """
+    if "||" in text or LONE_AMPERSAND.search(text):
+        return False
+    return not ("&&" in text and (";" in text or "\n" in text))
 
 
 def compute_subjects(command, cwd=None):
@@ -571,18 +668,17 @@ def compute_subjects(command, cwd=None):
         if "\\\n" in text:
             return []
         stages = [
-            StageLexer(stage, values).lex()
+            (StageLexer(stage, values).lex(), len(statement) > 1)
             for statement in split_into_pipelines(text)
             for stage in statement
         ]
     except CannotBeSure:
         return []
-    state = ShellState(cwd or os.getcwd())
+    state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
     messages = []
-    for stage in stages:
+    for stage, is_piped in stages:
         messages.append(_commit_message(stage, values, state))
-        if _is_directory_change(stage.words):
-            state.is_cwd_moved = True
+        _update_state(stage, is_piped, state)
     return [_subject_of(message) for message in messages if message is not None]
 
 

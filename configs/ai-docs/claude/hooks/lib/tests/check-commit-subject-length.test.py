@@ -513,6 +513,100 @@ class TestMessageFile:
         assert (result.returncode, result.stdout) == (0, "")
 
 
+class TestMessageFileInAssignedVariable:
+    @pytest.mark.parametrize(
+        "template",
+        [
+            'S={dir} && git commit -q -F "$S/msg.txt"',
+            'S={dir}; git commit -F "$S/msg.txt"',
+            "S={dir}\ngit commit -F $S/msg.txt",
+            'S={dir} && git commit --file="${{S}}/msg.txt"',
+            "S='{dir}' && git commit -F $S/msg.txt",
+            'OLD=/nowhere; S={dir}; git commit -F "$S/msg.txt"',
+            'S=/nowhere; S={dir}; git commit -F "$S/msg.txt"',
+            'S={dir} && staged=$(git diff --cached --name-only) && [ -z "$staged" ]'
+            ' && git add a.ts && git commit -q -F "$S/msg.txt"'
+            " --trailer 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'",
+        ],
+        ids=[
+            "an && chain and a quoted reference",
+            "a semicolon before the commit",
+            "a newline before an unquoted reference",
+            "a braced reference after --file=",
+            "a single-quoted assignment value",
+            "an unrelated variable assigned first",
+            "a reassignment that replaces an earlier value",
+            "the staged-check chain with a trailer",
+        ],
+    )
+    def test_should_deny_when_the_path_comes_from_a_literal_assignment(self, tmp_path, template):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(template.format(dir=tmp_path))
+
+        _assert_denied(result, SUBJECT_OVER_CAP)
+
+    def test_should_allow_a_short_subject_read_through_an_assigned_variable(self, tmp_path):
+        _write_message_file(tmp_path, SUBJECT_AT_CAP)
+
+        result = _run_checker(f'S={tmp_path} && git commit -F "$S/msg.txt"')
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            'git commit -F "$S/msg.txt"',
+            'S=$(pwd) && git commit -F "$S/msg.txt"',
+            'S={dir}; S=$(pwd); git commit -F "$S/msg.txt"',
+            'S="$HOME" && git commit -F "$S/msg.txt"',
+            'S={dir} | cat; git commit -F "$S/msg.txt"',
+            '( S={dir} ); git commit -F "$S/msg.txt"',
+            'true || S={dir}; git commit -F "$S/msg.txt"',
+            'S={dir} & git commit -F "$S/msg.txt"',
+            'S={dir}; read S; git commit -F "$S/msg.txt"',
+            'S={dir}; export S=/elsewhere; git commit -F "$S/msg.txt"',
+            'S={dir}; git commit -F "$S/$NAME.txt"',
+            'S={dir}; git commit -F "$(echo $S)/msg.txt"',
+            'S={dir}; git commit -F "$S"/*.txt',
+            "S={dir}; git commit -F \"`echo $S`/msg.txt\"",
+            'S="{dir}/with space" && git commit -F $S/msg.txt',
+            'S={dir} git commit -F "$S/msg.txt"',
+        ],
+        ids=[
+            "a variable never assigned",
+            "a variable assigned from a command substitution",
+            "a literal later replaced by a command substitution",
+            "a variable assigned from another variable",
+            "an assignment piped to another command",
+            "an assignment inside a subshell",
+            "an assignment that only runs when an earlier command fails",
+            "an assignment in a background job",
+            "a variable overwritten by read",
+            "a variable overwritten by export",
+            "a second unassigned variable in the path",
+            "a command substitution around the variable",
+            "a glob after the variable",
+            "a backtick substitution around the variable",
+            "an unquoted value that word splitting would break",
+            "an assignment prefixing the commit itself",
+        ],
+    )
+    def test_should_allow_when_the_path_cannot_be_resolved_for_sure(self, tmp_path, template):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(template.format(dir=tmp_path), cwd=tmp_path)
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_still_bail_on_an_expansion_in_any_other_word_before_the_options_end(self, tmp_path):
+        _write_message_file(tmp_path, SUBJECT_OVER_CAP)
+
+        result = _run_checker(f'S={tmp_path}; git commit -F "$S/msg.txt" "$(echo notes.txt)"')
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+
 def _git_env(home):
     inherited = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     return {

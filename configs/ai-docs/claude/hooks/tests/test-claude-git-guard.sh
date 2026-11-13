@@ -490,6 +490,34 @@ it_should_block_a_commit_whose_subject_runs_past_64_characters() {
   esac
 }
 
+# The relative path resolves against the JSON cwd, not the hook
+# process's directory, so this proves the cwd is passed on.
+it_should_block_a_message_file_commit_whose_subject_runs_past_64_characters() {
+  local dir payload stderr_text
+  dir=$(make_repo main)
+  printf '%s\n\n%s\n' \
+    'fix(git-guard): stop a commit whose subject is longer than a cap.' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' > "$dir/msg.txt"
+  payload=$(jq -n --arg c 'git commit --allow-empty -q -F msg.txt' --arg d "$dir" '{tool_input: {command: $c}, cwd: $d}')
+  stderr_text=$(printf '%s' "$payload" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  assert_eq "should block a message file commit whose subject runs past 64 characters" "2" "$HOOK_EXIT"
+  case "$stderr_text" in
+    *"65 characters"*) assert_eq "should name the message file subject's length in the denial" "named" "named" ;;
+    *) assert_eq "should name the message file subject's length in the denial" "named" "$stderr_text" ;;
+  esac
+}
+
+it_should_allow_a_message_file_commit_whose_subject_is_40_characters() {
+  local dir
+  dir=$(make_repo main)
+  printf '%s\n\n%s\n' \
+    'fix(git-guard): keep the subject short' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' > "$dir/msg.txt"
+  run_hook 'git commit --allow-empty -q -F msg.txt' "$dir"
+  assert_eq "should allow a message file commit whose subject is under the cap" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_commit_whose_subject_is_exactly_64_characters() {
   local dir cmd
   dir=$(make_repo main)
@@ -704,6 +732,8 @@ it_should_block_commit_whose_file_breaks_comment_format
 it_should_allow_commit_whose_file_respects_comment_format
 it_should_allow_commit_with_violation_when_format_gate_is_missing
 it_should_block_a_commit_whose_subject_runs_past_64_characters
+it_should_block_a_message_file_commit_whose_subject_runs_past_64_characters
+it_should_allow_a_message_file_commit_whose_subject_is_40_characters
 it_should_allow_a_commit_whose_subject_is_exactly_64_characters
 it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing
 it_should_block_an_unattributed_commit_behind_a_global_option
