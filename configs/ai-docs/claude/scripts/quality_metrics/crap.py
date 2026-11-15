@@ -51,12 +51,14 @@ def crap_measurements(declaration, target, functions, hits_by_file):
             coverage = FULL_COVERAGE
         else:
             coverage = function_coverage(function, line_hits)
-        record = measurement(
-            target, "crap", crap_score(function.complexity, coverage),
-            CRAP_LIMIT, function,
-        )
-        records.append({**record, "flagged_at_limit": True})
+        score = crap_score(function.complexity, coverage)
+        records.append(crap_record(target, function, score))
     return records
+
+
+def crap_record(target, function, score):
+    record = measurement(target, "crap", score, CRAP_LIMIT, function)
+    return {**record, "flagged_at_limit": True}
 
 
 def function_coverage(function, line_hits):

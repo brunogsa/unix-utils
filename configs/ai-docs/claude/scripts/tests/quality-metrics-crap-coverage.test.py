@@ -161,3 +161,17 @@ class TestChangedLineCoverage:
         assert not functions.is_over_limit(at_limit)
         assert under_limit["value"] == 89.9
         assert functions.is_over_limit(under_limit)
+
+
+class TestUnroundedCompareTruncatedDisplay:
+    def test_should_pass_crap_7_996_shown_as_7_99_and_fail_coverage_89_996_percent_shown_as_89_99_percent(self):
+        target = python_target(None)
+        crap_record = crap.crap_record(
+            target, function_measure("split_payment", 1, 20, 7), 7.996
+        )
+        coverage_record = coverage.coverage_record(target, 89.996)
+
+        assert not functions.is_over_limit(crap_record)
+        assert functions.display_value(crap_record) == "7.99"
+        assert functions.is_over_limit(coverage_record)
+        assert functions.display_value(coverage_record) == "89.99"

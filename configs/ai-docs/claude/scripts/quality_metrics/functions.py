@@ -10,6 +10,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
 from typing import Optional
 
@@ -26,6 +27,8 @@ from quality_metrics.tools import (
 
 NESTING_LIMIT = 3
 PARAMETER_LIMIT = 5
+
+DISPLAY_STEP = Decimal("0.01")
 
 BASH = "bash"
 
@@ -94,6 +97,14 @@ def is_over_limit(item):
     if item.get("flagged_at_limit"):
         return item["value"] >= item["limit"]
     return item["value"] > item["limit"]
+
+
+def display_value(item):
+    """The record's value cut to 2 decimals, never rounded up.
+
+    Rounding would show 7.996 as 8.00 beside a record that passed.
+    """
+    return str(Decimal(str(item["value"])).quantize(DISPLAY_STEP, ROUND_DOWN))
 
 
 def measurement(target, metric, value, limit, function=None):
