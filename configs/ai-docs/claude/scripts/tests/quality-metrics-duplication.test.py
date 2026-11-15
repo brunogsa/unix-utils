@@ -352,3 +352,32 @@ class TestTokenClonesInLanguagesWithoutSimilarity:
             ("code_duplication", f"src/first{extension}"),
             ("code_duplication", f"src/second{extension}"),
         }
+
+
+def measure_uncommitted_changes(tmp_path, committed, changed):
+    repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
+    for name, text in committed.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text)
+    commit_all(repo, "add files")
+    for name, text in changed.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+        (repo / name).write_text(text)
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(DECLARATION)
+    result = run_measure(repo, declaration_path, "--batch-end", "--base", "HEAD")
+    assert result.stdout, f"no output; stderr: {result.stderr}"
+    return json.loads(result.stdout)["violations"]
+
+
+class TestDuplicationInsideOneFile:
+    def test_should_flag_a_function_copied_below_its_original_in_the_same_file(self, tmp_path):
+        violations = measure_uncommitted_changes(
+            tmp_path,
+            {"src/pricing.py": PRICING},
+            {"src/pricing.py": PRICING + "\n" + COSTING},
+        )
+
+        assert {(item["metric"], item["file"]) for item in violations} == {
+            ("code_duplication", "src/pricing.py"),
+        }

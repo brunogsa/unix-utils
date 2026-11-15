@@ -98,11 +98,14 @@ def _scan(scan_dir, suffix):
 def _flagged_records(target, metric, names, clones):
     records = []
     for clone in clones:
-        target_side, other_side = _sides(clone)
-        if target_side is None:
+        touched_sides = [
+            (target_side, other_side)
+            for target_side, other_side in _sides(clone)
+            if target.touches(target_side["start"], target_side["end"])
+        ]
+        if not touched_sides:
             continue
-        if not target.touches(target_side["start"], target_side["end"]):
-            continue
+        target_side, other_side = touched_sides[0]
         similarity = clone.get("similarity", EXACT_CLONE_SIMILARITY)
         record = measurement(target, metric, similarity, SIMILARITY_LIMIT)
         records.append({
@@ -117,10 +120,15 @@ def _flagged_records(target, metric, names, clones):
 
 
 def _sides(clone):
-    """The clone's target-file side and its other side."""
+    """Each (target-file side, other side) pair the clone offers.
+
+    A clone inside the target file offers both orders, so the
+    caller can keep the side that sits on a touched line.
+    """
     first, second = clone["firstFile"], clone["secondFile"]
+    pairs = []
     if Path(first["name"]).stem == "c0":
-        return first, second
+        pairs.append((first, second))
     if Path(second["name"]).stem == "c0":
-        return second, first
-    return None, None
+        pairs.append((second, first))
+    return pairs
