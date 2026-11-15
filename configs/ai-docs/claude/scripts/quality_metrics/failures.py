@@ -19,6 +19,7 @@ TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
 GENUINE_TIMEOUTS_ALLOWED = 2
+ASK_CHOICES = ("fix now", "defer")
 
 HEADROOM_SCRIPT = Path(__file__).resolve().parent.parent / "check-machine-headroom.sh"
 
@@ -47,6 +48,32 @@ def deferred_measurement(target, metric, limit, function=None):
         "pessimistic": True,
         "label": DEFERRED_LABEL,
     }
+
+
+def tooling_ask(tool, metric, reason):
+    """The `ask` record the main session renders as a prompt.
+
+    The script never asks anyone: this record carries the question
+    (fix `tool` now or defer it) and `choices` are its two answers.
+    """
+    return {
+        "kind": "ask",
+        "tool": tool,
+        "metric": metric,
+        "reason": reason,
+        "choices": list(ASK_CHOICES),
+    }
+
+
+def ask_unless_deferred(tool_map, tool, metric, reason):
+    """A tooling ask, or None when `tool` is deferred in this batch.
+
+    `tool_map` is the batch's LazyToolMap: its entry's `deferred`
+    list is the one record of what the developer already deferred.
+    """
+    if tool in tool_map.entry()["deferred"]:
+        return None
+    return tooling_ask(tool, metric, reason)
 
 
 def holds_commit(records):

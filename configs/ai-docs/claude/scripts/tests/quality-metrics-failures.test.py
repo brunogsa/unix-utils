@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR
+from quality_metrics_support import SCRIPTS_DIR, head_of, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -16,15 +16,18 @@ from quality_metrics.failures import (
     TOOL_TIMEOUT_SECONDS,
     TimeoutPolicy,
     ToolTimedOutTwice,
+    ask_unless_deferred,
     deferred_measurement,
     holds_commit,
     machine_has_headroom,
 )
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
+from quality_metrics.tool_map import LazyToolMap, record_deferred_tool
 from quality_metrics.touched import Target
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
+SESSION_ID = "session-4c9e21"
 
 
 def timing_out_then(outcomes, timeouts_seen):
@@ -104,6 +107,27 @@ def test_should_stop_waiting_and_ask_when_headroom_stays_no_go_past_the_wait_cap
 
     assert sum(sleeps) == HEADROOM_MAX_WAIT_SECONDS
     assert len(timeouts_seen) == 1
+
+
+def test_should_emit_no_second_ask_for_a_tool_already_deferred_in_this_batch(tmp_path):
+    repo = make_repo(tmp_path, {"calc.py": "def add(first, second):\n    return first + second\n"})
+    base_sha = head_of(repo)
+    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+
+    first_ask = ask_unless_deferred(tool_map, "coverage.py", "coverage", "crashed")
+    record_deferred_tool(repo, base_sha, "coverage.py", SESSION_ID, tmp_path)
+    second_ask = ask_unless_deferred(tool_map, "coverage.py", "coverage", "crashed")
+    other_tool_ask = ask_unless_deferred(tool_map, "jscpd", "code_duplication", "is not installed")
+
+    assert first_ask == {
+        "kind": "ask",
+        "tool": "coverage.py",
+        "metric": "coverage",
+        "reason": "crashed",
+        "choices": ["fix now", "defer"],
+    }
+    assert second_ask is None
+    assert other_tool_ask["tool"] == "jscpd"
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
