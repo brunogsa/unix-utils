@@ -196,6 +196,29 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
     assert len(global_calls) == 1
 
 
+def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    stub_directory = tmp_path / "stubs"
+    stub_directory.mkdir()
+    jest_stub = stub_directory / "jest"
+    jest_stub.write_text(JEST_CRASH_STUB)
+    jest_stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
+    target = Target(repo / "src/cart.js", "javascript", None)
+    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+
+    def global_run_that_passes_and_writes_nothing():
+        return []
+
+    outcome = measure_coverage_or_ask(target, repo, global_run_that_passes_and_writes_nothing, tool_map)
+
+    assert outcome["ask"]["tool"] == "coverage.py"
+    assert outcome["ask"]["metric"] == "coverage"
+    assert outcome["ask"]["choices"] == ["fix now", "defer"]
+    assert "wrote no coverage data" in outcome["ask"]["reason"]
+    assert outcome["measurements"] == []
+
+
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
     verdicts = iter([False, True, True])
     timeouts_seen = []

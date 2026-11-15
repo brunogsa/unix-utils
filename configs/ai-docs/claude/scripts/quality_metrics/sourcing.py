@@ -20,7 +20,7 @@ from quality_metrics.failures import (
 )
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
-from quality_metrics.tool_map import TOOL_MAP_DIR, LazyToolMap
+from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
 
 ESLINT_REPORT_EVERY_FUNCTION = "max-lines-per-function: [error, {max: 0}]"
@@ -138,8 +138,8 @@ def measure_coverage(target, repo, measure_globally, policy=None):
 def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=None):
     """`measure_coverage` plus an `ask` for a global tool that cannot measure.
 
-    A missing or crashing global tool yields an ask and no
-    measurements. Once the developer defers it (recorded in
+    A missing or crashing global tool, or a run that passes yet
+    writes no coverage data, yields an ask and no measurements. Once the developer defers it (recorded in
     `tool_map`'s batch), the tool is not run again: coverage reads
     0%, labelled pessimistic, and no second ask is emitted.
     """
@@ -150,10 +150,13 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
         if global_tool in tool_map.entry()["deferred"]:
             return [deferred_coverage_measurement(target)]
         try:
-            return measure_globally()
+            measurements = measure_globally()
         except ToolError as error:
             global_failures.append(str(error))
             return []
+        if not measurements:
+            global_failures.append(f"{global_tool} exited zero but wrote no coverage data")
+        return measurements
 
     outcome = measure_coverage(target, repo, measure_globally_or_defer, policy)
     ask = None
