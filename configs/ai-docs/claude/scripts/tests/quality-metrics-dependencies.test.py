@@ -202,9 +202,14 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --project-path) project="$2"; shift ;;
     --arch-file) archfile="$2"; shift ;;
+    --max-warnings) max_warnings="$2"; shift ;;
   esac
   shift
 done
+if [ "$max_warnings" -lt 1 ] || [ "$max_warnings" -gt 32768 ]; then
+  echo "flag 'max-warnings' should by in range [1 .. 32768]" >&2
+  exit 1
+fi
 cp "$archfile" "{capture_path}"
 if grep -q 'shop/infra' "$project/domain/order.go"; then
   cat <<'JSON'

@@ -66,8 +66,9 @@ LAYER_RULE_LINE = re.compile(r"^(\S+) is not allowed to import (\S+):$")
 LAYER_EDGE_LINE = re.compile(r"^- ([A-Za-z_][\w.]*) -> ([\w.]+) \(l\.\d+\)")
 
 # go-arch-lint exits 1 on warnings alone, so only a missing
-# report means it failed; the cap is raised past any count.
-GO_ARCH_LINT_MAX_WARNINGS = "1000000"
+# report means it failed; the cap is set to the tool's own
+# ceiling, 32768, as it rejects any larger value.
+GO_ARCH_LINT_MAX_WARNINGS = "32768"
 
 
 @dataclass(frozen=True)
