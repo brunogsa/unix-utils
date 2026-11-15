@@ -184,10 +184,13 @@ def _copy_at(ref, path, directory):
 
 
 def _measure_target(declaration, mode, target, path, coverage_run=None):
-    """Measure one target; with no `coverage_run`, skip CRAP and coverage.
+    """Measure one target; with no `coverage_run`, skip CRAP,
+    coverage and duplication.
 
     The base-side copy of a resolved function has no test run of its
     own, so scoring it against the working tree's coverage would be wrong.
+    Resolved findings keep only function-scoped items, so a base-side
+    duplication scan would be discarded.
     """
     measurements = []
     metrics = _metrics_binding(declaration, target.language, mode, path)
@@ -201,9 +204,10 @@ def _measure_target(declaration, mode, target, path, coverage_run=None):
             continue
         module = importlib.import_module(f"quality_metrics.{module_name}")
         if module_name == DUPLICATION_MODULE:
-            measurements += module.measure(
-                target, module_metrics, declaration=declaration
-            )
+            if coverage_run is not None:
+                measurements += module.measure(
+                    target, module_metrics, declaration=declaration
+                )
             continue
         measurements += module.measure(target, module_metrics)
     return measurements
