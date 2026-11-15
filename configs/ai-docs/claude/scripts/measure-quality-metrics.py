@@ -5,6 +5,7 @@
 #   measure-quality-metrics.py --per-unit [--base REF]
 #   measure-quality-metrics.py --batch-end [--base REF]
 #
+# Or measure a range or explicit files:
 #   measure-quality-metrics.py --diff BASE...HEAD
 #   measure-quality-metrics.py [--per-unit] --files FILE...
 #
