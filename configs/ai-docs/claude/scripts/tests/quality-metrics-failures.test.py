@@ -39,6 +39,7 @@ echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
 exit 1
 """
 SESSION_ID = "session-4c9e21"
+INTERACTIVE_SESSION = {"CLAUDE_CODE_ENTRYPOINT": "cli"}
 
 
 def timing_out_then(outcomes, timeouts_seen):
@@ -186,9 +187,13 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
         global_calls.append(target.path)
         raise ToolError("coverage.py crashed with a traceback")
 
-    first_unit = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+    first_unit = measure_coverage_or_ask(
+        target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
+    )
     record_deferred_tool(repo, base_sha, "coverage.py", SESSION_ID, tmp_path)
-    later_unit = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+    later_unit = measure_coverage_or_ask(
+        target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
+    )
 
     assert first_unit["ask"]["tool"] == "coverage.py"
     assert first_unit["ask"]["metric"] == "coverage"
@@ -208,7 +213,9 @@ def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path,
     def global_run_that_passes_and_writes_nothing():
         return []
 
-    outcome = measure_coverage_or_ask(target, repo, global_run_that_passes_and_writes_nothing, tool_map)
+    outcome = measure_coverage_or_ask(
+        target, repo, global_run_that_passes_and_writes_nothing, tool_map, environ=INTERACTIVE_SESSION
+    )
 
     assert outcome["ask"]["tool"] == "coverage.py"
     assert outcome["ask"]["metric"] == "coverage"
@@ -228,7 +235,9 @@ def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_an
     def crashing_global_tool():
         raise ToolError("coverage.py crashed with a traceback")
 
-    outcome = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+    outcome = measure_coverage_or_ask(
+        target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
+    )
 
     assert outcome["ask"]["tool"] == "coverage.py"
     assert "coverage.py crashed" in outcome["ask"]["reason"]
