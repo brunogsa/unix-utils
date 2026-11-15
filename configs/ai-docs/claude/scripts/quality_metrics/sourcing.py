@@ -22,13 +22,24 @@ ESLINT_LINE_COUNT = re.compile(r"^(?P<subject>.*?) has too many lines \((?P<line
 
 # How a repo tool exited, read from its output, in check order.
 PASSED, UNCLASSIFIED = "passed", "unclassified"
+CRASH = "crash"
 EXIT_CLASS_PATTERNS = (
     ("failed_tests", re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
     ("repo_threshold", re.compile(r"coverage threshold .* not met")),
+    (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),
 )
 
 # Exit classes whose measurements are valid.
 MEASURING_EXIT_CLASSES = (PASSED, "repo_threshold")
+
+# Why each failure sends the metric to the global tool, worded
+# for the side-PR candidate.
+FALL_THROUGH_REASONS = {
+    CRASH: "crashed",
+    UNCLASSIFIED: "exited non-zero with no recognized cause",
+}
+
+REPO_COVERAGE_SOURCE = {"kind": "repo", "tool": "jest"}
 
 # The global tool measuring each metric when the repo has none.
 GLOBAL_TOOLS = {
@@ -36,6 +47,14 @@ GLOBAL_TOOLS = {
     "code_duplication": "jscpd",
     "test_duplication": "jscpd",
 }
+
+
+class RepoToolFailure(ToolError):
+    """A repo tool gave no measurement; `exit_class` says why."""
+
+    def __init__(self, exit_class, detail):
+        super().__init__(f"{exit_class}: {detail}")
+        self.exit_class = exit_class
 
 
 def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
@@ -79,12 +98,31 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
+def measure_coverage(target, repo, measure_globally):
+    """Changed-line coverage, from the repo's jest or else the global tool.
+
+    A repo tool that crashed falls through to `measure_globally()`, and
+    the repo gap is the side-PR candidate. A failure of the global
+    tool propagates as ToolError.
+    """
+    try:
+        outcome = measure_coverage_with_repo_tool(target, repo)
+    except RepoToolFailure as failure:
+        return {
+            "source": {"kind": "global", "tool": GLOBAL_TOOLS["coverage"]},
+            "exit_class": failure.exit_class, "red_build": False,
+            "measurements": measure_globally(),
+            "side_pr_candidate": f"repo jest {FALL_THROUGH_REASONS[failure.exit_class]}",
+        }
+    return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
+
+
 def measure_coverage_with_repo_tool(target, repo):
     """Changed-line coverage from the repo's jest, with how jest exited.
 
     The coverage reads valid when jest passed or exited non-zero on the
     repo's own threshold: the harness judges the measured value against its
-    own limit. Any other exit is not a measurement.
+    own limit. Any other outcome raises RepoToolFailure naming its class.
     """
     with tempfile.TemporaryDirectory() as report_dir:
         result = run_command(
@@ -93,7 +131,7 @@ def measure_coverage_with_repo_tool(target, repo):
         )
         exit_class = classify_exit(result)
         if exit_class not in MEASURING_EXIT_CLASSES:
-            raise ToolError(f"jest exited {result.returncode} ({exit_class}): {result.stderr.strip()}")
+            raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
         hits_by_file = parse_lcov((Path(report_dir) / "lcov.info").read_text())
     line_hits = hits_by_file.get(target.repo_path or str(Path(target.path).relative_to(repo)))
     return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}

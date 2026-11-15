@@ -8,6 +8,8 @@ from quality_metrics_support import SCRIPTS_DIR, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from quality_metrics import sourcing
+from quality_metrics.coverage import coverage_measurement
 from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
     lazy_tool_map_for,
@@ -142,5 +144,41 @@ def test_should_read_measurements_as_valid_when_a_repo_tool_exits_non_zero_on_it
     assert outcome["exit_class"] == "repo_threshold"
     assert [record["value"] for record in outcome["measurements"]] == [92]
     assert not is_over_limit(outcome["measurements"][0])
+
+
+# A jest dying on an internal error: a stack trace, no report.
+JEST_CRASH_STUB = """#!/bin/bash
+echo "TypeError: Cannot read properties of undefined (reading 'config')" >&2
+echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
+exit 1
+"""
+
+GLOBAL_COVERAGE_PERCENT = 100
+
+
+def measure_globally_for(target, calls):
+    """Stands in for the global coverage tool; records each call."""
+    def measure_globally():
+        calls.append(target.path)
+        return [coverage_measurement(target, {1: 1, 2: 1})]
+    return measure_globally
+
+
+def test_should_classify_a_crash_from_the_tool_output_and_fall_through_to_the_global_tool_with_a_side_pr_candidate(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
+    target = Target(repo / "src/cart.js", "javascript", None)
+    global_calls = []
+
+    outcome = sourcing.measure_coverage(target, repo, measure_globally_for(target, global_calls))
+
+    assert outcome["exit_class"] == "crash"
+    assert outcome["source"] == {"kind": "global", "tool": "coverage.py"}
+    assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
+    assert outcome["side_pr_candidate"] == "repo jest crashed"
+    assert len(global_calls) == 1
+
 
 
