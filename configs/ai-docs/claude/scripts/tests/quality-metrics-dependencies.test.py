@@ -211,6 +211,20 @@ if [ "$max_warnings" -lt 1 ] || [ "$max_warnings" -gt 32768 ]; then
   exit 1
 fi
 cp "$archfile" "{capture_path}"
+if python3 -c 'import json, sys
+deps = json.load(open(sys.argv[1]))["deps"]
+sys.exit(0 if any(
+    not dep.get("mayDependOn")
+    and not dep.get("anyProjectDeps")
+    and not dep.get("anyVendorDeps")
+    for dep in deps.values()) else 1)' "$archfile"; then
+  cat <<'JSON'
+{{"Type":"models.Check","Payload":{{"ExecutionWarnings":[{{"Text":"should have ref in 'mayDependOn'/'canUse' or at least one flag of ['anyProjectDeps', 'anyVendorDeps']","File":"config.yml"}}],
+"ArchHasWarnings":false,"ArchWarningsDeps":[],"ArchWarningsNotMatched":[],
+"ArchWarningsDeepScan":[],"OmittedCount":0,"ModuleName":"shop","Qualities":[]}}}}
+JSON
+  exit 1
+fi
 if grep -q 'shop/infra' "$project/domain/order.go"; then
   cat <<'JSON'
 {{"Type":"models.Check","Payload":{{"ExecutionWarnings":[],"ArchHasWarnings":true,
@@ -276,7 +290,7 @@ def test_flags_a_python_domain_to_infra_import_through_an_import_linter_layers_c
     assert layer_import["layer_map_source"] == "declared"
 
 
-def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_only_on_the_layers_after_it(tmp_path):
+def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_on_itself_and_the_layers_after_it(tmp_path):
     capture_path = tmp_path / "captured-archfile.yaml"
 
     measure_branch(
@@ -293,8 +307,8 @@ def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_only_on_the_lay
         "domain": {"in": ["domain/**"]},
     }
     assert config["deps"] == {
-        "infra": {"mayDependOn": ["domain"]},
-        "domain": {"mayDependOn": []},
+        "infra": {"mayDependOn": ["infra", "domain"]},
+        "domain": {"mayDependOn": ["domain"]},
     }
     assert config["allow"]["ignoreNotFoundComponents"] is True
 

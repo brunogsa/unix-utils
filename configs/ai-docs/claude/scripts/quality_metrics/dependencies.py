@@ -483,7 +483,7 @@ def _find_with_go_arch_lint(tree, layer_map):
 
 
 def _go_arch_lint_config(layer_map):
-    """Each layer may depend only on the layers after it."""
+    """Each layer may depend on itself and the layers after it."""
     layers = layer_map.layers
     return {
         "version": 3,
@@ -494,7 +494,9 @@ def _go_arch_lint_config(layer_map):
         },
         "components": {layer.name: {"in": list(layer.paths)} for layer in layers},
         "deps": {
-            layer.name: {"mayDependOn": [inner.name for inner in layers[index + 1:]]}
+            layer.name: {
+                "mayDependOn": [layer.name, *(inner.name for inner in layers[index + 1:])]
+            }
             for index, layer in enumerate(layers)
         },
     }
