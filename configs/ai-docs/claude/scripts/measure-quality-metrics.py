@@ -29,7 +29,7 @@ from quality_metrics import declaration as declaring
 from quality_metrics.collection import CoverageRun
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
-from quality_metrics.tools import ToolError
+from quality_metrics.tools import ToolError, run_command
 from quality_metrics.touched import (
     changes_between,
     file_text_at,
@@ -143,6 +143,8 @@ def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
                 continue
             if language is None:
                 continue
+            if head_ref and _needs_coverage(declaration, mode, language, path):
+                _require_worktree_at(head_ref, path)
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
             target = Target(source, language, touched_lines)
             found = _measure_target(declaration, mode, target, path, coverage_run)
@@ -151,6 +153,21 @@ def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
                 found = [{**item, "file": path} for item in found]
             measurements += found
     return measurements, unclaimed
+
+
+def _needs_coverage(declaration, mode, language, path):
+    metrics = _metrics_binding(declaration, language, mode, path)
+    return COVERAGE_MODULE in _group_by_module(metrics)
+
+
+def _require_worktree_at(ref, path):
+    """Fail closed: lcov comes from the working tree, not `ref`."""
+    same_text = run_command(["git", "diff", "--quiet", ref, "--", path])
+    if same_text.returncode != 0:
+        raise ToolError(
+            f"{path} in the working tree differs from {ref}; "
+            f"check out {ref} clean to measure its coverage"
+        )
 
 
 def _copy_at(ref, path, directory):

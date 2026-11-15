@@ -401,3 +401,27 @@ class TestLcovPathForms:
 
         (coverage_record,) = records
         assert coverage_record["value"] == 75
+
+
+class TestWorkingTreeDifferingFromHeadRef:
+    def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
+        self, tmp_path
+    ):
+        repo = make_fixture_repo(tmp_path, {
+            TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=90.0),
+        })
+        base = entry_point.head_of(repo)
+        entry_point.commit_all(repo, "change the invoice totals")
+        (repo / "invoice_totals.py").write_text(
+            SOURCE_CHANGED + "\n\ndef later_edit():\n    return 1\n"
+        )
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(RUN_DECLARATION_TEXT)
+
+        result = entry_point.run_measure(
+            repo, declaration_path, "--diff", f"{base}...HEAD"
+        )
+
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert "HEAD" in result.stderr
