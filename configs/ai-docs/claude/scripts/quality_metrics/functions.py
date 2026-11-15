@@ -64,8 +64,14 @@ def measure(target, metrics):
         if not target.touches(function.start, function.end):
             continue
         for metric in metrics:
+            value = getattr(function, metric)
+            if value is None:
+                raise ToolError(
+                    f"{target.language} cannot measure {metric}; "
+                    f"drop it from the {target.language} metrics in the declaration"
+                )
             results.append(function_measurement(
-                target, function, metric, getattr(function, metric), limits[metric]
+                target, function, metric, value, limits[metric]
             ))
     return results
 

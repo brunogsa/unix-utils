@@ -584,3 +584,25 @@ class TestUndecodableChangedFile:
         assert "UnicodeDecodeError" not in result.stderr
         assert result.returncode == 0
         assert json.loads(result.stdout)["violations"] == []
+
+
+class TestBashDeclaredMetrics:
+    @pytest.mark.parametrize("metric", ["nesting", "parameters"])
+    def test_should_fail_as_a_declaration_error_naming_bash_and_the_metric_when_bash_declares_a_metric_it_cannot_measure(
+        self, tmp_path, metric
+    ):
+        repo = make_repo(tmp_path, {"seed.go": PACKAGE_LINE + go_function_nested("seed", 1)})
+        (repo / "deploy.sh").write_text("deploy() {\n  echo ok\n}\n")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+        declaration_path.write_text(
+            declaration_path.read_text().replace(
+                "  bash:\n    extensions: [.sh]\n    metrics: [size]",
+                f"  bash:\n    extensions: [.sh]\n    metrics: [size, {metric}]",
+            ).replace("per_unit: [nesting]", f"per_unit: [nesting, size, {metric}]")
+        )
+
+        result = run_measure(repo, declaration_path, "--per-unit")
+
+        assert result.returncode == 2
+        assert "TypeError" not in result.stderr
+        assert "bash" in result.stderr and metric in result.stderr
