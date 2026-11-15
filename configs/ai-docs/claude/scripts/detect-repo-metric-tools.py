@@ -22,7 +22,7 @@ from quality_metrics.tool_map import (
     load_detector_rules,
     TOOL_MAP_DIR,
 )
-from quality_metrics.tools import ToolError
+from quality_metrics.tools import ToolError, run_tool
 
 DEFAULT_RULES = (
     Path(__file__).resolve().parent / "quality-metrics-detectors.yaml"
@@ -32,15 +32,18 @@ DEFAULT_RULES = (
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
-    parser.add_argument("--base", required=True, help="base SHA to read configs at")
+    parser.add_argument("--base", required=True, help="base SHA or ref to read configs at")
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--map-dir", default=str(TOOL_MAP_DIR))
     parser.add_argument("--rules", default=str(DEFAULT_RULES))
     arguments = parser.parse_args()
     try:
         rules = load_detector_rules(arguments.rules)
+        base_sha = run_tool(
+            ["git", "-C", arguments.repo, "rev-parse", arguments.base]
+        ).strip()
         entry = LazyToolMap(
-            arguments.repo, arguments.base, rules,
+            arguments.repo, base_sha, rules,
             arguments.session_id, arguments.map_dir,
         ).entry()
     except ToolError as error:

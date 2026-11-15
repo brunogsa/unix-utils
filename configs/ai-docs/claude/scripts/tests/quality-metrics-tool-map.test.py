@@ -74,6 +74,16 @@ def test_should_key_the_tool_map_by_repo_path_and_base_sha_rebuilding_it_when_th
     assert tool_names(tool_map[f"{repo_path}@{second_sha}"]) == ["eslint", "jest"]
 
 
+def test_should_key_the_tool_map_by_the_same_sha_whether_the_base_is_given_as_a_ref_name_or_a_sha(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    base_sha = head_of(repo)
+
+    detect(repo, tmp_path, "HEAD")
+    detect(repo, tmp_path, base_sha)
+
+    assert list(read_map(tmp_path)) == [f"{repo.resolve()}@{base_sha}"]
+
+
 def test_should_build_the_map_at_the_first_check_that_finds_it_missing_and_read_it_back_at_a_later_check_without_rebuilding(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
     base_sha = head_of(repo)
