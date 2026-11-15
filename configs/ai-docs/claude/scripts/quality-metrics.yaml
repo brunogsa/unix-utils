@@ -39,7 +39,10 @@ languages:
   # HTML and CSS have no functions: only size and code
   # duplication apply, the latter from token clones of 4 lines
   # or more.
+  #
   # Complexity, nesting and parameters read "not applicable".
+  # Duplicated tests read "not applicable": no test-suite
+  # structure.
   html:
     extensions: [.html, .htm]
     metrics: [size, code_duplication]
@@ -50,10 +53,12 @@ languages:
     extensions: [.py]
     metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
 
-  # Bash declares size, counted in logical lines, and crap, with
-  # coverage opted out. shellmetrics reads Bash functions and
-  # shfmt gives each one's end line.
-  # lizard reads Bash wrongly, so it is not used.
+  # Bash declares size, counted in logical lines, crap, and code
+  # duplication, from token clones of 4 lines or more, with
+  # coverage opted out.
+  #
+  # shellmetrics reads Bash functions and shfmt gives each one's
+  # end line. lizard reads Bash wrongly, so it is not used.
   #
   # Opt-outs, each reading "not applicable":
   # - coverage: no Bash coverage tool; CRAP uses full coverage.
@@ -64,8 +69,6 @@ languages:
   # - duplicated tests: Bash has no test-suite structure.
   # - entangled tests: Bash has no test-suite structure.
   #
-  # Code duplication, from token clones of 4 lines or more,
-  # joins size and crap.
   # Complexity joins with its module.
   bash:
     extensions: [.sh, .bash]
