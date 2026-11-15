@@ -70,21 +70,22 @@ def measure(target, metrics):
                     f"{target.language} cannot measure {metric}; "
                     f"drop it from the {target.language} metrics in the declaration"
                 )
-            results.append(function_measurement(
-                target, function, metric, value, limits[metric]
+            results.append(measurement(
+                target, metric, value, limits[metric], function
             ))
     return results
 
 
-def function_measurement(target, function, metric, value, limit):
+def measurement(target, metric, value, limit, function=None):
+    """One report record; a record with no function is file-scoped."""
     return {
         "file": str(target.path),
-        "function": function.name,
-        "scope": "function",
+        "function": function.name if function else None,
+        "scope": "function" if function else "file",
         "metric": metric,
         "value": value,
         "limit": limit,
-        "line": function.start,
+        "line": function.start if function else None,
     }
 
 

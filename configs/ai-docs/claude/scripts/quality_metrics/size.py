@@ -10,8 +10,8 @@ import re
 
 from quality_metrics.functions import (
     BASH,
-    function_measurement,
     measure_functions,
+    measurement,
 )
 from quality_metrics.tools import ToolError, bash_file_lloc, run_tool
 
@@ -42,7 +42,7 @@ def measure(target, metrics):
 
 def _function_length_measurements(target):
     return [
-        function_measurement(target, function, "size", function.nloc, FUNCTION_LINES_LIMIT)
+        measurement(target, "size", function.nloc, FUNCTION_LINES_LIMIT, function)
         for function in measure_functions(target.path, target.language)
         if target.touches(function.start, function.end)
     ]
@@ -53,15 +53,7 @@ def _file_length_measurement(target):
         lines = _count_web_lines(target)
     else:
         lines = _count_code_lines(target)
-    return {
-        "file": str(target.path),
-        "function": None,
-        "scope": "file",
-        "metric": "size",
-        "value": lines,
-        "limit": FILE_LINES_LIMIT,
-        "line": None,
-    }
+    return measurement(target, "size", lines, FILE_LINES_LIMIT)
 
 
 def _count_web_lines(target):
