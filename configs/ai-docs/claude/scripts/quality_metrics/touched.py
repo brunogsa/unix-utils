@@ -89,6 +89,11 @@ def changes_between(base_ref, head_ref):
     return changes
 
 
+def merge_base(base_ref, head_ref):
+    """The commit a three-dot range `base_ref...head_ref` diffs from."""
+    return _git("merge-base", base_ref, head_ref).strip()
+
+
 def file_text_at(ref, path):
     """The text of `path` (relative to the working directory) as of `ref`."""
     return _git("show", f"{ref}:./{path}")

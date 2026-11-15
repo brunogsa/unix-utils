@@ -28,6 +28,7 @@ from quality_metrics.resolved import resolved_measurements
 from quality_metrics.touched import (
     changes_between,
     GitError,
+    merge_base,
     Target,
     touched_files_between,
     touched_files_since,
@@ -157,8 +158,14 @@ def _resolved_since(declaration, mode, diff_range):
             return set()
         return {function.name for function in measure_functions(Path(path), language)}
 
+    # The three-dot range diffs from the merge base, so the
+    # base-side text is read there, not at the tip of a base
+    # branch that has moved on.
     return resolved_measurements(
-        changes_between(base_ref, head_ref), base_ref, measure_at_base, function_names_in
+        changes_between(base_ref, head_ref),
+        merge_base(base_ref, head_ref),
+        measure_at_base,
+        function_names_in,
     )
 
 

@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
@@ -368,6 +370,50 @@ class TestReviewMode:
 
         report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
 
+        assert report["resolved"] == []
+
+    def test_should_not_list_as_resolved_an_over_limit_function_the_base_branch_added_after_the_fork(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path, {"report.go": PACKAGE_LINE + go_function_nested("shared_small", 1)}
+        )
+        git(repo, "checkout", "--quiet", "-b", "feature")
+        git(repo, "checkout", "--quiet", "main")
+        (repo / "report.go").write_text(
+            PACKAGE_LINE + go_function_nested("shared_small", 1)
+            + go_function_nested("main_only_deep", 5)
+        )
+        commit_all(repo, "main adds a deep function after the fork")
+        git(repo, "checkout", "--quiet", "feature")
+        (repo / "report.go").write_text(
+            PACKAGE_LINE + go_function_nested("shared_small", 1).replace("return 0", "return 2")
+        )
+        commit_all(repo, "feature edits the report")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", "main...HEAD")
+
+        assert report["resolved"] == []
+
+    def test_should_still_measure_a_file_the_base_branch_deleted_after_the_fork_and_the_branch_modified(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path, {"gone.go": PACKAGE_LINE + go_function_nested("edited_deep", 1)}
+        )
+        git(repo, "checkout", "--quiet", "-b", "feature")
+        git(repo, "checkout", "--quiet", "main")
+        git(repo, "rm", "--quiet", "gone.go")
+        commit_all(repo, "main deletes the file after the fork")
+        git(repo, "checkout", "--quiet", "feature")
+        (repo / "gone.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
+        commit_all(repo, "feature deepens the function")
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", "main...HEAD")
+
+        assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["resolved"] == []
 
 # --- end of review mode tests ---
