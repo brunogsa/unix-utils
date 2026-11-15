@@ -154,6 +154,20 @@ def weighted_total(first_weight, result):
     )
 
 
+# Two of these differing in first_weight and in the return value
+# scored 0.904 in jscpd 5.4.3 at --min-lines 2, which also
+# reports 3-line pairs.
+def three_line_weighted_total(first_weight, result):
+    terms = " + ".join(
+        f"step{index}(items) * tax * {first_weight + index}" for index in range(8)
+    )
+    return (
+        "def total(items, tax):\n"
+        f"    total = {terms}\n"
+        f"    return {result}\n"
+    )
+
+
 def measure_files(tmp_path, files, declaration_file=None):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
     for name, text in files.items():
@@ -221,6 +235,12 @@ class TestSimilarityThreshold:
                 THREE_LINES.format(result="total"),
                 False,
                 id="1.0 over 3 lines",
+            ),
+            pytest.param(
+                three_line_weighted_total(10, "total"),
+                three_line_weighted_total(50, "total + 1"),
+                False,
+                id="0.904 over 3 lines",
             ),
             pytest.param(
                 EIGHT_LINES.format(extra="    audit(total, tax)\n    flush(total)\n"),
