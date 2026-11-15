@@ -66,6 +66,36 @@ def test_adds_other_numbers():
     assert calculator.history == [15]
 """
 
+# Each pair below was scored by jscpd 5.4.3 at --similarity=0.3,
+# with the second function renamed, before it was pinned here.
+FOUR_LINES = (
+    "def total(items, tax):\n"
+    "    total = step0(items) * tax + step1(items) * tax\n"
+    "    total = total + step2(items) * tax + step3(items) * tax\n"
+    "    return {result}\n"
+)
+THREE_LINES = (
+    "def total(items, tax):\n"
+    "    total = step0(items) * tax + step1(items) * tax"
+    " + step2(items) * tax + step3(items) * tax\n"
+    "    return {result}\n"
+)
+EIGHT_LINES = (
+    "def total(items, tax):\n"
+    "    total = 0\n"
+    "    total = total + step0(items) * tax\n"
+    "    total = total + step1(items) * tax\n"
+    "    total = total + step2(items) * tax\n"
+    "    total = total + step3(items) * tax\n"
+    "    total = total + step4(items) * tax\n"
+    "{extra}"
+    "    return total\n"
+)
+
+# Renaming the local keeps the pair from sharing a run of
+# identical tokens, which jscpd flags on its own.
+EIGHT_LINES_WITH_RENAMED_LOCAL = EIGHT_LINES.format(extra="").replace("total", "acc")
+
 
 def measure_files(tmp_path, files):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
@@ -78,6 +108,10 @@ def measure_files(tmp_path, files):
     result = run_measure(repo, declaration_path, "--files", *files)
     assert result.stdout, f"no output; stderr: {result.stderr}"
     return json.loads(result.stdout)["violations"]
+
+
+def renamed(text):
+    return text.replace("def total", "def other", 1)
 
 
 class TestDuplicatedCode:
@@ -106,3 +140,44 @@ class TestDuplicatedTests:
             ("test_duplication", "tests/test_adds_two.py"),
             ("test_duplication", "tests/test_adds_other.py"),
         }
+
+
+class TestSimilarityThreshold:
+    @pytest.mark.parametrize(
+        "first, second, is_flagged",
+        [
+            pytest.param(
+                FOUR_LINES.format(result="total"),
+                FOUR_LINES.format(result="total + 1"),
+                True,
+                id="0.826 over 4 lines",
+            ),
+            pytest.param(
+                FOUR_LINES.format(result="total"),
+                FOUR_LINES.format(result="total - tax"),
+                False,
+                id="0.809 over 4 lines",
+            ),
+            pytest.param(
+                THREE_LINES.format(result="total"),
+                THREE_LINES.format(result="total"),
+                False,
+                id="1.0 over 3 lines",
+            ),
+            pytest.param(
+                EIGHT_LINES.format(extra="    audit(total, tax)\n    flush(total)\n"),
+                EIGHT_LINES_WITH_RENAMED_LOCAL,
+                False,
+                id="0.8195 to 0.82, shown as 0.82, over 8 lines",
+            ),
+        ],
+    )
+    def test_should_flag_a_0_82_pair_over_4_lines_and_pass_a_0_81_pair_and_a_0_9_pair_spanning_3_lines(
+        self, tmp_path, first, second, is_flagged
+    ):
+        violations = measure_files(
+            tmp_path, {"src/first.py": first, "src/second.py": renamed(second)}
+        )
+
+        assert bool(violations) is is_flagged
+        assert all(item["value"] >= 0.82 for item in violations)
