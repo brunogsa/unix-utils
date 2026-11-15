@@ -287,3 +287,23 @@ class TestTokenClonesInLanguagesWithoutSimilarity:
             {"code_duplication"} if line_count == 4 else set()
         )
 
+    @pytest.mark.parametrize(
+        "extension, head, block",
+        [
+            pytest.param(".html", "<h1>Title</h1>\n", HTML_FOUR_LINES + "<p>Footer</p>\n", id="html"),
+            pytest.param(".css", "body { margin: 1px; }\n", CSS_FOUR_LINES + ".page { top: 0; }\n", id="css"),
+        ],
+    )
+    def test_should_report_html_and_css_duplication_from_token_clones_of_at_least_4_lines(
+        self, tmp_path, extension, head, block
+    ):
+        violations = measure_files(
+            tmp_path,
+            {f"src/first{extension}": block, f"src/second{extension}": head + block},
+            SHIPPED_DECLARATION,
+        )
+
+        assert {(item["metric"], item["file"]) for item in violations} == {
+            ("code_duplication", f"src/first{extension}"),
+            ("code_duplication", f"src/second{extension}"),
+        }
