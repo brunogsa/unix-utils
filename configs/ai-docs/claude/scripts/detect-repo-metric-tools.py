@@ -6,7 +6,9 @@
 #       --session-id ID [--map-dir DIR] [--rules FILE]
 #
 # stdin: none.
-# stdout: JSON {"tools": [{"tool", "metric", "config"}]}.
+# stdout: JSON {"tools": [{"tool", "metric", "config"}],
+#   "deferred": [tool, ...]}.
+#
 #   Also stored in <map-dir>/quality-metrics_<session-id>.json
 #   under the key "<repo>@<base>".
 #
@@ -30,7 +32,7 @@ DEFAULT_RULES = (
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Find a repo's own metric tools.")
     parser.add_argument("--repo", required=True)
     parser.add_argument("--base", required=True, help="base SHA or ref to read configs at")
     parser.add_argument("--session-id", required=True)
