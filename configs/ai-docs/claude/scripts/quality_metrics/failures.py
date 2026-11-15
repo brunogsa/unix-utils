@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from quality_metrics.coverage import coverage_record
-from quality_metrics.crap import CRAP_LIMIT
+from quality_metrics.crap import CRAP_LIMIT, crap_record
 from quality_metrics.declaration import NoLanguageEntryError, language_for_file
 from quality_metrics.functions import is_over_limit, measurement
 from quality_metrics.tools import ToolError, run_command
@@ -45,17 +45,18 @@ def machine_has_headroom():
     return run_command([str(HEADROOM_SCRIPT)]).returncode == 0
 
 
+def _as_deferred(record):
+    """`record` marked pessimistic and labelled as deferred."""
+    return {**record, "pessimistic": True, "label": DEFERRED_LABEL}
+
+
 def deferred_measurement(target, metric, limit, function=None):
     """A record for a metric whose tool could not run and was deferred.
 
     It has no value, so it never reads as passing, and it carries the
     `pessimistic` marker that keeps it from holding a commit.
     """
-    return {
-        **measurement(target, metric, None, limit, function),
-        "pessimistic": True,
-        "label": DEFERRED_LABEL,
-    }
+    return _as_deferred(measurement(target, metric, None, limit, function))
 
 
 def deferred_crap_measurements(target, functions):
@@ -65,14 +66,7 @@ def deferred_crap_measurements(target, functions):
     lowest score that flags (CRAP_LIMIT): a worst case that lists as a
     violation yet, being pessimistic, never holds a commit.
     """
-    return [
-        {
-            **deferred_measurement(target, "crap", CRAP_LIMIT, function),
-            "value": CRAP_LIMIT,
-            "flagged_at_limit": True,
-        }
-        for function in functions
-    ]
+    return [_as_deferred(crap_record(target, function, CRAP_LIMIT)) for function in functions]
 
 
 def deferred_coverage_measurement(target):
@@ -81,7 +75,7 @@ def deferred_coverage_measurement(target):
     0% is the worst case, so CRAP stays pessimistic; the marker
     keeps it from holding a commit.
     """
-    return {**coverage_record(target, 0), "pessimistic": True, "label": DEFERRED_LABEL}
+    return _as_deferred(coverage_record(target, 0))
 
 
 def unmeasured_file_measurement(file_path):
