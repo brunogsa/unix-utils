@@ -1,5 +1,4 @@
 import importlib
-import importlib.util
 import json
 import os
 import sys
@@ -9,21 +8,10 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from quality_metrics_support import commit_all, head_of, make_repo, run_measure
 
-def load_sibling_test_module(file_name):
-    """Load a sibling test file whose hyphenated name cannot be imported."""
-    spec = importlib.util.spec_from_file_location(
-        file_name.replace("-", "_").replace(".", "_"),
-        Path(__file__).resolve().parent / file_name,
-    )
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-# The temp-git-repo and entry-point helpers live there.
-entry_point = load_sibling_test_module("quality-metrics-functions.test.py")
 collection = importlib.import_module("quality_metrics.collection")
 coverage = importlib.import_module("quality_metrics.coverage")
 crap = importlib.import_module("quality_metrics.crap")
@@ -239,7 +227,7 @@ ONE_DAY_IN_SECONDS = 86400
 
 def make_fixture_repo(tmp_path, extra_files=None):
     files = {"invoice_totals.py": SOURCE_BASE, **(extra_files or {})}
-    repo = entry_point.make_repo(tmp_path, files)
+    repo = make_repo(tmp_path, files)
     (repo / "invoice_totals.py").write_text(SOURCE_CHANGED)
     return repo
 
@@ -247,7 +235,7 @@ def make_fixture_repo(tmp_path, extra_files=None):
 def measure_repo(tmp_path, repo):
     declaration_path = tmp_path / "quality-metrics.yaml"
     declaration_path.write_text(RUN_DECLARATION_TEXT)
-    return entry_point.run_measure(repo, declaration_path, "--batch-end")
+    return run_measure(repo, declaration_path, "--batch-end")
 
 
 def records_for(result, metric):
@@ -358,7 +346,7 @@ class TestChangedFileCoverageReading:
     def test_should_read_not_applicable_no_coverable_lines_when_only_type_declarations_change(
         self, tmp_path
     ):
-        repo = entry_point.make_repo(tmp_path, {
+        repo = make_repo(tmp_path, {
             "invoice_totals.py": SOURCE_BASE,
             TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=100),
         })
@@ -572,15 +560,15 @@ class TestWorkingTreeDifferingFromHeadRef:
         repo = make_fixture_repo(tmp_path, {
             TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=90.0),
         })
-        base = entry_point.head_of(repo)
-        entry_point.commit_all(repo, "change the invoice totals")
+        base = head_of(repo)
+        commit_all(repo, "change the invoice totals")
         (repo / "invoice_totals.py").write_text(
             SOURCE_CHANGED + "\n\ndef later_edit():\n    return 1\n"
         )
         declaration_path = tmp_path / "quality-metrics.yaml"
         declaration_path.write_text(RUN_DECLARATION_TEXT)
 
-        result = entry_point.run_measure(
+        result = run_measure(
             repo, declaration_path, "--diff", f"{base}...HEAD"
         )
 
