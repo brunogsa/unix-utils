@@ -88,13 +88,14 @@ def _peers_of(repo_path, is_test, extensions):
 
 
 def _scan(scan_dir, suffix):
-    # jscpd reads .jscpd.json from its cwd, so it runs in the
-    # empty report dir: the repo's own config must not apply.
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
         if suffix in TOKEN_ONLY_SUFFIXES else []
     )
     with tempfile.TemporaryDirectory() as report_dir:
+        # jscpd reads .jscpd.json from its cwd, so it runs in
+        # the empty report dir: the repo's own config must not
+        # apply.
         run_tool([
             "jscpd", f"--similarity={SIMILARITY_LIMIT}",
             "--min-lines", JSCPD_MIN_LINES, *token_options,
