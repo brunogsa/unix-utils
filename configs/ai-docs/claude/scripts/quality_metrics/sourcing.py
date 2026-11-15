@@ -12,7 +12,12 @@ from pathlib import Path
 
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import parse_lcov
-from quality_metrics.failures import TimeoutPolicy, ToolTimedOutTwice
+from quality_metrics.failures import (
+    TimeoutPolicy,
+    ToolTimedOutTwice,
+    ask_unless_deferred,
+    deferred_coverage_measurement,
+)
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import TOOL_MAP_DIR, LazyToolMap
@@ -128,6 +133,33 @@ def measure_coverage(target, repo, measure_globally, policy=None):
             "side_pr_candidate": f"repo jest {FALL_THROUGH_REASONS[failure.exit_class]}",
         }
     return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
+
+
+def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=None):
+    """`measure_coverage` plus an `ask` for a global tool that cannot measure.
+
+    A missing or crashing global tool yields an ask and no
+    measurements. Once the developer defers it (recorded in
+    `tool_map`'s batch), the tool is not run again: coverage reads
+    0%, labelled pessimistic, and no second ask is emitted.
+    """
+    global_tool = GLOBAL_TOOLS["coverage"]
+    global_failures = []
+
+    def measure_globally_or_defer():
+        if global_tool in tool_map.entry()["deferred"]:
+            return [deferred_coverage_measurement(target)]
+        try:
+            return measure_globally()
+        except ToolError as error:
+            global_failures.append(str(error))
+            return []
+
+    outcome = measure_coverage(target, repo, measure_globally_or_defer, policy)
+    ask = None
+    if global_failures:
+        ask = ask_unless_deferred(tool_map, global_tool, "coverage", global_failures[0])
+    return {**outcome, "ask": ask}
 
 
 def _measure_coverage_under_timeout_policy(target, repo, policy):

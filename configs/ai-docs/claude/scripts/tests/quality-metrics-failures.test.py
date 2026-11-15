@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -24,10 +25,19 @@ from quality_metrics.failures import (
 )
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
+from quality_metrics.sourcing import measure_coverage_or_ask
 from quality_metrics.tool_map import LazyToolMap, record_deferred_tool
+from quality_metrics.tools import ToolError
 from quality_metrics.touched import Target
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
+
+# A jest dying on an internal error: a stack trace, no report.
+JEST_CRASH_STUB = """#!/bin/bash
+echo "TypeError: Cannot read properties of undefined (reading 'config')" >&2
+echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
+exit 1
+"""
 SESSION_ID = "session-4c9e21"
 
 
@@ -150,6 +160,40 @@ def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_ou
     assert outcome["ask"]["metric"] == "complexity"
     assert outcome["ask"]["choices"] == ["fix now", "defer"]
     assert len(timeouts_seen) == 2
+
+
+def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_coverage_0_percent_labelled_pessimistic_on_defer(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    stub_directory = tmp_path / "stubs"
+    stub_directory.mkdir()
+    jest_stub = stub_directory / "jest"
+    jest_stub.write_text(JEST_CRASH_STUB)
+    jest_stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
+    target = Target(repo / "src/cart.js", "javascript", None)
+    base_sha = head_of(repo)
+    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+    global_calls = []
+
+    def crashing_global_tool():
+        global_calls.append(target.path)
+        raise ToolError("coverage.py crashed with a traceback")
+
+    first_unit = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+    record_deferred_tool(repo, base_sha, "coverage.py", SESSION_ID, tmp_path)
+    later_unit = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+
+    assert first_unit["ask"]["tool"] == "coverage.py"
+    assert first_unit["ask"]["metric"] == "coverage"
+    assert "coverage.py crashed" in first_unit["ask"]["reason"]
+    assert first_unit["measurements"] == []
+    assert later_unit["ask"] is None
+    assert [(record["value"], record["pessimistic"], record["label"]) for record in later_unit["measurements"]] == [
+        (0, True, "pessimistic, tooling deferred")
+    ]
+    assert len(global_calls) == 1
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():

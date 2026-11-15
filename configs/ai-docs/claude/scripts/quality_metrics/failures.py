@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from quality_metrics.coverage import coverage_record
 from quality_metrics.functions import is_over_limit, measurement
 from quality_metrics.tools import ToolError, run_command
 
@@ -48,6 +49,15 @@ def deferred_measurement(target, metric, limit, function=None):
         "pessimistic": True,
         "label": DEFERRED_LABEL,
     }
+
+
+def deferred_coverage_measurement(target):
+    """Coverage read as 0% for a deferred coverage tool, labelled.
+
+    0% is the worst case, so CRAP stays pessimistic; the marker
+    keeps it from holding a commit.
+    """
+    return {**coverage_record(target, 0), "pessimistic": True, "label": DEFERRED_LABEL}
 
 
 def tooling_ask(tool, metric, reason):
