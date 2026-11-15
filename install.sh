@@ -250,6 +250,14 @@ npm install -g opencode-ai
 npm install -g trash-cli
 npm install -g beautiful-mermaid
 
+# c8: JavaScript and TypeScript coverage as lcov
+npm install -g c8
+
+# gcov2lcov: Go coverage as lcov, only where go exists
+if command -v go &> /dev/null; then
+    go install github.com/jandelgado/gcov2lcov@latest
+fi
+
 # mmdc - renders mermaid; used by compile-mermaid, the
 # mermaid-diagrams skill, and md-to-html
 npm install -g @mermaid-js/mermaid-cli
@@ -285,6 +293,9 @@ npm install -g ccburn
 
 # lizard: touched-function metrics (not Bash)
 pipx install lizard
+
+# diff-cover: changed-line coverage over an lcov report
+pipx install diff-cover
 
 # shellmetrics: Bash function complexity. No releases
 # exist, so the script is pinned to one commit.

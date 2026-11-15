@@ -237,6 +237,12 @@ GLOBAL_TOOL_INSTALL_LINES = {
     "uv": {"macos": r"brew install\b.*\buv\b", "linux": r"astral\.sh/uv/install\.sh"},
     "shfmt": {"macos": r"brew install\b.*\bshfmt\b", "linux": r"apt-get install\b.*\bshfmt\b"},
     "lizard": {"macos": r"pipx install\b.*\blizard\b", "linux": r"pipx install\b.*\blizard\b"},
+    "diff-cover": {"macos": r"pipx install\b.*\bdiff-cover\b", "linux": r"pipx install\b.*\bdiff-cover\b"},
+    "c8": {"macos": r"npm install -g c8\b", "linux": r"npm install -g c8\b"},
+    "gcov2lcov": {
+        "macos": r"go install\b.*jandelgado/gcov2lcov",
+        "linux": r"go install\b.*jandelgado/gcov2lcov",
+    },
     "shellmetrics": {
         "macos": r"curl\b.*shellspec/shellmetrics/[0-9a-f]{40}/shellmetrics",
         "linux": r"curl\b.*shellspec/shellmetrics/[0-9a-f]{40}/shellmetrics",

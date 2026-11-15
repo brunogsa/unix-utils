@@ -98,3 +98,24 @@ class TestCrapScoring:
 
         assert crap_by_function(records) == {"split_payment": 8, "sum_lines": 7}
         assert flagged_functions(records) == ["split_payment"]
+
+
+class TestCoverageOptOut:
+    def test_should_score_crap_at_full_coverage_when_the_language_opts_coverage_out(
+        self, tmp_path
+    ):
+        declaration = load_declaration(tmp_path)
+        measured = [function_measure("deploy_release", 1, 30, 4)]
+        no_coverage_data = ""
+
+        opted_out = measure_crap(
+            declaration, "bash", "bin/deploy.sh", measured, no_coverage_data
+        )
+        tool_failed = measure_crap(
+            declaration, "python", SOURCE_FILE, measured, no_coverage_data
+        )
+
+        assert crap_by_function(opted_out) == {"deploy_release": 4}
+        assert flagged_functions(opted_out) == []
+        assert crap_by_function(tool_failed) == {"deploy_release": 20}
+        assert flagged_functions(tool_failed) == ["deploy_release"]
