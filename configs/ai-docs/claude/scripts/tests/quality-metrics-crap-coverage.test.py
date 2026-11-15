@@ -134,8 +134,10 @@ class TestCoverageOptOut:
         assert flagged_functions(tool_failed) == ["deploy_release"]
 
 
-def python_target(touched_lines):
-    return touched.Target(Path(SOURCE_FILE), "python", touched_lines)
+def python_target(touched_lines, repo_path=None):
+    return touched.Target(
+        Path(SOURCE_FILE), "python", touched_lines, repo_path=repo_path
+    )
 
 
 def covered_then_uncovered(covered_count, uncovered_count):
@@ -388,9 +390,8 @@ class TestLcovPathForms:
         result = collection.read_fresh_lcov(tmp_path, run_started=0)
 
         records = crap_coverage.measure(
-            python_target({1, 2, 3, 4}), ["coverage"],
+            python_target({1, 2, 3, 4}, repo_path=SOURCE_FILE), ["coverage"],
             declaration=load_declaration(tmp_path),
-            source_path=SOURCE_FILE,
             coverage_run=FixedCoverageRun(result, tmp_path),
         )
 
@@ -410,9 +411,8 @@ class TestLcovPathForms:
         )
 
         records = crap_coverage.measure(
-            python_target({1, 2, 3, 4}), ["coverage"],
+            python_target({1, 2, 3, 4}, repo_path=typed_path), ["coverage"],
             declaration=load_declaration(tmp_path),
-            source_path=typed_path,
             coverage_run=FixedCoverageRun(result, tmp_path),
         )
 

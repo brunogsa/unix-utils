@@ -153,7 +153,7 @@ def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
                 _require_worktree_at(head_ref, path)
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
             target = Target(source, language, touched_lines, repo_path=path)
-            found = _measure_target(declaration, mode, target, path, coverage_run)
+            found = _measure_target(declaration, mode, target, coverage_run)
             if head_ref:
                 # The copy is in a temp dir; name the real path.
                 found = [{**item, "file": path} for item in found]
@@ -183,7 +183,7 @@ def _copy_at(ref, path, directory):
     return copy_path
 
 
-def _measure_target(declaration, mode, target, path, coverage_run=None):
+def _measure_target(declaration, mode, target, coverage_run=None):
     """Measure one target; with no `coverage_run`, skip CRAP,
     coverage and duplication.
 
@@ -193,13 +193,15 @@ def _measure_target(declaration, mode, target, path, coverage_run=None):
     duplication scan would be discarded.
     """
     measurements = []
-    metrics = _metrics_binding(declaration, target.language, mode, path)
+    metrics = _metrics_binding(
+        declaration, target.language, mode, target.repo_path
+    )
     for module_name, module_metrics in _group_by_module(metrics).items():
         if module_name == COVERAGE_MODULE:
             if coverage_run is not None:
                 measurements += crap_coverage.measure(
                     target, module_metrics, declaration=declaration,
-                    source_path=path, coverage_run=coverage_run,
+                    coverage_run=coverage_run,
                 )
             continue
         module = importlib.import_module(f"quality_metrics.{module_name}")
@@ -225,7 +227,6 @@ def _resolved_since(declaration, mode, diff_range):
         return _measure_target(
             declaration, mode,
             Target(copy_path, language, WHOLE_FILE, repo_path=original_path),
-            original_path,
         )
 
     def function_names_in(path):

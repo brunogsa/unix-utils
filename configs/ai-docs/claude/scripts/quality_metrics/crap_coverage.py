@@ -10,15 +10,15 @@ from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import touched_functions
 
 
-def measure(target, metrics, declaration, source_path, coverage_run):
+def measure(target, metrics, declaration, coverage_run):
     """CRAP and coverage records of the declared `metrics`.
 
-    `source_path` names the real file, in any form `repo_relative`
-    accepts: lcov names files repo-relative, while `target.path`
-    can be a temporary copy.
+    `target.repo_path` names the real file, in any form
+    `repo_relative` accepts: lcov names files repo-relative, while
+    `target.path` can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
-    key = repo_relative(coverage_run.repo_dir, source_path)
+    key = repo_relative(coverage_run.repo_dir, target.repo_path)
     records = []
     if "crap" in metrics:
         records += crap_measurements(
