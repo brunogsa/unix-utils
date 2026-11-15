@@ -38,3 +38,14 @@ def test_should_list_a_jest_coverage_config_read_at_the_base_ref_as_the_repos_co
     entry = detect(repo, tmp_path, head_of(repo))
 
     assert entry["tools"] == [{"tool": "jest", "metric": "coverage", "config": "jest.config.js"}]
+
+
+def test_should_leave_out_a_tool_whose_config_exists_only_on_the_branch_not_at_the_base_ref(tmp_path):
+    repo = make_repo(tmp_path, {"eslint.config.js": ESLINT_CONFIG})
+    base_sha = head_of(repo)
+    (repo / "jest.config.js").write_text(JEST_CONFIG)
+    commit_all(repo, "branch adds a jest config")
+
+    entry = detect(repo, tmp_path, base_sha)
+
+    assert tool_names(entry) == ["eslint"]
