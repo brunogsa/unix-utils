@@ -18,6 +18,10 @@ from quality_metrics.tools import ToolError, bash_file_lloc, run_tool
 FUNCTION_LINES_LIMIT = 30
 FILE_LINES_LIMIT = 300
 
+# HTML and CSS have no function syntax: only file length
+# applies.
+LANGUAGES_WITHOUT_FUNCTIONS = ("html", "css")
+
 COMMENT_PATTERNS = {
     "html": re.compile(r"<!--.*?-->", re.DOTALL),
     "css": re.compile(r"/\*.*?\*/", re.DOTALL),
@@ -34,7 +38,7 @@ LIZARD_FILE_NCSS = re.compile(
 
 def measure(target, metrics):
     results = []
-    if target.language not in COMMENT_PATTERNS:
+    if target.language not in LANGUAGES_WITHOUT_FUNCTIONS:
         results += _function_length_measurements(target)
     results.append(_file_length_measurement(target))
     return results
