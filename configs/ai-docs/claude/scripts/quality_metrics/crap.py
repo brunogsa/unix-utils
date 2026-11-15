@@ -1,0 +1,70 @@
+"""Joins each function's complexity with its line coverage into CRAP.
+
+CRAP = complexity^2 * (1 - coverage)^3 + complexity. A function is
+flagged at CRAP 8 or above, so complexity 8 is flagged even at full
+coverage and complexity 7 never is.
+
+Coverage comes from an lcov report. A language that declares crap
+without coverage opts coverage out and is scored at full coverage;
+a coverage tool that failed or has not run reads 0%, never a pass.
+"""
+
+from quality_metrics.declaration import metric_status, NOT_APPLICABLE
+from quality_metrics.functions import measurement
+
+CRAP_LIMIT = 8
+
+FULL_COVERAGE = 1.0
+NO_COVERAGE = 0.0
+
+LCOV_FILE_PREFIX = "SF:"
+LCOV_LINE_PREFIX = "DA:"
+LCOV_END_OF_FILE = "end_of_record"
+
+
+def crap_score(complexity, coverage):
+    return complexity ** 2 * (1 - coverage) ** 3 + complexity
+
+
+def parse_lcov(lcov_text):
+    """Map each source file to {line number: execution count}."""
+    hits_by_file = {}
+    current_hits = None
+    for line in lcov_text.splitlines():
+        if line.startswith(LCOV_FILE_PREFIX):
+            current_hits = hits_by_file.setdefault(line[len(LCOV_FILE_PREFIX):], {})
+        elif line.startswith(LCOV_LINE_PREFIX) and current_hits is not None:
+            line_number, hits = line[len(LCOV_LINE_PREFIX):].split(",")[:2]
+            current_hits[int(line_number)] = int(hits)
+        elif line == LCOV_END_OF_FILE:
+            current_hits = None
+    return hits_by_file
+
+
+def crap_measurements(declaration, target, functions, hits_by_file):
+    """One CRAP record per touched function, unrounded."""
+    opted_out = metric_status(declaration, target.language, "coverage") == NOT_APPLICABLE
+    line_hits = hits_by_file.get(str(target.path), {})
+    records = []
+    for function in functions:
+        if opted_out:
+            coverage = FULL_COVERAGE
+        else:
+            coverage = function_coverage(function, line_hits)
+        record = measurement(
+            target, "crap", crap_score(function.complexity, coverage),
+            CRAP_LIMIT, function,
+        )
+        records.append({**record, "flagged_at_limit": True})
+    return records
+
+
+def function_coverage(function, line_hits):
+    """Share of the function's coverable lines that ran; 0 with none."""
+    coverable = [
+        hits for line, hits in line_hits.items()
+        if function.start <= line <= function.end
+    ]
+    if not coverable:
+        return NO_COVERAGE
+    return sum(1 for hits in coverable if hits > 0) / len(coverable)
