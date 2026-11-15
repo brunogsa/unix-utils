@@ -18,17 +18,17 @@ def measure(target, metrics, declaration, source_path, coverage_run):
     can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
-    hits_by_file = {}
     key = repo_relative(coverage_run.repo_dir, source_path)
-    if key in result.hits_by_file:
-        hits_by_file[str(target.path)] = result.hits_by_file[key]
     records = []
     if "crap" in metrics:
         records += crap_measurements(
-            declaration, target, touched_functions(target), hits_by_file
+            declaration, target, touched_functions(target),
+            line_hits=result.hits_by_file.get(key, {}),
         )
     if "coverage" in metrics:
-        records.append(coverage_measurement(target, hits_by_file))
+        records.append(coverage_measurement(
+            target, line_hits=result.hits_by_file.get(key)
+        ))
     if result.tests_failed:
         return [{**record, "pessimistic": True} for record in records]
     return records

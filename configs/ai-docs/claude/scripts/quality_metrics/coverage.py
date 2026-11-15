@@ -16,9 +16,11 @@ NO_COVERABLE_LINES = "not applicable: no coverable lines"
 PERCENT = 100
 
 
-def coverage_measurement(target, hits_by_file):
-    """One file-scoped record: share of changed coverable lines run."""
-    line_hits = hits_by_file.get(str(target.path))
+def coverage_measurement(target, line_hits):
+    """One file-scoped record: share of changed coverable lines run.
+
+    `line_hits` is None when the report omits the file.
+    """
     if line_hits is None:
         return coverage_record(target, 0)
     changed_hits = [

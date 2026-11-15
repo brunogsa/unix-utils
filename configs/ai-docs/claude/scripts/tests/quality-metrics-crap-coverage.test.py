@@ -73,7 +73,8 @@ def lcov_report(path, hits_by_line):
 def measure_crap(declaration, language, path, measured, lcov_text):
     target = touched.Target(Path(path), language, touched.WHOLE_FILE)
     return crap.crap_measurements(
-        declaration, target, measured, crap.parse_lcov(lcov_text)
+        declaration, target, measured,
+        crap.parse_lcov(lcov_text).get(path, {}),
     )
 
 
@@ -164,7 +165,7 @@ class TestChangedLineCoverage:
         hits = {**covered_then_uncovered(6, 4), 21: 0, 22: 0}
         target = python_target(set(range(1, 12)))
 
-        record = coverage.coverage_measurement(target, {SOURCE_FILE: hits})
+        record = coverage.coverage_measurement(target, hits)
 
         assert record["metric"] == "coverage"
         assert record["value"] == 60
@@ -173,11 +174,11 @@ class TestChangedLineCoverage:
     def test_should_pass_90_percent_and_fail_89_9_percent_changed_line_coverage(self):
         at_limit = coverage.coverage_measurement(
             python_target(set(range(1, 11))),
-            {SOURCE_FILE: covered_then_uncovered(9, 1)},
+            covered_then_uncovered(9, 1),
         )
         under_limit = coverage.coverage_measurement(
             python_target(set(range(1, 1001))),
-            {SOURCE_FILE: covered_then_uncovered(899, 101)},
+            covered_then_uncovered(899, 101),
         )
 
         assert at_limit["value"] == 90

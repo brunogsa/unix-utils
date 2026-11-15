@@ -41,10 +41,9 @@ def parse_lcov(lcov_text):
     return hits_by_file
 
 
-def crap_measurements(declaration, target, functions, hits_by_file):
+def crap_measurements(declaration, target, functions, line_hits):
     """One CRAP record per touched function, unrounded."""
     opted_out = metric_status(declaration, target.language, "coverage") == NOT_APPLICABLE
-    line_hits = hits_by_file.get(str(target.path), {})
     records = []
     for function in functions:
         if opted_out:
