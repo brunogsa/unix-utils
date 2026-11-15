@@ -14,8 +14,13 @@ from quality_metrics.failures import (
     HEADROOM_POLL_SECONDS,
     TOOL_TIMEOUT_SECONDS,
     TimeoutPolicy,
+    deferred_measurement,
+    holds_commit,
     machine_has_headroom,
 )
+from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
+from quality_metrics.size import FUNCTION_LINES_LIMIT
+from quality_metrics.touched import Target
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
 
@@ -71,6 +76,20 @@ def test_should_read_the_headroom_verdict_from_check_machine_headroom(monkeypatc
         monkeypatch.setenv(name, value)
 
     assert machine_has_headroom() is expected_go
+
+
+def test_should_mark_a_deferred_result_non_blocking_so_no_commit_is_held():
+    target = Target(Path("src/cart.py"), "python", {4})
+    deferred_function = FunctionMeasure("apply_discount", 3, 9, 12, 5, 2, 2)
+    oversized_function = FunctionMeasure("price_order", 12, 90, 80, 5, 2, 2)
+    deferred = deferred_measurement(target, "crap", 8, deferred_function)
+    oversized = measurement(target, "size", oversized_function.nloc, FUNCTION_LINES_LIMIT, oversized_function)
+
+    assert deferred["label"] == "pessimistic, tooling deferred"
+    assert deferred["pessimistic"] is True
+    assert is_over_limit(oversized)
+    assert holds_commit([deferred]) is False
+    assert holds_commit([deferred, oversized]) is True
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():

@@ -11,8 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from quality_metrics.functions import is_over_limit, measurement
 from quality_metrics.tools import ToolError, run_command
 
+DEFERRED_LABEL = "pessimistic, tooling deferred"
 TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
 GENUINE_TIMEOUTS_ALLOWED = 2
@@ -31,6 +33,31 @@ def machine_has_headroom():
     says an unmeasurable gate is treated as NO-GO.
     """
     return run_command([str(HEADROOM_SCRIPT)]).returncode == 0
+
+
+def deferred_measurement(target, metric, limit, function=None):
+    """A record for a metric whose tool could not run and was deferred.
+
+    It has no value, so it never reads as passing, and it carries the
+    `pessimistic` marker that keeps it from holding a commit.
+    """
+    return {
+        **measurement(target, metric, None, limit, function),
+        "pessimistic": True,
+        "label": DEFERRED_LABEL,
+    }
+
+
+def holds_commit(records):
+    """True when a touched function breaks a limit on a real measurement.
+
+    A pessimistic record (a deferred tool, a red build) never holds
+    the commit: it states a worst case, not a measured violation.
+    """
+    return any(
+        record["scope"] == "function" and is_over_limit(record) and not record.get("pessimistic")
+        for record in records
+    )
 
 
 @dataclass
