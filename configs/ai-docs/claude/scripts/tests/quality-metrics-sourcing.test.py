@@ -12,6 +12,7 @@ import pytest
 
 from quality_metrics import sourcing
 from quality_metrics.coverage import coverage_measurement
+from quality_metrics.failures import TimeoutPolicy
 from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
     lazy_tool_map_for,
@@ -222,7 +223,8 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twi
     global_calls = []
 
     outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), timeout_seconds=0.5
+        target, repo, measure_globally_for(target, global_calls),
+        policy=TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True),
     )
 
     assert outcome["exit_class"] == expected_exit_class

@@ -7,12 +7,12 @@ and the gap is a side-PR candidate.
 import json
 import os
 import re
-import subprocess
 import tempfile
 from pathlib import Path
 
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import parse_lcov
+from quality_metrics.failures import TimeoutPolicy, ToolTimedOutTwice
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import TOOL_MAP_DIR, LazyToolMap
@@ -104,16 +104,17 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
-def measure_coverage(target, repo, measure_globally, timeout_seconds=None):
+def measure_coverage(target, repo, measure_globally, policy=None):
     """Changed-line coverage, from the repo's jest or else the global tool.
 
     A repo tool that crashed, timed out twice or wrote no coverage data
     falls through to `measure_globally()`, and the repo gap is the side-PR
     candidate. Failing tests are a red build, never a tooling gap: nothing
     falls through. A failure of the global tool propagates as ToolError.
+    `policy` is the TimeoutPolicy bounding each jest run.
     """
     try:
-        outcome = _measure_coverage_retrying_timeout(target, repo, timeout_seconds)
+        outcome = _measure_coverage_under_timeout_policy(target, repo, policy or TimeoutPolicy())
     except RepoToolFailure as failure:
         if failure.exit_class == FAILED_TESTS:
             return {
@@ -129,14 +130,11 @@ def measure_coverage(target, repo, measure_globally, timeout_seconds=None):
     return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
 
 
-def _measure_coverage_retrying_timeout(target, repo, timeout_seconds):
-    """One retry for a timeout, the only failure a rerun can clear."""
+def _measure_coverage_under_timeout_policy(target, repo, policy):
     try:
-        return measure_coverage_with_repo_tool(target, repo, timeout_seconds)
-    except RepoToolFailure as failure:
-        if failure.exit_class != TIMEOUT:
-            raise
-    return measure_coverage_with_repo_tool(target, repo, timeout_seconds)
+        return policy.run(lambda timeout_seconds: measure_coverage_with_repo_tool(target, repo, timeout_seconds))
+    except ToolTimedOutTwice as error:
+        raise RepoToolFailure(TIMEOUT, str(error)) from error
 
 
 def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
@@ -147,13 +145,10 @@ def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
     own limit. Any other outcome raises RepoToolFailure naming its class.
     """
     with tempfile.TemporaryDirectory() as report_dir:
-        try:
-            result = run_command(
-                ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
-                cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
-            )
-        except subprocess.TimeoutExpired as error:
-            raise RepoToolFailure(TIMEOUT, f"jest ran past {timeout_seconds}s") from error
+        result = run_command(
+            ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
+            cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
+        )
         exit_class = classify_exit(result)
         if exit_class not in MEASURING_EXIT_CLASSES:
             raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
