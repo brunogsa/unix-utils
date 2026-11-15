@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -29,6 +31,7 @@ crap_coverage = importlib.import_module("quality_metrics.crap_coverage")
 declaring = importlib.import_module("quality_metrics.declaration")
 functions = importlib.import_module("quality_metrics.functions")
 touched = importlib.import_module("quality_metrics.touched")
+ToolError = importlib.import_module("quality_metrics.tools").ToolError
 
 # Python declares crap and coverage; Bash opts coverage out.
 DECLARATION_TEXT = """\
@@ -425,3 +428,20 @@ class TestWorkingTreeDifferingFromHeadRef:
         assert result.returncode == 2
         assert result.stdout == ""
         assert "HEAD" in result.stderr
+
+
+class TestDeclaredNpmTest:
+    def test_should_fail_as_not_measured_naming_package_json_when_it_is_not_valid_json(
+        self, tmp_path
+    ):
+        (tmp_path / "package.json").write_text("{ not json")
+
+        with pytest.raises(ToolError, match="package.json"):
+            collection.declares_npm_test(tmp_path)
+
+    def test_should_treat_a_null_scripts_entry_as_declaring_no_test_script(
+        self, tmp_path
+    ):
+        (tmp_path / "package.json").write_text('{"scripts": null}')
+
+        assert collection.declares_npm_test(tmp_path) is False

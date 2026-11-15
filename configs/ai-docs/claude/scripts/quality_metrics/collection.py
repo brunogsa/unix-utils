@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from quality_metrics.crap import parse_lcov
-from quality_metrics.tools import run_command
+from quality_metrics.tools import run_command, ToolError
 
 LCOV_PATH = Path("coverage") / "lcov.info"
 
@@ -134,8 +134,14 @@ def declares_npm_test(repo_dir):
     package_file = repo_dir / "package.json"
     if not package_file.exists():
         return False
-    test_script = json.loads(package_file.read_text()).get("scripts", {}).get("test")
-    return bool(test_script) and not test_script.startswith(NPM_INIT_TEST_STUB)
+    try:
+        scripts = json.loads(package_file.read_text()).get("scripts") or {}
+    except json.JSONDecodeError as error:
+        raise ToolError(f"{package_file} is not valid JSON: {error}") from error
+    test_script = scripts.get("test")
+    if not isinstance(test_script, str) or not test_script:
+        return False
+    return not test_script.startswith(NPM_INIT_TEST_STUB)
 
 
 def read_fresh_lcov(repo_dir, run_started):
