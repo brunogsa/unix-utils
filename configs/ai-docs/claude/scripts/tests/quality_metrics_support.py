@@ -11,6 +11,7 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
+SHIPPED_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 
 GIT_ENV = {
     **os.environ,

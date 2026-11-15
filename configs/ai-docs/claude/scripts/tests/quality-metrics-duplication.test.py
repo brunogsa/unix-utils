@@ -8,7 +8,9 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import commit_all, make_repo, run_measure
+from quality_metrics_support import (
+    SHIPPED_DECLARATION, commit_all, make_repo, run_measure,
+)
 
 DECLARATION = """\
 excluded_paths: [dist/]
@@ -114,8 +116,6 @@ EIGHT_LINES = (
 # identical tokens, which jscpd flags on its own.
 EIGHT_LINES_WITH_RENAMED_LOCAL = EIGHT_LINES.format(extra="").replace("total", "acc")
 
-
-SHIPPED_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 
 # Each exact clone below is the whole first file. The second
 # file puts a different line before the same text, so the clone

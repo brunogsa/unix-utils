@@ -7,9 +7,10 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 declaration = importlib.import_module("quality_metrics.declaration")
 
-SHIPPED_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
+from quality_metrics_support import SHIPPED_DECLARATION
 
 DECLARATION_WITH_GO_AND_WEB = """\
 excluded_paths:
