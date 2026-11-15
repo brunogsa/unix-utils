@@ -253,6 +253,9 @@ npm install -g beautiful-mermaid
 # c8: JavaScript and TypeScript coverage as lcov
 npm install -g c8
 
+# jscpd: duplicated code and duplicated tests
+npm install -g jscpd@5.4.3
+
 # gcov2lcov: Go coverage as lcov, only where go exists.
 # GOBIN installs it to ~/.local/bin, since the default
 # ~/go/bin is on no PATH.

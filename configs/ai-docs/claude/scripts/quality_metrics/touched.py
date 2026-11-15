@@ -36,11 +36,16 @@ class GitError(RuntimeError):
 
 @dataclass(frozen=True)
 class Target:
-    """One file to measure, with the lines the change touched."""
+    """One file to measure, with the lines the change touched.
+
+    `path` can be a temporary copy; `repo_path` names the real file,
+    relative to the repo, and is None when `path` is already it.
+    """
 
     path: Path
     language: str
     touched_lines: Optional[Set[int]]
+    repo_path: Optional[str] = None
 
     def touches(self, first_line, last_line):
         if self.touched_lines is None:

@@ -31,10 +31,10 @@ per_unit: []
 languages:
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
-    metrics: [size, nesting, parameters, crap, coverage]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
   ts:
     extensions: [.ts, .tsx]
-    metrics: [size, nesting, parameters, crap, coverage]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
 
   # HTML and CSS have no functions: only size applies.
   # Complexity, nesting and parameters read "not applicable".
@@ -46,7 +46,7 @@ languages:
     metrics: [size]
   python:
     extensions: [.py]
-    metrics: [size, nesting, parameters, crap, coverage]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
 
   # Bash declares size, counted in logical lines, and crap, with
   # coverage opted out. shellmetrics reads Bash functions and
@@ -68,4 +68,4 @@ languages:
     metrics: [size, crap]
   go:
     extensions: [.go]
-    metrics: [size, nesting, parameters, crap, coverage]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]

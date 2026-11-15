@@ -238,6 +238,10 @@ GLOBAL_TOOL_INSTALL_LINES = {
     "shfmt": {"macos": r"brew install\b.*\bshfmt\b", "linux": r"apt-get install\b.*\bshfmt\b"},
     "lizard": {"macos": r"pipx install\b.*\blizard\b", "linux": r"pipx install\b.*\blizard\b"},
     "c8": {"macos": r"npm install -g c8\b", "linux": r"npm install -g c8\b"},
+    "jscpd": {
+        "macos": r"npm install -g jscpd@5\.4\.3",
+        "linux": r"npm install -g jscpd@5\.4\.3",
+    },
     "gcov2lcov": {
         "macos": r"go install\b.*jandelgado/gcov2lcov",
         "linux": r"go install\b.*jandelgado/gcov2lcov",

@@ -58,6 +58,8 @@ METRIC_MODULES = {
     "parameters": "functions",
     "crap": COVERAGE_MODULE,
     "coverage": COVERAGE_MODULE,
+    "code_duplication": "duplication",
+    "test_duplication": "duplication",
 }
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
@@ -146,7 +148,7 @@ def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
             if head_ref and _needs_coverage(declaration, mode, language, path):
                 _require_worktree_at(head_ref, path)
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
-            target = Target(source, language, touched_lines)
+            target = Target(source, language, touched_lines, repo_path=path)
             found = _measure_target(declaration, mode, target, path, coverage_run)
             if head_ref:
                 # The copy is in a temp dir; name the real path.
@@ -208,7 +210,9 @@ def _resolved_since(declaration, mode, diff_range):
         if language is None:
             return []
         return _measure_target(
-            declaration, mode, Target(copy_path, language, WHOLE_FILE), original_path
+            declaration, mode,
+            Target(copy_path, language, WHOLE_FILE, repo_path=original_path),
+            original_path,
         )
 
     def function_names_in(path):
