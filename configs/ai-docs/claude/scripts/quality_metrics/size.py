@@ -10,8 +10,8 @@ import re
 
 from quality_metrics.functions import (
     BASH,
-    measure_functions,
     measurement,
+    touched_functions,
 )
 from quality_metrics.tools import ToolError, bash_file_lloc, run_tool
 
@@ -43,8 +43,7 @@ def measure(target, metrics):
 def _function_length_measurements(target):
     return [
         measurement(target, "size", function.nloc, FUNCTION_LINES_LIMIT, function)
-        for function in measure_functions(target.path, target.language)
-        if target.touches(function.start, function.end)
+        for function in touched_functions(target)
     ]
 
 

@@ -56,13 +56,19 @@ def measure_functions(path, language):
     return _measure_functions_with_lizard(path)
 
 
+def touched_functions(target):
+    functions = measure_functions(target.path, target.language)
+    return [
+        function for function in functions
+        if target.touches(function.start, function.end)
+    ]
+
+
 def measure(target, metrics):
     """Measure the nesting and parameters of every touched function."""
     limits = {"nesting": NESTING_LIMIT, "parameters": PARAMETER_LIMIT}
     results = []
-    for function in measure_functions(target.path, target.language):
-        if not target.touches(function.start, function.end):
-            continue
+    for function in touched_functions(target):
         for metric in metrics:
             value = getattr(function, metric)
             if value is None:
