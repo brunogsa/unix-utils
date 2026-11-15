@@ -189,7 +189,8 @@ def _measure_target(declaration, mode, target, path, coverage_run=None):
         if module_name == COVERAGE_MODULE:
             if coverage_run is not None:
                 measurements += crap_coverage.measure(
-                    target, module_metrics, declaration, path, coverage_run
+                    target, module_metrics, declaration=declaration,
+                    source_path=path, coverage_run=coverage_run,
                 )
             continue
         module = importlib.import_module(f"quality_metrics.{module_name}")

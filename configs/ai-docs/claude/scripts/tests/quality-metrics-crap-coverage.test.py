@@ -389,8 +389,9 @@ class TestLcovPathForms:
 
         records = crap_coverage.measure(
             python_target({1, 2, 3, 4}), ["coverage"],
-            load_declaration(tmp_path), SOURCE_FILE,
-            FixedCoverageRun(result, tmp_path),
+            declaration=load_declaration(tmp_path),
+            source_path=SOURCE_FILE,
+            coverage_run=FixedCoverageRun(result, tmp_path),
         )
 
         (coverage_record,) = records
@@ -410,8 +411,9 @@ class TestLcovPathForms:
 
         records = crap_coverage.measure(
             python_target({1, 2, 3, 4}), ["coverage"],
-            load_declaration(tmp_path), typed_path,
-            FixedCoverageRun(result, tmp_path),
+            declaration=load_declaration(tmp_path),
+            source_path=typed_path,
+            coverage_run=FixedCoverageRun(result, tmp_path),
         )
 
         (coverage_record,) = records
