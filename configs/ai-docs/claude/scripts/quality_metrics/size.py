@@ -10,12 +10,10 @@ import re
 
 from quality_metrics.functions import (
     BASH,
-    ToolError,
-    bash_file_lloc,
     function_measurement,
     measure_functions,
-    run_tool,
 )
+from quality_metrics.tools import ToolError, bash_file_lloc, run_tool
 
 FUNCTION_LINES_LIMIT = 30
 FILE_LINES_LIMIT = 300

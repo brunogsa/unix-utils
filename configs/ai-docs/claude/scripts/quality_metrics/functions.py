@@ -9,10 +9,20 @@ supplying the end line shellmetrics lacks.
 import csv
 import io
 import json
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from quality_metrics.tools import (
+    SHELLMETRICS_COMPLEXITY,
+    SHELLMETRICS_LLOC,
+    SHELLMETRICS_NAME,
+    SHELLMETRICS_PSEUDO_FUNCTIONS,
+    SHELLMETRICS_START,
+    ToolError,
+    run_tool,
+    shellmetrics_rows,
+)
 
 NESTING_LIMIT = 3
 PARAMETER_LIMIT = 5
@@ -23,18 +33,8 @@ BASH = "bash"
 LIZARD_NLOC, LIZARD_COMPLEXITY, LIZARD_PARAMETERS = 0, 1, 3
 LIZARD_NAME, LIZARD_START, LIZARD_END, LIZARD_NESTING = 7, 9, 10, 11
 
-# Columns of `shellmetrics --csv`; its pseudo-rows are not
-# functions.
-SHELLMETRICS_NAME, SHELLMETRICS_START = 1, 2
-SHELLMETRICS_LLOC, SHELLMETRICS_COMPLEXITY = 3, 4
-SHELLMETRICS_PSEUDO_FUNCTIONS = ("<begin>", "<main>", "<end>")
-
 # The node type shfmt `--to-json` gives a function definition.
 SHFMT_FUNCTION_NODE = "FuncDecl"
-
-
-class ToolError(RuntimeError):
-    """A measuring tool is missing or failed on a file."""
 
 
 @dataclass(frozen=True)
@@ -88,16 +88,6 @@ def function_measurement(target, function, metric, value, limit):
     }
 
 
-def run_tool(command, input_text=None):
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, input=input_text)
-    except FileNotFoundError as error:
-        raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error
-    if result.returncode != 0:
-        raise ToolError(f"{' '.join(command)} failed: {result.stderr.strip()}")
-    return result.stdout
-
-
 def _measure_functions_with_lizard(path):
     output = run_tool(["lizard", "--csv", "-E", "nd", str(path)])
     return [
@@ -114,20 +104,10 @@ def _measure_functions_with_lizard(path):
     ]
 
 
-def bash_file_lloc(path):
-    """A Bash file's logical lines: its functions' plus the top-level script's."""
-    return sum(int(row[SHELLMETRICS_LLOC]) for row in _shellmetrics_rows(path))
-
-
-def _shellmetrics_rows(path):
-    output = run_tool(["shellmetrics", "--csv", str(path)])
-    return list(csv.reader(io.StringIO(output)))[1:]
-
-
 def _measure_bash_functions(path):
     end_lines = _bash_function_end_lines(path)
     functions = []
-    for row in _shellmetrics_rows(path):
+    for row in shellmetrics_rows(path):
         name, start = row[SHELLMETRICS_NAME], int(row[SHELLMETRICS_START])
         if name in SHELLMETRICS_PSEUDO_FUNCTIONS:
             continue

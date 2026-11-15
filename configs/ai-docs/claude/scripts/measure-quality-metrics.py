@@ -24,8 +24,9 @@ import tempfile
 from pathlib import Path
 
 from quality_metrics import declaration as declaring
-from quality_metrics.functions import ToolError, measure_functions
+from quality_metrics.functions import measure_functions
 from quality_metrics.resolved import resolved_measurements
+from quality_metrics.tools import ToolError
 from quality_metrics.touched import (
     changes_between,
     file_text_at,
