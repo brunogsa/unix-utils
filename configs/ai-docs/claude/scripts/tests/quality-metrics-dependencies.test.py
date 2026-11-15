@@ -228,9 +228,9 @@ fi
 if grep -q 'shop/infra' "$project/domain/order.go"; then
   cat <<'JSON'
 {{"Type":"models.Check","Payload":{{"ExecutionWarnings":[],"ArchHasWarnings":true,
-"ArchWarningsDeps":[{{"ComponentName":"domain","FileRelativePath":"domain/order.go",
-"FileAbsolutePath":"/work/domain/order.go","ResolvedImportName":"shop/infra",
-"Reference":{{"Valid":true,"File":"/work/domain/order.go","Line":3,"Offset":8}}}}],
+"ArchWarningsDeps":[{{"ComponentName":"domain","FileRelativePath":"/domain/order.go",
+"FileAbsolutePath":"/tmp/goshop/domain/order.go","ResolvedImportName":"shop/infra",
+"Reference":{{"Valid":true,"File":"/tmp/goshop/domain/order.go","Line":3,"Offset":8}}}}],
 "ArchWarningsNotMatched":[],"ArchWarningsDeepScan":[],"OmittedCount":0,
 "ModuleName":"shop","Qualities":[]}}}}
 JSON

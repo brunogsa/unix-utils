@@ -475,7 +475,7 @@ def _find_with_go_arch_lint(tree, layer_map):
     return [
         _layer_problem(
             f"{LAYER_RULE_PREFIX}{warning['ComponentName']}",
-            warning["FileRelativePath"],
+            warning["FileRelativePath"].lstrip("/"),
             warning["ResolvedImportName"],
         )
         for warning in payload.get("ArchWarningsDeps") or ()
