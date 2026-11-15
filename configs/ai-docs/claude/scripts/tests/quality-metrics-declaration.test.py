@@ -245,15 +245,19 @@ GLOBAL_TOOL_INSTALL_LINES = {
 
 
 def install_lines_by_os(install_text):
-    """Group install.sh lines by the top-level OS branch that holds them."""
+    """Group install.sh lines by the OS that runs them.
+
+    A line in a top-level OS branch belongs to that OS; a line
+    outside any OS branch runs on both.
+    """
     lines_by_os = {"macos": [], "linux": []}
     current = None
     for line in install_text.splitlines():
         if line.startswith(("if ", "elif ", "else", "fi")):
             current = "macos" if '"macos"' in line else "linux" if '"linux"' in line else None
             continue
-        if current:
-            lines_by_os[current].append(line)
+        for operating_system in [current] if current else lines_by_os:
+            lines_by_os[operating_system].append(line)
     return lines_by_os
 
 
