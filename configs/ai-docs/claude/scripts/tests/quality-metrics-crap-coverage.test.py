@@ -146,3 +146,18 @@ class TestChangedLineCoverage:
         assert record["metric"] == "coverage"
         assert record["value"] == 60
         assert functions.is_over_limit(record)
+
+    def test_should_pass_90_percent_and_fail_89_9_percent_changed_line_coverage(self):
+        at_limit = coverage.coverage_measurement(
+            python_target(set(range(1, 11))),
+            {SOURCE_FILE: covered_then_uncovered(9, 1)},
+        )
+        under_limit = coverage.coverage_measurement(
+            python_target(set(range(1, 1001))),
+            {SOURCE_FILE: covered_then_uncovered(899, 101)},
+        )
+
+        assert at_limit["value"] == 90
+        assert not functions.is_over_limit(at_limit)
+        assert under_limit["value"] == 89.9
+        assert functions.is_over_limit(under_limit)
