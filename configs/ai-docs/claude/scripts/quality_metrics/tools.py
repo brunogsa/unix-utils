@@ -26,8 +26,8 @@ def run_command(command, input_text=None, cwd=None, env=None):
         raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error
 
 
-def run_tool(command, input_text=None):
-    result = run_command(command, input_text)
+def run_tool(command, input_text=None, cwd=None):
+    result = run_command(command, input_text, cwd=cwd)
     if result.returncode != 0:
         raise ToolError(f"{' '.join(command)} failed: {result.stderr.strip()}")
     return result.stdout

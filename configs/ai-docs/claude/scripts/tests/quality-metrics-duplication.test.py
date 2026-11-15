@@ -252,6 +252,31 @@ class TestSimilarityThreshold:
         assert [item["value"] for item in violations] == [pytest.approx(0.905, abs=0.001)] * 2
 
 
+REPO_TOKEN_CLONE_CONFIG = json.dumps(
+    {"minTokens": 500, "minLines": 40, "threshold": 100, "ignore": ["**/*.py"]}
+)
+
+
+class TestRepoDuplicationConfigCountingOnlyTokenClones:
+    def test_should_measure_similarity_with_the_global_tool_when_the_repo_duplication_tool_reports_only_token_clones(
+        self, tmp_path
+    ):
+        violations = measure_files(
+            tmp_path,
+            {
+                ".jscpd.json": REPO_TOKEN_CLONE_CONFIG,
+                "src/pricing.py": PRICING,
+                "src/costing.py": COSTING,
+            },
+        )
+
+        assert {(item["metric"], item["file"]) for item in violations} == {
+            ("code_duplication", "src/pricing.py"),
+            ("code_duplication", "src/costing.py"),
+        }
+        assert all(item["value"] >= 0.82 for item in violations)
+
+
 class TestTokenClonesInLanguagesWithoutSimilarity:
     @pytest.mark.parametrize("line_count", [4, 3])
     @pytest.mark.parametrize(

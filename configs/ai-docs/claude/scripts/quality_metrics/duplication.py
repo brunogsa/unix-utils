@@ -78,6 +78,8 @@ def _peers_of(repo_path):
 
 
 def _scan(scan_dir, suffix):
+    # jscpd reads .jscpd.json from its cwd, so it runs in the
+    # empty report dir: the repo's own config must not apply.
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
         if suffix in TOKEN_ONLY_SUFFIXES else []
@@ -88,7 +90,7 @@ def _scan(scan_dir, suffix):
             "--min-lines", JSCPD_MIN_LINES, *token_options,
             "--reporters", "json", "--output", report_dir,
             "--no-gitignore", "--no-tips", "--silent", str(scan_dir),
-        ])
+        ], cwd=report_dir)
         report = json.loads((Path(report_dir) / REPORT_NAME).read_text())
     return report["duplicates"]
 
