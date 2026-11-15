@@ -523,6 +523,47 @@ class TestJavascriptCollector:
         assert result == collection.NO_COVERAGE_DATA
 
 
+class TestGoCollector:
+    def test_should_score_a_go_red_build_pessimistic_without_converting_coverage_when_go_test_fails(
+        self, tmp_path, monkeypatch
+    ):
+        converter_log = tmp_path / "gcov2lcov.log"
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "go": "exit 1",
+            "gcov2lcov": f"echo ran > {converter_log}",
+        })
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        assert collection.collect_go(repo) == collection.RED_BUILD
+        assert not converter_log.exists()
+
+    def test_should_convert_the_go_coverage_profile_and_read_back_the_line_hits_when_go_test_passes(
+        self, tmp_path, monkeypatch
+    ):
+        # The fake converter fails unless go test wrote
+        # the profile it reads, then writes lcov to the
+        # path it is given.
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "go": 'profile="${3#-coverprofile=}"\necho "mode: set" > "$profile"',
+            "gcov2lcov": (
+                'infile="${1#-infile=}"\n'
+                'outfile="${2#-outfile=}"\n'
+                '[ -s "$infile" ] || exit 1\n'
+                f"cat > \"$outfile\" <<'LCOV'\n"
+                f"{lcov_report(SOURCE_FILE, {1: 2, 2: 0, 3: 4})}\nLCOV"
+            ),
+        })
+        repo = tmp_path / "repo"
+        repo.mkdir()
+
+        result = collection.collect_go(repo)
+
+        assert result == collection.CoverageResult(
+            {SOURCE_FILE: {1: 2, 2: 0, 3: 4}}, False
+        )
+
+
 class TestWorkingTreeDifferingFromHeadRef:
     def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
         self, tmp_path
