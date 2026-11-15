@@ -97,6 +97,24 @@ EIGHT_LINES = (
 EIGHT_LINES_WITH_RENAMED_LOCAL = EIGHT_LINES.format(extra="").replace("total", "acc")
 
 
+# Two of these differing in first_weight and in the return value
+# scored 0.905 in jscpd 5.4.3.
+#
+# Different literals keep the pair from sharing a long token
+# run, which jscpd reports as an exact clone, with no score.
+def weighted_total(first_weight, result):
+    terms = lambda start: " + ".join(
+        f"step{index}(items) * tax * {first_weight + index}"
+        for index in range(start, start + 4)
+    )
+    return (
+        "def total(items, tax):\n"
+        f"    total = {terms(0)}\n"
+        f"    total = total + {terms(4)}\n"
+        f"    return {result}\n"
+    )
+
+
 def measure_files(tmp_path, files):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
     for name, text in files.items():
@@ -181,3 +199,15 @@ class TestSimilarityThreshold:
 
         assert bool(violations) is is_flagged
         assert all(item["value"] >= 0.82 for item in violations)
+
+    def test_should_flag_a_0_9_similarity_pair_spanning_4_lines(self, tmp_path):
+        violations = measure_files(
+            tmp_path,
+            {
+                "src/first.py": weighted_total(10, "total"),
+                "src/second.py": renamed(weighted_total(50, "total + 1")),
+            },
+        )
+
+        assert [item["value"] for item in violations] == [pytest.approx(0.905, abs=0.001)] * 2
+
