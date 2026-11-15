@@ -253,9 +253,12 @@ npm install -g beautiful-mermaid
 # c8: JavaScript and TypeScript coverage as lcov
 npm install -g c8
 
-# gcov2lcov: Go coverage as lcov, only where go exists
+# gcov2lcov: Go coverage as lcov, only where go exists.
+# GOBIN installs it to ~/.local/bin, since the default
+# ~/go/bin is on no PATH.
 if command -v go &> /dev/null; then
-    go install github.com/jandelgado/gcov2lcov@latest
+    mkdir -p "$HOME/.local/bin"
+    GOBIN="$HOME/.local/bin" go install github.com/jandelgado/gcov2lcov@latest
 fi
 
 # mmdc - renders mermaid; used by compile-mermaid, the
