@@ -34,6 +34,7 @@ def make_repo(tmp_path, files):
     repo.mkdir()
     git(repo, "init", "--quiet", "--initial-branch=main")
     for name, text in files.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_text(text)
     git(repo, "add", "--all")
     git(repo, "commit", "--quiet", "-m", "base")

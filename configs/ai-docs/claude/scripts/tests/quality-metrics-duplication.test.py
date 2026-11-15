@@ -187,11 +187,7 @@ def three_line_weighted_total(first_weight, result):
 
 
 def measure_files(tmp_path, files, declaration_file=None):
-    repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
-    for name, text in files.items():
-        (repo / name).parent.mkdir(parents=True, exist_ok=True)
-        (repo / name).write_text(text)
-    commit_all(repo, "add files")
+    repo = make_repo(tmp_path, files)
     declaration_path = declaration_file or tmp_path / "quality-metrics.yaml"
     if declaration_file is None:
         declaration_path.write_text(DECLARATION)
