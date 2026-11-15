@@ -104,7 +104,7 @@ def install_stub_tool(tmp_path, monkeypatch, name, script):
 # not.
 ESLINT_STUB = """#!/bin/bash
 case "$*" in
-  *"max-lines-per-function: [error, {max: 0}]"*)
+  *"max-lines-per-function: [error, {max: 0, skipBlankLines: true, skipComments: true}]"*)
     echo '[{"filePath":"src/cart.js","messages":[{"ruleId":"max-lines-per-function","message":"Function '"'"'applyDiscount'"'"' has too many lines (45). Maximum allowed is 0.","line":1,"endLine":45}]}]'
     exit 1;;
   *) echo '[{"filePath":"src/cart.js","messages":[]}]'; exit 0;;

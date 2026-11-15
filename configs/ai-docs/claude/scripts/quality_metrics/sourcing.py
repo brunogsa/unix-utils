@@ -24,7 +24,13 @@ from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
 
-ESLINT_REPORT_EVERY_FUNCTION = "max-lines-per-function: [error, {max: 0}]"
+# Blank and comment lines are skipped, so eslint counts as
+# lizard's NLOC does. Rule options:
+# https://eslint.org/docs/latest/rules/max-lines-per-function
+ESLINT_REPORT_EVERY_FUNCTION = (
+    "max-lines-per-function: "
+    "[error, {max: 0, skipBlankLines: true, skipComments: true}]"
+)
 ESLINT_LINE_COUNT = re.compile(r"^(?P<subject>.*?) has too many lines \((?P<lines>\d+)\)")
 
 # How a repo tool exited, read from its output, in check order.
