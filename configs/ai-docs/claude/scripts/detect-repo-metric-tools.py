@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from quality_metrics.tool_map import (
-    build_tool_map_entry,
+    LazyToolMap,
     load_detector_rules,
     TOOL_MAP_DIR,
 )
@@ -39,10 +39,10 @@ def main():
     arguments = parser.parse_args()
     try:
         rules = load_detector_rules(arguments.rules)
-        entry = build_tool_map_entry(
+        entry = LazyToolMap(
             arguments.repo, arguments.base, rules,
             arguments.session_id, arguments.map_dir,
-        )
+        ).entry()
     except ToolError as error:
         print(error, file=sys.stderr)
         return 2

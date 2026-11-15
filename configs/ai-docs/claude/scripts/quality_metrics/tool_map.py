@@ -58,6 +58,28 @@ def build_tool_map_entry(repo, base_sha, rules, session_id, map_dir=TOOL_MAP_DIR
     return entry
 
 
+class LazyToolMap:
+    def __init__(self, repo, base_sha, rules, session_id, map_dir=TOOL_MAP_DIR):
+        self.repo = repo
+        self.base_sha = base_sha
+        self.rules = rules
+        self.session_id = session_id
+        self.map_dir = map_dir
+
+    def entry(self):
+        """The stored entry, built only when the map lacks one."""
+        path = tool_map_path(self.session_id, self.map_dir)
+        if path.exists():
+            stored = json.loads(path.read_text()).get(
+                tool_map_key(self.repo, self.base_sha)
+            )
+            if stored is not None:
+                return stored
+        return build_tool_map_entry(
+            self.repo, self.base_sha, self.rules, self.session_id, self.map_dir
+        )
+
+
 def _write_atomically(path, content):
     # A temp file in the same directory, then a rename, so a
     # reader never sees a half-written map.

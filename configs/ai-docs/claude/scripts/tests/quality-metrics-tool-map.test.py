@@ -66,3 +66,23 @@ def test_should_key_the_tool_map_by_repo_path_and_base_sha_rebuilding_it_when_th
     assert sorted(tool_map) == sorted([f"{repo_path}@{first_sha}", f"{repo_path}@{second_sha}"])
     assert tool_names(tool_map[f"{repo_path}@{first_sha}"]) == ["jest"]
     assert tool_names(tool_map[f"{repo_path}@{second_sha}"]) == ["eslint", "jest"]
+
+
+def test_should_build_the_map_at_the_first_check_that_finds_it_missing_and_read_it_back_at_a_later_check_without_rebuilding(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    base_sha = head_of(repo)
+    map_path = tmp_path / f"quality-metrics_{SESSION_ID}.json"
+    assert not map_path.exists()
+
+    first_check_entry = detect(repo, tmp_path, base_sha)
+
+    assert tool_names(first_check_entry) == ["jest"]
+    assert map_path.exists()
+    stored_key = f"{repo.resolve()}@{base_sha}"
+    stored_entry = {"tools": [{"tool": "pytest-cov", "metric": "coverage", "config": "pytest.ini"}]}
+    map_path.write_text(json.dumps({stored_key: stored_entry}))
+
+    later_check_entry = detect(repo, tmp_path, base_sha)
+
+    assert later_check_entry == stored_entry
+
