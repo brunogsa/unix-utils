@@ -7,7 +7,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import GIT_ENV, SCRIPTS_DIR, commit_all, head_of, make_repo
 
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from quality_metrics.tool_map import LazyToolMap, load_detector_rules
+
 DETECT_SCRIPT = SCRIPTS_DIR / "detect-repo-metric-tools.py"
+DETECTOR_RULES = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 SESSION_ID = "session-4f2a9c"
 
 JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} };\n"
@@ -85,4 +90,13 @@ def test_should_build_the_map_at_the_first_check_that_finds_it_missing_and_read_
     later_check_entry = detect(repo, tmp_path, base_sha)
 
     assert later_check_entry == stored_entry
+
+
+def test_should_build_no_tool_map_for_a_run_where_no_check_needs_one(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    rules = load_detector_rules(DETECTOR_RULES)
+
+    LazyToolMap(repo, head_of(repo), rules, SESSION_ID, tmp_path)
+
+    assert list(tmp_path.glob("quality-metrics_*.json")) == []
 
