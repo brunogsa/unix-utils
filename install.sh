@@ -294,9 +294,6 @@ npm install -g ccburn
 # lizard: touched-function metrics (not Bash)
 pipx install lizard
 
-# diff-cover: changed-line coverage over an lcov report
-pipx install diff-cover
-
 # shellmetrics: Bash function complexity. No releases
 # exist, so the script is pinned to one commit.
 mkdir -p ~/.local/bin
