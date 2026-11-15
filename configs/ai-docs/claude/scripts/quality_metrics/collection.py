@@ -90,8 +90,7 @@ def collect_python(repo_dir):
         # report goes to the repo only on success. A failed run
         # leaves an older file in place for the freshness check.
         if report_run.returncode == 0:
-            (repo_dir / LCOV_PATH).parent.mkdir(exist_ok=True)
-            shutil.copyfile(report_file, repo_dir / LCOV_PATH)
+            shutil.copyfile(report_file, _prepare_lcov_file(repo_dir))
         return read_fresh_lcov(repo_dir, run_started)
 
 
@@ -114,9 +113,9 @@ def collect_go(repo_dir):
         )
         if test_run.returncode != 0:
             return RED_BUILD
-        (repo_dir / LCOV_PATH).parent.mkdir(exist_ok=True)
+        lcov_file = _prepare_lcov_file(repo_dir)
         run_command(
-            ["gcov2lcov", f"-infile={profile}", f"-outfile={repo_dir / LCOV_PATH}"],
+            ["gcov2lcov", f"-infile={profile}", f"-outfile={lcov_file}"],
             cwd=repo_dir,
         )
         return read_fresh_lcov(repo_dir, run_started)
@@ -142,6 +141,13 @@ def declares_npm_test(repo_dir):
     if not isinstance(test_script, str) or not test_script:
         return False
     return not test_script.startswith(NPM_INIT_TEST_STUB)
+
+
+def _prepare_lcov_file(repo_dir):
+    """The repo's lcov path, with its directory created."""
+    lcov_file = repo_dir / LCOV_PATH
+    lcov_file.parent.mkdir(exist_ok=True)
+    return lcov_file
 
 
 def read_fresh_lcov(repo_dir, run_started):
