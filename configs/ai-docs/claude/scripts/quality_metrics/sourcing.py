@@ -10,7 +10,7 @@ import re
 import tempfile
 from pathlib import Path
 
-from quality_metrics.coverage import coverage_measurement
+from quality_metrics.coverage import coverage_measurement, coverage_record
 from quality_metrics.crap import parse_lcov
 from quality_metrics.failures import (
     TimeoutPolicy,
@@ -125,7 +125,8 @@ def measure_coverage(target, repo, measure_globally, policy=None):
         if failure.exit_class == FAILED_TESTS:
             return {
                 "source": REPO_COVERAGE_SOURCE, "exit_class": FAILED_TESTS, "red_build": True,
-                "measurements": [], "side_pr_candidate": None,
+                "measurements": [{**coverage_record(target, 0), "pessimistic": True}],
+                "side_pr_candidate": None,
             }
         return {
             "source": {"kind": "global", "tool": GLOBAL_TOOLS["coverage"]},

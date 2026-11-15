@@ -263,7 +263,9 @@ def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_bui
     assert outcome["red_build"] is True
     assert outcome["source"] == {"kind": "repo", "tool": "jest"}
     assert outcome["side_pr_candidate"] is None
-    assert outcome["measurements"] == []
+    assert [(record["metric"], record["value"], record["pessimistic"]) for record in outcome["measurements"]] == [
+        ("coverage", 0, True)
+    ]
     assert global_calls == []
 
 
