@@ -4,6 +4,7 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+coverage = importlib.import_module("quality_metrics.coverage")
 crap = importlib.import_module("quality_metrics.crap")
 declaring = importlib.import_module("quality_metrics.declaration")
 functions = importlib.import_module("quality_metrics.functions")
@@ -119,3 +120,29 @@ class TestCoverageOptOut:
         assert flagged_functions(opted_out) == []
         assert crap_by_function(tool_failed) == {"deploy_release": 20}
         assert flagged_functions(tool_failed) == ["deploy_release"]
+
+
+def python_target(touched_lines):
+    return touched.Target(Path(SOURCE_FILE), "python", touched_lines)
+
+
+def covered_then_uncovered(covered_count, uncovered_count):
+    """Hits for lines 1..N: the first covered_count run, the rest never."""
+    return {
+        line: 1 if line <= covered_count else 0
+        for line in range(1, covered_count + uncovered_count + 1)
+    }
+
+
+class TestChangedLineCoverage:
+    def test_should_flag_changed_line_coverage_under_90_percent(self):
+        # Lines 21, 22 never run but were not changed. Line 11
+        # was changed but holds no code, so it has no hit entry.
+        hits = {**covered_then_uncovered(6, 4), 21: 0, 22: 0}
+        target = python_target(set(range(1, 12)))
+
+        record = coverage.coverage_measurement(target, {SOURCE_FILE: hits})
+
+        assert record["metric"] == "coverage"
+        assert record["value"] == 60
+        assert functions.is_over_limit(record)

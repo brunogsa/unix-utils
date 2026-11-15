@@ -83,7 +83,14 @@ def measure(target, metrics):
 
 
 def is_over_limit(item):
-    """A record flags past its limit, or at it when it says so (CRAP)."""
+    """A record flags past its limit, at it when it says so (CRAP),
+    or under it when it says so (coverage).
+
+    The comparison reads the unrounded value; display_value is for
+    showing it only.
+    """
+    if item.get("flagged_below_limit"):
+        return item["value"] < item["limit"]
     if item.get("flagged_at_limit"):
         return item["value"] >= item["limit"]
     return item["value"] > item["limit"]
