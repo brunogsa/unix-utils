@@ -264,3 +264,25 @@ class TestCoverageCollection:
         (coverage_record,) = records_for(result, "coverage")
         assert coverage_record["value"] == 0
         assert "pessimistic" not in coverage_record
+
+    def test_should_treat_a_coverage_file_older_than_its_test_run_as_no_coverage_data(
+        self, tmp_path
+    ):
+        repo = make_fixture_repo(tmp_path, {
+            ".coveragerc": OMIT_EVERYTHING,
+            TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=90.0),
+        })
+        stale_lcov = repo / "coverage" / "lcov.info"
+        stale_lcov.parent.mkdir()
+        stale_lcov.write_text(
+            lcov_report("invoice_totals.py", {1: 1, 2: 1, 3: 1, 4: 1})
+        )
+        last_run = stale_lcov.stat().st_mtime - ONE_DAY_IN_SECONDS
+        os.utime(stale_lcov, (last_run, last_run))
+
+        result = measure_repo(tmp_path, repo)
+
+        assert result.returncode == 1
+        (coverage_record,) = records_for(result, "coverage")
+        assert coverage_record["value"] == 0
+        assert "pessimistic" not in coverage_record

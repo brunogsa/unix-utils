@@ -133,7 +133,7 @@ def declares_npm_test(repo_dir):
 def read_fresh_lcov(repo_dir, run_started):
     """Hits from the lcov file, or no data when it predates the run."""
     lcov_file = repo_dir / LCOV_PATH
-    if not lcov_file.exists():
+    if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
         return NO_COVERAGE_DATA
     hits_by_file = parse_lcov(lcov_file.read_text())
     return CoverageResult(
