@@ -20,6 +20,7 @@ import argparse
 import importlib
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 from quality_metrics import declaration as declaring
@@ -27,6 +28,7 @@ from quality_metrics.functions import ToolError, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.touched import (
     changes_between,
+    file_text_at,
     GitError,
     merge_base,
     Target,
@@ -57,7 +59,8 @@ def main(arguments):
         declaration = declaring.load_declaration(options.declaration)
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
-        measurements, unclaimed = _measure(declaration, mode, touched_by_file)
+        head_ref = _range_ends(options.diff)[1] if options.diff else None
+        measurements, unclaimed = _measure(declaration, mode, touched_by_file, head_ref)
         resolved = _resolved_since(declaration, mode, options.diff)
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
@@ -114,20 +117,34 @@ def _range_ends(diff_range):
     return base_ref, head_ref or "HEAD"
 
 
-def _measure(declaration, mode, touched_by_file):
+def _measure(declaration, mode, touched_by_file, head_ref=None):
+    """Measure each file; with `head_ref`, measure its text at that ref."""
     measurements = []
     unclaimed = []
-    for path, touched_lines in touched_by_file.items():
-        try:
-            language = declaring.language_for_file(declaration, path)
-        except declaring.NoLanguageEntryError:
-            unclaimed.append(path)
-            continue
-        if language is None:
-            continue
-        target = Target(Path(path), language, touched_lines)
-        measurements += _measure_target(declaration, mode, target, path)
+    with tempfile.TemporaryDirectory() as directory:
+        for path, touched_lines in touched_by_file.items():
+            try:
+                language = declaring.language_for_file(declaration, path)
+            except declaring.NoLanguageEntryError:
+                unclaimed.append(path)
+                continue
+            if language is None:
+                continue
+            source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
+            target = Target(source, language, touched_lines)
+            found = _measure_target(declaration, mode, target, path)
+            if head_ref:
+                # The copy is in a temp dir; name the real path.
+                found = [{**item, "file": path} for item in found]
+            measurements += found
     return measurements, unclaimed
+
+
+def _copy_at(ref, path, directory):
+    copy_path = Path(directory) / path
+    copy_path.parent.mkdir(parents=True, exist_ok=True)
+    copy_path.write_text(file_text_at(ref, path))
+    return copy_path
 
 
 def _measure_target(declaration, mode, target, path):

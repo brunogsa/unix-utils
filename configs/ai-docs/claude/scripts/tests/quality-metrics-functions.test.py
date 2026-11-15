@@ -416,6 +416,26 @@ class TestReviewMode:
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["resolved"] == []
 
+    def test_should_ignore_an_uncommitted_edit_when_measuring_the_committed_range(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path, {"report.go": PACKAGE_LINE + go_function_nested("edited_small", 1)}
+        )
+        base = head_of(repo)
+        (repo / "report.go").write_text(
+            PACKAGE_LINE + go_function_nested("edited_small", 1).replace("return 0", "return 2")
+        )
+        commit_all(repo, "change the committed function body")
+        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("edited_small", 6))
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert violation_summary(report) == []
+        assert [item["value"] for item in report["measurements"]
+                if item["metric"] == "nesting"] == [1]
+
 # --- end of review mode tests ---
 
 
