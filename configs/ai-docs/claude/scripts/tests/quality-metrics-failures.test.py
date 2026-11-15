@@ -227,6 +227,7 @@ def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_ou
         tool_map,
         "lizard",
         "complexity",
+        environ=INTERACTIVE_SESSION,
     )
 
     assert outcome["value"] is None
@@ -234,6 +235,23 @@ def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_ou
     assert outcome["ask"]["metric"] == "complexity"
     assert outcome["ask"]["choices"] == ["fix now", "defer"]
     assert len(timeouts_seen) == 2
+
+
+def test_should_defer_without_asking_when_both_attempts_time_out_in_a_headless_session(tmp_path):
+    repo = make_repo(tmp_path, {"calc.py": "def add(first, second):\n    return first + second\n"})
+    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    policy = TimeoutPolicy(headroom_is_go=lambda: True, sleep=lambda seconds: None)
+
+    outcome = run_or_ask(
+        policy,
+        timing_out_then([None, None, MEASURED_COMPLEXITY], []),
+        tool_map,
+        "lizard",
+        "complexity",
+        environ={"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
+    )
+
+    assert outcome == {"value": None, "ask": None}
 
 
 def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_coverage_0_percent_labelled_pessimistic_on_defer(
