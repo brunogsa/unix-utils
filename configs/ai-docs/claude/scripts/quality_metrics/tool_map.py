@@ -50,12 +50,34 @@ def tool_map_path(session_id, map_dir=TOOL_MAP_DIR):
 
 def build_tool_map_entry(repo, base_sha, rules, session_id, map_dir=TOOL_MAP_DIR):
     """Detect the repo's tools and store them under the repo-and-base key."""
-    entry = {"tools": detect_tools(repo, base_sha, rules)}
+    detected = detect_tools(repo, base_sha, rules)
     path = tool_map_path(session_id, map_dir)
-    tool_map = json.loads(path.read_text()) if path.exists() else {}
-    tool_map[tool_map_key(repo, base_sha)] = entry
+    key = tool_map_key(repo, base_sha)
+    tool_map = _read_map(path)
+    deferred = tool_map.get(key, {}).get("deferred", [])
+    entry = {"tools": detected, "deferred": deferred}
+    tool_map[key] = entry
     _write_atomically(path, tool_map)
     return entry
+
+
+def record_deferred_tool(repo, base_sha, tool, session_id, map_dir=TOOL_MAP_DIR):
+    """Note that the user deferred fixing `tool` for this batch.
+
+    The batch is the repo-and-base entry; later units read its
+    `deferred` list to skip asking about the same tool again.
+    """
+    path = tool_map_path(session_id, map_dir)
+    tool_map = _read_map(path)
+    entry = tool_map.setdefault(tool_map_key(repo, base_sha), {"tools": []})
+    deferred = entry.setdefault("deferred", [])
+    if tool not in deferred:
+        deferred.append(tool)
+    _write_atomically(path, tool_map)
+
+
+def _read_map(path):
+    return json.loads(path.read_text()) if path.exists() else {}
 
 
 class LazyToolMap:

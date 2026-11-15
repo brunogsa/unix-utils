@@ -9,7 +9,7 @@ from quality_metrics_support import GIT_ENV, SCRIPTS_DIR, commit_all, head_of, m
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from quality_metrics.tool_map import LazyToolMap, load_detector_rules
+from quality_metrics.tool_map import LazyToolMap, load_detector_rules, record_deferred_tool
 
 DETECT_SCRIPT = SCRIPTS_DIR / "detect-repo-metric-tools.py"
 DETECTOR_RULES = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
@@ -100,3 +100,14 @@ def test_should_build_no_tool_map_for_a_run_where_no_check_needs_one(tmp_path):
 
     assert list(tmp_path.glob("quality-metrics_*.json")) == []
 
+
+def test_should_record_a_deferred_tool_in_the_current_batchs_deferred_list(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    base_sha = head_of(repo)
+    detect(repo, tmp_path, base_sha)
+
+    record_deferred_tool(repo, base_sha, "jest", SESSION_ID, tmp_path)
+
+    batch_entry = read_map(tmp_path)[f"{repo.resolve()}@{base_sha}"]
+    assert batch_entry["deferred"] == ["jest"]
+    assert tool_names(batch_entry) == ["jest"]
