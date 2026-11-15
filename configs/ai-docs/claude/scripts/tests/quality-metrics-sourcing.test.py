@@ -14,6 +14,7 @@ DETECTOR_RULES = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 SESSION_ID = "session-7b1d3e"
 
 JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} };\n"
+PYTHON_MODULE = "def add(first, second):\n    return first + second\n"
 
 
 def source_of_coverage(working_directory, map_dir):
@@ -31,5 +32,17 @@ def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_on
         "metric": "coverage",
         "source": {"kind": "repo", "tool": "jest"},
         "side_pr_candidate": None,
+    }
+
+
+def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_the_repo_lacks_the_tool(tmp_path):
+    repo = make_repo(tmp_path, {"calc.py": PYTHON_MODULE})
+
+    sourcing = source_of_coverage(repo, tmp_path)
+
+    assert sourcing == {
+        "metric": "coverage",
+        "source": {"kind": "global", "tool": "coverage.py"},
+        "side_pr_candidate": "no repo coverage tool",
     }
 
