@@ -17,9 +17,11 @@ GLOBAL_TOOLS = {
 }
 
 
-def lazy_tool_map_for(working_directory, rules, session_id, map_dir=TOOL_MAP_DIR, base_ref="HEAD"):
+def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
     """The lazy tool map of the repo around `working_directory`.
 
+    `base_ref` is required: a default of the branch head would let
+    a tool configured only on the branch into the map.
     Returns None outside a git repo. Nothing is detected or written until a metric asks the map for
     its entry.
     """

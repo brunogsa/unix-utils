@@ -19,7 +19,7 @@ PYTHON_MODULE = "def add(first, second):\n    return first + second\n"
 
 def source_of_coverage(working_directory, map_dir):
     rules = load_detector_rules(DETECTOR_RULES)
-    tool_map = lazy_tool_map_for(working_directory, rules, SESSION_ID, map_dir)
+    tool_map = lazy_tool_map_for(working_directory, rules, SESSION_ID, map_dir, base_ref="HEAD")
     return source_for("coverage", tool_map)
 
 
