@@ -2,7 +2,7 @@
 
 CRAP = complexity^2 * (1 - coverage)^3 + complexity. A function is
 flagged at CRAP 8 or above, so complexity 8 is flagged even at full
-coverage and complexity 7 never is.
+coverage, while complexity 7 at full coverage scores 7 and passes.
 
 Coverage comes from an lcov report. A language that declares crap
 without coverage opts coverage out and is scored at full coverage;
