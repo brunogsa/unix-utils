@@ -50,6 +50,22 @@ def sum_cost(rows, rate):
     return name, acc
 """
 
+ADDS_TWO_NUMBERS = """\
+def test_adds_two_numbers():
+    calculator = Calculator()
+    result = calculator.add(2, 3)
+    assert result == 5
+    assert calculator.history == [5]
+"""
+
+ADDS_OTHER_NUMBERS = """\
+def test_adds_other_numbers():
+    calculator = Calculator()
+    result = calculator.add(7, 8)
+    assert result == 15
+    assert calculator.history == [15]
+"""
+
 
 def measure_files(tmp_path, files):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
@@ -73,4 +89,20 @@ class TestDuplicatedCode:
         assert {(item["metric"], item["file"]) for item in violations} == {
             ("code_duplication", "src/pricing.py"),
             ("code_duplication", "src/costing.py"),
+        }
+
+
+class TestDuplicatedTests:
+    def test_should_flag_two_tests_differing_only_in_literals_as_duplicated_tests(self, tmp_path):
+        violations = measure_files(
+            tmp_path,
+            {
+                "tests/test_adds_two.py": ADDS_TWO_NUMBERS,
+                "tests/test_adds_other.py": ADDS_OTHER_NUMBERS,
+            },
+        )
+
+        assert {(item["metric"], item["file"]) for item in violations} == {
+            ("test_duplication", "tests/test_adds_two.py"),
+            ("test_duplication", "tests/test_adds_other.py"),
         }
