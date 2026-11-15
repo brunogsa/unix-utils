@@ -1,20 +1,28 @@
-"""Finds the import cycles a change introduces.
+"""Finds the import cycles and layer imports a change introduces.
 
-Each language's cycles are read by the tool that knows its imports:
+Each language's imports are read by the tool that knows them:
 dependency-cruiser for JavaScript and TypeScript, import-linter for
 Python. The tool runs over the head tree and over the base ref's
-tree, and only a cycle the head has and the base lacks is flagged,
-so a cycle the repo already had never binds the change. A touched
-file is flagged when it sits inside an introduced cycle.
+tree, and only a problem the head has and the base lacks is
+flagged, so one the repo already had never binds the change. A
+touched file is flagged when it sits inside an introduced cycle or
+is the importer of an introduced layer import.
+
+A layer map lists layers from the outermost to the innermost. A
+layer may import itself and any layer after it, never one before it.
+Python is checked for cycles only: its layer contract is not
+translated yet.
 """
 
 import json
 import re
 import tarfile
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from quality_metrics.collection import repo_relative
+from quality_metrics.declaration import DeclarationError, read_yaml
 from quality_metrics.functions import measurement
 from quality_metrics.tools import ToolError, run_command, run_tool
 
@@ -30,6 +38,10 @@ TOOL_BY_LANGUAGE = {
 
 CYCLE_KIND = "cycle"
 CYCLE_RULE_NAME = "no-circular"
+LAYER_KIND = "layer"
+LAYER_RULE_PREFIX = "layer-"
+
+DECLARED_SOURCE = "declared"
 
 # A flagged record counts one import problem against a limit of
 # none, so any record is over its limit.
@@ -42,13 +54,41 @@ CONTRACT_ROOT_LINE = re.compile(r"^No cycles are allowed in (\S+)\.$")
 CONTRACT_EDGE_LINE = re.compile(r"^- \.(\S+) -> \.(\S+) \(")
 
 
-class DependencyRun:
-    """Finds the introduced cycles once per tool, however many files ask."""
+@dataclass(frozen=True)
+class Layer:
+    name: str
+    paths: tuple
 
-    def __init__(self, repo_dir, base_ref, excluded_paths):
+
+@dataclass(frozen=True)
+class LayerMap:
+    """Layers from the outermost to the innermost, and where they came from."""
+
+    source: str
+    layers: tuple
+
+
+def load_layer_map(path):
+    raw = read_yaml(Path(path))
+    layers = []
+    for entry in raw.get("layers") or ():
+        paths = tuple(entry.get("paths") or ())
+        if not entry.get("name") or not paths:
+            raise DeclarationError(
+                f"layer map '{path}': every layer needs a name and path globs"
+            )
+        layers.append(Layer(entry["name"], paths))
+    return LayerMap(source=DECLARED_SOURCE, layers=tuple(layers))
+
+
+class DependencyRun:
+    """Finds the introduced problems once per tool, however many files ask."""
+
+    def __init__(self, repo_dir, base_ref, excluded_paths, layer_map=None):
         self.repo_dir = Path(repo_dir)
         self.base_ref = base_ref
         self.excluded_paths = excluded_paths
+        self.layer_map = layer_map
         self._introduced_by_tool = {}
 
     def introduced_by(self, tool):
@@ -57,29 +97,39 @@ class DependencyRun:
         return self._introduced_by_tool[tool]
 
     def _find_introduced(self, tool):
-        head = _find_cycles(tool, self.repo_dir, self.excluded_paths)
+        head = self._find_in(tool, self.repo_dir)
         with tempfile.TemporaryDirectory() as base_dir:
             _extract_tree_at(self.repo_dir, self.base_ref, Path(base_dir))
-            base = _find_cycles(tool, Path(base_dir), self.excluded_paths)
-        base_keys = {cycle["key"] for cycle in base}
-        return [cycle for cycle in head if cycle["key"] not in base_keys]
+            base = self._find_in(tool, Path(base_dir))
+        base_keys = {problem["key"] for problem in base}
+        return [problem for problem in head if problem["key"] not in base_keys]
+
+    def _find_in(self, tool, tree):
+        if tool == DEPENDENCY_CRUISER:
+            return _find_with_dependency_cruiser(
+                tree, self.excluded_paths, self.layer_map
+            )
+        return _find_cycles_with_import_linter(tree)
 
 
 def measure(target, metrics, dependency_run):
-    """One flagged record per introduced cycle the target sits in."""
+    """One flagged record per introduced problem the target is part of."""
     tool = TOOL_BY_LANGUAGE.get(target.language)
     if METRIC not in metrics or tool is None:
         return []
     repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
+    layer_map = dependency_run.layer_map
     return [
         {
             **measurement(target, METRIC, FLAGGED_COUNT, LIMIT_COUNT),
             "file": repo_path,
-            "kind": cycle["kind"],
-            "detail": cycle["detail"],
+            "kind": problem["kind"],
+            "detail": problem["detail"],
+            "other_file": problem.get("other_file"),
+            "layer_map_source": layer_map.source if layer_map else None,
         }
-        for cycle in dependency_run.introduced_by(tool)
-        if _covers(cycle["paths"], repo_path)
+        for problem in dependency_run.introduced_by(tool)
+        if _covers(problem["paths"], repo_path)
     ]
 
 
@@ -99,16 +149,11 @@ def _extract_tree_at(repo_dir, ref, destination):
     archive.unlink()
 
 
-def _find_cycles(tool, tree, excluded_paths):
-    if tool == DEPENDENCY_CRUISER:
-        return _find_cycles_with_dependency_cruiser(tree, excluded_paths)
-    return _find_cycles_with_import_linter(tree)
-
-
-def _find_cycles_with_dependency_cruiser(tree, excluded_paths):
+def _find_with_dependency_cruiser(tree, excluded_paths, layer_map):
+    config = _dependency_cruiser_config(excluded_paths, layer_map)
     with tempfile.TemporaryDirectory() as config_dir:
         config_path = Path(config_dir) / "dependency-cruiser.json"
-        config_path.write_text(json.dumps(_dependency_cruiser_config(excluded_paths)))
+        config_path.write_text(json.dumps(config))
         result = run_command(
             ["depcruise", "--config", str(config_path), "--output-type", "json", "."],
             cwd=tree,
@@ -121,32 +166,72 @@ def _find_cycles_with_dependency_cruiser(tree, excluded_paths):
     except json.JSONDecodeError as error:
         raise ToolError(f"depcruise wrote no report: {result.stderr.strip()}") from error
     return [
-        _cycle_from_dependency_cruiser(violation)
+        _problem_from_dependency_cruiser(violation)
         for violation in report["summary"]["violations"]
-        if violation["rule"]["name"] == CYCLE_RULE_NAME
     ]
 
 
-def _dependency_cruiser_config(excluded_paths):
+def _dependency_cruiser_config(excluded_paths, layer_map):
     ignored = "|".join(
         ["node_modules"] + [re.escape(path.rstrip("/")) for path in excluded_paths]
     )
+    cycle_rule = {
+        "name": CYCLE_RULE_NAME, "severity": "error",
+        "from": {}, "to": {"circular": True},
+    }
     return {
-        "forbidden": [{
-            "name": CYCLE_RULE_NAME, "severity": "error",
-            "from": {}, "to": {"circular": True},
-        }],
+        "forbidden": [cycle_rule, *_layer_rules(layer_map)],
         "options": {"exclude": {"path": f"(^|/)({ignored})(/|$)"}},
     }
 
 
-def _cycle_from_dependency_cruiser(violation):
-    members = [step["name"] for step in violation["cycle"]]
+def _layer_rules(layer_map):
+    """One rule per layer: it may not import any layer before it."""
+    if layer_map is None:
+        return []
+    layers = layer_map.layers
+    return [
+        {
+            "name": f"{LAYER_RULE_PREFIX}{layer.name}",
+            "severity": "error",
+            "from": {"path": _globs_to_regex(layer.paths)},
+            "to": {"path": _globs_to_regex(
+                [path for outer in layers[:index] for path in outer.paths]
+            )},
+        }
+        for index, layer in enumerate(layers) if index > 0
+    ]
+
+
+def _globs_to_regex(globs):
+    """`**` crosses directories and `*` stays inside one."""
+    alternatives = []
+    for glob in globs:
+        pieces = re.split(r"(\*\*|\*)", glob)
+        translated = {"**": ".*", "*": "[^/]*"}
+        alternatives.append("^" + "".join(
+            translated.get(piece) or re.escape(piece) for piece in pieces
+        ) + "$")
+    return "|".join(alternatives)
+
+
+def _problem_from_dependency_cruiser(violation):
+    if violation["rule"]["name"] == CYCLE_RULE_NAME:
+        members = [step["name"] for step in violation["cycle"]]
+        return {
+            "key": (CYCLE_KIND, violation["from"], violation["to"]),
+            "kind": CYCLE_KIND,
+            "detail": " -> ".join([*members, members[0]]),
+            "paths": members,
+        }
+    importer, imported = violation["from"], violation["to"]
+    rule = violation["rule"]["name"]
     return {
-        "key": (CYCLE_KIND, violation["from"], violation["to"]),
-        "kind": CYCLE_KIND,
-        "detail": " -> ".join([*members, members[0]]),
-        "paths": members,
+        "key": (LAYER_KIND, rule, importer, imported),
+        "kind": LAYER_KIND,
+        "detail": f"{importer} imports {imported}, breaking {rule}",
+        "paths": [importer],
+        "other_file": imported,
     }
 
 

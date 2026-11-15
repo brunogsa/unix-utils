@@ -57,7 +57,7 @@ class Declaration:
 
 
 def load_declaration(path):
-    raw = _read_yaml(Path(path))
+    raw = read_yaml(Path(path))
     ignored_extensions = tuple(raw.get("ignored_extensions") or ())
     per_unit = _validate_metric_names("per_unit", raw.get("per_unit") or ())
     languages = _build_languages(raw.get("languages") or {}, ignored_extensions)
@@ -142,7 +142,7 @@ def metrics_for_file(declaration, file_path):
     return declared
 
 
-def _read_yaml(path):
+def read_yaml(path):
     try:
         yaml = importlib.import_module("yaml")
     except ImportError as error:

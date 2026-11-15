@@ -28,7 +28,7 @@ from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies
 from quality_metrics.collection import CoverageRun
-from quality_metrics.dependencies import DependencyRun
+from quality_metrics.dependencies import DependencyRun, load_layer_map
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.tools import ToolError, run_command
@@ -84,8 +84,10 @@ def main(arguments):
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
         coverage_run = CoverageRun(Path.cwd())
+        layer_map = load_layer_map(options.layers) if options.layers else None
         dependency_run = DependencyRun(
-            Path.cwd(), _dependency_base_ref(options), declaration.excluded_paths
+            Path.cwd(), _dependency_base_ref(options),
+            declaration.excluded_paths, layer_map,
         )
         measurements, unclaimed = _measure(
             declaration, mode, touched_by_file, coverage_run, head_ref,
@@ -123,6 +125,9 @@ def _parse_arguments(arguments):
                         help="review mode: measure every declared metric on the code "
                              "the committed range changes, and list the over-limit "
                              "functions it removes as resolved")
+    parser.add_argument("--layers", metavar="FILE",
+                        help="layer map the layer imports are checked against "
+                             "(default: none, so only cycles are checked)")
     parser.add_argument("--declaration", default=DEFAULT_DECLARATION,
                         help="declaration file to read (default: the shipped one)")
     options = parser.parse_args(arguments)
