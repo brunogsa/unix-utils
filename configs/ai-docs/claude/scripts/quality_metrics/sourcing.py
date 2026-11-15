@@ -34,25 +34,25 @@ ESLINT_LINE_COUNT = re.compile(r"^(?P<subject>.*?) has too many lines \((?P<line
 
 # How a repo tool exited, read from its output, in check order.
 PASSED, UNCLASSIFIED = "passed", "unclassified"
-FAILED_TESTS, CRASH = "failed_tests", "crash"
+FAILED_TESTS, REPO_THRESHOLD, CRASH = "failed_tests", "repo_threshold", "crash"
 EXIT_CLASS_PATTERNS = (
     (FAILED_TESTS, re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
-    ("repo_threshold", re.compile(r"coverage threshold .* not met")),
+    (REPO_THRESHOLD, re.compile(r"coverage threshold .* not met")),
     (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),
 )
 
 # Failures that are not exits of a finished run.
-TIMEOUT, NO_COVERAGE_DATA = "timeout", "no_coverage_data"
+TIMEOUT, WROTE_NO_COVERAGE = "timeout", "no_coverage_data"
 
 # Exit classes whose measurements are valid.
-MEASURING_EXIT_CLASSES = (PASSED, "repo_threshold")
+MEASURING_EXIT_CLASSES = (PASSED, REPO_THRESHOLD)
 
 # Why each failure sends the metric to the global tool, worded
 # for the side-PR candidate.
 FALL_THROUGH_REASONS = {
     CRASH: "crashed",
     TIMEOUT: "timed out twice",
-    NO_COVERAGE_DATA: "wrote no coverage data",
+    WROTE_NO_COVERAGE: "wrote no coverage data",
     UNCLASSIFIED: "exited non-zero with no recognized cause",
 }
 
@@ -204,7 +204,7 @@ def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
             raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
         report = Path(report_dir) / "lcov.info"
         if not report.exists():
-            raise RepoToolFailure(NO_COVERAGE_DATA, "jest wrote no lcov report")
+            raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
         hits_by_file = parse_lcov(report.read_text())
     line_hits = hits_by_file.get(target.repo_path or str(Path(target.path).relative_to(repo)))
     return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}
