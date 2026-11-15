@@ -77,6 +77,10 @@ def collect_python(repo_dir):
         env = {**os.environ, "COVERAGE_FILE": str(data_file_outside_repo)}
         run_started = time.time()
         test_run = run_command(PYTHON_TEST_COMMAND, cwd=repo_dir, env=env)
+        if test_run.returncode == PYTEST_NO_TESTS_EXIT:
+            return NO_COVERAGE_DATA
+        if test_run.returncode != 0:
+            return RED_BUILD
         report_file = Path(data_dir) / "lcov.info"
         report_run = run_command(
             [*PYTHON_LCOV_COMMAND, str(report_file)], cwd=repo_dir, env=env
@@ -96,6 +100,8 @@ def collect_javascript(repo_dir):
         return NO_COVERAGE_DATA
     run_started = time.time()
     test_run = run_command(JAVASCRIPT_TEST_COMMAND, cwd=repo_dir)
+    if test_run.returncode != 0:
+        return RED_BUILD
     return read_fresh_lcov(repo_dir, run_started)
 
 
@@ -106,6 +112,8 @@ def collect_go(repo_dir):
         test_run = run_command(
             [*GO_TEST_COMMAND, f"-coverprofile={profile}"], cwd=repo_dir
         )
+        if test_run.returncode != 0:
+            return RED_BUILD
         (repo_dir / LCOV_PATH).parent.mkdir(exist_ok=True)
         run_command(
             ["gcov2lcov", f"-infile={profile}", f"-outfile={repo_dir / LCOV_PATH}"],

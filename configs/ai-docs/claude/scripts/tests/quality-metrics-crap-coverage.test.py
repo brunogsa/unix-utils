@@ -286,3 +286,29 @@ class TestCoverageCollection:
         (coverage_record,) = records_for(result, "coverage")
         assert coverage_record["value"] == 0
         assert "pessimistic" not in coverage_record
+
+
+class TestFailedTestRun:
+    def test_should_score_crap_and_coverage_at_0_percent_marked_pessimistic_while_complexity_still_reports_when_tests_fail(
+        self, tmp_path
+    ):
+        # The failing test still runs the changed
+        # lines, so real coverage is above 0 and only
+        # the red build explains 0%.
+        repo = make_fixture_repo(tmp_path, {
+            TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=85.0),
+        })
+
+        result = measure_repo(tmp_path, repo)
+
+        assert result.returncode == 1
+        (coverage_record,) = records_for(result, "coverage")
+        (crap_record,) = records_for(result, "crap")
+        assert coverage_record["value"] == 0
+        assert coverage_record["pessimistic"] is True
+        assert crap_record["value"] == 6
+        assert crap_record["pessimistic"] is True
+        (nesting_record,) = records_for(result, "nesting")
+        (parameters_record,) = records_for(result, "parameters")
+        assert nesting_record["value"] == 1
+        assert parameters_record["value"] == 2

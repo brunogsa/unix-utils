@@ -25,6 +25,8 @@ def measure(target, metrics, declaration, source_path, coverage_run):
         )
     if "coverage" in metrics:
         records.append(coverage_measurement(target, hits_by_file))
+    if result.tests_failed:
+        return [{**record, "pessimistic": True} for record in records]
     return records
 
 
