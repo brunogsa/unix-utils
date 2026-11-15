@@ -168,6 +168,13 @@ echo attempt >> "$ATTEMPT_LOG"
 exit 0
 """
 
+# Jest's own words for a run with failing tests.
+JEST_FAILED_TESTS_STUB = """#!/bin/bash
+echo "FAIL src/cart.test.js" >&2
+echo "Tests:       2 failed, 10 passed, 12 total" >&2
+exit 1
+"""
+
 GLOBAL_COVERAGE_PERCENT = 100
 
 
@@ -224,6 +231,24 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twi
     assert outcome["side_pr_candidate"] == expected_candidate
     assert len(attempt_log.read_text().splitlines()) == expected_attempts
     assert len(global_calls) == 1
+
+
+def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_FAILED_TESTS_STUB)
+    target = Target(repo / "src/cart.js", "javascript", None)
+    global_calls = []
+
+    outcome = sourcing.measure_coverage(target, repo, measure_globally_for(target, global_calls))
+
+    assert outcome["exit_class"] == "failed_tests"
+    assert outcome["red_build"] is True
+    assert outcome["source"] == {"kind": "repo", "tool": "jest"}
+    assert outcome["side_pr_candidate"] is None
+    assert outcome["measurements"] == []
+    assert global_calls == []
 
 
 

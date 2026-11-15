@@ -23,9 +23,9 @@ ESLINT_LINE_COUNT = re.compile(r"^(?P<subject>.*?) has too many lines \((?P<line
 
 # How a repo tool exited, read from its output, in check order.
 PASSED, UNCLASSIFIED = "passed", "unclassified"
-CRASH = "crash"
+FAILED_TESTS, CRASH = "failed_tests", "crash"
 EXIT_CLASS_PATTERNS = (
-    ("failed_tests", re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
+    (FAILED_TESTS, re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
     ("repo_threshold", re.compile(r"coverage threshold .* not met")),
     (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),
 )
@@ -109,11 +109,17 @@ def measure_coverage(target, repo, measure_globally, timeout_seconds=None):
 
     A repo tool that crashed, timed out twice or wrote no coverage data
     falls through to `measure_globally()`, and the repo gap is the side-PR
-    candidate. A failure of the global tool propagates as ToolError.
+    candidate. Failing tests are a red build, never a tooling gap: nothing
+    falls through. A failure of the global tool propagates as ToolError.
     """
     try:
         outcome = _measure_coverage_retrying_timeout(target, repo, timeout_seconds)
     except RepoToolFailure as failure:
+        if failure.exit_class == FAILED_TESTS:
+            return {
+                "source": REPO_COVERAGE_SOURCE, "exit_class": FAILED_TESTS, "red_build": True,
+                "measurements": [], "side_pr_candidate": None,
+            }
         return {
             "source": {"kind": "global", "tool": GLOBAL_TOOLS["coverage"]},
             "exit_class": failure.exit_class, "red_build": False,
