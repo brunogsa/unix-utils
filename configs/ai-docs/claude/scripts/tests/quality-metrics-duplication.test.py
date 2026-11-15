@@ -9,7 +9,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    SHIPPED_DECLARATION, commit_all, make_repo, run_measure,
+    SHIPPED_DECLARATION, commit_all, make_repo, measure_report,
 )
 
 DECLARATION = """\
@@ -195,9 +195,7 @@ def measure_files(tmp_path, files, declaration_file=None):
     declaration_path = declaration_file or tmp_path / "quality-metrics.yaml"
     if declaration_file is None:
         declaration_path.write_text(DECLARATION)
-    result = run_measure(repo, declaration_path, "--files", *files)
-    assert result.stdout, f"no output; stderr: {result.stderr}"
-    return json.loads(result.stdout)["violations"]
+    return measure_report(repo, declaration_path, "--files", *files)["violations"]
 
 
 def renamed(text):
@@ -384,9 +382,9 @@ def measure_uncommitted_changes(tmp_path, committed, changed):
         (repo / name).write_text(text)
     declaration_path = tmp_path / "quality-metrics.yaml"
     declaration_path.write_text(DECLARATION)
-    result = run_measure(repo, declaration_path, "--batch-end", "--base", "HEAD")
-    assert result.stdout, f"no output; stderr: {result.stderr}"
-    return json.loads(result.stdout)["violations"]
+    return measure_report(
+        repo, declaration_path, "--batch-end", "--base", "HEAD"
+    )["violations"]
 
 
 class TestDuplicationAcrossExtensionsOfOneLanguage:

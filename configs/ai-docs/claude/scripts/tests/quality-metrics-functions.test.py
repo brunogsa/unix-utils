@@ -1,7 +1,6 @@
 import importlib
 import json
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -12,7 +11,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    commit_all, git, GIT_ENV, head_of, make_repo, MEASURE_SCRIPT, run_measure,
+    commit_all, git, head_of, make_repo, measure_report, run_measure,
 )
 
 # The shipped declaration has an empty per_unit list, so a
@@ -43,15 +42,6 @@ def write_declaration(tmp_path, metrics, per_unit=None):
     names = ", ".join(metrics)
     path.write_text(GO_DECLARATION.format(per_unit=per_unit or names, metrics=names))
     return path
-
-
-def measure(repo, declaration_path, *arguments):
-    result = subprocess.run(
-        [sys.executable, str(MEASURE_SCRIPT), *arguments, "--declaration", str(declaration_path)],
-        cwd=repo, env=GIT_ENV, capture_output=True, text=True,
-    )
-    assert result.stdout, f"no output; stderr: {result.stderr}"
-    return json.loads(result.stdout)
 
 
 def violation_summary(report):
@@ -113,7 +103,7 @@ class TestNestingOfTouchedFunctions:
         )
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--per-unit")
+        report = measure_report(repo, declaration_path, "--per-unit")
 
         assert violation_summary(report) == [("build_report", "nesting", 4, 3)]
 
@@ -122,7 +112,7 @@ class TestNestingOfTouchedFunctions:
         (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("build_report", 3))
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--per-unit")
+        report = measure_report(repo, declaration_path, "--per-unit")
 
         assert violation_summary(report) == []
         assert measured_functions(report, "nesting") == ["build_report"]
@@ -149,7 +139,7 @@ class TestNestingOfTouchedFunctions:
         git(repo, "mv", "old_name.go", "new_name.go")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--per-unit")
+        report = measure_report(repo, declaration_path, "--per-unit")
 
         assert violation_summary(report) == []
         assert measured_functions(report, "nesting") == ["trim_cell"]
@@ -181,8 +171,8 @@ class TestSizeLimits:
         (repo / "over_limit.go").write_text(file_over_limit)
         declaration_path = write_declaration(tmp_path, ["size", "parameters"])
 
-        function_report = measure(repo, declaration_path, "--per-unit")
-        file_report = measure(repo, declaration_path, "--files", "at_limit.go", "over_limit.go")
+        function_report = measure_report(repo, declaration_path, "--per-unit")
+        file_report = measure_report(repo, declaration_path, "--files", "at_limit.go", "over_limit.go")
 
         function_violations = [
             entry for entry in violation_summary(function_report) if entry[0] is not None
@@ -218,7 +208,7 @@ class TestSizeLimits:
         declaration_path = write_declaration(tmp_path, ["size"])
         names = ["at_limit.css", "over_limit.css", "at_limit.html", "over_limit.html"]
 
-        report = measure(repo, declaration_path, "--files", *names)
+        report = measure_report(repo, declaration_path, "--files", *names)
 
         assert {item["file"]: item["value"] for item in report["measurements"]} == {
             "at_limit.css": 300,
@@ -293,7 +283,7 @@ class TestReviewMode:
         commit_all(repo, "change the report")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
 
         assert measured_functions(report, "nesting") == ["added_deep", "edited_deep"]
         assert violation_summary(report) == [
@@ -314,7 +304,7 @@ class TestReviewMode:
         commit_all(repo, "drop the legacy parser")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
 
         assert [
             (item["file"], item["function"], item["metric"], item["value"], item["limit"])
@@ -335,7 +325,7 @@ class TestReviewMode:
         commit_all(repo, "drop the small helper")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
 
         assert report["resolved"] == []
 
@@ -359,7 +349,7 @@ class TestReviewMode:
         commit_all(repo, "feature edits the report")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", "main...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", "main...HEAD")
 
         assert report["resolved"] == []
 
@@ -378,7 +368,7 @@ class TestReviewMode:
         commit_all(repo, "feature deepens the function")
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", "main...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", "main...HEAD")
 
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["resolved"] == []
@@ -397,7 +387,7 @@ class TestReviewMode:
         (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("edited_small", 6))
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
 
         assert violation_summary(report) == []
         assert [item["value"] for item in report["measurements"]
@@ -416,7 +406,7 @@ class TestDiffOutputVariants:
         (repo / "r.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path)
+        report = measure_report(repo, declaration_path)
 
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
 
@@ -429,7 +419,7 @@ class TestDiffOutputVariants:
         (repo / "my report.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
         declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure(repo, declaration_path)
+        report = measure_report(repo, declaration_path)
 
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["unclaimed_files"] == []
@@ -460,7 +450,7 @@ class TestBashSize:
         )
         declaration_path = write_declaration(tmp_path, ["size"])
 
-        report = measure(repo, declaration_path, "--per-unit", "--base", base)
+        report = measure_report(repo, declaration_path, "--per-unit", "--base", base)
 
         assert measured_functions(report, "size") == ["statements_30", "with_heredoc"]
         assert violation_summary(report) == [("with_heredoc", "size", 31, 30)]
@@ -476,7 +466,7 @@ class TestBashSize:
         )
         declaration_path = write_declaration(tmp_path, ["size"])
 
-        report = measure(repo, declaration_path, "--files", "at_limit.sh", "over_limit.sh")
+        report = measure_report(repo, declaration_path, "--files", "at_limit.sh", "over_limit.sh")
 
         assert {item["file"]: item["value"] for item in report["measurements"]} == {
             "at_limit.sh": 300,

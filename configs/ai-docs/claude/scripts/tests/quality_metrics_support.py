@@ -4,6 +4,7 @@ Named without a `.test.py` or `test_` marker, so pytest imports it
 and never collects it.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -55,3 +56,10 @@ def run_measure(repo, declaration_path, *arguments):
         [sys.executable, str(MEASURE_SCRIPT), *arguments, "--declaration", str(declaration_path)],
         cwd=repo, env=GIT_ENV, capture_output=True, text=True,
     )
+
+
+def measure_report(repo, declaration_path, *arguments):
+    """The measure script's parsed JSON report; fails loudly on no output."""
+    result = run_measure(repo, declaration_path, *arguments)
+    assert result.stdout, f"no output; stderr: {result.stderr}"
+    return json.loads(result.stdout)
