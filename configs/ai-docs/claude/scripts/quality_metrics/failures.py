@@ -1,8 +1,10 @@
-"""Timeout policy shared by every measuring tool.
+"""Tooling failures: timeouts, deferrals and the fix-now-or-defer ask.
 
 A tool that runs past its time budget is retried exactly once.
 Only a second timeout under free headroom is a tooling failure the
 checks can ask about; a timeout on a busy machine waits instead.
+A headless session has no one to ask, so it never emits the ask.
+A deferred tool scores pessimistically and never holds a commit.
 """
 
 import os
