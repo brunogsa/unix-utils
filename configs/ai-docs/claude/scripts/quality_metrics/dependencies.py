@@ -41,7 +41,11 @@ CYCLE_RULE_NAME = "no-circular"
 LAYER_KIND = "layer"
 LAYER_RULE_PREFIX = "layer-"
 
+# The verdict shows the source, so a map nobody declared
+# is never read as the repo's own rule.
 DECLARED_SOURCE = "declared"
+INFERRED_SOURCE = "inferred, not declared"
+LAYER_MAP_SOURCES = (DECLARED_SOURCE, INFERRED_SOURCE)
 
 # A flagged record counts one import problem against a limit of
 # none, so any record is over its limit.
@@ -78,7 +82,13 @@ def load_layer_map(path):
                 f"layer map '{path}': every layer needs a name and path globs"
             )
         layers.append(Layer(entry["name"], paths))
-    return LayerMap(source=DECLARED_SOURCE, layers=tuple(layers))
+    source = raw.get("source")
+    if source not in LAYER_MAP_SOURCES:
+        raise DeclarationError(
+            f"layer map '{path}': source must be one of "
+            f"{', '.join(LAYER_MAP_SOURCES)}; got {source!r}"
+        )
+    return LayerMap(source=source, layers=tuple(layers))
 
 
 class DependencyRun:

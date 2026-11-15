@@ -36,6 +36,10 @@ layers:
     paths: [domain/**]
 """
 
+INFERRED_LAYERS = DECLARED_LAYERS.replace("declared", "inferred, not declared")
+
+INFERRED_LABEL = "inferred, not declared"
+
 BILLING_READS_ORDERS = "from shop.orders import order\n"
 ORDER_READS_BILLING = "from shop.billing import invoice\n\nORDER_ID = 1\n"
 
@@ -45,6 +49,17 @@ DOMAIN_ORDER_READING_DB = (
     "module.exports = { place: () => db.save('placed') };\n"
 )
 INFRA_DB = "module.exports = { save: (row) => row };\n"
+ORDERS_ORDER_WITHOUT_BILLING = "module.exports = { id: 1 };\n"
+ORDERS_ORDER_READING_BILLING = (
+    "const invoice = require('../billing/invoice');\n\n"
+    "module.exports = { id: 1, invoice };\n"
+)
+BILLING_INVOICE_READING_ORDERS = (
+    "const order = require('../orders/order');\n\n"
+    "module.exports = { total: order.id };\n"
+)
+
+
 def measure_branch(tmp_path, declaration, base_files, branch_files, *arguments):
     """Violations of a branch adding `branch_files` on top of `base_files`."""
     repo = make_repo(tmp_path, base_files)
@@ -106,3 +121,25 @@ def test_flags_a_domain_to_infra_import_against_a_declared_layer_map(tmp_path):
     assert layer_import["file"] == "domain/order.js"
     assert layer_import["other_file"] == "infra/db.js"
     assert layer_import["layer_map_source"] == "declared"
+
+
+def test_flags_the_layer_import_and_the_cycle_from_an_inferred_map_labelled_inferred_not_declared(tmp_path):
+    base_files = {
+        "domain/order.js": DOMAIN_ORDER_WITHOUT_DB,
+        "infra/db.js": INFRA_DB,
+        "orders/order.js": ORDERS_ORDER_WITHOUT_BILLING,
+        "billing/invoice.js": BILLING_INVOICE_READING_ORDERS,
+    }
+
+    violations = measure_branch(
+        tmp_path, JS_DECLARATION, base_files,
+        {
+            "domain/order.js": DOMAIN_ORDER_READING_DB,
+            "orders/order.js": ORDERS_ORDER_READING_BILLING,
+        },
+        "--layers", write_layers(tmp_path, INFERRED_LAYERS),
+    )
+
+    found = {(item["kind"], item["file"]) for item in violations}
+    assert found == {("layer", "domain/order.js"), ("cycle", "orders/order.js")}
+    assert {item["layer_map_source"] for item in violations} == {INFERRED_LABEL}
