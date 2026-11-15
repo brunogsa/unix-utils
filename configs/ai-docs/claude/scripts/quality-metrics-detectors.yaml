@@ -1,0 +1,50 @@
+# quality-metrics-detectors.yaml - repo tools to detect.
+#
+# A tool is listed in the tool map when one of its config files
+# sits at the root of the repo's base ref.
+# A config that exists only on the branch is never read, so a
+# branch cannot swap in its own measuring tool.
+#
+# Adding a tool is one new entry: its name, the metric it
+# measures (a name from quality-metrics.yaml), and its config
+# file names.
+
+tools:
+  - tool: jest
+    metric: coverage
+    configs:
+      - jest.config.js
+      - jest.config.cjs
+      - jest.config.mjs
+      - jest.config.ts
+      - jest.config.json
+  - tool: pytest-cov
+    metric: coverage
+    configs:
+      - .coveragerc
+  - tool: eslint
+    metric: complexity
+    configs:
+      - eslint.config.js
+      - eslint.config.cjs
+      - eslint.config.mjs
+      - eslint.config.ts
+      - .eslintrc.js
+      - .eslintrc.cjs
+      - .eslintrc.json
+      - .eslintrc.yaml
+      - .eslintrc.yml
+  - tool: jscpd
+    metric: code_duplication
+    configs:
+      - .jscpd.json
+  - tool: dependency-cruiser
+    metric: dependency_direction
+    configs:
+      - .dependency-cruiser.js
+      - .dependency-cruiser.cjs
+      - .dependency-cruiser.mjs
+  - tool: import-linter
+    metric: dependency_direction
+    configs:
+      - .importlinter
