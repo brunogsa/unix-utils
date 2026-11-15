@@ -29,7 +29,7 @@ def measure(target, metrics, declaration, source_path, coverage_run):
         records.append(coverage_measurement(
             target, line_hits=result.hits_by_file.get(key)
         ))
-    if result.tests_failed:
+    if result.has_failed_tests:
         return [{**record, "pessimistic": True} for record in records]
     return records
 

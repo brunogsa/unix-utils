@@ -45,14 +45,14 @@ NPM_INIT_TEST_STUB = 'echo "Error: no test specified"'
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """Line hits per repo-relative file; `tests_failed` marks a red build."""
+    """Line hits per repo-relative file; `has_failed_tests` marks a red build."""
 
     hits_by_file: dict
-    tests_failed: bool
+    has_failed_tests: bool
 
 
-NO_COVERAGE_DATA = CoverageResult({}, False)
-RED_BUILD = CoverageResult({}, True)
+NO_COVERAGE_DATA = CoverageResult(hits_by_file={}, has_failed_tests=False)
+RED_BUILD = CoverageResult(hits_by_file={}, has_failed_tests=True)
 
 
 class CoverageRun:
@@ -157,8 +157,11 @@ def read_fresh_lcov(repo_dir, run_started):
         return NO_COVERAGE_DATA
     hits_by_file = parse_lcov(lcov_file.read_text())
     return CoverageResult(
-        {repo_relative(repo_dir, name): hits for name, hits in hits_by_file.items()},
-        False,
+        hits_by_file={
+            repo_relative(repo_dir, name): hits
+            for name, hits in hits_by_file.items()
+        },
+        has_failed_tests=False,
     )
 
 
