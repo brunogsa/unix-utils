@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 from quality_metrics.coverage import coverage_record
+from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.functions import is_over_limit, measurement
 from quality_metrics.tools import ToolError, run_command
 
@@ -52,6 +53,23 @@ def deferred_measurement(target, metric, limit, function=None):
         "pessimistic": True,
         "label": DEFERRED_LABEL,
     }
+
+
+def deferred_crap_measurements(target, functions):
+    """One CRAP violation per touched function when complexity is deferred.
+
+    Without a complexity there is no score, so each record reads the
+    lowest score that flags (CRAP_LIMIT): a worst case that lists as a
+    violation yet, being pessimistic, never holds a commit.
+    """
+    return [
+        {
+            **deferred_measurement(target, "crap", CRAP_LIMIT, function),
+            "value": CRAP_LIMIT,
+            "flagged_at_limit": True,
+        }
+        for function in functions
+    ]
 
 
 def deferred_coverage_measurement(target):

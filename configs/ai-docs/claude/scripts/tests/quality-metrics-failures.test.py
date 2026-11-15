@@ -18,6 +18,7 @@ from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
     ask_unless_deferred,
+    deferred_crap_measurements,
     run_or_ask,
     deferred_measurement,
     holds_commit,
@@ -119,6 +120,23 @@ def test_should_mark_a_deferred_result_non_blocking_so_no_commit_is_held():
     assert is_over_limit(oversized)
     assert holds_commit([deferred]) is False
     assert holds_commit([deferred, oversized]) is True
+
+
+def test_should_list_every_touched_function_as_a_pessimistic_crap_violation_when_complexity_is_deferred():
+    target = Target(Path("src/rows.js"), "javascript", {3, 14})
+    parse_row = FunctionMeasure("parseRow", 1, 10, 9, 4, 2, 2)
+    format_row = FunctionMeasure("formatRow", 12, 20, 8, 3, 1, 1)
+
+    records = deferred_crap_measurements(target, [parse_row, format_row])
+
+    assert [(record["function"], record["metric"]) for record in records] == [
+        ("parseRow", "crap"),
+        ("formatRow", "crap"),
+    ]
+    assert all(is_over_limit(record) for record in records)
+    assert {record["label"] for record in records} == {"pessimistic, tooling deferred"}
+    assert all(record["pessimistic"] is True for record in records)
+    assert holds_commit(records) is False
 
 
 def test_should_stop_waiting_and_ask_when_headroom_stays_no_go_past_the_wait_cap():
