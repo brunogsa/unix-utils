@@ -4,10 +4,12 @@ Detection reads the repo's root file list at the base ref, never the
 working tree, so a branch cannot add a config and have it measured.
 """
 
+import fcntl
 import importlib
 import json
 import os
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 from quality_metrics.tools import ToolError, run_tool
@@ -53,11 +55,12 @@ def build_tool_map_entry(repo, base_sha, rules, session_id, map_dir=TOOL_MAP_DIR
     detected = detect_tools(repo, base_sha, rules)
     path = tool_map_path(session_id, map_dir)
     key = tool_map_key(repo, base_sha)
-    tool_map = _read_map(path)
-    deferred = tool_map.get(key, {}).get("deferred", [])
-    entry = {"tools": detected, "deferred": deferred}
-    tool_map[key] = entry
-    _write_atomically(path, tool_map)
+    with _locked_map(path):
+        tool_map = _read_map(path)
+        deferred = tool_map.get(key, {}).get("deferred", [])
+        entry = {"tools": detected, "deferred": deferred}
+        tool_map[key] = entry
+        _write_atomically(path, tool_map)
     return entry
 
 
@@ -68,16 +71,27 @@ def record_deferred_tool(repo, base_sha, tool, session_id, map_dir=TOOL_MAP_DIR)
     `deferred` list to skip asking about the same tool again.
     """
     path = tool_map_path(session_id, map_dir)
-    tool_map = _read_map(path)
-    entry = tool_map.setdefault(tool_map_key(repo, base_sha), {"tools": []})
-    deferred = entry.setdefault("deferred", [])
-    if tool not in deferred:
-        deferred.append(tool)
-    _write_atomically(path, tool_map)
+    with _locked_map(path):
+        tool_map = _read_map(path)
+        entry = tool_map.setdefault(tool_map_key(repo, base_sha), {"tools": []})
+        deferred = entry.setdefault("deferred", [])
+        if tool not in deferred:
+            deferred.append(tool)
+        _write_atomically(path, tool_map)
 
 
 def _read_map(path):
     return json.loads(path.read_text()) if path.exists() else {}
+
+
+@contextmanager
+def _locked_map(path):
+    # A separate lock file: the rename replaces the map file's
+    # inode, so a lock on the map itself would not hold.
+    lock_path = path.with_name(path.name + ".lock")
+    with open(lock_path, "a") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        yield
 
 
 class LazyToolMap:

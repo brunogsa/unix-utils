@@ -111,3 +111,81 @@ def test_should_record_a_deferred_tool_in_the_current_batchs_deferred_list(tmp_p
     batch_entry = read_map(tmp_path)[f"{repo.resolve()}@{base_sha}"]
     assert batch_entry["deferred"] == ["jest"]
     assert tool_names(batch_entry) == ["jest"]
+
+
+WRITER_COUNT = 6
+DEFERRALS_PER_WRITER = 25
+REBUILDS_BY_BUILDER = 25
+
+WRITER_PROGRAM = """
+import sys
+import time
+from pathlib import Path
+
+scripts_dir, go_file, repo, base_sha, session_id, map_dir, writer, count = sys.argv[1:]
+sys.path.insert(0, scripts_dir)
+from quality_metrics.tool_map import record_deferred_tool
+
+while not Path(go_file).exists():
+    time.sleep(0.001)
+for number in range(int(count)):
+    record_deferred_tool(repo, base_sha, f"tool-{writer}-{number}", session_id, Path(map_dir))
+"""
+
+BUILDER_PROGRAM = """
+import sys
+import time
+from pathlib import Path
+
+scripts_dir, go_file, repo, base_sha, session_id, map_dir, rules_path, count = sys.argv[1:]
+sys.path.insert(0, scripts_dir)
+from quality_metrics.tool_map import build_tool_map_entry, load_detector_rules
+
+rules = load_detector_rules(rules_path)
+while not Path(go_file).exists():
+    time.sleep(0.001)
+for _ in range(int(count)):
+    build_tool_map_entry(repo, base_sha, rules, session_id, Path(map_dir))
+"""
+
+
+def start_process(program, *args):
+    return subprocess.Popen(
+        [sys.executable, "-c", program, str(SCRIPTS_DIR), *map(str, args)],
+        env=GIT_ENV, stderr=subprocess.PIPE, text=True,
+    )
+
+
+def test_should_land_both_concurrent_writers_deferred_entries_and_never_show_a_reader_a_partial_map_file(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    base_sha = head_of(repo)
+    detect(repo, tmp_path, base_sha)
+    go_file = tmp_path / "go"
+    shared = [go_file, repo, base_sha, SESSION_ID, tmp_path]
+    writers = [
+        start_process(WRITER_PROGRAM, *shared, writer, DEFERRALS_PER_WRITER)
+        for writer in range(WRITER_COUNT)
+    ]
+    builder = start_process(BUILDER_PROGRAM, *shared, DETECTOR_RULES, REBUILDS_BY_BUILDER)
+    processes = [*writers, builder]
+
+    go_file.write_text("go")
+    partial_reads = 0
+    while any(process.poll() is None for process in processes):
+        try:
+            read_map(tmp_path)
+        except json.JSONDecodeError:
+            partial_reads += 1
+    errors = [process.communicate()[1] for process in processes]
+
+    assert errors == [""] * len(processes)
+    assert partial_reads == 0
+    expected = sorted(
+        f"tool-{writer}-{number}"
+        for writer in range(WRITER_COUNT)
+        for number in range(DEFERRALS_PER_WRITER)
+    )
+    batch_entry = read_map(tmp_path)[f"{repo.resolve()}@{base_sha}"]
+    assert sorted(batch_entry["deferred"]) == expected
+    assert tool_names(batch_entry) == ["jest"]
+
