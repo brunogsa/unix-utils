@@ -38,9 +38,9 @@ def source_of_coverage(working_directory, map_dir):
 def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_one(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG, "src/index.js": "module.exports = 1;\n"})
 
-    sourcing = source_of_coverage(repo, tmp_path)
+    coverage_source = source_of_coverage(repo, tmp_path)
 
-    assert sourcing == {
+    assert coverage_source == {
         "metric": "coverage",
         "source": {"kind": "repo", "tool": "jest"},
         "side_pr_candidate": None,
@@ -52,9 +52,9 @@ def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_
     rules = load_detector_rules(DETECTOR_RULES)
     tool_map = lazy_tool_map_for(repo, rules, SESSION_ID, tmp_path, base_ref="HEAD")
 
-    sourcing = source_for("size", tool_map)
+    size_source = source_for("size", tool_map)
 
-    assert sourcing == {
+    assert size_source == {
         "metric": "size",
         "source": {"kind": "repo", "tool": "eslint"},
         "side_pr_candidate": None,
@@ -64,9 +64,9 @@ def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_
 def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_the_repo_lacks_the_tool(tmp_path):
     repo = make_repo(tmp_path, {"calc.py": PYTHON_MODULE})
 
-    sourcing = source_of_coverage(repo, tmp_path)
+    coverage_source = source_of_coverage(repo, tmp_path)
 
-    assert sourcing == {
+    assert coverage_source == {
         "metric": "coverage",
         "source": {"kind": "global", "tool": "coverage.py"},
         "side_pr_candidate": "no repo coverage tool",
@@ -78,9 +78,9 @@ def test_should_measure_with_the_global_fallback_named_as_the_source_outside_any
     working_directory.mkdir()
     (working_directory / "tool.sh").write_text("#!/bin/bash\necho tool\n")
 
-    sourcing = source_of_coverage(working_directory, tmp_path)
+    coverage_source = source_of_coverage(working_directory, tmp_path)
 
-    assert sourcing == {
+    assert coverage_source == {
         "metric": "coverage",
         "source": {"kind": "global", "tool": "coverage.py"},
         "side_pr_candidate": None,
