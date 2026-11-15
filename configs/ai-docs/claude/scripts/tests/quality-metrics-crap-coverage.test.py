@@ -81,3 +81,20 @@ class TestCrapScoring:
 
         assert crap_by_function(records) == {"apply_discount": 20, "round_to_cents": 6}
         assert flagged_functions(records) == ["apply_discount"]
+
+    def test_should_flag_complexity_8_at_exactly_crap_8_and_pass_complexity_7_at_full_coverage(
+        self, tmp_path
+    ):
+        declaration = load_declaration(tmp_path)
+        measured = [
+            function_measure("split_payment", 1, 20, 8),
+            function_measure("sum_lines", 22, 40, 7),
+        ]
+        lcov_text = lcov_report(SOURCE_FILE, {
+            1: 3, 2: 3, 3: 3, 22: 3, 23: 3, 24: 3,
+        })
+
+        records = measure_crap(declaration, "python", SOURCE_FILE, measured, lcov_text)
+
+        assert crap_by_function(records) == {"split_payment": 8, "sum_lines": 7}
+        assert flagged_functions(records) == ["split_payment"]
