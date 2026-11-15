@@ -356,10 +356,11 @@ class TestTokenClonesInLanguagesWithoutSimilarity:
 
 def measure_uncommitted_changes(tmp_path, committed, changed):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
-    for name, text in committed.items():
-        (repo / name).parent.mkdir(parents=True, exist_ok=True)
-        (repo / name).write_text(text)
-    commit_all(repo, "add files")
+    if committed:
+        for name, text in committed.items():
+            (repo / name).parent.mkdir(parents=True, exist_ok=True)
+            (repo / name).write_text(text)
+        commit_all(repo, "add files")
     for name, text in changed.items():
         (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_text(text)
@@ -368,6 +369,20 @@ def measure_uncommitted_changes(tmp_path, committed, changed):
     result = run_measure(repo, declaration_path, "--batch-end", "--base", "HEAD")
     assert result.stdout, f"no output; stderr: {result.stderr}"
     return json.loads(result.stdout)["violations"]
+
+
+class TestDuplicationBetweenUncommittedFiles:
+    def test_should_flag_two_new_uncommitted_files_that_duplicate_each_other(self, tmp_path):
+        violations = measure_uncommitted_changes(
+            tmp_path,
+            {},
+            {"src/pricing.py": PRICING, "src/costing.py": COSTING},
+        )
+
+        assert {(item["metric"], item["file"]) for item in violations} == {
+            ("code_duplication", "src/pricing.py"),
+            ("code_duplication", "src/costing.py"),
+        }
 
 
 class TestDuplicationInsideOneFile:

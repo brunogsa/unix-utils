@@ -5,8 +5,9 @@ are normalized away, so two functions differing only in them score
 1.0. It leaves test files out by name, so every file is staged under
 a neutral name before the scan. Source files are compared with source
 files and test files with test files, which keeps the two findings
-apart. A touched file is compared with the repo's tracked files of its
-kind, and a pair is flagged when it overlaps a touched line.
+apart. A touched file is compared with the repo's files of its kind,
+committed or not, and a pair is flagged when it overlaps a
+touched line.
 """
 
 import json
@@ -66,12 +67,14 @@ def _stage_corpus(target, repo_path, scan_dir):
 
 
 def _peers_of(repo_path):
-    """Tracked files of the target's extension and test-or-source kind."""
+    """Repo files, committed or not, of the target's extension and kind."""
     suffix = Path(repo_path).suffix
     is_test = is_test_file(repo_path)
-    tracked = run_tool(["git", "ls-files", "-z"]).split("\0")
+    listed = run_tool(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
+    ).split("\0")
     return [
-        path for path in tracked
+        path for path in listed
         if path and path != repo_path and Path(path).suffix == suffix
         and is_test_file(path) == is_test and Path(path).is_file()
     ]
