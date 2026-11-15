@@ -60,8 +60,8 @@ BILLING_INVOICE_READING_ORDERS = (
 )
 
 
-def measure_branch(tmp_path, declaration, base_files, branch_files, *arguments):
-    """Violations of a branch adding `branch_files` on top of `base_files`."""
+def report_for_branch(tmp_path, declaration, base_files, branch_files, *arguments, env=None):
+    """Report of a branch adding `branch_files` on top of `base_files`."""
     repo = make_repo(tmp_path, base_files)
     base_sha = head_of(repo)
     for name, text in branch_files.items():
@@ -69,10 +69,16 @@ def measure_branch(tmp_path, declaration, base_files, branch_files, *arguments):
     commit_all(repo, "branch")
     declaration_path = tmp_path / "quality-metrics.yaml"
     declaration_path.write_text(declaration)
-    report = measure_report(
-        repo, declaration_path, "--diff", f"{base_sha}...HEAD", *arguments
+    return measure_report(
+        repo, declaration_path, "--diff", f"{base_sha}...HEAD", *arguments, env=env
     )
-    return report["violations"]
+
+
+def measure_branch(tmp_path, declaration, base_files, branch_files, *arguments, env=None):
+    """Violations of a branch adding `branch_files` on top of `base_files`."""
+    return report_for_branch(
+        tmp_path, declaration, base_files, branch_files, *arguments, env=env
+    )["violations"]
 
 
 def write_layers(tmp_path, text):
@@ -143,3 +149,20 @@ def test_flags_the_layer_import_and_the_cycle_from_an_inferred_map_labelled_infe
     found = {(item["kind"], item["file"]) for item in violations}
     assert found == {("layer", "domain/order.js"), ("cycle", "orders/order.js")}
     assert {item["layer_map_source"] for item in violations} == {INFERRED_LABEL}
+
+
+def test_lists_a_cycle_already_present_at_the_base_ref_as_a_hotspot_not_a_violation(tmp_path):
+    base_files = {
+        "orders/order.js": ORDERS_ORDER_READING_BILLING,
+        "billing/invoice.js": BILLING_INVOICE_READING_ORDERS,
+    }
+
+    report = report_for_branch(
+        tmp_path, JS_DECLARATION, base_files,
+        {"orders/order.js": ORDERS_ORDER_READING_BILLING + "// tweaked\n"},
+    )
+
+    assert report["violations"] == []
+    hotspots = [item for item in report["measurements"] if item.get("hotspot")]
+    assert [(item["kind"], item["file"]) for item in hotspots] == [("cycle", "orders/order.js")]
+    assert "orders/order.js" in hotspots[0]["detail"]

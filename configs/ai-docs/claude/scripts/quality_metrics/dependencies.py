@@ -4,9 +4,10 @@ Each language's imports are read by the tool that knows them:
 dependency-cruiser for JavaScript and TypeScript, import-linter for
 Python. The tool runs over the head tree and over the base ref's
 tree, and only a problem the head has and the base lacks is
-flagged, so one the repo already had never binds the change. A
-touched file is flagged when it sits inside an introduced cycle or
-is the importer of an introduced layer import.
+flagged. One the repo already had is listed as a hotspot, so it
+never binds the change. A touched file is flagged when it sits
+inside an introduced cycle or is the importer of an introduced
+layer import.
 
 A layer map lists layers from the outermost to the innermost. A
 layer may import itself and any layer after it, never one before it.
@@ -92,27 +93,31 @@ def load_layer_map(path):
 
 
 class DependencyRun:
-    """Finds the introduced problems once per tool, however many files ask."""
+    """Finds the head's problems once per tool, however many files ask."""
 
     def __init__(self, repo_dir, base_ref, excluded_paths, layer_map=None):
         self.repo_dir = Path(repo_dir)
         self.base_ref = base_ref
         self.excluded_paths = excluded_paths
         self.layer_map = layer_map
-        self._introduced_by_tool = {}
+        self._problems_by_tool = {}
 
-    def introduced_by(self, tool):
-        if tool not in self._introduced_by_tool:
-            self._introduced_by_tool[tool] = self._find_introduced(tool)
-        return self._introduced_by_tool[tool]
+    def problems_by(self, tool):
+        """The head's problems, each marked `is_introduced` or old."""
+        if tool not in self._problems_by_tool:
+            self._problems_by_tool[tool] = self._find_problems(tool)
+        return self._problems_by_tool[tool]
 
-    def _find_introduced(self, tool):
+    def _find_problems(self, tool):
         head = self._find_in(tool, self.repo_dir)
         with tempfile.TemporaryDirectory() as base_dir:
             _extract_tree_at(self.repo_dir, self.base_ref, Path(base_dir))
             base = self._find_in(tool, Path(base_dir))
         base_keys = {problem["key"] for problem in base}
-        return [problem for problem in head if problem["key"] not in base_keys]
+        return [
+            {**problem, "is_introduced": problem["key"] not in base_keys}
+            for problem in head
+        ]
 
     def _find_in(self, tool, tree):
         if tool == DEPENDENCY_CRUISER:
@@ -123,7 +128,12 @@ class DependencyRun:
 
 
 def measure(target, metrics, dependency_run):
-    """One flagged record per introduced problem the target is part of."""
+    """One record per problem the target is part of.
+
+    An introduced problem is flagged. One the base ref already had
+    is a hotspot: listed with no count past the limit, so it
+    never binds the change.
+    """
     tool = TOOL_BY_LANGUAGE.get(target.language)
     if METRIC not in metrics or tool is None:
         return []
@@ -131,14 +141,19 @@ def measure(target, metrics, dependency_run):
     layer_map = dependency_run.layer_map
     return [
         {
-            **measurement(target, METRIC, FLAGGED_COUNT, LIMIT_COUNT),
+            **measurement(
+                target, METRIC,
+                FLAGGED_COUNT if problem["is_introduced"] else LIMIT_COUNT,
+                LIMIT_COUNT,
+            ),
             "file": repo_path,
             "kind": problem["kind"],
             "detail": problem["detail"],
             "other_file": problem.get("other_file"),
             "layer_map_source": layer_map.source if layer_map else None,
+            "hotspot": not problem["is_introduced"],
         }
-        for problem in dependency_run.introduced_by(tool)
+        for problem in dependency_run.problems_by(tool)
         if _covers(problem["paths"], repo_path)
     ]
 
