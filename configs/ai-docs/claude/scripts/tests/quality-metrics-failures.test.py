@@ -201,6 +201,7 @@ def test_should_emit_no_second_ask_for_a_tool_already_deferred_in_this_batch(tmp
         "choices": ["fix now", "defer"],
     }
     assert second_ask is None
+    assert other_tool_ask is not None
     assert other_tool_ask["tool"] == "jscpd"
 
 

@@ -43,7 +43,7 @@ class Target:
     """
 
     path: Path
-    language: str
+    language: Optional[str]
     touched_lines: Optional[Set[int]]
     repo_path: Optional[str] = None
 
