@@ -109,12 +109,9 @@ class LazyToolMap:
         is built, keeping the deferral.
         """
         path = tool_map_path(self.session_id, self.map_dir)
-        if path.exists():
-            stored = json.loads(path.read_text()).get(
-                tool_map_key(self.repo, self.base_sha)
-            )
-            if stored is not None and "tools" in stored:
-                return stored
+        stored = _read_map(path).get(tool_map_key(self.repo, self.base_sha))
+        if stored is not None and "tools" in stored:
+            return stored
         return build_tool_map_entry(
             self.repo, self.base_sha, self.rules, self.session_id, self.map_dir
         )
