@@ -51,8 +51,11 @@ def touched_files_since(base_ref):
     touched on every line.
     """
     touched = _touched_lines_in_diff(_git("-c", "core.quotepath=false", *DIFF_ARGUMENTS, base_ref))
-    untracked = _git("ls-files", "--others", "--exclude-standard").splitlines()
-    for path in untracked:
+
+    # NUL-separated output skips git's path quoting, which would
+    # otherwise turn a name like café.go into "caf\303\251.go".
+    untracked = _git("ls-files", "-z", "--others", "--exclude-standard").split("\0")
+    for path in filter(None, untracked):
         touched[path] = WHOLE_FILE
     return touched
 

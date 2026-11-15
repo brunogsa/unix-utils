@@ -542,3 +542,26 @@ class TestCrossPlatformMeasurement:
         order = lambda item: (item["file"], item["scope"], item["function"] or "", item["metric"])
         assert sorted(report["measurements"], key=order) == sorted(expected, key=order)
         assert [item["function"] for item in report["violations"]] == ["build_report"]
+
+
+def run_measure(repo, declaration_path, *arguments):
+    return subprocess.run(
+        [sys.executable, str(MEASURE_SCRIPT), *arguments, "--declaration", str(declaration_path)],
+        cwd=repo, env=GIT_ENV, capture_output=True, text=True,
+    )
+
+
+class TestUntrackedNonAsciiFile:
+    def test_should_measure_an_over_limit_function_in_an_untracked_file_whose_name_holds_non_ascii_characters(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"seed.go": PACKAGE_LINE + go_function_nested("seed", 1)})
+        (repo / "café.go").write_text(PACKAGE_LINE + go_function_nested("untracked_deep", 5))
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        result = run_measure(repo, declaration_path, "--per-unit")
+
+        report = json.loads(result.stdout)
+        assert violation_summary(report) == [("untracked_deep", "nesting", 5, 3)]
+        assert report["unclaimed_files"] == []
+        assert result.returncode == 1
