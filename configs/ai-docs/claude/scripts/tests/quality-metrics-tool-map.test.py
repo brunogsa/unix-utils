@@ -49,3 +49,20 @@ def test_should_leave_out_a_tool_whose_config_exists_only_on_the_branch_not_at_t
     entry = detect(repo, tmp_path, base_sha)
 
     assert tool_names(entry) == ["eslint"]
+
+
+def test_should_key_the_tool_map_by_repo_path_and_base_sha_rebuilding_it_when_the_base_sha_changes(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    first_sha = head_of(repo)
+    detect(repo, tmp_path, first_sha)
+    (repo / "eslint.config.js").write_text(ESLINT_CONFIG)
+    commit_all(repo, "add an eslint config")
+    second_sha = head_of(repo)
+
+    detect(repo, tmp_path, second_sha)
+
+    tool_map = read_map(tmp_path)
+    repo_path = str(repo.resolve())
+    assert sorted(tool_map) == sorted([f"{repo_path}@{first_sha}", f"{repo_path}@{second_sha}"])
+    assert tool_names(tool_map[f"{repo_path}@{first_sha}"]) == ["jest"]
+    assert tool_names(tool_map[f"{repo_path}@{second_sha}"]) == ["eslint", "jest"]
