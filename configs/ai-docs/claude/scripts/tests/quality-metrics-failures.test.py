@@ -217,6 +217,24 @@ def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path,
     assert outcome["measurements"] == []
 
 
+def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_and_the_global_tool_crashes(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    target = Target(repo / "src/cart.js", "javascript", None)
+    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    monkeypatch.setenv("PATH", os.pathsep.join(["/usr/bin", "/bin"]))
+
+    def crashing_global_tool():
+        raise ToolError("coverage.py crashed with a traceback")
+
+    outcome = measure_coverage_or_ask(target, repo, crashing_global_tool, tool_map)
+
+    assert outcome["ask"]["tool"] == "coverage.py"
+    assert "coverage.py crashed" in outcome["ask"]["reason"]
+    assert outcome["side_pr_candidate"] == "repo jest crashed"
+
+
 def test_should_defer_without_asking_when_the_session_entry_point_is_set_and_is_not_the_interactive_cli(
     tmp_path, monkeypatch
 ):

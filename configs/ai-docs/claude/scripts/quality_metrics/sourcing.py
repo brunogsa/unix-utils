@@ -177,6 +177,10 @@ def _measure_coverage_under_timeout_policy(target, repo, policy):
         return policy.run(lambda timeout_seconds: measure_coverage_with_repo_tool(target, repo, timeout_seconds))
     except ToolTimedOutTwice as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
+    except RepoToolFailure:
+        raise
+    except ToolError as error:
+        raise RepoToolFailure(CRASH, str(error)) from error
 
 
 def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
