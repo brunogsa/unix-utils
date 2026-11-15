@@ -24,7 +24,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
+from quality_metrics.collection import CoverageRun
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.tools import ToolError
@@ -44,12 +46,18 @@ from quality_metrics.touched import (
 SCRIPTS_DIR = Path(__file__).resolve().parent
 DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 
+# CRAP and coverage share one module, which needs the test run
+# the other modules do not.
+COVERAGE_MODULE = "crap_coverage"
+
 # Which module measures each metric. A declared metric with no
 # entry here has no module yet and is skipped.
 METRIC_MODULES = {
     "size": "size",
     "nesting": "functions",
     "parameters": "functions",
+    "crap": COVERAGE_MODULE,
+    "coverage": COVERAGE_MODULE,
 }
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
@@ -62,7 +70,10 @@ def main(arguments):
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
-        measurements, unclaimed = _measure(declaration, mode, touched_by_file, head_ref)
+        coverage_run = CoverageRun(Path.cwd())
+        measurements, unclaimed = _measure(
+            declaration, mode, touched_by_file, coverage_run, head_ref
+        )
         resolved = _resolved_since(declaration, mode, options.diff)
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
@@ -119,7 +130,7 @@ def _range_ends(diff_range):
     return base_ref, head_ref or "HEAD"
 
 
-def _measure(declaration, mode, touched_by_file, head_ref=None):
+def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
     """Measure each file; with `head_ref`, measure its text at that ref."""
     measurements = []
     unclaimed = []
@@ -134,7 +145,7 @@ def _measure(declaration, mode, touched_by_file, head_ref=None):
                 continue
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
             target = Target(source, language, touched_lines)
-            found = _measure_target(declaration, mode, target, path)
+            found = _measure_target(declaration, mode, target, path, coverage_run)
             if head_ref:
                 # The copy is in a temp dir; name the real path.
                 found = [{**item, "file": path} for item in found]
@@ -149,10 +160,21 @@ def _copy_at(ref, path, directory):
     return copy_path
 
 
-def _measure_target(declaration, mode, target, path):
+def _measure_target(declaration, mode, target, path, coverage_run=None):
+    """Measure one target; with no `coverage_run`, skip CRAP and coverage.
+
+    The base-side copy of a resolved function has no test run of its
+    own, so scoring it against the working tree's coverage would be wrong.
+    """
     measurements = []
     metrics = _metrics_binding(declaration, target.language, mode, path)
     for module_name, module_metrics in _group_by_module(metrics).items():
+        if module_name == COVERAGE_MODULE:
+            if coverage_run is not None:
+                measurements += crap_coverage.measure(
+                    target, module_metrics, declaration, path, coverage_run
+                )
+            continue
         module = importlib.import_module(f"quality_metrics.{module_name}")
         measurements += module.measure(target, module_metrics)
     return measurements

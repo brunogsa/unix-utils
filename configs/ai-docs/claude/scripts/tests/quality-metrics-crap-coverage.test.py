@@ -1,9 +1,27 @@
 import importlib
+import importlib.util
+import json
+import os
 import sys
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+
+
+def load_sibling_test_module(file_name):
+    """Load a sibling test file whose hyphenated name cannot be imported."""
+    spec = importlib.util.spec_from_file_location(
+        file_name.replace("-", "_").replace(".", "_"),
+        Path(__file__).resolve().parent / file_name,
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+# The temp-git-repo and entry-point helpers live there.
+entry_point = load_sibling_test_module("quality-metrics-functions.test.py")
 coverage = importlib.import_module("quality_metrics.coverage")
 crap = importlib.import_module("quality_metrics.crap")
 declaring = importlib.import_module("quality_metrics.declaration")
@@ -175,3 +193,74 @@ class TestUnroundedCompareTruncatedDisplay:
         assert functions.display_value(crap_record) == "7.99"
         assert functions.is_over_limit(coverage_record)
         assert functions.display_value(coverage_record) == "89.99"
+
+
+# The entry-point tests below run the real test suite of a
+# Python fixture repo under the real coverage tool, so they
+# need uv.
+RUN_DECLARATION_TEXT = """\
+excluded_paths: [coverage/]
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  python:
+    extensions: [.py]
+    metrics: [nesting, parameters, crap, coverage]
+"""
+
+SOURCE_BASE = "def apply_discount(total, rate):\n    return total\n"
+
+SOURCE_CHANGED = (
+    "def apply_discount(total, rate):\n"
+    "    if rate > 0:\n"
+    "        return total - total * rate\n"
+    "    return total\n"
+)
+
+TEST_FILE_NAME = "test_invoice_totals.py"
+TEST_FILE_TEXT = (
+    "from invoice_totals import apply_discount\n\n\n"
+    "def test_discount_of_ten_percent():\n"
+    "    assert apply_discount(100, 0.1) == {expected}\n"
+)
+
+# Coverage records nothing when every file is omitted, so a
+# passing run writes no coverage data.
+OMIT_EVERYTHING = "[run]\nomit = *\n"
+
+ONE_DAY_IN_SECONDS = 86400
+
+
+def make_fixture_repo(tmp_path, extra_files=None):
+    files = {"invoice_totals.py": SOURCE_BASE, **(extra_files or {})}
+    repo = entry_point.make_repo(tmp_path, files)
+    (repo / "invoice_totals.py").write_text(SOURCE_CHANGED)
+    return repo
+
+
+def measure_repo(tmp_path, repo):
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(RUN_DECLARATION_TEXT)
+    return entry_point.run_measure(repo, declaration_path, "--batch-end")
+
+
+def records_for(result, metric):
+    report = json.loads(result.stdout)
+    return [item for item in report["measurements"] if item["metric"] == metric]
+
+
+class TestCoverageCollection:
+    def test_should_read_0_percent_coverage_with_no_tooling_ask_when_the_repo_has_no_tests(
+        self, tmp_path
+    ):
+        repo = make_fixture_repo(tmp_path)
+
+        result = measure_repo(tmp_path, repo)
+
+        # Exit 1 is a violation (0% is under 90%).
+        # Exit 2 would be a tool failure.
+        assert result.returncode == 1
+        assert result.stderr == ""
+        (coverage_record,) = records_for(result, "coverage")
+        assert coverage_record["value"] == 0
+        assert "pessimistic" not in coverage_record

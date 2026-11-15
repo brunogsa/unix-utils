@@ -1,0 +1,35 @@
+"""Measures CRAP and changed-line coverage for one touched file.
+
+Both metrics read the same test run, so one module serves them.
+"""
+
+from quality_metrics.collection import NO_COVERAGE_DATA
+from quality_metrics.coverage import coverage_measurement
+from quality_metrics.crap import crap_measurements
+from quality_metrics.declaration import metric_status, NOT_APPLICABLE
+from quality_metrics.functions import touched_functions
+
+
+def measure(target, metrics, declaration, source_path, coverage_run):
+    """CRAP and coverage records of the declared `metrics`.
+
+    `source_path` is the file's repo-relative path: lcov names files
+    that way, while `target.path` can be a temporary copy.
+    """
+    result = _coverage_result(declaration, target, coverage_run)
+    hits_by_file = {str(target.path): result.hits_by_file.get(source_path, {})}
+    records = []
+    if "crap" in metrics:
+        records += crap_measurements(
+            declaration, target, touched_functions(target), hits_by_file
+        )
+    if "coverage" in metrics:
+        records.append(coverage_measurement(target, hits_by_file))
+    return records
+
+
+def _coverage_result(declaration, target, coverage_run):
+    """A language that opts coverage out needs no test run."""
+    if metric_status(declaration, target.language, "coverage") == NOT_APPLICABLE:
+        return NO_COVERAGE_DATA
+    return coverage_run.result_for(target.language)

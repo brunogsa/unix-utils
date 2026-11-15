@@ -19,6 +19,7 @@
 excluded_paths:
   - dist/
   - build/
+  - coverage/
   - node_modules/
   - vendor/
 

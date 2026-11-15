@@ -532,10 +532,11 @@ class TestCrossPlatformMeasurement:
         shutil.copytree(FIXTURE_DIR / "repo", repo)
         names = sorted(path.name for path in repo.iterdir())
 
-        result = subprocess.run(
-            [sys.executable, str(MEASURE_SCRIPT), "--files", *names],
-            cwd=repo, env=GIT_ENV, capture_output=True, text=True,
-        )
+        # The shipped declaration also binds CRAP and coverage,
+        # which run the repo's tests; this fixture has none.
+        declaration_path = write_declaration(tmp_path, ["size", "nesting", "parameters"])
+
+        result = run_measure(repo, declaration_path, "--files", *names)
         report = json.loads(result.stdout)
 
         expected = json.loads((FIXTURE_DIR / "expected-measurements.json").read_text())
