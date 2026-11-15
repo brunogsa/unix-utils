@@ -114,6 +114,18 @@ def test_should_record_a_deferred_tool_in_the_current_batchs_deferred_list(tmp_p
     assert tool_names(batch_entry) == ["jest"]
 
 
+def test_should_still_detect_the_repos_tools_and_keep_the_deferral_when_a_tool_is_deferred_before_the_map_is_built(tmp_path):
+    repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
+    base_sha = head_of(repo)
+    rules = load_detector_rules(DETECTOR_RULES)
+    record_deferred_tool(repo, base_sha, "eslint", SESSION_ID, tmp_path)
+
+    entry = LazyToolMap(repo, base_sha, rules, SESSION_ID, tmp_path).entry()
+
+    assert tool_names(entry) == ["jest"]
+    assert entry["deferred"] == ["eslint"]
+
+
 WRITER_COUNT = 6
 DEFERRALS_PER_WRITER = 25
 REBUILDS_BY_BUILDER = 25

@@ -73,7 +73,7 @@ def record_deferred_tool(repo, base_sha, tool, session_id, map_dir=TOOL_MAP_DIR)
     path = tool_map_path(session_id, map_dir)
     with _locked_map(path):
         tool_map = _read_map(path)
-        entry = tool_map.setdefault(tool_map_key(repo, base_sha), {"tools": []})
+        entry = tool_map.setdefault(tool_map_key(repo, base_sha), {})
         deferred = entry.setdefault("deferred", [])
         if tool not in deferred:
             deferred.append(tool)
@@ -103,13 +103,17 @@ class LazyToolMap:
         self.map_dir = map_dir
 
     def entry(self):
-        """The stored entry, built only when the map lacks one."""
+        """The stored entry, built only when the map lacks its tools.
+
+        An entry holding only a deferral has no `tools` yet, so it
+        is built, keeping the deferral.
+        """
         path = tool_map_path(self.session_id, self.map_dir)
         if path.exists():
             stored = json.loads(path.read_text()).get(
                 tool_map_key(self.repo, self.base_sha)
             )
-            if stored is not None:
+            if stored is not None and "tools" in stored:
                 return stored
         return build_tool_map_entry(
             self.repo, self.base_sha, self.rules, self.session_id, self.map_dir
