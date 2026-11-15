@@ -110,9 +110,7 @@ def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None
         return {"language": language_for_file(declaration, file_path), "ask": None, "measurements": []}
     except NoLanguageEntryError as error:
         tool = f"language entry ({Path(file_path).suffix})"
-        ask = None
-        if session_can_ask(environ):
-            ask = ask_unless_deferred(tool_map, tool, "language_entry", str(error))
+        ask = ask_or_defer(tool_map, tool, "language_entry", str(error), environ)
         if ask:
             return {"language": None, "ask": ask, "measurements": []}
         return {"language": None, "ask": None, "measurements": [unmeasured_file_measurement(file_path)]}
@@ -153,6 +151,16 @@ def ask_unless_deferred(tool_map, tool, metric, reason):
     if tool in tool_map.entry()["deferred"]:
         return None
     return tooling_ask(tool, metric, reason)
+
+
+def ask_or_defer(tool_map, tool, metric, reason, environ=None):
+    """A tooling ask, or None when no session can ask or `tool` is deferred.
+
+    None means the caller scores the metric pessimistically.
+    """
+    if not session_can_ask(environ):
+        return None
+    return ask_unless_deferred(tool_map, tool, metric, reason)
 
 
 def holds_commit(records):
@@ -228,6 +236,4 @@ def run_or_ask(policy, attempt, tool_map, tool, metric, environ=None):
     try:
         return {"value": policy.run(attempt), "ask": None}
     except ToolTimedOutTwice as error:
-        if not session_can_ask(environ):
-            return {"value": None, "ask": None}
-        return {"value": None, "ask": ask_unless_deferred(tool_map, tool, metric, str(error))}
+        return {"value": None, "ask": ask_or_defer(tool_map, tool, metric, str(error), environ)}

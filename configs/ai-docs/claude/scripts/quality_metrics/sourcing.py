@@ -15,9 +15,8 @@ from quality_metrics.crap import parse_lcov
 from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
-    ask_unless_deferred,
+    ask_or_defer,
     deferred_coverage_measurement,
-    session_can_ask,
 )
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
@@ -155,7 +154,7 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
     `environ`), a failure defers on the spot with no ask.
     """
     global_tool = GLOBAL_TOOLS["coverage"]
-    global_failures = []
+    asks = []
 
     def measure_globally_or_defer():
         if global_tool in tool_map.entry()["deferred"]:
@@ -167,16 +166,14 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
             measurements, failure = [], str(error)
         if failure is None:
             return measurements
-        if not session_can_ask(environ):
+        ask = ask_or_defer(tool_map, global_tool, "coverage", failure, environ)
+        if ask is None:
             return [deferred_coverage_measurement(target)]
-        global_failures.append(failure)
+        asks.append(ask)
         return []
 
     outcome = measure_coverage(target, repo, measure_globally_or_defer, policy)
-    ask = None
-    if global_failures:
-        ask = ask_unless_deferred(tool_map, global_tool, "coverage", global_failures[0])
-    return {**outcome, "ask": ask}
+    return {**outcome, "ask": asks[0] if asks else None}
 
 
 def _measure_coverage_under_timeout_policy(target, repo, policy):
