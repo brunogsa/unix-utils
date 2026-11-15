@@ -243,6 +243,18 @@ GLOBAL_TOOL_INSTALL_LINES = {
         "macos": r"npm install -g jscpd@5\.4\.3",
         "linux": r"npm install -g jscpd@5\.4\.3",
     },
+    "dependency-cruiser": {
+        "macos": r"npm install -g dependency-cruiser@18\.7\.2",
+        "linux": r"npm install -g dependency-cruiser@18\.7\.2",
+    },
+    "typescript": {
+        "macos": r"npm install -g typescript@6\.0\.3",
+        "linux": r"npm install -g typescript@6\.0\.3",
+    },
+    "go-arch-lint": {
+        "macos": r"go install\b.*fe3dback/go-arch-lint@v1\.19\.1",
+        "linux": r"go install\b.*fe3dback/go-arch-lint@v1\.19\.1",
+    },
     "gcov2lcov": {
         "macos": r"go install\b.*jandelgado/gcov2lcov",
         "linux": r"go install\b.*jandelgado/gcov2lcov",

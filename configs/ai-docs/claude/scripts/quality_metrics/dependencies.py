@@ -2,17 +2,18 @@
 
 Each language's imports are read by the tool that knows them:
 dependency-cruiser for JavaScript and TypeScript, import-linter for
-Python. The tool runs over the head tree and over the base ref's
-tree, and only a problem the head has and the base lacks is
-flagged. One the repo already had is listed as a hotspot, so it
-never binds the change. A touched file is flagged when it sits
-inside an introduced cycle or is the importer of an introduced
-layer import.
+Python, go-arch-lint for Go. The tool runs over the head tree and
+over the base ref's tree, and only a problem the head has and the
+base lacks is flagged. One the repo already had is listed as a
+hotspot, so it never binds the change. A touched file is flagged
+when it sits inside an introduced cycle or is the importer of an
+introduced layer import.
 
 A layer map lists layers from the outermost to the innermost. A
 layer may import itself and any layer after it, never one before it.
-Python is checked for cycles only: its layer contract is not
-translated yet.
+Go has no import cycles to find, so it is checked against a layer
+map only. A Go file whose tool cannot run is scored as a deferred
+violation, never as clean.
 """
 
 import json
@@ -24,6 +25,7 @@ from pathlib import Path
 
 from quality_metrics.collection import repo_relative
 from quality_metrics.declaration import DeclarationError, read_yaml
+from quality_metrics.failures import deferred_flagged_measurement
 from quality_metrics.functions import measurement
 from quality_metrics.tools import ToolError, run_command, run_tool
 
@@ -31,13 +33,16 @@ METRIC = "dependency_direction"
 
 DEPENDENCY_CRUISER = "dependency-cruiser"
 IMPORT_LINTER = "import-linter"
+GO_ARCH_LINT = "go-arch-lint"
 TOOL_BY_LANGUAGE = {
     "js": DEPENDENCY_CRUISER,
     "ts": DEPENDENCY_CRUISER,
     "python": IMPORT_LINTER,
+    "go": GO_ARCH_LINT,
 }
 
 CYCLE_KIND = "cycle"
+TOOL_FAILURE_KIND = "tool-failure"
 CYCLE_RULE_NAME = "no-circular"
 LAYER_KIND = "layer"
 LAYER_RULE_PREFIX = "layer-"
@@ -57,6 +62,12 @@ IMPORT_LINTER_EXIT_KEPT, IMPORT_LINTER_EXIT_BROKEN = 0, 1
 IMPORT_LINTER_CONTRACTS_SUMMARY = "Contracts:"
 CONTRACT_ROOT_LINE = re.compile(r"^No cycles are allowed in (\S+)\.$")
 CONTRACT_EDGE_LINE = re.compile(r"^- \.(\S+) -> \.(\S+) \(")
+LAYER_RULE_LINE = re.compile(r"^(\S+) is not allowed to import (\S+):$")
+LAYER_EDGE_LINE = re.compile(r"^- ([A-Za-z_][\w.]*) -> ([\w.]+) \(l\.\d+\)")
+
+# go-arch-lint exits 1 on warnings alone, so only a missing
+# report means it failed; the cap is raised past any count.
+GO_ARCH_LINT_MAX_WARNINGS = "1000000"
 
 
 @dataclass(frozen=True)
@@ -103,10 +114,20 @@ class DependencyRun:
         self._problems_by_tool = {}
 
     def problems_by(self, tool):
-        """The head's problems, each marked `is_introduced` or old."""
+        """The head's problems, each marked `is_introduced` or old.
+
+        A tool that failed raises the same ToolError on every ask
+        without running again.
+        """
         if tool not in self._problems_by_tool:
-            self._problems_by_tool[tool] = self._find_problems(tool)
-        return self._problems_by_tool[tool]
+            try:
+                self._problems_by_tool[tool] = self._find_problems(tool)
+            except ToolError as error:
+                self._problems_by_tool[tool] = error
+        found = self._problems_by_tool[tool]
+        if isinstance(found, ToolError):
+            raise found
+        return found
 
     def _find_problems(self, tool):
         head = self._find_in(tool, self.repo_dir)
@@ -124,7 +145,9 @@ class DependencyRun:
             return _find_with_dependency_cruiser(
                 tree, self.excluded_paths, self.layer_map
             )
-        return _find_cycles_with_import_linter(tree)
+        if tool == GO_ARCH_LINT:
+            return _find_with_go_arch_lint(tree, self.layer_map)
+        return _find_with_import_linter(tree, self.layer_map)
 
 
 def measure(target, metrics, dependency_run):
@@ -132,13 +155,30 @@ def measure(target, metrics, dependency_run):
 
     An introduced problem is flagged. One the base ref already had
     is a hotspot: listed with no count past the limit, so it
-    never binds the change.
+    never binds the change. Go's tool may be missing, and a Go file
+    must not read as clean then, so it is scored as a deferred
+    violation.
     """
     tool = TOOL_BY_LANGUAGE.get(target.language)
     if METRIC not in metrics or tool is None:
         return []
     repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
     layer_map = dependency_run.layer_map
+    try:
+        problems = dependency_run.problems_by(tool)
+    except ToolError as error:
+        if tool != GO_ARCH_LINT:
+            raise
+        return [{
+            **deferred_flagged_measurement(
+                target, METRIC, FLAGGED_COUNT, LIMIT_COUNT
+            ),
+            "file": repo_path,
+            "kind": TOOL_FAILURE_KIND,
+            "detail": str(error),
+            "other_file": None,
+            "layer_map_source": layer_map.source if layer_map else None,
+        }]
     return [
         {
             **measurement(
@@ -153,7 +193,7 @@ def measure(target, metrics, dependency_run):
             "layer_map_source": layer_map.source if layer_map else None,
             "hotspot": not problem["is_introduced"],
         }
-        for problem in dependency_run.problems_by(tool)
+        for problem in problems
         if _covers(problem["paths"], repo_path)
     ]
 
@@ -249,8 +289,12 @@ def _problem_from_dependency_cruiser(violation):
             "detail": " -> ".join([*members, members[0]]),
             "paths": members,
         }
-    importer, imported = violation["from"], violation["to"]
-    rule = violation["rule"]["name"]
+    return _layer_problem(
+        violation["rule"]["name"], violation["from"], violation["to"]
+    )
+
+
+def _layer_problem(rule, importer, imported):
     return {
         "key": (LAYER_KIND, rule, importer, imported),
         "kind": LAYER_KIND,
@@ -260,16 +304,17 @@ def _problem_from_dependency_cruiser(violation):
     }
 
 
-def _find_cycles_with_import_linter(tree):
+def _find_with_import_linter(tree, layer_map):
     roots = sorted(
         entry.name for entry in tree.iterdir()
         if (entry / "__init__.py").is_file()
     )
     if not roots:
         return []
+    layers = _importable_layers(tree, roots, layer_map)
     with tempfile.TemporaryDirectory() as config_dir:
         config_path = Path(config_dir) / "importlinter.ini"
-        config_path.write_text(_import_linter_config(roots))
+        config_path.write_text(_import_linter_config(roots, layers))
 
         # --no-project: uv must not sync the repo's own project.
         # --no-cache: lint-imports must not write into the tree.
@@ -288,10 +333,47 @@ def _find_cycles_with_import_linter(tree):
     )
     if not (has_known_exit and has_checked_contracts):
         raise ToolError(f"lint-imports failed: {(result.stdout + result.stderr).strip()}")
-    return _cycles_from_import_linter(result.stdout)
+    return _problems_from_import_linter(result.stdout, tree)
 
 
-def _import_linter_config(roots):
+def _importable_layers(tree, roots, layer_map):
+    """Per layer, the Python modules its globs name; two layers or more.
+
+    A layer glob that is not a plain package path, or whose package
+    is missing, is left out: import-linter fails on an unknown
+    package, and one layer alone has nothing to compare against.
+    """
+    if layer_map is None:
+        return []
+    layers = []
+    for layer in layer_map.layers:
+        modules = [
+            module for module in map(_glob_to_module, layer.paths)
+            if module and _is_importable_package(tree, roots, module)
+        ]
+        if modules:
+            layers.append((layer.name, modules))
+    return layers if len(layers) >= 2 else []
+
+
+def _glob_to_module(glob):
+    path = re.sub(r"(/\*\*|/\*|/)$", "", glob)
+    if not path or "*" in path:
+        return None
+    return path.replace("/", ".")
+
+
+def _is_importable_package(tree, roots, module):
+    parts = module.split(".")
+    if parts[0] not in roots:
+        return False
+    return all(
+        (tree.joinpath(*parts[:depth]) / "__init__.py").is_file()
+        for depth in range(1, len(parts) + 1)
+    )
+
+
+def _import_linter_config(roots, layers):
     lines = [
         "[importlinter]",
         "root_packages =",
@@ -306,24 +388,112 @@ def _import_linter_config(roots):
             "type = acyclic_siblings",
             f"ancestors = {root}",
         ]
+    if layers:
+        lines += [
+            "",
+            "[importlinter:contract:layers]",
+            "name = layers",
+            "type = layers",
+            "layers =",
+            *[f"    {' | '.join(modules)}" for _, modules in layers],
+        ]
     return "\n".join(lines) + "\n"
 
 
-def _cycles_from_import_linter(output):
-    cycles = []
+def _module_to_file(tree, module):
+    """The repo path of a module: `a/b.py`, else `a/b/__init__.py`."""
+    path = module.replace(".", "/")
+    if (tree / f"{path}.py").is_file():
+        return f"{path}.py"
+    return f"{path}/__init__.py"
+
+
+def _problems_from_import_linter(output, tree):
+    problems = []
     root = None
+    layer_rule = None
     for line in output.splitlines():
+        layer_match = LAYER_RULE_LINE.match(line)
+        if layer_match:
+            layer_rule = f"{LAYER_RULE_PREFIX}{layer_match.group(1)}"
+            root = None
+            continue
         root_match = CONTRACT_ROOT_LINE.match(line)
         if root_match:
             root = root_match.group(1)
+            layer_rule = None
+            continue
+        layer_edge = LAYER_EDGE_LINE.match(line)
+        if layer_edge and layer_rule:
+            importer, imported = layer_edge.groups()
+            problems.append(_layer_problem(
+                layer_rule,
+                _module_to_file(tree, importer),
+                _module_to_file(tree, imported),
+            ))
             continue
         edge_match = CONTRACT_EDGE_LINE.match(line)
         if edge_match and root:
             importer, imported = edge_match.groups()
-            cycles.append({
+            problems.append({
                 "key": (CYCLE_KIND, root, importer, imported),
                 "kind": CYCLE_KIND,
                 "detail": f"{root}.{importer} -> {root}.{imported}",
                 "paths": [f"{root}/{importer}/", f"{root}/{imported}/"],
             })
-    return cycles
+    return problems
+
+
+def _find_with_go_arch_lint(tree, layer_map):
+    # Go import cycles are compile errors, so without a layer
+    # map there is nothing for a tool to find.
+    if layer_map is None:
+        return []
+    with tempfile.TemporaryDirectory() as config_dir:
+        config_path = Path(config_dir) / "go-arch-lint.yml"
+        config_path.write_text(json.dumps(_go_arch_lint_config(layer_map)))
+        result = run_command(
+            ["go-arch-lint", "check", "--project-path", str(tree),
+             "--arch-file", str(config_path), "--json",
+             "--max-warnings", GO_ARCH_LINT_MAX_WARNINGS],
+            cwd=tree,
+        )
+
+    try:
+        payload = json.loads(result.stdout)["Payload"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise ToolError(
+            f"go-arch-lint wrote no report: {(result.stdout + result.stderr).strip()}"
+        ) from error
+
+    # A config notice makes it skip the check entirely.
+    if payload.get("ExecutionWarnings"):
+        raise ToolError(
+            f"go-arch-lint skipped the check: {payload['ExecutionWarnings']}"
+        )
+    return [
+        _layer_problem(
+            f"{LAYER_RULE_PREFIX}{warning['ComponentName']}",
+            warning["FileRelativePath"],
+            warning["ResolvedImportName"],
+        )
+        for warning in payload.get("ArchWarningsDeps") or ()
+    ]
+
+
+def _go_arch_lint_config(layer_map):
+    """Each layer may depend only on the layers after it."""
+    layers = layer_map.layers
+    return {
+        "version": 3,
+        "allow": {
+            "depOnAnyVendor": True,
+            "deepScan": False,
+            "ignoreNotFoundComponents": True,
+        },
+        "components": {layer.name: {"in": list(layer.paths)} for layer in layers},
+        "deps": {
+            layer.name: {"mayDependOn": [inner.name for inner in layers[index + 1:]]}
+            for index, layer in enumerate(layers)
+        },
+    }

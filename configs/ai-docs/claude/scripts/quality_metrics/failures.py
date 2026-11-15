@@ -61,6 +61,16 @@ def deferred_measurement(target, metric, limit, function=None):
     return _as_deferred(measurement(target, metric, None, limit, function))
 
 
+def deferred_flagged_measurement(target, metric, flagged_value, limit):
+    """A record read as flagged when its tool could not run, labelled.
+
+    The worst case lists as a violation yet, being pessimistic,
+    never holds a commit, so a missing tool scores no better than
+    a failing check.
+    """
+    return _as_deferred(measurement(target, metric, flagged_value, limit))
+
+
 def deferred_crap_measurements(target, functions):
     """One CRAP violation per touched function when complexity is deferred.
 

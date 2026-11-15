@@ -1,9 +1,14 @@
+import os
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import commit_all, head_of, make_repo, measure_report
+from quality_metrics_support import (
+    GIT_ENV, commit_all, head_of, make_repo, measure_report,
+)
 
 PYTHON_DECLARATION = """\
 excluded_paths: [dist/]
@@ -166,3 +171,156 @@ def test_lists_a_cycle_already_present_at_the_base_ref_as_a_hotspot_not_a_violat
     hotspots = [item for item in report["measurements"] if item.get("hotspot")]
     assert [(item["kind"], item["file"]) for item in hotspots] == [("cycle", "orders/order.js")]
     assert "orders/order.js" in hotspots[0]["detail"]
+
+
+PYTHON_DOMAIN_WITHOUT_INFRA = "ORDER_ID = 1\n"
+PYTHON_DOMAIN_READING_INFRA = "from infra import db\n\nORDER_ID = db.SAVED\n"
+PYTHON_INFRA_DB = "SAVED = 1\n"
+
+GO_DECLARATION = """\
+excluded_paths: [dist/]
+ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
+per_unit: []
+languages:
+  go:
+    extensions: [.go]
+    metrics: [dependency_direction]
+"""
+
+GO_MODULE = "module shop\n\ngo 1.25\n"
+GO_DOMAIN_WITHOUT_INFRA = "package domain\n\nconst OrderID = 1\n"
+GO_DOMAIN_READING_INFRA = (
+    'package domain\n\nimport "shop/infra"\n\nvar OrderID = infra.Saved\n'
+)
+GO_INFRA_DB = "package infra\n\nconst Saved = 1\n"
+
+# Stands in for go-arch-lint: it copies the archfile it was
+# given to a capture path, and reports a domain-to-infra import
+# only when the project's domain file mentions infra.
+GO_ARCH_LINT_STUB = """#!/bin/sh
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --project-path) project="$2"; shift ;;
+    --arch-file) archfile="$2"; shift ;;
+  esac
+  shift
+done
+cp "$archfile" "{capture_path}"
+if grep -q 'shop/infra' "$project/domain/order.go"; then
+  cat <<'JSON'
+{{"Type":"models.Check","Payload":{{"ExecutionWarnings":[],"ArchHasWarnings":true,
+"ArchWarningsDeps":[{{"ComponentName":"domain","FileRelativePath":"domain/order.go",
+"FileAbsolutePath":"/work/domain/order.go","ResolvedImportName":"shop/infra",
+"Reference":{{"Valid":true,"File":"/work/domain/order.go","Line":3,"Offset":8}}}}],
+"ArchWarningsNotMatched":[],"ArchWarningsDeepScan":[],"OmittedCount":0,
+"ModuleName":"shop","Qualities":[]}}}}
+JSON
+  exit 1
+fi
+cat <<'JSON'
+{{"Type":"models.Check","Payload":{{"ExecutionWarnings":[],"ArchHasWarnings":false,
+"ArchWarningsDeps":[],"ArchWarningsNotMatched":[],"ArchWarningsDeepScan":[],
+"OmittedCount":0,"ModuleName":"shop","Qualities":[]}}}}
+JSON
+"""
+
+GO_BASE_FILES = {
+    "go.mod": GO_MODULE,
+    "domain/order.go": GO_DOMAIN_WITHOUT_INFRA,
+    "infra/db.go": GO_INFRA_DB,
+}
+
+
+def env_with_go_arch_lint_stub(tmp_path, capture_path):
+    stub_dir = tmp_path / "stub-bin"
+    stub_dir.mkdir()
+    stub = stub_dir / "go-arch-lint"
+    stub.write_text(GO_ARCH_LINT_STUB.format(capture_path=capture_path))
+    stub.chmod(0o755)
+    return {**GIT_ENV, "PATH": f"{stub_dir}{os.pathsep}{GIT_ENV['PATH']}"}
+
+
+def env_without_go_arch_lint():
+    """PATH with every directory that holds a go-arch-lint removed."""
+    kept = [
+        directory for directory in GIT_ENV["PATH"].split(os.pathsep)
+        if not (Path(directory) / "go-arch-lint").exists()
+    ]
+    return {**GIT_ENV, "PATH": os.pathsep.join(kept)}
+
+
+def test_flags_a_python_domain_to_infra_import_through_an_import_linter_layers_contract(tmp_path):
+    base_files = {
+        "domain/__init__.py": "",
+        "domain/order.py": PYTHON_DOMAIN_WITHOUT_INFRA,
+        "infra/__init__.py": "",
+        "infra/db.py": PYTHON_INFRA_DB,
+    }
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"domain/order.py": PYTHON_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+    )
+
+    assert len(violations) == 1
+    layer_import = violations[0]
+    assert layer_import["kind"] == "layer"
+    assert layer_import["file"] == "domain/order.py"
+    assert layer_import["other_file"] == "infra/db.py"
+    assert layer_import["layer_map_source"] == "declared"
+
+
+def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_only_on_the_layers_after_it(tmp_path):
+    capture_path = tmp_path / "captured-archfile.yaml"
+
+    measure_branch(
+        tmp_path, GO_DECLARATION, GO_BASE_FILES,
+        {"domain/order.go": GO_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+        env=env_with_go_arch_lint_stub(tmp_path, capture_path),
+    )
+
+    config = yaml.safe_load(capture_path.read_text())
+    assert config["version"] == 3
+    assert config["components"] == {
+        "infra": {"in": ["infra/**"]},
+        "domain": {"in": ["domain/**"]},
+    }
+    assert config["deps"] == {
+        "infra": {"mayDependOn": ["domain"]},
+        "domain": {"mayDependOn": []},
+    }
+    assert config["allow"]["ignoreNotFoundComponents"] is True
+
+
+def test_flags_a_go_domain_to_infra_import_from_the_go_arch_lint_report(tmp_path):
+    violations = measure_branch(
+        tmp_path, GO_DECLARATION, GO_BASE_FILES,
+        {"domain/order.go": GO_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+        env=env_with_go_arch_lint_stub(tmp_path, tmp_path / "archfile.yaml"),
+    )
+
+    assert len(violations) == 1
+    layer_import = violations[0]
+    assert layer_import["kind"] == "layer"
+    assert layer_import["file"] == "domain/order.go"
+    assert layer_import["other_file"] == "shop/infra"
+    assert layer_import["layer_map_source"] == "declared"
+
+
+def test_scores_a_go_file_as_a_deferred_violation_when_go_arch_lint_is_missing(tmp_path):
+    violations = measure_branch(
+        tmp_path, GO_DECLARATION, GO_BASE_FILES,
+        {"domain/order.go": GO_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+        env=env_without_go_arch_lint(),
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["metric"] == "dependency_direction"
+    assert deferred["file"] == "domain/order.go"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]

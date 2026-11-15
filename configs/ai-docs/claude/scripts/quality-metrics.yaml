@@ -31,7 +31,7 @@ per_unit: []
 languages:
   # Dependency direction needs dependency-cruiser for js and ts
   # (ts also needs typescript below 7 beside it), and uv for
-  # python's import-linter.
+  # python's import-linter, and go-arch-lint for go.
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
     metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction]
