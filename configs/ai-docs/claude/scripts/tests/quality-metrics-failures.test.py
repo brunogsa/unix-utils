@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR, head_of, make_repo
+from quality_metrics_support import JEST_CRASH_STUB, SCRIPTS_DIR, head_of, install_stub_tool, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -35,12 +35,6 @@ from quality_metrics.touched import Target
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
 
-# A jest dying on an internal error: a stack trace, no report.
-JEST_CRASH_STUB = """#!/bin/bash
-echo "TypeError: Cannot read properties of undefined (reading 'config')" >&2
-echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
-exit 1
-"""
 SESSION_ID = "session-4c9e21"
 INTERACTIVE_SESSION = {"CLAUDE_CODE_ENTRYPOINT": "cli"}
 
@@ -62,12 +56,7 @@ def timing_out_then(outcomes, timeouts_seen):
 def repo_with_crashing_jest(tmp_path, monkeypatch):
     """A repo whose jest dies on an internal error, and its one JS target."""
     repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
-    stub_directory = tmp_path / "stubs"
-    stub_directory.mkdir()
-    jest_stub = stub_directory / "jest"
-    jest_stub.write_text(JEST_CRASH_STUB)
-    jest_stub.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
     return repo, Target(repo / "src/cart.js", "javascript", None)
 
 

@@ -10,7 +10,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import commit_all, head_of, make_repo, run_measure
+from quality_metrics_support import commit_all, head_of, install_stub_tool, make_repo, run_measure
 
 collection = importlib.import_module("quality_metrics.collection")
 coverage = importlib.import_module("quality_metrics.coverage")
@@ -454,13 +454,8 @@ class TestDeclaredNpmTest:
 
 def put_fake_tools_on_path(tmp_path, monkeypatch, tool_bodies):
     """Put POSIX sh stand-ins for external tools first on PATH."""
-    fake_bin = tmp_path / "bin"
-    fake_bin.mkdir()
     for name, body in tool_bodies.items():
-        script = fake_bin / name
-        script.write_text(f"#!/bin/sh\n{body}\n")
-        script.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+        install_stub_tool(tmp_path, monkeypatch, name, f"#!/bin/sh\n{body}\n")
 
 
 def write_lcov_shell(hits_by_line):

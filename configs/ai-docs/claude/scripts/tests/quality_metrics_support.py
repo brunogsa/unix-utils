@@ -25,6 +25,24 @@ GIT_ENV = {
 }
 
 
+# A jest dying on an internal error: a stack trace, no report.
+JEST_CRASH_STUB = """#!/bin/bash
+echo "TypeError: Cannot read properties of undefined (reading 'config')" >&2
+echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
+exit 1
+"""
+
+
+def install_stub_tool(tmp_path, monkeypatch, name, script):
+    """Put an executable `name` first on PATH, standing in for a real tool."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    stub = bin_dir / name
+    stub.write_text(script)
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+
 def git(repo, *args):
     subprocess.run(["git", *args], cwd=repo, env=GIT_ENV, check=True, capture_output=True)
 

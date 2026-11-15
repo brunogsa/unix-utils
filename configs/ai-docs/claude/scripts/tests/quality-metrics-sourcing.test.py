@@ -1,10 +1,9 @@
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR, make_repo
+from quality_metrics_support import JEST_CRASH_STUB, SCRIPTS_DIR, install_stub_tool, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -89,16 +88,6 @@ def test_should_measure_with_the_global_fallback_named_as_the_source_outside_any
     assert list(tmp_path.glob("quality-metrics_*.json")) == []
 
 
-def install_stub_tool(tmp_path, monkeypatch, name, script):
-    """Put an executable `name` first on PATH, standing in for a repo tool."""
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir(exist_ok=True)
-    stub = bin_dir / name
-    stub.write_text(script)
-    stub.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-
-
 # Reports its findings only when asked for every function
 # (a zero line allowance), as the repo's limit of 60 would
 # not.
@@ -162,13 +151,6 @@ def test_should_read_measurements_as_valid_when_a_repo_tool_exits_non_zero_on_it
     assert [record["value"] for record in outcome["measurements"]] == [92]
     assert not is_over_limit(outcome["measurements"][0])
 
-
-# A jest dying on an internal error: a stack trace, no report.
-JEST_CRASH_STUB = """#!/bin/bash
-echo "TypeError: Cannot read properties of undefined (reading 'config')" >&2
-echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
-exit 1
-"""
 
 # Logs each attempt in $ATTEMPT_LOG, then hangs past a timeout.
 # `exec` so a kill lands on sleep itself, not a parent shell.
