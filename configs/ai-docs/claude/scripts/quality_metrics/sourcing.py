@@ -17,6 +17,7 @@ from quality_metrics.failures import (
     ToolTimedOutTwice,
     ask_unless_deferred,
     deferred_coverage_measurement,
+    session_can_ask,
 )
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
@@ -135,13 +136,16 @@ def measure_coverage(target, repo, measure_globally, policy=None):
     return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
 
 
-def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=None):
+def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=None, environ=None):
     """`measure_coverage` plus an `ask` for a global tool that cannot measure.
 
     A missing or crashing global tool, or a run that passes yet
-    writes no coverage data, yields an ask and no measurements. Once the developer defers it (recorded in
-    `tool_map`'s batch), the tool is not run again: coverage reads
-    0%, labelled pessimistic, and no second ask is emitted.
+    writes no coverage data, yields an ask and no measurements.
+    Once the developer defers it (recorded in `tool_map`'s batch),
+    the tool is not run again: coverage reads 0%, labelled
+    pessimistic, and no second ask is emitted.
+    When no session can ask (see `session_can_ask`, read from
+    `environ`), a failure defers on the spot with no ask.
     """
     global_tool = GLOBAL_TOOLS["coverage"]
     global_failures = []
@@ -151,12 +155,15 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
             return [deferred_coverage_measurement(target)]
         try:
             measurements = measure_globally()
+            failure = None if measurements else f"{global_tool} exited zero but wrote no coverage data"
         except ToolError as error:
-            global_failures.append(str(error))
-            return []
-        if not measurements:
-            global_failures.append(f"{global_tool} exited zero but wrote no coverage data")
-        return measurements
+            measurements, failure = [], str(error)
+        if failure is None:
+            return measurements
+        if not session_can_ask(environ):
+            return [deferred_coverage_measurement(target)]
+        global_failures.append(failure)
+        return []
 
     outcome = measure_coverage(target, repo, measure_globally_or_defer, policy)
     ask = None

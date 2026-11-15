@@ -5,6 +5,7 @@ Only a second timeout under free headroom is a tooling failure the
 checks can ask about; a timeout on a busy machine waits instead.
 """
 
+import os
 import subprocess
 import time
 from dataclasses import dataclass
@@ -21,6 +22,8 @@ HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
 GENUINE_TIMEOUTS_ALLOWED = 2
 ASK_CHOICES = ("fix now", "defer")
+ENTRYPOINT_VARIABLE = "CLAUDE_CODE_ENTRYPOINT"
+INTERACTIVE_ENTRYPOINT = "cli"
 
 HEADROOM_SCRIPT = Path(__file__).resolve().parent.parent / "check-machine-headroom.sh"
 
@@ -58,6 +61,17 @@ def deferred_coverage_measurement(target):
     keeps it from holding a commit.
     """
     return {**coverage_record(target, 0), "pessimistic": True, "label": DEFERRED_LABEL}
+
+
+def session_can_ask(environ=None):
+    """False when the entry point is set and is not the interactive CLI.
+
+    A headless run (`claude -p` sets `sdk-cli`) has no human to ask,
+    so the variable decides, not the agent. Unset means a session
+    can ask. `environ` defaults to os.environ.
+    """
+    entry_point = (os.environ if environ is None else environ).get(ENTRYPOINT_VARIABLE)
+    return entry_point is None or entry_point == INTERACTIVE_ENTRYPOINT
 
 
 def tooling_ask(tool, metric, reason):

@@ -55,6 +55,18 @@ def timing_out_then(outcomes, timeouts_seen):
     return attempt
 
 
+def repo_with_crashing_jest(tmp_path, monkeypatch):
+    """A repo whose jest dies on an internal error, and its one JS target."""
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    stub_directory = tmp_path / "stubs"
+    stub_directory.mkdir()
+    jest_stub = stub_directory / "jest"
+    jest_stub.write_text(JEST_CRASH_STUB)
+    jest_stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
+    return repo, Target(repo / "src/cart.js", "javascript", None)
+
+
 def test_should_report_the_measured_value_with_no_ask_when_the_retry_after_a_120_second_timeout_succeeds():
     timeouts_seen = []
     policy = TimeoutPolicy(headroom_is_go=lambda: True, sleep=lambda seconds: None)
@@ -165,14 +177,7 @@ def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_ou
 def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_coverage_0_percent_labelled_pessimistic_on_defer(
     tmp_path, monkeypatch
 ):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
-    stub_directory = tmp_path / "stubs"
-    stub_directory.mkdir()
-    jest_stub = stub_directory / "jest"
-    jest_stub.write_text(JEST_CRASH_STUB)
-    jest_stub.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
-    target = Target(repo / "src/cart.js", "javascript", None)
+    repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
     base_sha = head_of(repo)
     tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
     global_calls = []
@@ -197,14 +202,7 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
 
 
 def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path, monkeypatch):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
-    stub_directory = tmp_path / "stubs"
-    stub_directory.mkdir()
-    jest_stub = stub_directory / "jest"
-    jest_stub.write_text(JEST_CRASH_STUB)
-    jest_stub.chmod(0o755)
-    monkeypatch.setenv("PATH", f"{stub_directory}{os.pathsep}{os.environ['PATH']}")
-    target = Target(repo / "src/cart.js", "javascript", None)
+    repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
     tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
 
     def global_run_that_passes_and_writes_nothing():
@@ -217,6 +215,26 @@ def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path,
     assert outcome["ask"]["choices"] == ["fix now", "defer"]
     assert "wrote no coverage data" in outcome["ask"]["reason"]
     assert outcome["measurements"] == []
+
+
+def test_should_defer_without_asking_when_the_session_entry_point_is_set_and_is_not_the_interactive_cli(
+    tmp_path, monkeypatch
+):
+    repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
+    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    headless_session = {"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}
+
+    def crashing_global_tool():
+        raise ToolError("coverage.py is not installed")
+
+    outcome = measure_coverage_or_ask(
+        target, repo, crashing_global_tool, tool_map, environ=headless_session
+    )
+
+    assert outcome["ask"] is None
+    assert [(record["value"], record["pessimistic"], record["label"]) for record in outcome["measurements"]] == [
+        (0, True, "pessimistic, tooling deferred")
+    ]
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
