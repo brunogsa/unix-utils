@@ -6,7 +6,7 @@ Both metrics read the same test run, so one module serves them.
 from quality_metrics.collection import NO_COVERAGE_DATA, repo_relative
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import crap_measurements
-from quality_metrics.declaration import metric_status, NOT_APPLICABLE
+from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import touched_functions
 
 
@@ -36,6 +36,6 @@ def measure(target, metrics, declaration, source_path, coverage_run):
 
 def _coverage_result(declaration, target, coverage_run):
     """A language that opts coverage out needs no test run."""
-    if metric_status(declaration, target.language, "coverage") == NOT_APPLICABLE:
+    if is_coverage_opted_out(declaration, target.language):
         return NO_COVERAGE_DATA
     return coverage_run.result_for(target.language)

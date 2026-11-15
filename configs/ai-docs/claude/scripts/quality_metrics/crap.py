@@ -9,7 +9,7 @@ without coverage opts coverage out and is scored at full coverage;
 a coverage tool that failed or has not run reads 0%, never a pass.
 """
 
-from quality_metrics.declaration import metric_status, NOT_APPLICABLE
+from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import measurement
 
 CRAP_LIMIT = 8
@@ -43,10 +43,10 @@ def parse_lcov(lcov_text):
 
 def crap_measurements(declaration, target, functions, line_hits):
     """One CRAP record per touched function, unrounded."""
-    opted_out = metric_status(declaration, target.language, "coverage") == NOT_APPLICABLE
+    is_opted_out = is_coverage_opted_out(declaration, target.language)
     records = []
     for function in functions:
-        if opted_out:
+        if is_opted_out:
             coverage = FULL_COVERAGE
         else:
             coverage = function_coverage(function, line_hits)

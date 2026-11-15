@@ -96,6 +96,11 @@ def metric_status(declaration, language, metric):
     return NOT_APPLICABLE
 
 
+def is_coverage_opted_out(declaration, language):
+    """True when the language declares no coverage metric."""
+    return metric_status(declaration, language, "coverage") == NOT_APPLICABLE
+
+
 def metrics_to_run(declaration, language, mode):
     declared = declaration.languages[language].metrics
     if mode == BATCH_END_MODE:
