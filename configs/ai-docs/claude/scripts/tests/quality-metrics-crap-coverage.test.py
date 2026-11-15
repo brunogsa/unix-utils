@@ -445,6 +445,83 @@ class TestDeclaredNpmTest:
 
         assert collection.declares_npm_test(tmp_path) is False
 
+    def test_should_declare_no_test_when_the_repo_has_no_package_json(
+        self, tmp_path
+    ):
+        assert collection.declares_npm_test(tmp_path) is False
+
+    def test_should_declare_no_test_when_the_test_script_is_the_npm_init_stub(
+        self, tmp_path
+    ):
+        stub_script = 'echo "Error: no test specified" && exit 1'
+        (tmp_path / "package.json").write_text(
+            json.dumps({"scripts": {"test": stub_script}})
+        )
+
+        assert collection.declares_npm_test(tmp_path) is False
+
+
+def put_fake_tools_on_path(tmp_path, monkeypatch, tool_bodies):
+    """Put POSIX sh stand-ins for external tools first on PATH."""
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    for name, body in tool_bodies.items():
+        script = fake_bin / name
+        script.write_text(f"#!/bin/sh\n{body}\n")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ['PATH']}")
+
+
+def write_lcov_shell(hits_by_line):
+    """Shell lines that write an lcov report to coverage/lcov.info."""
+    report = lcov_report(SOURCE_FILE, hits_by_line)
+    return (
+        "mkdir -p coverage\n"
+        f"cat > coverage/lcov.info <<'LCOV'\n{report}\nLCOV"
+    )
+
+
+def make_javascript_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "package.json").write_text(
+        json.dumps({"scripts": {"test": "jest"}})
+    )
+    return repo
+
+
+class TestJavascriptCollector:
+    def test_should_score_a_javascript_red_build_pessimistic_when_the_test_run_fails(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {"c8": "exit 1"})
+        repo = make_javascript_repo(tmp_path)
+
+        assert collection.collect_javascript(repo) == collection.RED_BUILD
+
+    def test_should_read_back_the_line_hits_c8_wrote_when_the_test_run_passes(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "c8": write_lcov_shell({1: 3, 2: 0, 3: 1}),
+        })
+        repo = make_javascript_repo(tmp_path)
+
+        result = collection.collect_javascript(repo)
+
+        assert result == collection.CoverageResult(
+            {SOURCE_FILE: {1: 3, 2: 0, 3: 1}}, False
+        )
+
+    def test_should_report_no_coverage_data_without_running_c8_when_the_repo_has_no_package_json(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {"c8": "exit 1"})
+
+        result = collection.collect_javascript(tmp_path)
+
+        assert result == collection.NO_COVERAGE_DATA
+
 
 class TestWorkingTreeDifferingFromHeadRef:
     def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
