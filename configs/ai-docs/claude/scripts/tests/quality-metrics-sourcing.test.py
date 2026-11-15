@@ -48,6 +48,20 @@ def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_on
     }
 
 
+def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_has_an_eslint_config(tmp_path):
+    repo = make_repo(tmp_path, {"eslint.config.js": "module.exports = [];\n", "src/index.js": "module.exports = 1;\n"})
+    rules = load_detector_rules(DETECTOR_RULES)
+    tool_map = lazy_tool_map_for(repo, rules, SESSION_ID, tmp_path, base_ref="HEAD")
+
+    sourcing = source_for("size", tool_map)
+
+    assert sourcing == {
+        "metric": "size",
+        "source": {"kind": "repo", "tool": "eslint"},
+        "side_pr_candidate": None,
+    }
+
+
 def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_the_repo_lacks_the_tool(tmp_path):
     repo = make_repo(tmp_path, {"calc.py": PYTHON_MODULE})
 

@@ -34,7 +34,8 @@ def read_map(map_dir):
 
 
 def tool_names(entry):
-    return sorted(tool["tool"] for tool in entry["tools"])
+    # eslint is listed once per metric it measures.
+    return sorted({tool["tool"] for tool in entry["tools"]})
 
 
 def test_should_list_a_jest_coverage_config_read_at_the_base_ref_as_the_repos_coverage_tool(tmp_path):

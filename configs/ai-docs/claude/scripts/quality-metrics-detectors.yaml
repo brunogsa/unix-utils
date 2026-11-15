@@ -24,7 +24,7 @@ tools:
       - .coveragerc
   - tool: eslint
     metric: complexity
-    configs:
+    configs: &eslint_configs
       - eslint.config.js
       - eslint.config.cjs
       - eslint.config.mjs
@@ -34,6 +34,9 @@ tools:
       - .eslintrc.json
       - .eslintrc.yaml
       - .eslintrc.yml
+  - tool: eslint
+    metric: size
+    configs: *eslint_configs
   - tool: jscpd
     metric: code_duplication
     configs:
