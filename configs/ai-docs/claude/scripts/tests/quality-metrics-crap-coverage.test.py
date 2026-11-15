@@ -312,3 +312,31 @@ class TestFailedTestRun:
         (parameters_record,) = records_for(result, "parameters")
         assert nesting_record["value"] == 1
         assert parameters_record["value"] == 2
+
+
+UNRELATED_SOURCE = "def shipping_fee(weight):\n    return weight * 2\n"
+UNRELATED_TEST_TEXT = (
+    "from shipping import shipping_fee\n\n\n"
+    "def test_fee_of_three_kilos():\n"
+    "    assert shipping_fee(3) == 6\n"
+)
+
+
+class TestChangedFileCoverageReading:
+    def test_should_count_every_changed_line_of_a_file_absent_from_the_coverage_report_as_uncovered(
+        self, tmp_path
+    ):
+        # The passing test runs shipping.py only, so the
+        # report lists it but never invoice_totals.py.
+        repo = make_fixture_repo(tmp_path, {
+            "shipping.py": UNRELATED_SOURCE,
+            "test_shipping.py": UNRELATED_TEST_TEXT,
+        })
+
+        result = measure_repo(tmp_path, repo)
+
+        assert result.returncode == 1
+        (coverage_record,) = records_for(result, "coverage")
+        assert coverage_record["file"] == "invoice_totals.py"
+        assert coverage_record["value"] == 0
+        assert "pessimistic" not in coverage_record
