@@ -158,10 +158,12 @@ CSS_THREE_LINES = (
 # Different literals keep the pair from sharing a long token
 # run, which jscpd reports as an exact clone, with no score.
 def weighted_total(first_weight, result):
-    terms = lambda start: " + ".join(
-        f"step{index}(items) * tax * {first_weight + index}"
-        for index in range(start, start + 4)
-    )
+    def terms(start):
+        return " + ".join(
+            f"step{index}(items) * tax * {first_weight + index}"
+            for index in range(start, start + 4)
+        )
+
     return (
         "def total(items, tax):\n"
         f"    total = {terms(0)}\n"
