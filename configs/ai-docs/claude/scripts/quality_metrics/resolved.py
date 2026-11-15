@@ -40,5 +40,5 @@ def resolved_measurements(changes, base_ref, measure_at_base, function_names_in)
 def _over_limit_functions(measurements):
     return [
         item for item in measurements
-        if item["scope"] == "function" and item["value"] is not None and is_over_limit(item)
+        if item["scope"] == "function" and is_over_limit(item)
     ]
