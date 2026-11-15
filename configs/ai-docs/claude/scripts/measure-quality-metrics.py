@@ -24,7 +24,7 @@ import tempfile
 from pathlib import Path
 
 from quality_metrics import declaration as declaring
-from quality_metrics.functions import measure_functions
+from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.tools import ToolError
 from quality_metrics.touched import (
@@ -66,7 +66,7 @@ def main(arguments):
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
         return EXIT_UNMEASURED
-    violations = [item for item in measurements if item["value"] > item["limit"]]
+    violations = [item for item in measurements if is_over_limit(item)]
     report = {
         "measurements": measurements,
         "violations": violations,

@@ -8,6 +8,7 @@ was fixed by removing it.
 import tempfile
 from pathlib import Path
 
+from quality_metrics.functions import is_over_limit
 from quality_metrics.touched import file_text_at
 
 
@@ -39,5 +40,5 @@ def resolved_measurements(changes, base_ref, measure_at_base, function_names_in)
 def _over_limit_functions(measurements):
     return [
         item for item in measurements
-        if item["scope"] == "function" and item["value"] is not None and item["value"] > item["limit"]
+        if item["scope"] == "function" and item["value"] is not None and is_over_limit(item)
     ]

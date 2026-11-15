@@ -82,6 +82,10 @@ def measure(target, metrics):
     return results
 
 
+def is_over_limit(item):
+    return item["value"] > item["limit"]
+
+
 def measurement(target, metric, value, limit, function=None):
     """One report record; a record with no function is file-scoped."""
     return {
