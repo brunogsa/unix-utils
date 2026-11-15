@@ -22,8 +22,10 @@ def load_sibling_test_module(file_name):
 
 # The temp-git-repo and entry-point helpers live there.
 entry_point = load_sibling_test_module("quality-metrics-functions.test.py")
+collection = importlib.import_module("quality_metrics.collection")
 coverage = importlib.import_module("quality_metrics.coverage")
 crap = importlib.import_module("quality_metrics.crap")
+crap_coverage = importlib.import_module("quality_metrics.crap_coverage")
 declaring = importlib.import_module("quality_metrics.declaration")
 functions = importlib.import_module("quality_metrics.functions")
 touched = importlib.import_module("quality_metrics.touched")
@@ -368,3 +370,34 @@ class TestChangedFileCoverageReading:
             "not applicable: no coverable lines"
         )
         assert json.loads(result.stdout)["violations"] == []
+
+
+class FixedCoverageRun:
+    def __init__(self, result):
+        self.result = result
+
+    def result_for(self, language):
+        return self.result
+
+
+class TestLcovPathForms:
+    def test_should_match_an_lcov_sf_path_written_absolute_to_its_repo_relative_changed_file(
+        self, tmp_path
+    ):
+        # c8 writes absolute SF paths; git names the
+        # changed file repo-relative.
+        absolute_source = tmp_path / SOURCE_FILE
+        lcov_file = tmp_path / "coverage" / "lcov.info"
+        lcov_file.parent.mkdir()
+        lcov_file.write_text(
+            lcov_report(absolute_source, {1: 1, 2: 1, 3: 0, 4: 1})
+        )
+        result = collection.read_fresh_lcov(tmp_path, run_started=0)
+
+        records = crap_coverage.measure(
+            python_target({1, 2, 3, 4}), ["coverage"],
+            load_declaration(tmp_path), SOURCE_FILE, FixedCoverageRun(result),
+        )
+
+        (coverage_record,) = records
+        assert coverage_record["value"] == 75
