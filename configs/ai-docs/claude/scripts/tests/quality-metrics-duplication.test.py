@@ -97,6 +97,45 @@ EIGHT_LINES = (
 EIGHT_LINES_WITH_RENAMED_LOCAL = EIGHT_LINES.format(extra="").replace("total", "acc")
 
 
+SHIPPED_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
+
+# Each exact clone below is the whole first file. The second
+# file puts a different line before the same text, so the clone
+# stops at the first file's first and last line.
+BASH_FOUR_LINES = (
+    'for file in "$@"; do\n'
+    "  count=$((count + 1))\n"
+    '  echo "$file"\n'
+    "done\n"
+)
+BASH_THREE_LINES = (
+    'for file in "$@"; do\n'
+    '  echo "$file"\n'
+    "done\n"
+)
+HTML_FOUR_LINES = (
+    '<ul class="menu">\n'
+    "  <li>Home</li>\n"
+    "  <li>About</li>\n"
+    "</ul>\n"
+)
+HTML_THREE_LINES = (
+    '<ul class="menu">\n'
+    "  <li>Home</li>\n"
+    "</ul>\n"
+)
+CSS_FOUR_LINES = (
+    ".card {\n"
+    "  color: red;\n"
+    "  margin: 0;\n"
+    "}\n"
+)
+CSS_THREE_LINES = (
+    ".card {\n"
+    "  color: red;\n"
+    "}\n"
+)
+
 # Two of these differing in first_weight and in the return value
 # scored 0.905 in jscpd 5.4.3.
 #
@@ -115,14 +154,15 @@ def weighted_total(first_weight, result):
     )
 
 
-def measure_files(tmp_path, files):
+def measure_files(tmp_path, files, declaration_file=None):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})
     for name, text in files.items():
         (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_text(text)
     commit_all(repo, "add files")
-    declaration_path = tmp_path / "quality-metrics.yaml"
-    declaration_path.write_text(DECLARATION)
+    declaration_path = declaration_file or tmp_path / "quality-metrics.yaml"
+    if declaration_file is None:
+        declaration_path.write_text(DECLARATION)
     result = run_measure(repo, declaration_path, "--files", *files)
     assert result.stdout, f"no output; stderr: {result.stderr}"
     return json.loads(result.stdout)["violations"]
@@ -210,4 +250,40 @@ class TestSimilarityThreshold:
         )
 
         assert [item["value"] for item in violations] == [pytest.approx(0.905, abs=0.001)] * 2
+
+
+class TestTokenClonesInLanguagesWithoutSimilarity:
+    @pytest.mark.parametrize("line_count", [4, 3])
+    @pytest.mark.parametrize(
+        "extension, head, blocks",
+        [
+            pytest.param(
+                ".sh", 'echo "beta"\n', {4: BASH_FOUR_LINES, 3: BASH_THREE_LINES}, id="bash"
+            ),
+            pytest.param(
+                ".html",
+                "<h1>Title</h1>\n",
+                {4: HTML_FOUR_LINES, 3: HTML_THREE_LINES},
+                id="html",
+            ),
+            pytest.param(
+                ".css",
+                "body { margin: 1px; }\n",
+                {4: CSS_FOUR_LINES, 3: CSS_THREE_LINES},
+                id="css",
+            ),
+        ],
+    )
+    def test_should_flag_an_exact_bash_html_or_css_token_clone_spanning_4_lines_and_pass_one_spanning_3_lines(
+        self, tmp_path, extension, head, blocks, line_count
+    ):
+        violations = measure_files(
+            tmp_path,
+            {f"src/first{extension}": blocks[line_count], f"src/second{extension}": head + blocks[line_count]},
+            SHIPPED_DECLARATION,
+        )
+
+        assert {item["metric"] for item in violations} == (
+            {"code_duplication"} if line_count == 4 else set()
+        )
 

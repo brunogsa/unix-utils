@@ -36,14 +36,16 @@ languages:
     extensions: [.ts, .tsx]
     metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
 
-  # HTML and CSS have no functions: only size applies.
+  # HTML and CSS have no functions: only size and code
+  # duplication apply, the latter from token clones of 4 lines
+  # or more.
   # Complexity, nesting and parameters read "not applicable".
   html:
     extensions: [.html, .htm]
-    metrics: [size]
+    metrics: [size, code_duplication]
   css:
     extensions: [.css, .scss]
-    metrics: [size]
+    metrics: [size, code_duplication]
   python:
     extensions: [.py]
     metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
@@ -62,10 +64,12 @@ languages:
   # - duplicated tests: Bash has no test-suite structure.
   # - entangled tests: Bash has no test-suite structure.
   #
-  # Complexity and duplication join with their modules.
+  # Code duplication, from token clones of 4 lines or more,
+  # joins size and crap.
+  # Complexity joins with its module.
   bash:
     extensions: [.sh, .bash]
-    metrics: [size, crap]
+    metrics: [size, crap, code_duplication]
   go:
     extensions: [.go]
     metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]

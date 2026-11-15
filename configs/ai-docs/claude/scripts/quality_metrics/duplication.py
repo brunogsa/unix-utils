@@ -28,6 +28,13 @@ SIMILARITY_LIMIT = 0.82
 # of 4 or more lines.
 JSCPD_MIN_LINES = "3"
 
+# --similarity does not read Bash, HTML or CSS, so only exact
+# token clones are found there. jscpd's default token minimum
+# would hide a clone of 4 short lines, so the line minimum alone
+# decides.
+TOKEN_ONLY_SUFFIXES = (".sh", ".bash", ".html", ".htm", ".css", ".scss")
+JSCPD_TOKEN_ONLY_MIN_TOKENS = "1"
+
 # jscpd gives an exact clone no similarity: it is a full match.
 EXACT_CLONE_SIMILARITY = 1.0
 
@@ -42,7 +49,7 @@ def measure(target, metrics):
         return []
     with tempfile.TemporaryDirectory() as scan_dir:
         names = _stage_corpus(target, repo_path, Path(scan_dir))
-        clones = _scan(Path(scan_dir))
+        clones = _scan(Path(scan_dir), Path(repo_path).suffix)
     return _flagged_records(target, metric, names, clones)
 
 
@@ -70,11 +77,15 @@ def _peers_of(repo_path):
     ]
 
 
-def _scan(scan_dir):
+def _scan(scan_dir, suffix):
+    token_options = (
+        ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
+        if suffix in TOKEN_ONLY_SUFFIXES else []
+    )
     with tempfile.TemporaryDirectory() as report_dir:
         run_tool([
             "jscpd", f"--similarity={SIMILARITY_LIMIT}",
-            "--min-lines", JSCPD_MIN_LINES,
+            "--min-lines", JSCPD_MIN_LINES, *token_options,
             "--reporters", "json", "--output", report_dir,
             "--no-gitignore", "--no-tips", "--silent", str(scan_dir),
         ])
