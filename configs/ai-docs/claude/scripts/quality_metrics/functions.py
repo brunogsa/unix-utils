@@ -90,8 +90,11 @@ def is_over_limit(item):
     or under it when it says so (coverage).
 
     The comparison reads the unrounded value; display_value is for
-    showing it only.
+    showing it only. A record with no value, such as coverage
+    not applicable, is neither passed nor flagged.
     """
+    if item["value"] is None:
+        return False
     if item.get("flagged_below_limit"):
         return item["value"] < item["limit"]
     if item.get("flagged_at_limit"):

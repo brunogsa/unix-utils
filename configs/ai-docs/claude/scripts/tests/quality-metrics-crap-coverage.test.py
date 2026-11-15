@@ -321,6 +321,14 @@ UNRELATED_TEST_TEXT = (
     "    assert shipping_fee(3) == 6\n"
 )
 
+# The pragma excludes the block from coverage, as a
+# type-only change leaves no executable line behind.
+TYPE_ONLY_CHANGE = (
+    SOURCE_BASE
+    + "\nif False:  # pragma: no cover\n"
+    "    from decimal import Decimal\n"
+)
+
 
 class TestChangedFileCoverageReading:
     def test_should_count_every_changed_line_of_a_file_absent_from_the_coverage_report_as_uncovered(
@@ -340,3 +348,23 @@ class TestChangedFileCoverageReading:
         assert coverage_record["file"] == "invoice_totals.py"
         assert coverage_record["value"] == 0
         assert "pessimistic" not in coverage_record
+
+    def test_should_read_not_applicable_no_coverable_lines_when_only_type_declarations_change(
+        self, tmp_path
+    ):
+        repo = entry_point.make_repo(tmp_path, {
+            "invoice_totals.py": SOURCE_BASE,
+            TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=100),
+        })
+        (repo / "invoice_totals.py").write_text(TYPE_ONLY_CHANGE)
+
+        result = measure_repo(tmp_path, repo)
+
+        # Exit 0: neither passed nor failed, so no violation.
+        assert result.returncode == 0
+        (coverage_record,) = records_for(result, "coverage")
+        assert coverage_record["value"] is None
+        assert coverage_record["status"] == (
+            "not applicable: no coverable lines"
+        )
+        assert json.loads(result.stdout)["violations"] == []

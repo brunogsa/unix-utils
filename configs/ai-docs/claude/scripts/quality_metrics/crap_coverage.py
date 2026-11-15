@@ -17,7 +17,9 @@ def measure(target, metrics, declaration, source_path, coverage_run):
     that way, while `target.path` can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
-    hits_by_file = {str(target.path): result.hits_by_file.get(source_path, {})}
+    hits_by_file = {}
+    if source_path in result.hits_by_file:
+        hits_by_file[str(target.path)] = result.hits_by_file[source_path]
     records = []
     if "crap" in metrics:
         records += crap_measurements(
