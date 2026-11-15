@@ -7,6 +7,7 @@ and the gap is a side-PR candidate.
 import json
 import os
 import re
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -29,6 +30,9 @@ EXIT_CLASS_PATTERNS = (
     (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),
 )
 
+# Failures that are not exits of a finished run.
+TIMEOUT, NO_COVERAGE_DATA = "timeout", "no_coverage_data"
+
 # Exit classes whose measurements are valid.
 MEASURING_EXIT_CLASSES = (PASSED, "repo_threshold")
 
@@ -36,6 +40,8 @@ MEASURING_EXIT_CLASSES = (PASSED, "repo_threshold")
 # for the side-PR candidate.
 FALL_THROUGH_REASONS = {
     CRASH: "crashed",
+    TIMEOUT: "timed out twice",
+    NO_COVERAGE_DATA: "wrote no coverage data",
     UNCLASSIFIED: "exited non-zero with no recognized cause",
 }
 
@@ -98,15 +104,15 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
-def measure_coverage(target, repo, measure_globally):
+def measure_coverage(target, repo, measure_globally, timeout_seconds=None):
     """Changed-line coverage, from the repo's jest or else the global tool.
 
-    A repo tool that crashed falls through to `measure_globally()`, and
-    the repo gap is the side-PR candidate. A failure of the global
-    tool propagates as ToolError.
+    A repo tool that crashed, timed out twice or wrote no coverage data
+    falls through to `measure_globally()`, and the repo gap is the side-PR
+    candidate. A failure of the global tool propagates as ToolError.
     """
     try:
-        outcome = measure_coverage_with_repo_tool(target, repo)
+        outcome = _measure_coverage_retrying_timeout(target, repo, timeout_seconds)
     except RepoToolFailure as failure:
         return {
             "source": {"kind": "global", "tool": GLOBAL_TOOLS["coverage"]},
@@ -117,7 +123,17 @@ def measure_coverage(target, repo, measure_globally):
     return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
 
 
-def measure_coverage_with_repo_tool(target, repo):
+def _measure_coverage_retrying_timeout(target, repo, timeout_seconds):
+    """One retry for a timeout, the only failure a rerun can clear."""
+    try:
+        return measure_coverage_with_repo_tool(target, repo, timeout_seconds)
+    except RepoToolFailure as failure:
+        if failure.exit_class != TIMEOUT:
+            raise
+    return measure_coverage_with_repo_tool(target, repo, timeout_seconds)
+
+
+def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
     """Changed-line coverage from the repo's jest, with how jest exited.
 
     The coverage reads valid when jest passed or exited non-zero on the
@@ -125,14 +141,20 @@ def measure_coverage_with_repo_tool(target, repo):
     own limit. Any other outcome raises RepoToolFailure naming its class.
     """
     with tempfile.TemporaryDirectory() as report_dir:
-        result = run_command(
-            ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
-            cwd=repo, env=_repo_tool_env(repo),
-        )
+        try:
+            result = run_command(
+                ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
+                cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as error:
+            raise RepoToolFailure(TIMEOUT, f"jest ran past {timeout_seconds}s") from error
         exit_class = classify_exit(result)
         if exit_class not in MEASURING_EXIT_CLASSES:
             raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
-        hits_by_file = parse_lcov((Path(report_dir) / "lcov.info").read_text())
+        report = Path(report_dir) / "lcov.info"
+        if not report.exists():
+            raise RepoToolFailure(NO_COVERAGE_DATA, "jest wrote no lcov report")
+        hits_by_file = parse_lcov(report.read_text())
     line_hits = hits_by_file.get(target.repo_path or str(Path(target.path).relative_to(repo)))
     return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}
 

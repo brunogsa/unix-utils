@@ -15,12 +15,15 @@ class ToolError(RuntimeError):
     """A measuring tool is missing or failed on a file."""
 
 
-def run_command(command, input_text=None, cwd=None, env=None):
-    """Run a command and return its result whatever its exit code."""
+def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
+    """Run a command and return its result whatever its exit code.
+
+    Raises subprocess.TimeoutExpired once `timeout` seconds pass.
+    """
     try:
         return subprocess.run(
             command, capture_output=True, text=True,
-            input=input_text, cwd=cwd, env=env,
+            input=input_text, cwd=cwd, env=env, timeout=timeout,
         )
     except FileNotFoundError as error:
         raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error

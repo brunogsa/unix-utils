@@ -8,6 +8,8 @@ from quality_metrics_support import SCRIPTS_DIR, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+import pytest
+
 from quality_metrics import sourcing
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.functions import is_over_limit
@@ -153,6 +155,19 @@ echo "    at Object.run (/repo/node_modules/jest-cli/build/run.js:31:18)" >&2
 exit 1
 """
 
+# Logs each attempt in $ATTEMPT_LOG, then hangs past a timeout.
+# `exec` so a kill lands on sleep itself, not a parent shell.
+JEST_HANG_STUB = """#!/bin/bash
+echo attempt >> "$ATTEMPT_LOG"
+exec sleep 5
+"""
+
+# Exits cleanly but never writes the lcov report.
+JEST_NO_REPORT_STUB = """#!/bin/bash
+echo attempt >> "$ATTEMPT_LOG"
+exit 0
+"""
+
 GLOBAL_COVERAGE_PERCENT = 100
 
 
@@ -178,6 +193,36 @@ def test_should_classify_a_crash_from_the_tool_output_and_fall_through_to_the_gl
     assert outcome["source"] == {"kind": "global", "tool": "coverage.py"}
     assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
     assert outcome["side_pr_candidate"] == "repo jest crashed"
+    assert len(global_calls) == 1
+
+
+@pytest.mark.parametrize(
+    ("stub", "expected_exit_class", "expected_candidate", "expected_attempts"),
+    [
+        (JEST_HANG_STUB, "timeout", "repo jest timed out twice", 2),
+        (JEST_NO_REPORT_STUB, "no_coverage_data", "repo jest wrote no coverage data", 1),
+    ],
+    ids=["timeout-on-both-attempts", "no-coverage-report-written"],
+)
+def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twice_or_writes_no_coverage_data(
+    tmp_path, monkeypatch, stub, expected_exit_class, expected_candidate, expected_attempts
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    attempt_log = tmp_path / "attempts.log"
+    monkeypatch.setenv("ATTEMPT_LOG", str(attempt_log))
+    install_stub_tool(tmp_path, monkeypatch, "jest", stub)
+    target = Target(repo / "src/cart.js", "javascript", None)
+    global_calls = []
+
+    outcome = sourcing.measure_coverage(
+        target, repo, measure_globally_for(target, global_calls), timeout_seconds=0.5
+    )
+
+    assert outcome["exit_class"] == expected_exit_class
+    assert outcome["source"] == {"kind": "global", "tool": "coverage.py"}
+    assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
+    assert outcome["side_pr_candidate"] == expected_candidate
+    assert len(attempt_log.read_text().splitlines()) == expected_attempts
     assert len(global_calls) == 1
 
 
