@@ -46,3 +46,18 @@ def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_t
         "side_pr_candidate": "no repo coverage tool",
     }
 
+
+def test_should_measure_with_the_global_fallback_named_as_the_source_outside_any_git_repo(tmp_path):
+    working_directory = tmp_path / "scratch"
+    working_directory.mkdir()
+    (working_directory / "tool.sh").write_text("#!/bin/bash\necho tool\n")
+
+    sourcing = source_of_coverage(working_directory, tmp_path)
+
+    assert sourcing == {
+        "metric": "coverage",
+        "source": {"kind": "global", "tool": "coverage.py"},
+        "side_pr_candidate": None,
+    }
+    assert list(tmp_path.glob("quality-metrics_*.json")) == []
+
