@@ -18,8 +18,13 @@ HUNK_HEADER = re.compile(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@")
 NEW_FILE_HEADER = "+++ b/"
 DELETED_FILE_HEADER = "+++ /dev/null"
 
+# The git diff every lookup here starts from;
+# core.quotepath=false keeps non-ASCII paths unquoted.
+DIFF_COMMAND = (
+    "-c", "core.quotepath=false", "diff", "--relative", "--no-ext-diff",
+)
 DIFF_ARGUMENTS = (
-    "diff", "--relative", "--no-ext-diff", "--no-color",
+    *DIFF_COMMAND, "--no-color",
     "--src-prefix=a/", "--dst-prefix=b/",
     "-M", "-w", "--ignore-blank-lines", "-U0",
 )
@@ -50,7 +55,7 @@ def touched_files_since(base_ref):
     unstaged edits both count. New files git does not track yet are
     touched on every line.
     """
-    touched = _touched_lines_in_diff(_git("-c", "core.quotepath=false", *DIFF_ARGUMENTS, base_ref))
+    touched = _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, base_ref))
 
     # NUL-separated output skips git's path quoting, which would
     # otherwise turn a name like café.go into "caf\303\251.go".
@@ -62,9 +67,7 @@ def touched_files_since(base_ref):
 
 def touched_files_between(base_ref, head_ref):
     """Map each file the range `base_ref...head_ref` changed to its touched lines."""
-    return _touched_lines_in_diff(
-        _git("-c", "core.quotepath=false", *DIFF_ARGUMENTS, f"{base_ref}...{head_ref}")
-    )
+    return _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, f"{base_ref}...{head_ref}"))
 
 
 @dataclass(frozen=True)
@@ -77,10 +80,7 @@ class Change:
 
 def changes_between(base_ref, head_ref):
     """List the files the range modified, renamed or deleted, as base-side paths."""
-    output = _git(
-        "-c", "core.quotepath=false", "diff", "--relative", "--no-ext-diff",
-        "--name-status", "-M", f"{base_ref}...{head_ref}",
-    )
+    output = _git(*DIFF_COMMAND, "--name-status", "-M", f"{base_ref}...{head_ref}")
     changes = []
     for line in output.splitlines():
         status, *paths = line.split("\t")
