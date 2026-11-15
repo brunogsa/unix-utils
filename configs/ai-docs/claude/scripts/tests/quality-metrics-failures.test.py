@@ -23,7 +23,9 @@ from quality_metrics.failures import (
     deferred_measurement,
     holds_commit,
     machine_has_headroom,
+    measure_language_entry_or_ask,
 )
+from quality_metrics.declaration import load_declaration
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.sourcing import measure_coverage_or_ask
@@ -137,6 +139,47 @@ def test_should_list_every_touched_function_as_a_pessimistic_crap_violation_when
     assert {record["label"] for record in records} == {"pessimistic, tooling deferred"}
     assert all(record["pessimistic"] is True for record in records)
     assert holds_commit(records) is False
+
+
+def test_should_list_a_file_with_no_language_entry_as_not_measured_and_scored_pessimistically_after_an_ask(
+    tmp_path,
+):
+    repo = make_repo(tmp_path, {"lib/convert.rb": "def convert(value)\n  value.to_s\nend\n"})
+    base_sha = head_of(repo)
+    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(
+        "excluded_paths: []\n"
+        "ignored_extensions: [.md]\n"
+        "per_unit: []\n"
+        "languages:\n"
+        "  python:\n"
+        "    extensions: [.py]\n"
+        "    metrics: [crap, size]\n"
+    )
+    declaration = load_declaration(declaration_path)
+
+    before_defer = measure_language_entry_or_ask(
+        declaration, "lib/convert.rb", tool_map, environ=INTERACTIVE_SESSION
+    )
+    record_deferred_tool(repo, base_sha, "language entry (.rb)", SESSION_ID, tmp_path)
+    after_defer = measure_language_entry_or_ask(
+        declaration, "lib/convert.rb", tool_map, environ=INTERACTIVE_SESSION
+    )
+
+    assert before_defer["ask"]["tool"] == "language entry (.rb)"
+    assert before_defer["ask"]["choices"] == ["fix now", "defer"]
+    assert "no language entry claims 'lib/convert.rb'" in before_defer["ask"]["reason"]
+    assert before_defer["measurements"] == []
+    assert after_defer["ask"] is None
+    assert len(after_defer["measurements"]) == 1
+    unmeasured = after_defer["measurements"][0]
+    assert unmeasured["file"] == "lib/convert.rb"
+    assert unmeasured["status"] == "not measured: no language entry"
+    assert unmeasured["label"] == "pessimistic, tooling deferred"
+    assert unmeasured["pessimistic"] is True
+    assert unmeasured["value"] is None
+    assert holds_commit(after_defer["measurements"]) is False
 
 
 def test_should_stop_waiting_and_ask_when_headroom_stays_no_go_past_the_wait_cap():

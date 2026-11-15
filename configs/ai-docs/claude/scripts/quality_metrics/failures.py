@@ -14,10 +14,13 @@ from typing import Callable
 
 from quality_metrics.coverage import coverage_record
 from quality_metrics.crap import CRAP_LIMIT
+from quality_metrics.declaration import NoLanguageEntryError, language_for_file
 from quality_metrics.functions import is_over_limit, measurement
 from quality_metrics.tools import ToolError, run_command
+from quality_metrics.touched import Target
 
 DEFERRED_LABEL = "pessimistic, tooling deferred"
+NO_LANGUAGE_ENTRY_STATUS = "not measured: no language entry"
 TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
@@ -79,6 +82,40 @@ def deferred_coverage_measurement(target):
     keeps it from holding a commit.
     """
     return {**coverage_record(target, 0), "pessimistic": True, "label": DEFERRED_LABEL}
+
+
+def unmeasured_file_measurement(file_path):
+    """A file-scoped record: no language entry, so nothing was measured.
+
+    Deferred and valueless, it never reads as passing, and it never
+    holds a commit.
+    """
+    target = Target(Path(file_path), None, None)
+    return {
+        **deferred_measurement(target, "language_entry", None),
+        "status": NO_LANGUAGE_ENTRY_STATUS,
+    }
+
+
+def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None):
+    """`{"language", "ask", "measurements"}` for one changed code file.
+
+    A file no language entry claims yields an ask, naming its
+    extension as the tool to fix, and no measurements. Once that
+    extension is deferred in `tool_map`'s batch, or when no session
+    can ask (see `session_can_ask`), the file is listed as not
+    measured and scored pessimistically.
+    """
+    try:
+        return {"language": language_for_file(declaration, file_path), "ask": None, "measurements": []}
+    except NoLanguageEntryError as error:
+        tool = f"language entry ({Path(file_path).suffix})"
+        ask = None
+        if session_can_ask(environ):
+            ask = ask_unless_deferred(tool_map, tool, "language_entry", str(error))
+        if ask:
+            return {"language": None, "ask": ask, "measurements": []}
+        return {"language": None, "ask": None, "measurements": [unmeasured_file_measurement(file_path)]}
 
 
 def session_can_ask(environ=None):
