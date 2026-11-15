@@ -130,7 +130,12 @@ def _hunk_lines(hunk):
 
 
 def _git(*arguments):
-    result = subprocess.run(["git", *arguments], capture_output=True, text=True)
+    # A binary or Latin-1 file must not crash the run, so bytes
+    # that are not UTF-8 decode to a replacement character.
+    result = subprocess.run(
+        ["git", *arguments], capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
     if result.returncode != 0:
         raise GitError(f"git {' '.join(arguments)} failed: {result.stderr.strip()}")
     return result.stdout
