@@ -29,12 +29,15 @@ ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
 per_unit: []
 
 languages:
+  # Dependency direction needs dependency-cruiser for js and ts
+  # (ts also needs typescript below 7 beside it), and uv for
+  # python's import-linter.
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction]
   ts:
     extensions: [.ts, .tsx]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction]
 
   # HTML and CSS have no functions: only size and code
   # duplication apply, the latter from token clones of 4 lines
@@ -51,7 +54,7 @@ languages:
     metrics: [size, code_duplication]
   python:
     extensions: [.py]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction]
 
   # Bash declares size, counted in logical lines, crap, and code
   # duplication, from token clones of 4 lines or more, with
@@ -75,4 +78,4 @@ languages:
     metrics: [size, crap, code_duplication]
   go:
     extensions: [.go]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication]
+    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction]

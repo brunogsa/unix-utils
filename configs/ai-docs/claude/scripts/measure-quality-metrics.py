@@ -26,7 +26,9 @@ from pathlib import Path
 
 from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
+from quality_metrics import dependencies
 from quality_metrics.collection import CoverageRun
+from quality_metrics.dependencies import DependencyRun
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.tools import ToolError, run_command
@@ -54,6 +56,10 @@ COVERAGE_MODULE = "crap_coverage"
 # extensions, so it reads the declaration too.
 DUPLICATION_MODULE = "duplication"
 
+# Dependency direction reads the whole repo at the head and at
+# the base ref, so every file shares one run.
+DEPENDENCIES_MODULE = "dependencies"
+
 # Which module measures each metric. A declared metric with no
 # entry here has no module yet and is skipped.
 METRIC_MODULES = {
@@ -64,6 +70,7 @@ METRIC_MODULES = {
     "coverage": COVERAGE_MODULE,
     "code_duplication": "duplication",
     "test_duplication": "duplication",
+    "dependency_direction": "dependencies",
 }
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
@@ -77,8 +84,12 @@ def main(arguments):
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
         coverage_run = CoverageRun(Path.cwd())
+        dependency_run = DependencyRun(
+            Path.cwd(), _dependency_base_ref(options), declaration.excluded_paths
+        )
         measurements, unclaimed = _measure(
-            declaration, mode, touched_by_file, coverage_run, head_ref
+            declaration, mode, touched_by_file, coverage_run, head_ref,
+            dependency_run,
         )
         resolved = _resolved_since(declaration, mode, options.diff)
     except (declaring.DeclarationError, ToolError, GitError) as error:
@@ -136,7 +147,16 @@ def _range_ends(diff_range):
     return base_ref, head_ref or "HEAD"
 
 
-def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
+def _dependency_base_ref(options):
+    """The ref whose import cycles the change is judged against."""
+    if options.diff:
+        base_ref, head_ref = _range_ends(options.diff)
+        return merge_base(base_ref, head_ref)
+    return options.base
+
+
+def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None,
+             dependency_run=None):
     """Measure each file; with `head_ref`, measure its text at that ref."""
     measurements = []
     unclaimed = []
@@ -153,7 +173,9 @@ def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None):
                 _require_worktree_at(head_ref, path)
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
             target = Target(source, language, touched_lines, repo_path=path)
-            found = _measure_target(declaration, mode, target, coverage_run)
+            found = _measure_target(
+                declaration, mode, target, coverage_run, dependency_run
+            )
             if head_ref:
                 # The copy is in a temp dir; name the real path.
                 found = [{**item, "file": path} for item in found]
@@ -183,9 +205,10 @@ def _copy_at(ref, path, directory):
     return copy_path
 
 
-def _measure_target(declaration, mode, target, coverage_run=None):
+def _measure_target(declaration, mode, target, coverage_run=None,
+                    dependency_run=None):
     """Measure one target; with no `coverage_run`, skip CRAP,
-    coverage and duplication.
+    coverage, duplication and dependency direction.
 
     The base-side copy of a resolved function has no test run of its
     own, so scoring it against the working tree's coverage would be wrong.
@@ -202,6 +225,12 @@ def _measure_target(declaration, mode, target, coverage_run=None):
                 measurements += crap_coverage.measure(
                     target, module_metrics, declaration=declaration,
                     coverage_run=coverage_run,
+                )
+            continue
+        if module_name == DEPENDENCIES_MODULE:
+            if coverage_run is not None and dependency_run is not None:
+                measurements += dependencies.measure(
+                    target, module_metrics, dependency_run
                 )
             continue
         module = importlib.import_module(f"quality_metrics.{module_name}")
