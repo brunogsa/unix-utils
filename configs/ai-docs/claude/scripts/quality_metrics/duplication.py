@@ -42,40 +42,44 @@ EXACT_CLONE_SIMILARITY = 1.0
 REPORT_NAME = "jscpd-report.json"
 
 
-def measure(target, metrics):
+def measure(target, metrics, declaration):
     """One flagged record per duplicated pair touching the target."""
     repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
     metric = TEST_METRIC if is_test_file(repo_path) else CODE_METRIC
     if metric not in metrics:
         return []
     with tempfile.TemporaryDirectory() as scan_dir:
-        names = _stage_corpus(target, repo_path, Path(scan_dir))
+        extensions = declaration.languages[target.language].extensions
+        names = _stage_corpus(target, repo_path, extensions, Path(scan_dir))
         clones = _scan(Path(scan_dir), Path(repo_path).suffix)
     return _flagged_records(target, metric, names, clones)
 
 
-def _stage_corpus(target, repo_path, scan_dir):
-    """Copy the target and its peers into `scan_dir`; map staged to real names."""
+def _stage_corpus(target, repo_path, extensions, scan_dir):
+    """Copy the target and its peers into `scan_dir`; map staged to real names.
+
+    Each file keeps its own extension, so jscpd reads it as the
+    language that extension belongs to.
+    """
     suffix = Path(repo_path).suffix
     names = {f"c0{suffix}": repo_path}
     shutil.copyfile(target.path, scan_dir / f"c0{suffix}")
-    for index, peer in enumerate(_peers_of(repo_path), start=1):
-        staged = f"c{index}{suffix}"
+    for index, peer in enumerate(_peers_of(repo_path, extensions), start=1):
+        staged = f"c{index}{Path(peer).suffix}"
         shutil.copyfile(peer, scan_dir / staged)
         names[staged] = peer
     return names
 
 
-def _peers_of(repo_path):
-    """Repo files, committed or not, of the target's extension and kind."""
-    suffix = Path(repo_path).suffix
+def _peers_of(repo_path, extensions):
+    """Repo files, committed or not, in the target's language and kind."""
     is_test = is_test_file(repo_path)
     listed = run_tool(
         ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
     ).split("\0")
     return [
         path for path in listed
-        if path and path != repo_path and Path(path).suffix == suffix
+        if path and path != repo_path and Path(path).suffix in extensions
         and is_test_file(path) == is_test and Path(path).is_file()
     ]
 

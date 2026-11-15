@@ -50,6 +50,10 @@ DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 # the other modules do not.
 COVERAGE_MODULE = "crap_coverage"
 
+# Duplication picks a file's peers by its language's declared
+# extensions, so it reads the declaration too.
+DUPLICATION_MODULE = "duplication"
+
 # Which module measures each metric. A declared metric with no
 # entry here has no module yet and is skipped.
 METRIC_MODULES = {
@@ -196,6 +200,11 @@ def _measure_target(declaration, mode, target, path, coverage_run=None):
                 )
             continue
         module = importlib.import_module(f"quality_metrics.{module_name}")
+        if module_name == DUPLICATION_MODULE:
+            measurements += module.measure(
+                target, module_metrics, declaration=declaration
+            )
+            continue
         measurements += module.measure(target, module_metrics)
     return measurements
 

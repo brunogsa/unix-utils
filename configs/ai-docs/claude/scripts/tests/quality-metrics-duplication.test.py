@@ -50,6 +50,24 @@ def sum_cost(rows, rate):
     return name, acc
 """
 
+SCRIPT_PRICING = """\
+function totalPrice(items, tax) {
+  let total = 0;
+  for (const item of items) {
+    let price = item.price;
+    if (price > 100) {
+      price = price - 10;
+    }
+    total = total + price;
+  }
+  total = total * tax;
+  if (total > 1000) {
+    total = total - 50;
+  }
+  return total;
+}
+"""
+
 ADDS_TWO_NUMBERS = """\
 def test_adds_two_numbers():
     calculator = Calculator()
@@ -369,6 +387,30 @@ def measure_uncommitted_changes(tmp_path, committed, changed):
     result = run_measure(repo, declaration_path, "--batch-end", "--base", "HEAD")
     assert result.stdout, f"no output; stderr: {result.stderr}"
     return json.loads(result.stdout)["violations"]
+
+
+class TestDuplicationAcrossExtensionsOfOneLanguage:
+    @pytest.mark.parametrize(
+        "first_name, second_name",
+        [
+            pytest.param("src/pricing.js", "src/costing.mjs", id="javascript"),
+            pytest.param("src/pricing.ts", "src/costing.tsx", id="typescript"),
+        ],
+    )
+    def test_should_flag_a_function_copied_into_a_file_with_another_extension_of_the_same_language(
+        self, tmp_path, first_name, second_name
+    ):
+        violations = measure_files(
+            tmp_path,
+            {first_name: SCRIPT_PRICING, second_name: SCRIPT_PRICING.replace("totalPrice", "sumCost")},
+            SHIPPED_DECLARATION,
+        )
+
+        assert {
+            (item["metric"], item["file"])
+            for item in violations
+            if item["metric"] == "code_duplication"
+        } == {("code_duplication", first_name), ("code_duplication", second_name)}
 
 
 class TestDuplicationBetweenUncommittedFiles:
