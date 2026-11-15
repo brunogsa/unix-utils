@@ -17,6 +17,7 @@ from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
     ask_unless_deferred,
+    run_or_ask,
     deferred_measurement,
     holds_commit,
     machine_has_headroom,
@@ -128,6 +129,27 @@ def test_should_emit_no_second_ask_for_a_tool_already_deferred_in_this_batch(tmp
     }
     assert second_ask is None
     assert other_tool_ask["tool"] == "jscpd"
+
+
+def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_out(tmp_path):
+    repo = make_repo(tmp_path, {"calc.py": "def add(first, second):\n    return first + second\n"})
+    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    timeouts_seen = []
+    policy = TimeoutPolicy(headroom_is_go=lambda: True, sleep=lambda seconds: None)
+
+    outcome = run_or_ask(
+        policy,
+        timing_out_then([None, None, MEASURED_COMPLEXITY], timeouts_seen),
+        tool_map,
+        "lizard",
+        "complexity",
+    )
+
+    assert outcome["value"] is None
+    assert outcome["ask"]["tool"] == "lizard"
+    assert outcome["ask"]["metric"] == "complexity"
+    assert outcome["ask"]["choices"] == ["fix now", "defer"]
+    assert len(timeouts_seen) == 2
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
