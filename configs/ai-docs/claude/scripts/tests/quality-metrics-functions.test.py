@@ -439,6 +439,37 @@ class TestReviewMode:
 # --- end of review mode tests ---
 
 
+class TestDiffOutputVariants:
+    @pytest.mark.parametrize("config_key", ["diff.mnemonicPrefix", "diff.noprefix"])
+    def test_should_still_find_an_over_limit_edit_when_git_prints_mnemonic_or_no_path_prefixes(
+        self, tmp_path, config_key
+    ):
+        repo = make_repo(tmp_path, {"r.go": PACKAGE_LINE + go_function_nested("edited_deep", 1)})
+        git(repo, "config", config_key, "true")
+        (repo / "r.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path)
+
+        assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
+
+    def test_should_measure_an_over_limit_edit_to_a_file_whose_name_holds_a_space(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path, {"my report.go": PACKAGE_LINE + go_function_nested("edited_deep", 1)}
+        )
+        (repo / "my report.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure(repo, declaration_path)
+
+        assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
+        assert report["unclaimed_files"] == []
+
+
+
+
 class TestBashSize:
     def test_should_count_a_touched_bash_function_in_logical_lines_whatever_braces_its_heredoc_and_strings_hold(
         self, tmp_path

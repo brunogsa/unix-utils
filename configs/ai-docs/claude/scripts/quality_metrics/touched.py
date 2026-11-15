@@ -20,6 +20,7 @@ DELETED_FILE_HEADER = "+++ /dev/null"
 
 DIFF_ARGUMENTS = (
     "diff", "--relative", "--no-ext-diff", "--no-color",
+    "--src-prefix=a/", "--dst-prefix=b/",
     "-M", "-w", "--ignore-blank-lines", "-U0",
 )
 
@@ -106,7 +107,8 @@ def _touched_lines_in_diff(diff_text):
         if line.startswith(DELETED_FILE_HEADER):
             current_path = None
         elif line.startswith(NEW_FILE_HEADER):
-            current_path = line[len(NEW_FILE_HEADER):]
+            # A name holding a space gets a trailing tab.
+            current_path = line[len(NEW_FILE_HEADER):].rstrip("\t")
             touched.setdefault(current_path, set())
         elif current_path and (hunk := HUNK_HEADER.match(line)):
             touched[current_path].update(_hunk_lines(hunk))
