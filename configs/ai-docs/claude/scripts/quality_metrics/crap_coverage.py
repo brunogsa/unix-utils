@@ -3,7 +3,7 @@
 Both metrics read the same test run, so one module serves them.
 """
 
-from quality_metrics.collection import NO_COVERAGE_DATA
+from quality_metrics.collection import NO_COVERAGE_DATA, repo_relative
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import crap_measurements
 from quality_metrics.declaration import metric_status, NOT_APPLICABLE
@@ -13,13 +13,15 @@ from quality_metrics.functions import touched_functions
 def measure(target, metrics, declaration, source_path, coverage_run):
     """CRAP and coverage records of the declared `metrics`.
 
-    `source_path` is the file's repo-relative path: lcov names files
-    that way, while `target.path` can be a temporary copy.
+    `source_path` names the real file, in any form `repo_relative`
+    accepts: lcov names files repo-relative, while `target.path`
+    can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
     hits_by_file = {}
-    if source_path in result.hits_by_file:
-        hits_by_file[str(target.path)] = result.hits_by_file[source_path]
+    key = repo_relative(coverage_run.repo_dir, source_path)
+    if key in result.hits_by_file:
+        hits_by_file[str(target.path)] = result.hits_by_file[key]
     records = []
     if "crap" in metrics:
         records += crap_measurements(

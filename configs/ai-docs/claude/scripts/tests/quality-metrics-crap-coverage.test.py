@@ -376,8 +376,9 @@ class TestChangedFileCoverageReading:
 
 
 class FixedCoverageRun:
-    def __init__(self, result):
+    def __init__(self, result, repo_dir):
         self.result = result
+        self.repo_dir = repo_dir
 
     def result_for(self, language):
         return self.result
@@ -399,11 +400,50 @@ class TestLcovPathForms:
 
         records = crap_coverage.measure(
             python_target({1, 2, 3, 4}), ["coverage"],
-            load_declaration(tmp_path), SOURCE_FILE, FixedCoverageRun(result),
+            load_declaration(tmp_path), SOURCE_FILE,
+            FixedCoverageRun(result, tmp_path),
         )
 
         (coverage_record,) = records
         assert coverage_record["value"] == 75
+
+    @pytest.mark.parametrize("typed_form", ["dot_slash", "absolute"])
+    def test_should_read_the_real_coverage_of_a_tested_file_passed_to_files_as_dot_slash_or_absolute(
+        self, tmp_path, typed_form
+    ):
+        typed_path = (
+            f"./{SOURCE_FILE}" if typed_form == "dot_slash"
+            else str(tmp_path / SOURCE_FILE)
+        )
+        result = collection.CoverageResult(
+            {SOURCE_FILE: {1: 1, 2: 1, 3: 0, 4: 1}}, False
+        )
+
+        records = crap_coverage.measure(
+            python_target({1, 2, 3, 4}), ["coverage"],
+            load_declaration(tmp_path), typed_path,
+            FixedCoverageRun(result, tmp_path),
+        )
+
+        (coverage_record,) = records
+        assert coverage_record["value"] == 75
+
+
+class TestDeclaredNpmTest:
+    def test_should_fail_as_not_measured_naming_package_json_when_it_is_not_valid_json(
+        self, tmp_path
+    ):
+        (tmp_path / "package.json").write_text("{ not json")
+
+        with pytest.raises(ToolError, match="package.json"):
+            collection.declares_npm_test(tmp_path)
+
+    def test_should_treat_a_null_scripts_entry_as_declaring_no_test_script(
+        self, tmp_path
+    ):
+        (tmp_path / "package.json").write_text('{"scripts": null}')
+
+        assert collection.declares_npm_test(tmp_path) is False
 
 
 class TestWorkingTreeDifferingFromHeadRef:
@@ -428,20 +468,3 @@ class TestWorkingTreeDifferingFromHeadRef:
         assert result.returncode == 2
         assert result.stdout == ""
         assert "HEAD" in result.stderr
-
-
-class TestDeclaredNpmTest:
-    def test_should_fail_as_not_measured_naming_package_json_when_it_is_not_valid_json(
-        self, tmp_path
-    ):
-        (tmp_path / "package.json").write_text("{ not json")
-
-        with pytest.raises(ToolError, match="package.json"):
-            collection.declares_npm_test(tmp_path)
-
-    def test_should_treat_a_null_scripts_entry_as_declaring_no_test_script(
-        self, tmp_path
-    ):
-        (tmp_path / "package.json").write_text('{"scripts": null}')
-
-        assert collection.declares_npm_test(tmp_path) is False

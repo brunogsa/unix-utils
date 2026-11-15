@@ -151,13 +151,18 @@ def read_fresh_lcov(repo_dir, run_started):
         return NO_COVERAGE_DATA
     hits_by_file = parse_lcov(lcov_file.read_text())
     return CoverageResult(
-        {_repo_relative(repo_dir, name): hits for name, hits in hits_by_file.items()},
+        {repo_relative(repo_dir, name): hits for name, hits in hits_by_file.items()},
         False,
     )
 
 
-def _repo_relative(repo_dir, name):
-    """gcov2lcov and c8 may name a file by absolute path."""
+def repo_relative(repo_dir, name):
+    """A repo-relative path, whether `name` is absolute or typed `./a`.
+
+    gcov2lcov and c8 may name a file by absolute path, and a
+    `--files` argument may be typed either way.
+    """
+    name = os.path.normpath(name)
     if not os.path.isabs(name):
         return name
     relative = os.path.relpath(name, repo_dir)
