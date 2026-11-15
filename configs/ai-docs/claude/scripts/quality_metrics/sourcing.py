@@ -7,8 +7,11 @@ and the gap is a side-PR candidate.
 import json
 import os
 import re
+import tempfile
 from pathlib import Path
 
+from quality_metrics.coverage import coverage_measurement
+from quality_metrics.crap import parse_lcov
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import TOOL_MAP_DIR, LazyToolMap
@@ -16,6 +19,16 @@ from quality_metrics.tools import ToolError, run_command, run_tool
 
 ESLINT_REPORT_EVERY_FUNCTION = "max-lines-per-function: [error, {max: 0}]"
 ESLINT_LINE_COUNT = re.compile(r"^(?P<subject>.*?) has too many lines \((?P<lines>\d+)\)")
+
+# How a repo tool exited, read from its output, in check order.
+PASSED, UNCLASSIFIED = "passed", "unclassified"
+EXIT_CLASS_PATTERNS = (
+    ("failed_tests", re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
+    ("repo_threshold", re.compile(r"coverage threshold .* not met")),
+)
+
+# Exit classes whose measurements are valid.
+MEASURING_EXIT_CLASSES = (PASSED, "repo_threshold")
 
 # The global tool measuring each metric when the repo has none.
 GLOBAL_TOOLS = {
@@ -64,6 +77,41 @@ def measure_function_size_with_repo_tool(target, repo):
             if function is not None and target.touches(function.start, function.end):
                 records.append(measurement(target, "size", function.nloc, FUNCTION_LINES_LIMIT, function))
     return records
+
+
+def measure_coverage_with_repo_tool(target, repo):
+    """Changed-line coverage from the repo's jest, with how jest exited.
+
+    The coverage reads valid when jest passed or exited non-zero on the
+    repo's own threshold: the harness judges the measured value against its
+    own limit. Any other exit is not a measurement.
+    """
+    with tempfile.TemporaryDirectory() as report_dir:
+        result = run_command(
+            ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
+            cwd=repo, env=_repo_tool_env(repo),
+        )
+        exit_class = classify_exit(result)
+        if exit_class not in MEASURING_EXIT_CLASSES:
+            raise ToolError(f"jest exited {result.returncode} ({exit_class}): {result.stderr.strip()}")
+        hits_by_file = parse_lcov((Path(report_dir) / "lcov.info").read_text())
+    line_hits = hits_by_file.get(target.repo_path or str(Path(target.path).relative_to(repo)))
+    return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}
+
+
+def classify_exit(result):
+    """Name a repo tool's exit from its output; the exit code alone says too little.
+
+    The first matching pattern wins, so failed tests rank above a
+    threshold miss: a coverage figure from failing tests is not valid.
+    """
+    if result.returncode == 0:
+        return PASSED
+    output = result.stdout + result.stderr
+    for exit_class, pattern in EXIT_CLASS_PATTERNS:
+        if pattern.search(output):
+            return exit_class
+    return UNCLASSIFIED
 
 
 def _repo_tool_env(repo):

@@ -11,6 +11,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
     lazy_tool_map_for,
+    measure_coverage_with_repo_tool,
     measure_function_size_with_repo_tool,
     source_for,
 )
@@ -92,6 +93,25 @@ esac
 """
 
 
+# Writes an lcov report where it is told to, then fails the
+# repo's own 95% threshold the way jest words it.
+JEST_STUB = """#!/bin/bash
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+done
+cp "$LCOV_FIXTURE" "$report_dir/lcov.info"
+echo 'Jest: "global" coverage threshold for lines (95%) not met: 92%' >&2
+exit 1
+"""
+
+# 25 coverable lines, 23 run: 92% changed-line coverage.
+CART_LCOV = "SF:src/cart.js\n" + "".join(
+    f"DA:{line},{1 if line <= 23 else 0}\n" for line in range(1, 26)
+) + "end_of_record\n"
+
+
 def test_should_flag_a_45_line_function_against_the_30_line_limit_when_the_repo_linter_allows_60(
     tmp_path, monkeypatch
 ):
@@ -105,5 +125,22 @@ def test_should_flag_a_45_line_function_against_the_30_line_limit_when_the_repo_
         ("applyDiscount", 45, 30)
     ]
     assert is_over_limit(records[0])
+
+
+def test_should_read_measurements_as_valid_when_a_repo_tool_exits_non_zero_on_its_own_threshold(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.js": "// covered 92%\n"})
+    lcov_fixture = tmp_path / "cart.lcov"
+    lcov_fixture.write_text(CART_LCOV)
+    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_STUB)
+    target = Target(repo / "src/cart.js", "javascript", None)
+
+    outcome = measure_coverage_with_repo_tool(target, repo)
+
+    assert outcome["exit_class"] == "repo_threshold"
+    assert [record["value"] for record in outcome["measurements"]] == [92]
+    assert not is_over_limit(outcome["measurements"][0])
 
 
