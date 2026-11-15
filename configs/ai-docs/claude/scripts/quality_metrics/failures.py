@@ -17,6 +17,7 @@ from quality_metrics.tools import ToolError, run_command
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
+HEADROOM_MAX_WAIT_SECONDS = 600
 GENUINE_TIMEOUTS_ALLOWED = 2
 
 HEADROOM_SCRIPT = Path(__file__).resolve().parent.parent / "check-machine-headroom.sh"
@@ -78,14 +79,19 @@ class TimeoutPolicy:
         `attempt` raises subprocess.TimeoutExpired past the budget.
         A timeout on a machine with no headroom is the machine's
         fault: wait for headroom, then retry without using the retry.
-        Raises ToolTimedOutTwice when the retry times out as well.
+        Raises ToolTimedOutTwice when the retry times out as well,
+        or when headroom stays NO-GO past HEADROOM_MAX_WAIT_SECONDS
+        in total (a permanent NO-GO must end in an ask, not a hang).
         """
         genuine_timeouts = 0
+        waited_seconds = 0
         while True:
             try:
                 return attempt(self.timeout_seconds)
             except subprocess.TimeoutExpired as error:
-                if self._waited_for_headroom():
+                waited_before = waited_seconds
+                waited_seconds = self._wait_for_headroom(waited_seconds, error)
+                if waited_seconds > waited_before:
                     continue
                 genuine_timeouts += 1
                 if genuine_timeouts == GENUINE_TIMEOUTS_ALLOWED:
@@ -93,10 +99,14 @@ class TimeoutPolicy:
                         f"{error.cmd} ran past {self.timeout_seconds}s on both attempts"
                     ) from error
 
-    def _waited_for_headroom(self):
-        """Block until headroom is GO; True when it had to wait."""
-        waited = False
+    def _wait_for_headroom(self, waited_seconds, timeout_error):
+        """Block until headroom is GO; return the total seconds waited."""
         while not self.headroom_is_go():
-            waited = True
+            if waited_seconds >= HEADROOM_MAX_WAIT_SECONDS:
+                raise ToolTimedOutTwice(
+                    f"{timeout_error.cmd} timed out and headroom stayed "
+                    f"NO-GO for {waited_seconds}s"
+                ) from timeout_error
             self.sleep(HEADROOM_POLL_SECONDS)
-        return waited
+            waited_seconds += HEADROOM_POLL_SECONDS
+        return waited_seconds

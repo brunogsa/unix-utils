@@ -11,9 +11,11 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import pytest
 
 from quality_metrics.failures import (
+    HEADROOM_MAX_WAIT_SECONDS,
     HEADROOM_POLL_SECONDS,
     TOOL_TIMEOUT_SECONDS,
     TimeoutPolicy,
+    ToolTimedOutTwice,
     deferred_measurement,
     holds_commit,
     machine_has_headroom,
@@ -90,6 +92,18 @@ def test_should_mark_a_deferred_result_non_blocking_so_no_commit_is_held():
     assert is_over_limit(oversized)
     assert holds_commit([deferred]) is False
     assert holds_commit([deferred, oversized]) is True
+
+
+def test_should_stop_waiting_and_ask_when_headroom_stays_no_go_past_the_wait_cap():
+    sleeps = []
+    timeouts_seen = []
+    policy = TimeoutPolicy(headroom_is_go=lambda: False, sleep=sleeps.append)
+
+    with pytest.raises(ToolTimedOutTwice):
+        policy.run(timing_out_then([None, MEASURED_COMPLEXITY], timeouts_seen))
+
+    assert sum(sleeps) == HEADROOM_MAX_WAIT_SECONDS
+    assert len(timeouts_seen) == 1
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
