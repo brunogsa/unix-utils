@@ -69,9 +69,22 @@ it_should_block_a_wrapper_whose_options_it_cannot_read() {
   assert_eq "should block a wrapper whose options it cannot read" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_a_wrapper_running_no_git_alias() {
+  local cmd
+  for cmd in \
+    'sudo ls' \
+    'time make' \
+    'xargs grep foo' \
+    'sudo git status'; do
+    run_hook "$cmd"
+    assert_eq "should allow a wrapper running no git alias: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
 it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_block_a_wrapper_whose_options_it_cannot_read
+it_should_allow_a_wrapper_running_no_git_alias
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

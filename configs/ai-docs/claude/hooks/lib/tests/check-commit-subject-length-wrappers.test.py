@@ -99,3 +99,20 @@ def test_should_screen_a_git_alias_run_through_a_wrapper_given_its_known_options
 )
 def test_should_screen_as_a_possible_commit_a_wrapper_whose_options_it_cannot_read(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "sudo ls",
+        "time make",
+        "xargs grep foo",
+        "sudo git status",
+        "time git log --oneline",
+        "xargs git add",
+        "sudo -u root git status",
+        "timeout 5 git diff",
+    ],
+)
+def test_should_report_no_commit_for_a_wrapper_running_no_git_alias(command):
+    assert _attribution_verdict(command) == checker.NO_COMMIT_VERDICT
