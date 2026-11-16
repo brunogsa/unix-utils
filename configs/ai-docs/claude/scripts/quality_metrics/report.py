@@ -133,10 +133,14 @@ def _violations_section(violations, numbers):
 
 
 def _ranked_sections(measurements, numbers):
-    """One list per metric and scope, worst value first; a limit of 0 has no ranking."""
+    """One list per metric and scope, worst first.
+
+    A limit of 0 or none has no ranking, nor has a neutral
+    record.
+    """
     records_by_title = {}
     for record in measurements:
-        if record["limit"] > 0:
+        if record["limit"] and record["limit"] > 0 and not hotspots.is_neutral(record):
             records_by_title.setdefault(_metric_name(record), []).append(record)
     return [
         _section(
@@ -169,9 +173,15 @@ def _describe(record):
     subject = record["function"] or record["file"]
     where = f" in {record['file']}" if record["function"] else ""
     return (
-        f"{subject}{where} - {_metric_name(record)} {record['value']:g} "
+        f"{subject}{where} - {_metric_name(record)} {_shown_value(record)} "
         f"(limit {record['limit']:g})"
     )
+
+
+def _shown_value(record):
+    if record["value"] is None:
+        return f"no value ({record['label']})"
+    return f"{record['value']:g}"
 
 
 def _metric_name(record):

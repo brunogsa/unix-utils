@@ -14,10 +14,13 @@ report = importlib.import_module("quality_metrics.report")
 hotspots = importlib.import_module("quality_metrics.hotspots")
 is_over_limit = importlib.import_module("quality_metrics.functions").is_over_limit
 coverage = importlib.import_module("quality_metrics.coverage")
+failures = importlib.import_module("quality_metrics.failures")
+FunctionMeasure = importlib.import_module("quality_metrics.functions").FunctionMeasure
 Target = importlib.import_module("quality_metrics.touched").Target
 
 CRAP_LIMIT = crap.CRAP_LIMIT
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
+DEFERRED_LABEL = "pessimistic, tooling deferred"
 
 NODE_LINE = re.compile(r'^\s*(n\d+)\["(.*)"\]:::(\w+)$', re.M)
 EDGE_LINE = re.compile(r"^\s*(n\d+) --> (n\d+)$", re.M)
@@ -294,6 +297,44 @@ class TestCoverageDirection:
         [(_, label, color)] = NODE_LINE.findall(view)
         assert color == "amber"
         assert "crap 75%" in label
+
+
+class TestNoValueRecords:
+    def test_should_skip_a_coverage_with_no_coverable_line_in_the_ranking_and_the_colors(self):
+        run = measured(
+            coverage.not_applicable_record(target("src/prose_only.py")),
+            crap_record("src/prose_only.py", "tidy", 3),
+        )
+
+        verdict = report.build_verdict(run)
+
+        assert "Ranked: coverage" not in verdict
+        assert nodes_by_file(mermaid_block(verdict)) == {"src/prose_only.py": "green"}
+
+    def test_should_rank_a_deferred_crap_first_print_it_as_no_value_and_paint_its_file_red(self):
+        function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
+        run = measured(
+            crap_record("src/known.py", "branchy", 7),
+            failures.deferred_measurement(
+                target("src/deferred.py"), "crap", CRAP_LIMIT, function
+            ),
+        )
+
+        verdict = report.build_verdict(run)
+
+        first, _ = entry_headings(section(verdict, "Ranked: CRAP"))
+        assert "tangle" in first
+        assert f"no value ({DEFERRED_LABEL})" in first
+        colors = nodes_by_file(mermaid_block(verdict))
+        assert colors["src/deferred.py"] == "red"
+
+    def test_should_build_the_verdict_for_a_file_with_no_language_entry_that_has_no_limit(self):
+        run = measured(failures.unmeasured_file_measurement("docs/notes.weird"))
+
+        verdict = report.build_verdict(run)
+
+        assert "(1)" in section(verdict, "Deferred metrics").splitlines()[0]
+        assert "docs/notes.weird" in verdict
 
 
 class TestNoCodeMeasured:

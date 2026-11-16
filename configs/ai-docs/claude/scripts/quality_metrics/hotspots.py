@@ -5,6 +5,8 @@ that metric's limit. Files one hop away are drawn uncolored,
 since the change did not measure them.
 """
 
+import math
+
 from quality_metrics.functions import is_over_limit
 
 AMBER_PERCENT = 70
@@ -43,8 +45,20 @@ def hotspot_view(report, import_edges):
     return "\n".join(lines)
 
 
+def is_neutral(record):
+    """No value and not deferred: neither passed nor flagged."""
+    return record["value"] is None and not record.get("pessimistic")
+
+
 def badness(record):
-    """Higher is worse; coverage is flagged below its limit, so its scale flips."""
+    """Higher is worse; coverage is flagged below its limit.
+
+    So the coverage scale flips. A deferred record has no
+    value and scores no better than a failing one, so it is
+    the worst. Skip neutral records before calling.
+    """
+    if record["value"] is None:
+        return math.inf
     if record.get("flagged_below_limit"):
         return -record["value"]
     return record["value"]
@@ -54,7 +68,9 @@ def _colors_by_touched_file(measurements):
     """Each touched file's (color, label), read from its worst metric."""
     worst_by_file = {}
     for record in measurements:
-        worst = worst_by_file.get(record["file"])
+        if is_neutral(record):
+            continue
+        worst =worst_by_file.get(record["file"])
         if worst is None or _severity(record) > _severity(worst):
             worst_by_file[record["file"]] = record
     return {path: _color_and_label(record) for path, record in worst_by_file.items()}
@@ -66,10 +82,14 @@ def _severity(record):
 
 
 def _share_of_limit(record):
-    return badness(record) / record["limit"] if record["limit"] > 0 else 0
+    if not record["limit"] or record["limit"] < 0:
+        return 0
+    return badness(record) / record["limit"]
 
 
 def _color(record):
+    if record["value"] is None:
+        return "red"
     if record["limit"] <= 0:
         return "green"
     if record.get("flagged_below_limit"):
@@ -83,6 +103,8 @@ def _color(record):
 
 def _color_and_label(record):
     color = _color(record)
+    if record["value"] is None:
+        return color, f"{record['metric']} no value"
     if record["limit"] <= 0:
         return color, record["metric"]
     if record.get("flagged_below_limit"):
