@@ -7,9 +7,11 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 crap = importlib.import_module("quality_metrics.crap")
+size = importlib.import_module("quality_metrics.size")
 report = importlib.import_module("quality_metrics.report")
 
 CRAP_LIMIT = crap.CRAP_LIMIT
+FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
 
 
 def function_record(file, function, metric, value, limit):
@@ -90,3 +92,24 @@ class TestExceptions:
         [entry] = entry_headings(violations)
         assert "buildReport" in entry
         assert "CRAP 11" in entry
+
+
+class TestRankedLists:
+    def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):
+        run = measured(
+            function_record("src/low.py", "tidy", "crap", 3, CRAP_LIMIT),
+            function_record("src/worst.py", "tangle", "crap", 14, CRAP_LIMIT),
+            function_record("src/middle.py", "branchy", "crap", 9, CRAP_LIMIT),
+            file_record("src/grown.py", "size", 400, FILE_LINES_LIMIT),
+        )
+
+        verdict = report.build_verdict(run)
+
+        crap_entries = entry_headings(section(verdict, "Ranked: CRAP"))
+        assert [entry.split("] ")[1].split(" ")[0] for entry in crap_entries] == [
+            "tangle", "branchy", "tidy",
+        ]
+        assert all(re.match(r"### \d+\. \[metrics\] ", entry) for entry in crap_entries)
+        [file_size_entry] = entry_headings(section(verdict, "Ranked: File size"))
+        assert "src/grown.py" in file_size_entry
+        assert "400" in file_size_entry

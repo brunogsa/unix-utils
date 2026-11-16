@@ -32,6 +32,7 @@ def build_verdict(report, exceptions=()):
     sections = [
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
+        *_ranked_sections(report["measurements"], numbers),
     ]
     return "\n\n".join(sections) + "\n"
 
@@ -55,6 +56,24 @@ def _exceptions_section(accepted, numbers):
 def _violations_section(violations, numbers):
     entries = [_entry(next(numbers), _describe(item)) for item in violations]
     return _section(f"Open violations ({len(entries)})", entries)
+
+
+def _ranked_sections(measurements, numbers):
+    """One list per metric and scope, worst value first; a limit of 0 has no ranking."""
+    records_by_title = {}
+    for record in measurements:
+        if record["limit"] > 0:
+            records_by_title.setdefault(_metric_name(record), []).append(record)
+    return [
+        _section(
+            f"Ranked: {title}",
+            [
+                _entry(next(numbers), _describe(record))
+                for record in sorted(records, key=lambda item: -item["value"])
+            ],
+        )
+        for title, records in sorted(records_by_title.items())
+    ]
 
 
 def _section(title, entries):
