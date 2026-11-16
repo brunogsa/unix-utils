@@ -117,7 +117,7 @@ class TestPerUnitSelection:
 
         assert selected == ["size"]
 
-    def test_should_keep_a_listed_check_per_unit_when_parallel_units_time_it_at_10_seconds_reading_no_measured_runtime(
+    def test_should_place_a_check_from_the_declaration_alone_with_no_timing_at_run_time(
         self, tmp_path
     ):
         benchmark = load_benchmark()
@@ -132,4 +132,11 @@ class TestPerUnitSelection:
         placed = declaring.metrics_to_run(declaration, "python", declaring.PER_UNIT_MODE)
 
         assert placed == ("size",)
+
+    def test_should_keep_the_declarations_comments_on_rewrite(self, tmp_path):
+        benchmark = load_benchmark()
+        declaration_path = write_declaration(tmp_path)
+
+        benchmark.write_per_unit(declaration_path, ["size"])
+
         assert "Placement rule comment that must survive" in declaration_path.read_text()
