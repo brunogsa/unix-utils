@@ -1,0 +1,239 @@
+"""pytest suite for check-tdd-coder-commit-evidence.py.
+
+The hook runs as tdd-coder's PreToolUse Bash hook. It denies a
+`git commit` unless the run's evidence file already holds a confirmed
+RED entry followed by a confirmed GREEN entry. The run label comes from
+the paths the agent's own tool calls named, read from its JSONL
+transcript.
+
+Every case writes a real agent transcript under tmp_path in the layout
+Claude Code uses (<session>/subagents/agent-<id>.jsonl beside
+<session>.jsonl), writes any evidence file under /tmp with a label
+unique to this test run, feeds a realistic payload, and removes the
+files afterwards. Nothing inside the hook is stubbed.
+
+The last class reads tdd-coder.md itself, so a rename of the hook file
+or a rewording of the entry header fails a test here instead of
+silently disabling the gate.
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+HOOKS_DIR = Path(__file__).resolve().parent.parent
+HOOK = HOOKS_DIR / "check-tdd-coder-commit-evidence.py"
+AGENT_FILE = HOOKS_DIR.parent / "agents" / "tdd-coder.md"
+
+SESSION_ID = "23c8cc27-309f-45ef-8092-971beda32766"
+AGENT_ID = "a7f3c9e1b2d4e6f80"
+RUN_LABEL = f"pytest-commit-evidence-{os.getpid()}"
+OTHER_LABEL = f"pytest-commit-evidence-other-{os.getpid()}"
+CHECKLIST = f"/tmp/tdd-coder_substeps_{RUN_LABEL}.md"
+EVIDENCE = Path(f"/tmp/tdd-coder_evidences_{RUN_LABEL}.txt")
+OTHER_EVIDENCE = Path(f"/tmp/tdd-coder_evidences_{OTHER_LABEL}.txt")
+
+COMMIT = (
+    "git commit -m 'feat(hooks): block a tdd-coder commit lacking evidence' "
+    "-m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' "
+    "-- configs/ai-docs/claude/hooks/check-tdd-coder-commit-evidence.py"
+)
+
+RED_ENTRY = (
+    "=== RED Mon Nov 16 11:18:55 -03 2026 ===\n"
+    "pytest configs/ai-docs/claude/hooks/tests/check-tdd-coder-commit-evidence.test.py\n"
+    "exit: 1\n"
+    "=================== 3 failed, 12 passed in 0.91s ===================\n"
+)
+GREEN_ENTRY = (
+    "=== GREEN Mon Nov 16 11:20:49 -03 2026 ===\n"
+    "pytest configs/ai-docs/claude/hooks/tests/check-tdd-coder-commit-evidence.test.py\n"
+    "exit: 0\n"
+    "======================== 15 passed in 0.88s ========================\n"
+)
+
+
+@pytest.fixture(autouse=True)
+def remove_evidence_files():
+    """Leave no evidence file behind, whatever a test wrote."""
+    yield
+    EVIDENCE.unlink(missing_ok=True)
+    OTHER_EVIDENCE.unlink(missing_ok=True)
+
+
+def tool_use_record(name, tool_input):
+    """An assistant record calling one tool."""
+    return {
+        "type": "assistant",
+        "message": {
+            "role": "assistant",
+            "content": [{"type": "tool_use", "id": "toolu_01Abc", "name": name, "input": tool_input}],
+        },
+    }
+
+
+def prompt_record(text):
+    """The user record carrying the dispatch prompt."""
+    return {"type": "user", "message": {"role": "user", "content": text}}
+
+
+def checklist_write_record(checklist_path=CHECKLIST):
+    """The agent's step-2 Write of its checklist file."""
+    return tool_use_record("Write", {"file_path": checklist_path, "content": "- [ ] Unit 1\n"})
+
+
+def write_agent_transcript(tmp_path, records):
+    """Write the agent transcript where Claude Code keeps it; return the
+    parent session transcript path a PreToolUse payload carries."""
+    session_transcript = tmp_path / f"{SESSION_ID}.jsonl"
+    session_transcript.write_text("", encoding="utf-8")
+    agent_transcript = tmp_path / SESSION_ID / "subagents" / f"agent-{AGENT_ID}.jsonl"
+    agent_transcript.parent.mkdir(parents=True)
+    agent_transcript.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+    return session_transcript
+
+
+OMITTED = object()
+
+
+def payload(command, transcript_path, agent_type="tdd-coder", agent_id=AGENT_ID, **extra):
+    """A PreToolUse Bash payload; an agent field passed as OMITTED is left
+    out, the way a main-session call carries none."""
+    fields = {
+        "session_id": SESSION_ID,
+        "transcript_path": str(transcript_path),
+        "cwd": "/Users/brunoagostini/unix-utils",
+        "hook_event_name": "PreToolUse",
+        "tool_name": "Bash",
+        "tool_input": {"command": command, "description": "Commit unit 1"},
+        "agent_id": agent_id,
+        "agent_type": agent_type,
+        **extra,
+    }
+    return {key: value for key, value in fields.items() if value is not OMITTED}
+
+
+def run_hook(stdin_text):
+    return subprocess.run(
+        [sys.executable, str(HOOK)],
+        input=stdin_text,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def deny_reason(result):
+    """The deny reason the hook printed, or None when it let the call through."""
+    assert result.returncode == 0
+    if result.stdout == "":
+        return None
+    output = json.loads(result.stdout)["hookSpecificOutput"]
+    assert output["hookEventName"] == "PreToolUse"
+    assert output["permissionDecision"] == "deny"
+    return output["permissionDecisionReason"]
+
+
+def check_commit(tmp_path, command=COMMIT, records=None, **payload_fields):
+    if records is None:
+        records = [prompt_record("Units: 1. block a commit"), checklist_write_record()]
+    transcript_path = write_agent_transcript(tmp_path, records)
+    return deny_reason(run_hook(json.dumps(payload(command, transcript_path, **payload_fields))))
+
+
+class TestCommitWithNoEvidenceFile:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            COMMIT,
+            "git -C /Users/brunoagostini/unix-utils commit -m 'feat: x' -- a.py",
+            "git -c core.hooksPath=/dev/null commit -m 'feat: x' -- a.py",
+            "cd /Users/brunoagostini/unix-utils && git commit -m 'feat: x' -- a.py",
+            "git commit -F - -- a.py <<'EOF'\nfeat: x\n\nCo-Authored-By: Claude\nEOF",
+        ],
+        ids=["plain", "dash-C-repo-path", "dash-c-config", "after-cd", "heredoc-message"],
+    )
+    def test_should_deny_naming_the_expected_evidence_path(self, tmp_path, command):
+        reason = check_commit(tmp_path, command=command)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_deny_naming_the_path_template_when_no_tool_call_names_a_run_file(self, tmp_path):
+        reason = check_commit(tmp_path, records=[prompt_record("Units: 1. block a commit")])
+
+        assert reason is not None
+        assert "/tmp/tdd-coder_evidences_<run-label>.txt" in reason
+
+    def test_should_take_the_run_label_from_the_agents_tool_calls_not_from_the_prompt_prose(self, tmp_path):
+        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        records = [prompt_record(f"Prior attempt's evidence: {OTHER_EVIDENCE}"), checklist_write_record()]
+
+        reason = check_commit(tmp_path, records=records)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_take_the_latest_run_label_the_agents_tool_calls_named(self, tmp_path):
+        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        records = [
+            checklist_write_record(f"/tmp/tdd-coder_substeps_{OTHER_LABEL}.md"),
+            checklist_write_record(),
+        ]
+
+        reason = check_commit(tmp_path, records=records)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_read_the_agent_transcript_path_the_payload_names_over_the_derived_one(self, tmp_path):
+        EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        named_transcript = tmp_path / "named-agent.jsonl"
+        named_transcript.write_text(json.dumps(checklist_write_record(f"/tmp/tdd-coder_substeps_{OTHER_LABEL}.md")) + "\n")
+
+        reason = check_commit(tmp_path, agent_transcript_path=str(named_transcript))
+
+        assert reason is not None
+        assert str(OTHER_EVIDENCE) in reason
+
+    def test_should_deny_naming_the_path_template_when_the_agent_transcript_is_missing(self, tmp_path):
+        result = run_hook(json.dumps(payload(COMMIT, tmp_path / f"{SESSION_ID}.jsonl")))
+
+        reason = deny_reason(result)
+        assert reason is not None
+        assert "/tmp/tdd-coder_evidences_<run-label>.txt" in reason
+
+
+def frontmatter_pretooluse_command():
+    """The command wired under hooks: PreToolUse: in tdd-coder.md's frontmatter."""
+    frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
+    match = re.search(
+        r"^  PreToolUse:\n +- matcher: \"?Bash\"?\n(?:^ {4,}.*\n)*?^ +command: \"(.+)\"$",
+        frontmatter,
+        re.MULTILINE,
+    )
+    assert match, "tdd-coder.md frontmatter wires no hooks: PreToolUse: Bash command"
+    return match.group(1)
+
+
+class TestAgentFileWiring:
+    def test_should_deny_through_the_frontmatter_command_when_home_links_this_repo_hooks(self, tmp_path):
+        transcript_path = write_agent_transcript(tmp_path, [checklist_write_record()])
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".claude" / "hooks").symlink_to(HOOKS_DIR)
+
+        result = subprocess.run(
+            ["bash", "-c", frontmatter_pretooluse_command()],
+            input=json.dumps(payload(COMMIT, transcript_path)),
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**os.environ, "HOME": str(tmp_path)},
+        )
+
+        assert str(EVIDENCE) in deny_reason(result)

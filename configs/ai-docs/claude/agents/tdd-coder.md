@@ -11,6 +11,11 @@ allowedSubagents: Explore
 skills:
   - test-driven-development
 hooks:
+  PreToolUse:
+    - matcher: Bash
+      hooks:
+        - type: command
+          command: "python3 ~/.claude/hooks/check-tdd-coder-commit-evidence.py || true"
   Stop:
     - hooks:
         - type: command
