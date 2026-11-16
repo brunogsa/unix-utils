@@ -50,6 +50,10 @@ else
   base_rev="$base_ref"
 fi
 
+# Later steps (the metrics run) read this to measure the
+# same range this script diffs.
+printf '%s\n' "$base_rev" > "$work_dir/base-rev.txt"
+
 git diff -U20 "$base_rev...HEAD"             > "$work_dir/diff"
 git diff      "$base_rev...HEAD" --name-only > "$work_dir/changed-files.txt"
 git log       "$base_rev..HEAD" --format='%B%n---%n' > "$work_dir/commit-messages.txt"

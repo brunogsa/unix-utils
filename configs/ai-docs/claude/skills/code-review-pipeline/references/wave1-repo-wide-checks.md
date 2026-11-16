@@ -35,7 +35,7 @@ Run independent commands in parallel.
 
 ## Measured quality metrics
 
-Run `~/.claude/scripts/measure-quality-metrics.py --diff <base>...HEAD > $work_dir/quality-metrics.json`, once, from the repo root.
+Run `~/.claude/scripts/measure-quality-metrics.py --diff "$(cat "$work_dir/base-rev.txt")...HEAD" > $work_dir/quality-metrics.json`, once, from the repo root (`prep-local-context.sh` writes that file).
 
 - `--diff` measures only the code the diff changes, adds or removes, so an untouched over-limit function never appears.
 

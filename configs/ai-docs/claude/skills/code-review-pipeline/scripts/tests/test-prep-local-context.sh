@@ -350,6 +350,19 @@ it_should_use_three_dot_range_for_the_diff_and_two_dot_range_for_the_commit_log(
     "$result"
 }
 
+it_should_write_the_resolved_base_revision_to_base_rev_txt_in_the_work_dir() {
+  local repo work_dir content
+  repo="$(make_scratch_repo)"
+  work_dir="$(mktemp -d)"
+
+  (cd "$repo" && bash "$SCRIPT" base "$work_dir" >/dev/null 2>&1)
+  content="$(cat "$work_dir/base-rev.txt" 2>/dev/null)"
+
+  rm -rf "$repo" "$work_dir"
+  assert_eq "should write the resolved base revision to base-rev.txt in the work dir, holding the local commit-ish when the base is not a branch on origin" \
+    "base" "$content"
+}
+
 it_should_print_the_usage_header_and_exit_zero_on_help_flag() {
   local output exit_code result
   output=$(bash "$SCRIPT" --help 2>&1)
@@ -375,6 +388,7 @@ it_should_fail_and_name_the_ref_when_base_ref_is_neither_an_origin_branch_nor_a_
 it_should_fail_naming_the_problem_when_called_with_the_wrong_argument_count
 it_should_fail_naming_the_problem_when_run_outside_a_git_repository
 it_should_use_three_dot_range_for_the_diff_and_two_dot_range_for_the_commit_log
+it_should_write_the_resolved_base_revision_to_base_rev_txt_in_the_work_dir
 it_should_print_the_usage_header_and_exit_zero_on_help_flag
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
