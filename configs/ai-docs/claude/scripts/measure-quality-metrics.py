@@ -28,7 +28,6 @@ from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies
 from quality_metrics.collection import CoverageRun
-from quality_metrics.dependencies import DependencyRun, load_layer_map
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.tools import ToolError, run_command
@@ -84,8 +83,10 @@ def main(arguments):
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
         coverage_run = CoverageRun(Path.cwd())
-        layer_map = load_layer_map(options.layers) if options.layers else None
-        dependency_run = DependencyRun(
+        layer_map = (
+            dependencies.load_layer_map(options.layers) if options.layers else None
+        )
+        dependency_run = dependencies.DependencyRun(
             Path.cwd(), _dependency_base_ref(options),
             declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
