@@ -328,3 +328,22 @@ describe("gate", () => {
         assert [(row["path"], row["line"]) for row in listed] == [
             ("tests/parse.test.ts", 4)
         ]
+
+    def test_should_list_an_unplanned_test_in_a_file_whose_directory_name_holds_a_space(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "my dir/parse.test.ts",
+            _it_lines_at(4, "rejects an empty row"),
+        )
+        _commit(repo, "test: reject empty rows")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert [(row["path"], row["line"]) for row in listed] == [
+            ("my dir/parse.test.ts", 4)
+        ]

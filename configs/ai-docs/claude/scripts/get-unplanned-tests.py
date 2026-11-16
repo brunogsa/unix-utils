@@ -121,7 +121,12 @@ def list_added_tests(base):
     new_line = 0
     for diff_line in diff.splitlines():
         if diff_line.startswith("+++ "):
-            path = None if diff_line == "+++ /dev/null" else diff_line[6:]
+            # git appends a TAB after a path that holds a space.
+            path = (
+                None
+                if diff_line == "+++ /dev/null"
+                else diff_line[len("+++ b/"):].removesuffix("\t")
+            )
             continue
         hunk = HUNK_HEADER.match(diff_line)
         if hunk:
