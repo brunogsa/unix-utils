@@ -3,7 +3,7 @@
 Loaded by `SKILL.md` §1 for every selection except marked mode.
 
 ```bash
-ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md 2>/dev/null
+ls -1 verdict_refactor_*.md verdict_auto-review_*.md verdict_test-sdd_*.md verdict_quality-gate_*.md verdict_metrics_*.md 2>/dev/null
 ```
 
 Several timestamped generations can exist per lens, possibly across branches. The filename is `verdict_<lens>_<branch>_YYYY-MM-DD_HH:MM.md`; `quality-gate` is one more lens.
@@ -13,7 +13,9 @@ A `verdict_quality-gate_*.md` counts as a source for all four lenses: `refactor`
 - The newest merged file's findings tagged with that lens - the `[test-sdd]` and `[metrics]` entries included.
 - Or the newest standalone `verdict_<lens>_*.md`, whichever was modified later.
 
-Why: `/quality-gate` moves its own standalone files away, so an older one left in CWD would be worked beside the merged file. Only `/test-sdd` run alone writes a standalone `test-sdd` file, which is the fallback for that lens. `metrics` has no standalone file, and its rendered entries carry no severity tag.
+Why: `/quality-gate` moves its own standalone files away, so an older one left in CWD would be worked beside the merged file. Only `/test-sdd` run alone writes a standalone `test-sdd` file, which is the fallback for that lens.
+
+A standalone `metrics` verdict exists only on quality-gate's merge-fail fallback, where its section 4.1 moves the rendered metrics verdict back into CWD; its rendered entries carry no severity tag.
 
 - **Default**: the winning source of each lens. Under `all`, the merged file contributes only for the lenses it wins.
 
