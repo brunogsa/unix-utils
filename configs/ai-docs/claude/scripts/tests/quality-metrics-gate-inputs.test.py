@@ -65,6 +65,26 @@ JEST_CONFIG_EXCLUDING_REPORT = (
 REPORT_SOURCE = "export function render(rows: string[]): string {\n  return rows.join('\\n');\n}\n"
 
 
+# The declaration is committed beside the code it judges, so
+# its own extension is ignored rather than asked about.
+COMMITTED_DECLARATION_NAME = "quality-metrics.yaml"
+COMMITTED_DECLARATION = DECLARATION_TEXT.replace(
+    "ignored_extensions: [.md]", "ignored_extensions: [.md, .yaml]"
+).replace("metrics: [size]\n  js:", "metrics: [size, parameters]\n  js:")
+DECLARATION_WITHOUT_TS_SIZE = COMMITTED_DECLARATION.replace(
+    "metrics: [size, parameters]", "metrics: [parameters]"
+)
+DECLARATION_EXCLUDING_SRC = COMMITTED_DECLARATION.replace(
+    "excluded_paths: []", "excluded_paths: [src/]"
+)
+
+
+def size_records_of(report, file_name):
+    return [
+        record for record in report["measurements"]
+        if record["metric"] == "size" and record["file"].endswith(file_name)
+    ]
+
 
 def write_declaration(tmp_path):
     path = tmp_path / "quality-metrics.yaml"
@@ -104,6 +124,29 @@ class TestCornerCases:
         assert result.returncode == FEEDBACK_EXIT
         assert token in result.stderr
 
+
+class TestFailureScenarios:
+    def test_should_list_a_changed_limit_as_a_violation_and_keep_measuring_with_the_committed_limit(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            COMMITTED_DECLARATION_NAME: COMMITTED_DECLARATION,
+            "src/parse.ts": PARSE_SOURCE,
+        })
+        base = head_of(repo)
+        (repo / COMMITTED_DECLARATION_NAME).write_text(DECLARATION_EXCLUDING_SRC)
+        (repo / "src/parse.ts").write_text(PARSE_SOURCE + "\n// edited\n")
+        commit_all(repo, "exclude src from measuring")
+
+        report = measure_report(
+            repo, repo / COMMITTED_DECLARATION_NAME, "--diff", f"{base}...HEAD"
+        )
+
+        assert report["gate_input_violations"] == [
+            {"kind": "declaration_change", "file": COMMITTED_DECLARATION_NAME,
+             "value": "excluded_paths"}
+        ]
+        assert len(size_records_of(report, "src/parse.ts")) == 1
 
 class TestHappyPath:
     def test_should_pass_the_base_ref_config_to_a_repo_tool_through_its_config_flag_as_in_jest_config_tmp_jest_config_js(

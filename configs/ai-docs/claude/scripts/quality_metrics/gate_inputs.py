@@ -16,6 +16,7 @@ import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from quality_metrics.declaration import parse_yaml
 from quality_metrics.tool_map import load_detector_rules
 from quality_metrics.tools import run_command, run_tool
 
@@ -29,6 +30,11 @@ DETECTORS_PATH = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 
 SUPPRESSION_KIND = "suppression"
 COVERAGE_EXCLUDE_KIND = "coverage_exclude"
+OPT_OUT_KIND = "opt_out"
+DECLARATION_CHANGE_KIND = "declaration_change"
+
+LANGUAGES_KEY = "languages"
+METRICS_KEY = "metrics"
 
 HUNK_HEADER = "@@"
 FILE_HEADER_PREFIX = "diff --git"
@@ -45,16 +51,70 @@ QUOTED_STRING = re.compile(r"[\"']([^\"']*)[\"']")
 NEGATED_GLOB_MARK = "!"
 
 
-def find_violations(repo_dir, base_ref, head_ref=None):
-    """Every suppression and coverage exclude the branch adds.
+def find_violations(repo_dir, base_ref, head_ref=None, declaration_path=None):
+    """Every suppression, coverage exclude and declaration change
+    the branch adds.
 
     `head_ref` None means the working tree, untracked files
-    included.
+    included. `declaration_path` None skips the declaration.
     """
     return [
         *added_suppressions(repo_dir, base_ref, head_ref),
         *added_coverage_excludes(repo_dir, base_ref, head_ref),
+        *declaration_changes(repo_dir, base_ref, head_ref, declaration_path),
     ]
+
+
+def write_base_ref_declaration(repo_dir, base_ref, declaration_path, directory):
+    """The declaration file to measure with.
+
+    A declaration the repo commits is copied as `base_ref` committed
+    it, so a branch edit never loosens its own gate. Any other
+    declaration (outside the repo, or new on the branch) is
+    returned as given.
+    """
+    name = _repo_relative_name(repo_dir, declaration_path)
+    text = None if name is None else _text_at(repo_dir, base_ref, name)
+    if text is None:
+        return Path(declaration_path)
+    copy_path = Path(directory) / Path(declaration_path).name
+    copy_path.write_text(text)
+    return copy_path
+
+
+def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
+    """A metric the branch drops from a language is an opt-out; any
+    other changed key is a declaration change."""
+    name = None if declaration_path is None else _repo_relative_name(repo_dir, declaration_path)
+    base_text = None if name is None else _text_at(repo_dir, base_ref, name)
+    head_text = None if name is None else _text_at(repo_dir, head_ref, name, repo_dir)
+    if base_text is None or head_text is None or base_text == head_text:
+        return []
+    base, head = parse_yaml(base_text), parse_yaml(head_text)
+    changes = []
+    for key in sorted(set(base) | set(head)):
+        if key != LANGUAGES_KEY and base.get(key) != head.get(key):
+            changes.append((DECLARATION_CHANGE_KIND, key))
+    base_languages = base.get(LANGUAGES_KEY) or {}
+    head_languages = head.get(LANGUAGES_KEY) or {}
+    for language, entry in base_languages.items():
+        head_entry = head_languages.get(language)
+        if head_entry is None:
+            changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}"))
+            continue
+        dropped = set(entry.get(METRICS_KEY) or ()) - set(head_entry.get(METRICS_KEY) or ())
+        changes += [(OPT_OUT_KIND, f"{language}.{metric}") for metric in sorted(dropped)]
+        for field in sorted(set(entry) | set(head_entry)):
+            if field != METRICS_KEY and entry.get(field) != head_entry.get(field):
+                changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}.{field}"))
+    return [{"kind": kind, "file": name, "value": value} for kind, value in changes]
+
+
+def _repo_relative_name(repo_dir, path):
+    try:
+        return str(Path(path).resolve().relative_to(Path(repo_dir).resolve()))
+    except ValueError:
+        return None
 
 
 def write_base_ref_configs(repo_dir, base_ref, directory):

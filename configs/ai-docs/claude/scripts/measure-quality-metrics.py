@@ -78,7 +78,7 @@ EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
 def main(arguments):
     options = _parse_arguments(arguments)
     try:
-        declaration = declaring.load_declaration(options.declaration)
+        declaration = _load_committed_declaration(options)
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
@@ -164,8 +164,22 @@ def _gate_input_violations(options, head_ref):
     if options.files:
         return []
     return gate_inputs.find_violations(
-        Path.cwd(), _judged_against_ref(options), head_ref
+        Path.cwd(), _judged_against_ref(options), head_ref,
+        declaration_path=options.declaration,
     )
+
+
+def _load_committed_declaration(options):
+    """The declaration as the base ref committed it, so a branch
+    edit never loosens its own gate. Explicit --files name no
+    change, so they read the file as given."""
+    if options.files:
+        return declaring.load_declaration(options.declaration)
+    with tempfile.TemporaryDirectory() as directory:
+        committed_path = gate_inputs.write_base_ref_declaration(
+            Path.cwd(), _judged_against_ref(options), options.declaration, directory
+        )
+        return declaring.load_declaration(committed_path)
 
 
 def _judged_against_ref(options):

@@ -143,6 +143,10 @@ def metrics_for_file(declaration, file_path):
 
 
 def read_yaml(path):
+    return parse_yaml(Path(path).read_text())
+
+
+def parse_yaml(text):
     try:
         yaml = importlib.import_module("yaml")
     except ImportError as error:
@@ -150,8 +154,7 @@ def read_yaml(path):
             "pyyaml is required to read the quality-metrics declaration; "
             "run install.sh, or: python3 -m pip install --user pyyaml"
         ) from error
-    with open(path) as declaration_file:
-        return yaml.safe_load(declaration_file) or {}
+    return yaml.safe_load(text) or {}
 
 
 def _validate_metric_names(entry_name, metrics):
