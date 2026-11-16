@@ -68,9 +68,9 @@ METRIC_MODULES = {
     "parameters": "functions",
     "crap": COVERAGE_MODULE,
     "coverage": COVERAGE_MODULE,
-    "code_duplication": "duplication",
-    "test_duplication": "duplication",
-    "dependency_direction": "dependencies",
+    "code_duplication": DUPLICATION_MODULE,
+    "test_duplication": DUPLICATION_MODULE,
+    "dependency_direction": DEPENDENCIES_MODULE,
 }
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
