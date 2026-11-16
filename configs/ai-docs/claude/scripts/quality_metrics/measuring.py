@@ -7,6 +7,7 @@
 import importlib
 import tempfile
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from quality_metrics import crap_coverage
@@ -220,40 +221,41 @@ def resolved_since(declaration, mode, diff_range, policy=None):
     if not diff_range:
         return []
     base_ref, head_ref = range_ends(diff_range)
-
-    def measure_at_base(copy_path, original_path):
-        language = _language_or_none(declaration, original_path)
-        if language is None:
-            return []
-        return measure_target(
-            declaration, mode,
-            Target(
-                copy_path, language, WHOLE_FILE, repo_path=original_path,
-                nesting_reader=declaring.nesting_reader_for(declaration, language),
-                tool_policy=policy,
-            ),
-        )
-
-    def function_names_in(path):
-        language = _language_or_none(declaration, path)
-        if language is None:
-            return set()
-        with tempfile.TemporaryDirectory() as directory:
-            head_copy = _copy_at(head_ref, path, directory)
-            return {
-                function.name
-                for function in measure_functions(head_copy, language, policy)
-            }
-
     # The three-dot range diffs from the merge base, so the
     # base-side text is read there, not at the tip of a base
     # branch that has moved on.
     return resolved_measurements(
         changes_between(base_ref, head_ref),
         merge_base(base_ref, head_ref),
-        measure_at_base,
-        function_names_in,
+        partial(_measure_at_base, declaration, mode, policy),
+        partial(_function_names_in, declaration, head_ref, policy),
     )
+
+
+def _measure_at_base(declaration, mode, policy, copy_path, original_path):
+    language = _language_or_none(declaration, original_path)
+    if language is None:
+        return []
+    return measure_target(
+        declaration, mode,
+        Target(
+            copy_path, language, WHOLE_FILE, repo_path=original_path,
+            nesting_reader=declaring.nesting_reader_for(declaration, language),
+            tool_policy=policy,
+        ),
+    )
+
+
+def _function_names_in(declaration, head_ref, policy, path):
+    language = _language_or_none(declaration, path)
+    if language is None:
+        return set()
+    with tempfile.TemporaryDirectory() as directory:
+        head_copy = _copy_at(head_ref, path, directory)
+        return {
+            function.name
+            for function in measure_functions(head_copy, language, policy)
+        }
 
 
 def _language_or_none(declaration, path):
