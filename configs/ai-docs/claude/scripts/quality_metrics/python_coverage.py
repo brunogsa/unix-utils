@@ -64,6 +64,7 @@ SHARED_COVERAGE_CONFIG_MARKERS = {
 
 FAILURE_REASON_MAX_CHARS = 200
 USAGE_ERROR_MARKER = ": error: "
+NO_DATA_TO_COMBINE = "No data to combine"
 
 
 def repo_has_coverage_config(repo_dir):
@@ -105,12 +106,42 @@ def _red_build_naming_pytest_exit(test_run):
     )
 
 
+def _failed_report_step(step, step_run):
+    """A result naming the coverage step that exited non-zero
+    and its last stderr line, so a failed report step reads as
+    a failure with a reason, never as silent no-data."""
+    stderr_lines = step_run.stderr.strip().splitlines()
+    reason = f"coverage {step} exited {step_run.returncode}: {stderr_lines[-1].strip() if stderr_lines else ''}"
+    return CoverageResult(
+        hits_by_file={}, has_failed_tests=False,
+        failure_reason=reason[:FAILURE_REASON_MAX_CHARS],
+    )
+
+
 def _with_declared_test_deps(command, repo_dir):
     """The command plus the repo's declared test dependencies,
     added ahead of uv's `--`; unchanged when it has none."""
     separator = command.index("--")
     extra = declared_test_dependency_args(repo_dir)
     return [*command[:separator], *extra, *command[separator:]]
+
+
+def _lcov_report_of_measured_run(repo_dir, env, report_file, run_started):
+    """Combine the run's data files and read the lcov report,
+    or name the coverage step that exited non-zero."""
+    combine_run = run_command(PYTHON_COMBINE_COMMAND, cwd=repo_dir, env=env)
+    if combine_run.returncode != 0:
+        if NO_DATA_TO_COMBINE in combine_run.stdout + combine_run.stderr:
+            # Nothing was measured, e.g. all omitted.
+            return read_fresh_lcov(repo_dir, run_started)
+        return _failed_report_step("combine", combine_run)
+    report_run = run_command(
+        [*PYTHON_LCOV_COMMAND, str(report_file)], cwd=repo_dir, env=env
+    )
+    if report_run.returncode != 0:
+        return _failed_report_step("lcov", report_run)
+    shutil.copyfile(report_file, prepare_lcov_file(repo_dir))
+    return read_fresh_lcov(repo_dir, run_started)
 
 
 def collect_python(repo_dir):
@@ -133,15 +164,6 @@ def collect_python(repo_dir):
             return NO_COVERAGE_DATA
         if test_run.returncode != 0:
             return _red_build_naming_pytest_exit(test_run)
-        run_command(PYTHON_COMBINE_COMMAND, cwd=repo_dir, env=env)
-        report_file = Path(data_dir) / "lcov.info"
-        report_run = run_command(
-            [*PYTHON_LCOV_COMMAND, str(report_file)], cwd=repo_dir, env=env
+        return _lcov_report_of_measured_run(
+            repo_dir, env, Path(data_dir) / "lcov.info", run_started
         )
-
-        # coverage deletes its output file when it fails, so the
-        # report goes to the repo only on success. A failed run
-        # leaves an older file in place for the freshness check.
-        if report_run.returncode == 0:
-            shutil.copyfile(report_file, prepare_lcov_file(repo_dir))
-        return read_fresh_lcov(repo_dir, run_started)

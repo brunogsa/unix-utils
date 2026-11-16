@@ -428,6 +428,21 @@ VANISHING_SUBPROCESS_REPO_FILES = {
     ),
 }
 
+CoverageStepDone = namedtuple("CoverageStepDone", "returncode stdout stderr")
+
+
+def fake_coverage_steps(failing_step, returncode, stderr):
+    """A run_command stand-in where every coverage step
+    succeeds except `failing_step`."""
+
+    def fake_run_command(command, **_):
+        step = command[command.index("--") + 2]
+        if step == failing_step:
+            return CoverageStepDone(returncode, "", stderr)
+        return CoverageStepDone(0, "", "")
+
+    return fake_run_command
+
 
 def test_should_still_report_the_files_that_exist_when_a_measured_subprocess_script_was_deleted(tmp_path):
     from quality_metrics.collection import collect_python
@@ -437,3 +452,34 @@ def test_should_still_report_the_files_that_exist_when_a_measured_subprocess_scr
     result = collect_python(repo)
 
     assert result.hits_by_file["tool.py"][1] > 0
+
+
+def test_should_name_the_lcov_step_and_its_exit_code_when_the_lcov_report_fails(tmp_path, monkeypatch):
+    from quality_metrics import python_coverage
+    from quality_metrics.coverage_result import CoverageResult
+
+    monkeypatch.setattr(python_coverage, "run_command", fake_coverage_steps(
+        "lcov", 1, "warning: x\nNo source for code: '/gone/__init__.py'\n"
+    ))
+    repo = write_repo(tmp_path, SUBPROCESS_REPO_FILES)
+
+    result = python_coverage.collect_python(repo)
+
+    assert result == CoverageResult(
+        hits_by_file={}, has_failed_tests=False,
+        failure_reason="coverage lcov exited 1: No source for code: '/gone/__init__.py'",
+    )
+
+
+def test_should_name_the_combine_step_and_its_exit_code_when_the_combine_fails(tmp_path, monkeypatch):
+    from quality_metrics import python_coverage
+
+    monkeypatch.setattr(python_coverage, "run_command", fake_coverage_steps(
+        "combine", 2, "Can't combine\n"
+    ))
+    repo = write_repo(tmp_path, SUBPROCESS_REPO_FILES)
+
+    result = python_coverage.collect_python(repo)
+
+    assert result.failure_reason == "coverage combine exited 2: Can't combine"
+    assert result.hits_by_file == {}
