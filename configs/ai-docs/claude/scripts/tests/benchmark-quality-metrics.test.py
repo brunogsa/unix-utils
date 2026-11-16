@@ -42,6 +42,28 @@ def write_declaration(tmp_path):
     return path
 
 
+class TestRunMeasured:
+    def test_should_leave_out_a_check_whose_run_only_produced_pessimistic_results(self):
+        benchmark = load_benchmark()
+        red_build_report = (
+            '{"measurements": [{"metric": "coverage", "value": 0,'
+            ' "pessimistic": true}]}'
+        )
+
+        assert not benchmark.run_measured(1, red_build_report)
+
+    def test_should_count_a_run_that_reports_a_real_violation_as_measured(self):
+        benchmark = load_benchmark()
+        report = '{"measurements": [{"metric": "size", "value": 61}]}'
+
+        assert benchmark.run_measured(1, report)
+
+    def test_should_leave_out_a_check_whose_run_exited_2(self):
+        benchmark = load_benchmark()
+
+        assert not benchmark.run_measured(2, "")
+
+
 class TestPerUnitSelection:
     def test_should_keep_a_check_timed_at_exactly_8_0_seconds_in_per_unit(self):
         benchmark = load_benchmark()

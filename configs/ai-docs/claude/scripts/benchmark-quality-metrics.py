@@ -21,6 +21,7 @@
 import argparse
 import importlib
 import importlib.util
+import json
 import re
 import subprocess
 import sys
@@ -86,8 +87,23 @@ def metrics_with_a_module():
     return [metric for metric in declaring.METRIC_NAMES if metric in module.METRIC_MODULES]
 
 
+def run_measured(exit_code, stdout):
+    """True when the run measured the metric for real.
+
+    Exit 2 did not measure. A report holding a pessimistic result
+    (a red build scored 0%) timed a failure path, not the check.
+    """
+    if exit_code == MEASURE_EXIT_UNMEASURED:
+        return False
+    try:
+        report = json.loads(stdout)
+    except json.JSONDecodeError:
+        return False
+    return not any(item.get("pessimistic") for item in report["measurements"])
+
+
 def time_metric(metric, repo_root):
-    """Return (command, seconds, exit_code, stderr_tail) for one metric."""
+    """Return (command, seconds, exit_code, stderr_tail, is_measured)."""
     with tempfile.TemporaryDirectory() as directory:
         declaration_path = Path(directory) / "quality-metrics.yaml"
         declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(metric=metric))
@@ -99,16 +115,17 @@ def time_metric(metric, repo_root):
         started = time.perf_counter()
         completed = subprocess.run(command, cwd=repo_root, capture_output=True, text=True)
         seconds = time.perf_counter() - started
-    return command, seconds, completed.returncode, completed.stderr.strip()[-400:]
+    is_measured = run_measured(completed.returncode, completed.stdout)
+    return command, seconds, completed.returncode, completed.stderr.strip()[-400:], is_measured
 
 
 def benchmark(repo_root):
     results = {}
     for metric in metrics_with_a_module():
-        command, seconds, exit_code, stderr_tail = time_metric(metric, repo_root)
+        command, seconds, exit_code, stderr_tail, is_measured = time_metric(metric, repo_root)
         results[metric] = {
-            "command": command, "seconds": seconds,
-            "exit_code": exit_code, "stderr_tail": stderr_tail,
+            "command": command, "seconds": seconds, "exit_code": exit_code,
+            "stderr_tail": stderr_tail, "is_measured": is_measured,
         }
         print(f"{metric}: {seconds:.2f}s exit {exit_code}: {' '.join(command)}")
     return results
@@ -122,7 +139,7 @@ def evidence_section(results, per_unit):
     for metric, result in results.items():
         lines.append(f"### {metric}: {result['seconds']:.2f} s, exit {result['exit_code']}\n")
         lines.append(f"```\n{' '.join(result['command'])}\n```\n")
-        if result["exit_code"] == MEASURE_EXIT_UNMEASURED:
+        if not result["is_measured"]:
             lines.append(f"Not measured, left out. stderr tail:\n```\n{result['stderr_tail']}\n```\n")
     return "\n".join(lines)
 
@@ -132,7 +149,7 @@ def measured_seconds(results):
     return {
         metric: result["seconds"]
         for metric, result in results.items()
-        if result["exit_code"] != MEASURE_EXIT_UNMEASURED
+        if result["is_measured"]
     }
 
 
