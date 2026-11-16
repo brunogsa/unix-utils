@@ -31,7 +31,9 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
   - Exit 1 is a violation: the JSON is still valid and you still render it (section 3).
   - Exit 2 means the run did not measure: read stderr, report the failure, and never read it as a pass.
 
-Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`.
+Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `asks`.
+
+Return each entry of `asks` verbatim as an `ask` record in your final message, never ask the human yourself; main raises it and relays the answer (see [`metrics-leg.md`](metrics-leg.md) §2).
 
 The script skips `entangled_tests` by design; you judge it in section 4.
 
