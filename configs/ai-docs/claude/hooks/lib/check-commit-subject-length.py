@@ -5,8 +5,9 @@
 #   python3 check-commit-subject-length.py '<raw Bash command>'
 #
 # Or, for the guard's attribution check:
-#   python3 check-commit-subject-length.py --messages '<cmd>'
-# which prints the message of each commit it surely knows.
+#   python3 check-commit-subject-length.py --attributed '<cmd>'
+# which prints "attributed" when every commit it surely knows
+# carries Co-Authored-By: Claude as a git trailer.
 #
 # stdout: one deny reason when a commit in the command records
 #   a subject over 64 characters, nothing otherwise.
@@ -22,6 +23,7 @@ import importlib.util
 import os
 import re
 import stat
+import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
@@ -57,7 +59,17 @@ LONG_VALUE_OPTIONS = {"--message": "message", "--file": "file", "--trailer": "tr
 # The hook JSON's cwd, which the git guard hands over because a
 # relative -F path resolves against the Bash tool's directory.
 COMMIT_CWD_ENV = "CLAUDE_GIT_COMMIT_CWD"
-MESSAGES_FLAG = "--messages"
+ATTRIBUTED_FLAG = "--attributed"
+ATTRIBUTED_VERDICT = "attributed"
+
+# git's own trailer parser. git commit and %(trailers) read past
+# a --- line, which interpret-trailers takes as the end unless
+# told --no-divider.
+TRAILER_PARSER = ("git", "interpret-trailers", "--parse", "--no-divider")
+TRAILER_PARSER_TIMEOUT_SECONDS = 10
+
+# A --trailer value may use = where a message trailer uses :.
+ATTRIBUTION_TRAILER = re.compile(r"co-authored-by\s*[:=].*claude", re.IGNORECASE)
 
 # The subject sits in the first paragraph; a prefix is enough.
 MESSAGE_FILE_READ_LIMIT = 1 << 20
@@ -125,6 +137,13 @@ class Word(NamedTuple):
     # bash may turn this word into other words, or none, so its
     # text is not what git receives.
     is_expandable: bool = False
+
+
+class Commit(NamedTuple):
+    message: str
+
+    # The --trailer values, which git adds to the trailer block.
+    trailers: list[str]
 
 
 class Stage(NamedTuple):
@@ -591,12 +610,9 @@ def _update_state(stage, is_piped, state):
             state.variables.pop(written.group(1), None)
 
 
-def _commit_message(stage, values, state):
-    """Return the message a git commit stage surely records, or
-    None."""
-    if not stage.is_sure or len(stage.heredoc_keys) > 1:
-        return None
-    words = stage.words
+def _commit_subcommand_index(words):
+    """Return (index of the commit subcommand, whether a -C
+    moved git's directory), or None for any other command."""
     index = _command_word_index(words)
     if index is None or words[index].text != "git":
         return None
@@ -604,7 +620,37 @@ def _commit_message(stage, values, state):
     index = _subcommand_index(words, git_options_start)
     if index is None or words[index].text != "commit":
         return None
-    is_git_dir_moved = "-C" in [word.text for word in words[git_options_start:index]]
+    return index, "-C" in [word.text for word in words[git_options_start:index]]
+
+
+def _is_message_expandable(words, file_positions, file_count):
+    """True when an expansion among words may change the
+    message: any expandable word but the value of a sole -F."""
+    expandable_positions = {position for position, word in enumerate(words) if word.is_expandable}
+    if not expandable_positions:
+        return False
+    return bool(expandable_positions - file_positions) or file_count != 1
+
+
+def _read_file_message(path, is_path_expanded, state, is_git_dir_moved):
+    """Return the text of the one -F file, or None."""
+    if is_path_expanded:
+        path = _resolve_variables(path, state)
+        if path is None:
+            return None
+    return _read_message_file(path, state, is_git_dir_moved)
+
+
+def _commit(stage, values, state):
+    """Return the Commit a git commit stage surely records, or
+    None."""
+    if not stage.is_sure or len(stage.heredoc_keys) > 1:
+        return None
+    words = stage.words
+    located = _commit_subcommand_index(words)
+    if located is None:
+        return None
+    index, is_git_dir_moved = located
     options = _read_commit_options(words[index + 1 :])
     if options is None:
         return None
@@ -616,23 +662,20 @@ def _commit_message(stage, values, state):
     # expansion there cannot reach the message. The one -F value
     # may expand, since a variable assigned a literal resolves.
     checked_end = len(words) if options_end is None else index + 1 + options_end
-    expandable_positions = {position for position in range(checked_end) if words[position].is_expandable}
-    if expandable_positions - file_positions or (expandable_positions and len(files) != 1):
+    if _is_message_expandable(words[:checked_end], file_positions, len(files)):
         return None
     if messages and files:
         return None
     if messages:
-        return _join_message_options(messages)
-    if files == ["-"]:
-        return values[stage.heredoc_keys[0]] if stage.heredoc_keys else None
-    if len(files) != 1:
-        return None
-    path = files[0]
-    if expandable_positions:
-        path = _resolve_variables(path, state)
-        if path is None:
-            return None
-    return _read_message_file(path, state, is_git_dir_moved)
+        message = _join_message_options(messages)
+    elif files == ["-"]:
+        message = values[stage.heredoc_keys[0]] if stage.heredoc_keys else None
+    elif len(files) == 1:
+        is_path_expanded = any(words[position].is_expandable for position in file_positions)
+        message = _read_file_message(files[0], is_path_expanded, state, is_git_dir_moved)
+    else:
+        message = None
+    return None if message is None else Commit(message, values_by_kind["trailer"])
 
 
 def _subject_of(message):
@@ -665,8 +708,8 @@ def _is_assignment_order_known(text):
     return not ("&&" in text and (";" in text or "\n" in text))
 
 
-def compute_messages(command, cwd=None):
-    """Return the message of each commit the command surely
+def compute_commits(command, cwd=None):
+    """Return the Commit of each commit the command surely
     records.
 
     cwd is the directory a relative -F path resolves against.
@@ -693,17 +736,34 @@ def compute_messages(command, cwd=None):
     except CannotBeSure:
         return []
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
-    messages = []
+    commits = []
     for stage, is_piped in stages:
-        messages.append(_commit_message(stage, values, state))
+        commits.append(_commit(stage, values, state))
         _update_state(stage, is_piped, state)
-    return [message for message in messages if message is not None]
+    return [commit for commit in commits if commit is not None]
 
 
 def compute_subjects(command, cwd=None):
     """Return the subject of each commit the command surely
     runs."""
-    return [_subject_of(message) for message in compute_messages(command, cwd)]
+    return [_subject_of(commit.message) for commit in compute_commits(command, cwd)]
+
+
+def _has_attribution_trailer(commit, cwd):
+    """True when git records Co-Authored-By: Claude as a trailer
+    of this commit, not as text glued onto a body line."""
+    if any(ATTRIBUTION_TRAILER.match(value) for value in commit.trailers):
+        return True
+    parsed = subprocess.run(
+        TRAILER_PARSER,
+        input=commit.message.encode("utf-8", "surrogateescape"),
+        capture_output=True,
+        cwd=cwd,
+        check=True,
+        timeout=TRAILER_PARSER_TIMEOUT_SECONDS,
+    )
+    trailer_lines = parsed.stdout.decode("utf-8", "replace").splitlines()
+    return any(ATTRIBUTION_TRAILER.match(line) for line in trailer_lines)
 
 
 def _deny_reason(subject):
@@ -714,19 +774,21 @@ def _deny_reason(subject):
 
 
 def main(argv):
-    is_messages_mode = len(argv) > 1 and argv[1] == MESSAGES_FLAG
-    command_index = 2 if is_messages_mode else 1
+    is_attributed_mode = len(argv) > 1 and argv[1] == ATTRIBUTED_FLAG
+    command_index = 2 if is_attributed_mode else 1
     if len(argv) <= command_index:
         return 0
 
     # Undo the locale's argv decoding, so a non-ASCII subject is
     # measured in characters, not bytes.
     command = os.fsencode(argv[command_index]).decode("utf-8", "surrogateescape")
-    if is_messages_mode:
+    if is_attributed_mode:
         # A crash here makes the guard deny, the safe side for
         # the attribution check, so no try/except softens it.
-        messages = compute_messages(command, os.environ.get(COMMIT_CWD_ENV))
-        sys.stdout.buffer.write("\n".join(messages).encode("utf-8", "replace"))
+        cwd = os.environ.get(COMMIT_CWD_ENV) or os.getcwd()
+        commits = compute_commits(command, cwd)
+        if commits and all(_has_attribution_trailer(commit, cwd) for commit in commits):
+            sys.stdout.write(ATTRIBUTED_VERDICT)
         return 0
     subjects = compute_subjects(command, os.environ.get(COMMIT_CWD_ENV))
     over_cap = [subject for subject in subjects if len(subject) > SUBJECT_CAP]

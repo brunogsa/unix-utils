@@ -454,42 +454,42 @@ if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\s+.*--amend'; then
   exit 2
 fi
 
-# message_file_has_attribution - succeeds when a -F/--file
-# message file of the commit carries the attribution.
+# commit_has_attribution_trailer - succeeds when every commit
+# the command surely records carries Co-Authored-By: Claude as
+# a git trailer, read by git interpret-trailers.
 #
-# A message passed as a file never appears on the command line,
-# so the command-line search alone denies an attributed -F one.
+# A search of the raw command once passed an attribution glued
+# onto a body sentence, which git keeps as body text.
+#
+# The message comes from the same resolver the subject check
+# uses: -m values joined as git joins them, a -F file, the
+# $(cat <<'EOF' ...) form, and --trailer values.
 #
 # Unlike the subject check below, any failure here (a crash,
 # a missing lib, "-F -" stdin, an unreadable file) fails
 # closed: a lost attribution is the defect this rule prevents.
 #
-# The message comes from the same resolver the subject check
-# uses, which follows a $VAR path assigned earlier in the
-# command.
-#
-# When it is unsure (a cd, -C, ||, a subshell), it returns no
-# message, so the deny stands. The subject check reads that as
-# "allow"; here it is "no attribution found".
-message_file_has_attribution() {
-  local messages
-  messages=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" --messages "$CMD" 2>/dev/null) || return 1
-  grep -qi "$ATTRIBUTION_PATTERN" <<< "$messages"
+# When the resolver is unsure (a cd before a relative -F, ||,
+# a subshell, an unknown option), it reads no commit, so the
+# deny stands. The subject check reads that as "allow".
+commit_has_attribution_trailer() {
+  local verdict
+  verdict=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" --attributed "$CMD" 2>/dev/null) || return 1
+  [ "$verdict" = "attributed" ]
 }
 
 # Block git commit without Co-Authored-By: Claude attribution.
-# The trigger checks CMD_STRUCT (a real invocation), but the
-# attribution search checks the RAW command, since the message
-# text lives inside quotes that CMD_STRUCT has blanked out.
-ATTRIBUTION_PATTERN='Co-Authored-By:.*Claude'
+# The trigger checks CMD_STRUCT (a real invocation); the
+# attribution check reads the message the commit records.
 if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
-  if ! echo "$CMD" | grep -qi "$ATTRIBUTION_PATTERN" && ! message_file_has_attribution; then
-    echo 'git commit must include Co-Authored-By: Claude attribution. Add it to the commit message.' >&2
+  if ! commit_has_attribution_trailer; then
+    echo 'git commit must include Co-Authored-By: Claude attribution as a git trailer. Put it in its own last -m "Co-Authored-By: ...", or pass --trailer "Co-Authored-By: ...". Glued onto a body sentence or after a literal \n, git keeps it as body text.' >&2
     exit 2
   fi
 
-  # A checker that crashes or cannot load allows the commit, so
-  # a broken subject check never blocks every commit.
+  # A subject checker that crashes allows the commit, so a
+  # broken subject check never blocks every commit. One that
+  # cannot load already failed the attribution check above.
   reason=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" "$CMD" 2>/dev/null) && [ -n "$reason" ] && { printf '%s\n' "$reason" >&2; exit 2; }
 
   # The gate resolves pathspecs against its own cwd, so it

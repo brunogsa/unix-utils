@@ -98,6 +98,17 @@ make_hook_without_lib() {
   printf '%s' "$dir/claude-git-guard.sh"
 }
 
+# make_hook_without_format_gate - like make_hook_without_lib,
+# but keeps the two python libs the attribution check reads the
+# message with, so only the comment-format gate is missing.
+make_hook_without_format_gate() {
+  local hook
+  hook=$(make_hook_without_lib)
+  mkdir "$(dirname "$hook")/lib"
+  cp "$(dirname "$SCRIPT")/lib/parse-shell-command.py" "$(dirname "$SCRIPT")/lib/check-commit-subject-length.py" "$(dirname "$hook")/lib/"
+  printf '%s' "$hook"
+}
+
 # run_hook_with_script - like run_hook, but against an
 # explicit script path instead of the real hook, for exercising
 # the copy make_hook_without_lib built.
@@ -468,7 +479,7 @@ it_should_allow_commit_with_violation_when_format_gate_is_missing() {
   local dir hook cmd
   dir=$(make_repo main)
   printf '%s\n' '# this standalone comment line runs well past the sixty-four character cap' > "$dir/f.sh"
-  hook=$(make_hook_without_lib)
+  hook=$(make_hook_without_format_gate)
   cmd=$(printf 'git add f.sh && git commit -m "add f.sh\n\nCo-Authored-By: Claude Opus 5 <noreply@anthropic.com>"')
   run_hook_with_script "$hook" "$cmd" "$dir"
   assert_eq "should fail open and allow the commit when the comment-format gate cannot be run" "0" "$HOOK_EXIT"
@@ -526,13 +537,13 @@ it_should_allow_a_commit_whose_subject_is_exactly_64_characters() {
   assert_eq "should allow a commit whose subject is exactly 64 characters" "0" "$HOOK_EXIT"
 }
 
-it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing() {
+it_should_block_an_attributed_commit_when_the_message_reader_is_missing() {
   local dir hook cmd
   dir=$(make_repo main)
   hook=$(make_hook_without_lib)
   cmd=$(printf 'git commit --allow-empty -m "fix(git-guard): stop a commit whose subject is longer than a cap.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"')
   run_hook_with_script "$hook" "$cmd" "$dir"
-  assert_eq "should fail open and allow an over-cap subject when the subject checker cannot be run" "0" "$HOOK_EXIT"
+  assert_eq "should fail closed when the message reader cannot be run, since the attribution trailer goes unread" "2" "$HOOK_EXIT"
 }
 
 # A git global option between "git" and the subcommand must not
@@ -718,6 +729,21 @@ it_should_block_a_relative_message_file_after_a_directory_change() {
   assert_eq "should block a relative message file once a cd moved the working directory" "2" "$HOOK_EXIT"
 }
 
+# Glued onto a body sentence, git keeps the attribution as body
+# text, so git log's %(trailers) shows no Co-Authored-By.
+it_should_block_an_attribution_glued_onto_a_body_sentence() {
+  local dir payload stderr_text
+  dir=$(make_repo main)
+  payload=$(jq -n --arg c 'git commit --allow-empty -m "fix(git-guard): read trailers" -m "Why text. Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' --arg d "$dir" '{tool_input: {command: $c}, cwd: $d}')
+  stderr_text=$(printf '%s' "$payload" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  assert_eq "should block an attribution glued onto a body sentence" "2" "$HOOK_EXIT"
+  case "$stderr_text" in
+    *"its own last -m"*) assert_eq "should tell the author to put the attribution in its own last -m" "told" "told" ;;
+    *) assert_eq "should tell the author to put the attribution in its own last -m" "told" "$stderr_text" ;;
+  esac
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -777,7 +803,7 @@ it_should_block_a_commit_whose_subject_runs_past_64_characters
 it_should_block_a_message_file_commit_whose_subject_runs_past_64_characters
 it_should_allow_a_message_file_commit_whose_subject_is_40_characters
 it_should_allow_a_commit_whose_subject_is_exactly_64_characters
-it_should_allow_an_over_cap_subject_when_the_subject_checker_is_missing
+it_should_block_an_attributed_commit_when_the_message_reader_is_missing
 it_should_block_an_unattributed_commit_behind_a_global_option
 it_should_block_a_destructive_operation_behind_a_global_option
 it_should_allow_a_safe_operation_behind_a_global_option
@@ -792,6 +818,7 @@ it_should_block_an_amend_whose_message_file_carries_attribution
 it_should_allow_a_variable_message_file_path_whose_file_carries_attribution
 it_should_block_a_variable_message_file_path_whose_file_lacks_attribution
 it_should_block_a_relative_message_file_after_a_directory_change
+it_should_block_an_attribution_glued_onto_a_body_sentence
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
