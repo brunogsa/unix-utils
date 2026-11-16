@@ -219,7 +219,7 @@ The subagent's return message must carry only the counts, the file path, and one
 After the agent returns:
 
 1. `Read` `$VERDICT_PATH` end-to-end - the return summary is truncated by design, so never report from it.
-2. Print the resolved plan path, the checked task-ids, the found/missing counts, and one line per finding.
+2. Print the resolved plan path, the checked task-ids, the found/missing/unplanned counts, and one line per finding.
 3. Tell the user the full report is at `$VERDICT_PATH`.
 
 If the file is missing or empty after the agent returns, treat the run as failed and re-dispatch once; do not report from the truncated return alone.
