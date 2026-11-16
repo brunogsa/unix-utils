@@ -58,10 +58,10 @@ class TestRunMeasured:
 
         assert benchmark.run_measured(1, report)
 
-    def test_should_leave_out_a_check_whose_run_exited_2(self):
+    def test_should_leave_out_a_check_whose_run_could_not_measure(self):
         benchmark = load_benchmark()
 
-        assert not benchmark.run_measured(2, "")
+        assert not benchmark.run_measured(benchmark.MEASURE_EXIT_UNMEASURED, "")
 
 
 class TestDeclaredForTiming:
@@ -103,17 +103,19 @@ class TestMainGuards:
 
 
 class TestPerUnitSelection:
-    def test_should_keep_a_check_timed_at_exactly_8_0_seconds_in_per_unit(self):
+    def test_should_keep_a_check_timed_at_exactly_the_limit(self):
         benchmark = load_benchmark()
+        limit = benchmark.PER_UNIT_LIMIT_SECONDS
 
-        selected = benchmark.select_per_unit({"size": 8.0, "nesting": 0.4})
+        selected = benchmark.select_per_unit({"size": limit, "nesting": 0.4})
 
         assert selected == ["size", "nesting"]
 
-    def test_should_leave_out_a_check_timed_at_8_1_seconds(self):
+    def test_should_leave_out_a_check_timed_just_over_the_limit(self):
         benchmark = load_benchmark()
+        limit = benchmark.PER_UNIT_LIMIT_SECONDS
 
-        selected = benchmark.select_per_unit({"size": 0.3, "crap": 8.1})
+        selected = benchmark.select_per_unit({"size": 0.3, "crap": limit + 0.1})
 
         assert selected == ["size"]
 
@@ -122,8 +124,10 @@ class TestPerUnitSelection:
     ):
         benchmark = load_benchmark()
         declaration_path = write_declaration(tmp_path)
+        limit = benchmark.PER_UNIT_LIMIT_SECONDS
         benchmark.write_per_unit(
-            declaration_path, benchmark.select_per_unit({"size": 7.9, "crap": 12.5})
+            declaration_path,
+            benchmark.select_per_unit({"size": limit - 0.1, "crap": limit + 4.5}),
         )
 
         # A parallel run times size at 10 s, yet placement
