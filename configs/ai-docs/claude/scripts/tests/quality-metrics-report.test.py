@@ -1,5 +1,7 @@
 import importlib
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -171,3 +173,32 @@ class TestHotspotView:
         verdict = report.build_verdict(HOTSPOT_RUN, import_edges=IMPORT_EDGES)
 
         assert "```mermaid" in section(verdict, "Code design")
+
+
+def mermaid_block(verdict):
+    return re.search(r"```mermaid\n(.*?)```", verdict, re.S).group(1)
+
+
+class TestHotspotLabels:
+    def test_should_render_a_touched_path_holding_brackets_or_quotes_such_as_src_id_tsx_and_a_quote_b_ts(
+        self, tmp_path
+    ):
+        mmdc = shutil.which("mmdc")
+        assert mmdc, "mmdc is installed by install.sh; the render check needs it"
+        run = measured(
+            function_record("src/[id].tsx", "Page", "crap", 3, CRAP_LIMIT),
+            function_record('a"b.ts', "pick", "crap", 6, CRAP_LIMIT),
+        )
+
+        verdict = report.build_verdict(run)
+
+        source = tmp_path / "hotspot.mmd"
+        source.write_text(mermaid_block(verdict))
+        render = subprocess.run(
+            [mmdc, "-i", str(source), "-o", str(tmp_path / "hotspot.svg")],
+            capture_output=True, text=True,
+        )
+        assert render.returncode == 0, render.stderr
+        svg = (tmp_path / "hotspot.svg").read_text()
+        assert "src/[id].tsx" in svg
+        assert 'a"b.ts' in svg
