@@ -94,7 +94,7 @@ def quality_gate(arg):
         if not present_and_non_empty(leg.verdict_path):
             redispatch_once(leg)                             # 9a
             if still_missing(leg):
-                flag(leg)   # 9a · the other legs still stand; a failed metrics leg reads "not measured"
+                flag(leg)   # 9a · the other legs still stand; a failed metrics leg reads "FAIL - leg failed"
         # 9a · never report from a capped return message - always from the file
 
     # ---- 10 · Step 4.1 - merge the four legs' files into ONE verdict.
@@ -254,7 +254,7 @@ flowchart TD
   subgraph merge["10. Step 4.1 · Merge the legs' files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md (or ..._no-git_&lt;ts&gt;.md) - on report-only and auto-solve runs alike."]
     direction TB
     n10{"10. Did any leg produce a file?"}
-    n10a["10a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: not measured (reason), never clean"]
+    n10a["10a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: FAIL - leg failed (reason), never clean"]
     n10b["10b. Record the source paths; k = main's fence-aware<br/>count of the rendered metrics verdict (0 with none).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1"]:::dispatch
     n10f["10f. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
     n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0 on merged-findings.md alone,<br/>count == k + input counts minus absorbed (k duplicates absorb k-1),<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics (fence-aware)?"}
@@ -291,7 +291,7 @@ flowchart TD
     n13a --> n13b --> n13c --> n13d --> n13e --> n13f
   end
 
-  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads not measured, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a

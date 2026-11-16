@@ -199,9 +199,9 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - Every verdict file path this run produced: the merged file, the rendered metrics verdict and judge file (now in `<RUN_DIR>`), the source paths §4.1 moved, and the fallback when it happened.
   - Also any leg that failed to produce a file, and the `test-sdd` leg when §2 resolved no plan.
 
-- **A failed metrics leg reads `metrics: not measured (<reason>)`, never as clean.**
+- **A failed metrics leg reads `metrics: FAIL - leg failed (<reason>)`, never as clean.**
 
-- Any deferred tooling ask, with its reading: `pessimistic, tooling deferred` or `not measured: no language entry`.
+- Any deferred tooling ask, with its reading: `pessimistic, tooling deferred` or `not measured: no language entry`, each reported as a failing score, never a neutral one.
 
 - Metrics apply outcomes: each open violation fixed with its SHA, and each still open, including rejected exceptions.
 

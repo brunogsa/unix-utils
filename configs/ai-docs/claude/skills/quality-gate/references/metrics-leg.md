@@ -29,7 +29,7 @@ A subagent never asks the human. The leg returns each tooling problem as an `ask
 The variable decides, never your judgment. Answer `defer` without asking:
 - coverage and CRAP read `pessimistic, tooling deferred` at 0%,
 - a file with no language entry reads `not measured: no language entry`,
-- neither ever reads as passing.
+- both score as failing in the report, never neutral and never passing.
 
 **Otherwise** raise every open ask in one `AskUserQuestion`: `fix now` or `defer`, recommending `defer` only when the fix is not yet understood, and quoting the tool and the reason.
 - Relay the answer by continuing or re-dispatching the leg.
@@ -50,7 +50,7 @@ When no git repo encloses CWD (`git rev-parse --is-inside-work-tree` fails), ski
 
 ## 4. A failed leg
 
-An exit 2 from the script or the verdict render, or no rendered file after one re-dispatch, is not a clean run. Merge the other legs with k = 0 and report `metrics: not measured (<reason>)` in §7.
+An exit 2 from the script or the verdict render, or no rendered file after one re-dispatch, is not a clean run. Merge the other legs with k = 0 and report `metrics: FAIL - leg failed (<reason>)` in §7.
 
 ## 5. Open-violation entry numbers
 
