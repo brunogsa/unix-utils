@@ -19,6 +19,7 @@ from quality_metrics.failures import (
     deferred_coverage_measurement,
 )
 from quality_metrics.functions import FunctionMeasure, measurement
+from quality_metrics.gate_inputs import write_base_ref_configs
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -115,7 +116,7 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
-def measure_coverage(target, repo, measure_globally, policy=None):
+def measure_coverage(target, repo, measure_globally, policy=None, base_ref=None):
     """Changed-line coverage, from the repo's jest or else the global tool.
 
     A repo tool that crashed, timed out twice or wrote no coverage data
@@ -125,7 +126,7 @@ def measure_coverage(target, repo, measure_globally, policy=None):
     `policy` is the TimeoutPolicy bounding each jest run.
     """
     try:
-        outcome = _measure_coverage_under_timeout_policy(target, repo, policy or TimeoutPolicy())
+        outcome = _measure_coverage_under_timeout_policy(target, repo, policy or TimeoutPolicy(), base_ref)
     except RepoToolFailure as failure:
         if failure.exit_class == FAILED_TESTS:
             return {
@@ -176,9 +177,11 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
     return {**outcome, "ask": asks[0] if asks else None}
 
 
-def _measure_coverage_under_timeout_policy(target, repo, policy):
+def _measure_coverage_under_timeout_policy(target, repo, policy, base_ref=None):
     try:
-        return policy.run(lambda timeout_seconds: measure_coverage_with_repo_tool(target, repo, timeout_seconds))
+        return policy.run(
+            lambda timeout_seconds: measure_coverage_with_repo_tool(target, repo, timeout_seconds, base_ref)
+        )
     except ToolTimedOutTwice as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
     except RepoToolFailure:
@@ -187,16 +190,37 @@ def _measure_coverage_under_timeout_policy(target, repo, policy):
         raise RepoToolFailure(CRASH, str(error)) from error
 
 
-def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None):
+def _base_ref_config_flags(repo, base_ref, config_dir):
+    """jest's flags for the config as `base_ref` committed it.
+
+    The copy lives outside the repo, so `--rootDir` keeps jest
+    resolving paths against the repo. No flags when no ref is
+    given or the base ref holds no jest config.
+    """
+    if base_ref is None:
+        return []
+    copies = write_base_ref_configs(repo, base_ref, config_dir)
+    if not copies:
+        return []
+    return ["--config", str(next(iter(copies.values()))), f"--rootDir={repo}"]
+
+
+def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref=None):
     """Changed-line coverage from the repo's jest, with how jest exited.
+
+    With a `base_ref`, jest reads the config that ref committed,
+    so a branch's own coverage excludes never shape the number.
 
     The coverage reads valid when jest passed or exited non-zero on the
     repo's own threshold: the harness judges the measured value against its
     own limit. Any other outcome raises RepoToolFailure naming its class.
     """
-    with tempfile.TemporaryDirectory() as report_dir:
+    with tempfile.TemporaryDirectory() as report_dir, tempfile.TemporaryDirectory() as config_dir:
         result = run_command(
-            ["jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}"],
+            [
+                "jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
+                *_base_ref_config_flags(repo, base_ref, config_dir),
+            ],
             cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
         )
         exit_class = classify_exit(result)

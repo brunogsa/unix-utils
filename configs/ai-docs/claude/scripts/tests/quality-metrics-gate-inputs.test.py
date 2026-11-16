@@ -11,9 +11,29 @@ HOOK = SCRIPTS_DIR.parent / "hooks" / "check-lint-suppressions.py"
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import commit_all, head_of, make_repo, measure_report
+from quality_metrics_support import (
+    commit_all, head_of, install_stub_tool, make_repo, measure_report,
+)
+
+from quality_metrics.sourcing import measure_coverage_with_repo_tool
+from quality_metrics.touched import Target
 
 FEEDBACK_EXIT = 2
+
+# Records its arguments and the config text it was handed, then
+# writes an empty lcov report where jest was told to.
+JEST_RECORDING_STUB = """#!/bin/bash
+: > "$ARGS_LOG"
+for argument in "$@"; do
+  echo "$argument" >> "$ARGS_LOG"
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+  if [ "$previous" = "--config" ]; then cp "$argument" "$CONFIG_COPY_LOG"; fi
+  previous="$argument"
+done
+: > "$report_dir/lcov.info"
+"""
 
 DECLARATION_TEXT = """\
 excluded_paths: []
@@ -43,6 +63,7 @@ JEST_CONFIG_EXCLUDING_REPORT = (
     "};\n"
 )
 REPORT_SOURCE = "export function render(rows: string[]): string {\n  return rows.join('\\n');\n}\n"
+
 
 
 def write_declaration(tmp_path):
@@ -85,6 +106,30 @@ class TestCornerCases:
 
 
 class TestHappyPath:
+    def test_should_pass_the_base_ref_config_to_a_repo_tool_through_its_config_flag_as_in_jest_config_tmp_jest_config_js(
+        self, tmp_path, monkeypatch
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": JEST_CONFIG_WITHOUT_EXCLUDES,
+            "src/report.ts": REPORT_SOURCE,
+        })
+        base = head_of(repo)
+        (repo / "jest.config.js").write_text(JEST_CONFIG_EXCLUDING_REPORT)
+        args_log, config_copy_log = tmp_path / "args.log", tmp_path / "config-copy.js"
+        monkeypatch.setenv("ARGS_LOG", str(args_log))
+        monkeypatch.setenv("CONFIG_COPY_LOG", str(config_copy_log))
+        install_stub_tool(tmp_path, monkeypatch, "jest", JEST_RECORDING_STUB)
+        target = Target(repo / "src/report.ts", "typescript", None)
+
+        measure_coverage_with_repo_tool(target, repo, base_ref=base)
+
+        arguments = args_log.read_text().splitlines()
+        config_path = arguments[arguments.index("--config") + 1]
+        assert Path(config_path).name == "jest.config.js"
+        assert Path(config_path).parent != repo
+        assert f"--rootDir={repo}" in arguments
+        assert config_copy_log.read_text() == JEST_CONFIG_WITHOUT_EXCLUDES
+
     def test_should_list_an_added_istanbul_ignore_comment_as_a_violation(self, tmp_path):
         repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})
         base = head_of(repo)
