@@ -4,7 +4,11 @@
 # untracked files, scoped to optional path arguments.
 #
 # Usage:
-#   prep-refactor-context.sh <work_dir> [<path>...]
+#   prep-refactor-context.sh [--base-ref <ref>] <work_dir>
+#     [<path>...]
+#
+# --base-ref <ref> diffs from <ref>, ahead of the upstream and
+#   of resolve-base-ref.sh.
 #
 # stdin: none
 # stdout: one "<name>: <path>" line per file written into
@@ -20,8 +24,16 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   exit 0
 fi
 
+explicit_base=""
+if [[ "${1:-}" == "--base-ref" ]]; then
+  [[ -n "${2:-}" ]] \
+    || { echo "prep-refactor-context: --base-ref needs a <ref> value" >&2; exit 1; }
+  explicit_base="$2"
+  shift 2
+fi
+
 if [[ $# -lt 1 ]]; then
-  echo "usage: prep-refactor-context.sh <work_dir> [<path>...]" >&2
+  echo "usage: prep-refactor-context.sh [--base-ref <ref>] <work_dir> [<path>...]" >&2
   exit 1
 fi
 
@@ -31,10 +43,11 @@ shift
 git rev-parse --show-toplevel >/dev/null 2>&1 \
   || { echo "prep-refactor-context: not inside a git repository" >&2; exit 1; }
 
-# @{upstream} when the branch tracks a remote, else the repo
-# default branch, which is all a fresh /implement branch has:
-# its tail runs before the first push.
-base=$(git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2>/dev/null) \
+# An explicit --base-ref, else @{upstream} when the branch
+# tracks a remote, else the repo default branch, which is all
+# a fresh /implement branch has: its tail runs before the
+# first push.
+base=${explicit_base:-$(git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2>/dev/null)} \
   || base=$(~/.claude/scripts/resolve-base-ref.sh) \
   || { echo "prep-refactor-context: could not resolve a base ref (no upstream, no origin/HEAD, no local main or master)" >&2; exit 1; }
 

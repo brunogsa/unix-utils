@@ -44,10 +44,10 @@ Mint a work dir, then call the script:
 
 ```bash
 work_dir=$(mktemp -d /tmp/refactor.XXXXXX)
-bash ~/.claude/skills/refactor/scripts/prep-refactor-context.sh "$work_dir" [<path>...]
+bash ~/.claude/skills/refactor/scripts/prep-refactor-context.sh [--base-ref <ref>] "$work_dir" [<path>...]
 ```
 
-Base resolution tries `@{upstream}` first, falling back to `~/.claude/scripts/resolve-base-ref.sh` -- see the script's own `if`/`else` for the exact fallback and its failure message.
+A caller-given `--base-ref <ref>` wins; otherwise base resolution tries `@{upstream}` first, falling back to `~/.claude/scripts/resolve-base-ref.sh` -- see the script's own `if`/`else` for the exact fallback and its failure message.
 
 Without that fallback the unpushed half either dies on `fatal: no upstream configured` or yields nothing, and the run writes a near-empty report that reads as "nothing to refactor".
 

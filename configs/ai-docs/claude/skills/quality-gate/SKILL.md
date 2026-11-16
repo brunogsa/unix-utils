@@ -90,7 +90,7 @@ First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/qua
 
 Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review and metrics legs, `test-reviewer` for the planned-test leg - all in the **same turn**, all in the background. They are independent report-only passes.
 
-- `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool).
+- `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool) with `<BASE_REF>` as its `--base-ref`.
 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>`, the resolved spec/plan paths and `<SESSION_ID>` pushed in.
 

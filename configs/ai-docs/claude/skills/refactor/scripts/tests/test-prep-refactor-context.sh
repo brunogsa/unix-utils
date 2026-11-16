@@ -289,7 +289,69 @@ it_should_diff_from_the_merge_base_excluding_the_base_branchs_own_newer_commits(
     "diff includes feature's own addition and excludes base's own newer commit" "$result"
 }
 
+# make_tracking_scratch_repo - builds a repo whose checked-out
+# "feature" branch tracks a local "develop" branch.
+#
+# Shape: master C0 -> develop C1 (adds develop-only.txt) ->
+# feature C2 (adds feature-only.txt). Echoes the repo path.
+make_tracking_scratch_repo() {
+  local repo
+  repo="$(make_scratch_repo)"
+  git -C "$repo" checkout -q -b develop
+  echo "develop" > "$repo/develop-only.txt"
+  git -C "$repo" add develop-only.txt
+  git -C "$repo" commit -q -m "develop-only commit
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+  git -C "$repo" checkout -q -b feature --track develop
+  echo "feature" > "$repo/feature-only.txt"
+  git -C "$repo" add feature-only.txt
+  git -C "$repo" commit -q -m "feature-only commit
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+  echo "$repo"
+}
+
+it_should_diff_from_an_explicit_base_ref_even_when_an_upstream_is_configured() {
+  local repo root_sha work_dir diff_content result
+  repo="$(make_tracking_scratch_repo)"
+  root_sha="$(git -C "$repo" rev-list --max-parents=0 HEAD)"
+  work_dir="$(mktemp -d)"
+
+  (cd "$repo" && bash "$SCRIPT" --base-ref "$root_sha" "$work_dir" >/dev/null 2>&1)
+  diff_content="$(cat "$work_dir/diff" 2>/dev/null)"
+
+  result="wrong base"
+  if [[ "$diff_content" == *"develop-only.txt"* && "$diff_content" == *"feature-only.txt"* ]]; then
+    result="diff starts at the explicit base, ignoring the upstream"
+  fi
+
+  rm -rf "$repo" "$work_dir"
+  assert_eq "should diff from the --base-ref commit, including the upstream branch's own commits, when an upstream is also configured" \
+    "diff starts at the explicit base, ignoring the upstream" "$result"
+}
+
+it_should_diff_from_the_upstream_when_no_base_ref_is_given() {
+  local repo work_dir diff_content result
+  repo="$(make_tracking_scratch_repo)"
+  work_dir="$(mktemp -d)"
+
+  (cd "$repo" && bash "$SCRIPT" "$work_dir" >/dev/null 2>&1)
+  diff_content="$(cat "$work_dir/diff" 2>/dev/null)"
+
+  result="wrong base"
+  if [[ "$diff_content" == *"feature-only.txt"* && "$diff_content" != *"develop-only.txt"* ]]; then
+    result="diff starts at the upstream, excluding its commits"
+  fi
+
+  rm -rf "$repo" "$work_dir"
+  assert_eq "should diff from the configured upstream, excluding the upstream's own commits, when no --base-ref is given" \
+    "diff starts at the upstream, excluding its commits" "$result"
+}
+
 it_should_write_all_four_output_files_creating_a_not_yet_existing_work_dir_on_the_happy_path
+it_should_diff_from_an_explicit_base_ref_even_when_an_upstream_is_configured
+it_should_diff_from_the_upstream_when_no_base_ref_is_given
 it_should_list_an_untracked_file_in_both_untracked_and_changed_but_contribute_no_diff_lines
 it_should_capture_a_staged_but_uncommitted_change_in_the_diff
 it_should_scope_all_outputs_to_a_pathspec_argument_excluding_files_outside_it
