@@ -13,6 +13,7 @@ from pathlib import Path
 from quality_metrics import hotspots
 from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.failures import DEFERRED_LABEL
+from quality_metrics.functions import display_value
 
 METRICS_TAG = "[metrics]"
 
@@ -92,7 +93,7 @@ def _exceptions_section(accepted, numbers):
         _entry(
             next(numbers),
             f"{_describe(violation)}, split {_metric_name(violation)} "
-            f"{claim['split_value']:g}, [split diff]({claim['diff_path']})",
+            f"{display_value({'value': claim['split_value']})}, [split diff]({claim['diff_path']})",
         )
         for violation, claim in accepted
     ]
@@ -178,8 +179,8 @@ def _shown_value(record):
     if record["value"] is None:
         return f"no value ({record['label']})"
     if record.get("label") == DEFERRED_LABEL:
-        return f"{record['value']:g} ({DEFERRED_LABEL})"
-    return f"{record['value']:g}"
+        return f"{display_value(record)} ({DEFERRED_LABEL})"
+    return display_value(record)
 
 
 def _metric_name(record):

@@ -106,8 +106,10 @@ def display_value(item):
     """The record's value cut to 2 decimals, never rounded up.
 
     Rounding would show 7.996 as 8.00 beside a record that passed.
+    Trailing zeros drop, so 4 shows as 4 and 8.90 as 8.9.
     """
-    return str(Decimal(str(item["value"])).quantize(DISPLAY_STEP, ROUND_DOWN))
+    cut = Decimal(str(item["value"])).quantize(DISPLAY_STEP, ROUND_DOWN)
+    return str(cut).rstrip("0").rstrip(".")
 
 
 def measurement(target, metric, value, limit, function=None):
