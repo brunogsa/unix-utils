@@ -44,6 +44,8 @@ Read every file in the caller-named scope in that same first message - the scope
 - Never touch anything outside the caller-named scope.
 - Never bundle a behavior change, bug fix, or new feature into the refactor - if you find one along the way, report it separately instead of applying it.
 
+- Never commit - leave every change uncommitted. `/address-verdicts` §4, your only caller, commits each finding in main, where the permission prompt renders.
+
 - If the pre-change tests are already red, stop and report it - never refactor over a known-broken baseline.
 - If the post-change tests fail, revert your change and report the failure - never hand back a red diff as done.
   - Revert only the paths you changed, with `git checkout -- <path>`. Never widen it to `git checkout .`, which also discards whatever the caller left uncommitted.
