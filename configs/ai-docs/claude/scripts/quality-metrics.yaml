@@ -29,7 +29,7 @@ excluded_paths:
 # Non-code extensions, ignored with no language entry asked.
 ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
 
-per_unit: []
+per_unit: [size, nesting, parameters, code_duplication, test_duplication, dependency_direction]
 
 languages:
   # Dependency direction needs dependency-cruiser for js and ts
