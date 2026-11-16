@@ -217,6 +217,17 @@ class TestGitCannotTellWhetherHeadHoldsTheHook:
 
         assert str(hooks_dir / HOOK_NAME) in get_deny_reason(result)
 
+    def test_should_deny_the_tool_call_when_the_hook_dir_links_a_git_dir_that_no_longer_exists(self, tmp_path):
+        hooks_dir = tmp_path / "stale-worktree" / "hooks"
+        hooks_dir.mkdir(parents=True)
+        (hooks_dir / HOOK_NAME).write_text(hook_source(), encoding="utf-8")
+        (hooks_dir / HELPER_NAME).write_text(helper_source("unchecked edit"), encoding="utf-8")
+        (tmp_path / "stale-worktree" / ".git").write_text(f"gitdir: {tmp_path / 'removed-git-dir'}\n", encoding="utf-8")
+
+        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload())
+
+        assert str(hooks_dir / HOOK_NAME) in get_deny_reason(result)
+
 
 class TestNoCommittedHook:
     def test_should_run_the_working_hook_when_its_dir_is_no_git_repo(self, tmp_path):

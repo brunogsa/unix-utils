@@ -30,11 +30,14 @@ GIT_TIMEOUT_SECONDS = 10
 # Optional locks off: a read here must never take index.lock
 # from an agent committing in the same repo.
 #
-# LC_ALL=C keeps the "not a git repository" message in
-# English, since it is the one git failure that means the
-# hook has no committed version to run.
+# LC_ALL=C keeps git's no-repo message in English, since it
+# is the one git failure that means the hook has no
+# committed version to run.
+#
+# Only the search form counts: a broken .git link or GIT_DIR
+# prints "not a git repository: <path>" from inside a repo.
 GIT_ENV = {**os.environ, "GIT_OPTIONAL_LOCKS": "0", "LC_ALL": "C"}
-NOT_A_REPO_MESSAGE = b"not a git repository"
+NOT_A_REPO_MESSAGE = b"not a git repository (or any"
 
 
 class CommittedHookUnreadableError(Exception):
