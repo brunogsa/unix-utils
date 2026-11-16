@@ -31,9 +31,14 @@ languages:
 
 def load_benchmark():
     spec = importlib.util.spec_from_file_location("benchmark_quality_metrics", SCRIPT)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {SCRIPT}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+benchmark = load_benchmark()
 
 
 def write_declaration(tmp_path):
@@ -44,7 +49,6 @@ def write_declaration(tmp_path):
 
 class TestRunMeasured:
     def test_should_leave_out_a_check_whose_run_only_produced_pessimistic_results(self):
-        benchmark = load_benchmark()
         red_build_report = (
             '{"measurements": [{"metric": "coverage", "value": 0,'
             ' "pessimistic": true}]}'
@@ -53,26 +57,19 @@ class TestRunMeasured:
         assert not benchmark.run_measured(1, red_build_report)
 
     def test_should_count_a_run_that_reports_a_real_violation_as_measured(self):
-        benchmark = load_benchmark()
         report = '{"measurements": [{"metric": "size", "value": 61}]}'
 
         assert benchmark.run_measured(1, report)
 
     def test_should_leave_out_a_check_whose_run_could_not_measure(self):
-        benchmark = load_benchmark()
-
         assert not benchmark.run_measured(benchmark.MEASURE_EXIT_UNMEASURED, "")
 
 
 class TestDeclaredForTiming:
     def test_should_declare_coverage_beside_crap_so_the_test_run_is_timed(self):
-        benchmark = load_benchmark()
-
         assert benchmark.metrics_declared_for("crap") == ["crap", "coverage"]
 
     def test_should_declare_only_the_check_itself_for_any_other_metric(self):
-        benchmark = load_benchmark()
-
         assert benchmark.metrics_declared_for("size") == ["size"]
 
 
@@ -80,7 +77,6 @@ class TestMainGuards:
     def test_should_leave_per_unit_unchanged_and_exit_2_when_a_sample_file_is_missing(
         self, tmp_path, monkeypatch, capsys
     ):
-        benchmark = load_benchmark()
         declaration_path = write_declaration(tmp_path)
         monkeypatch.setattr(benchmark, "SAMPLE_FILES", ("no/such/sample.py",))
 
@@ -93,7 +89,6 @@ class TestMainGuards:
     def test_should_exit_2_and_leave_the_file_untouched_when_a_block_style_per_unit_list_would_break_the_rewrite(
         self, tmp_path, monkeypatch
     ):
-        benchmark = load_benchmark()
         declaration_path = write_declaration(tmp_path)
         block_style = DECLARATION_BODY.replace("per_unit: []", "per_unit:\n  - size")
         declaration_path.write_text(block_style)
@@ -108,7 +103,6 @@ class TestMainGuards:
 
 class TestPerUnitSelection:
     def test_should_keep_a_check_timed_at_exactly_the_limit(self):
-        benchmark = load_benchmark()
         limit = benchmark.PER_UNIT_LIMIT_SECONDS
 
         selected = benchmark.select_per_unit({"size": limit, "nesting": 0.4})
@@ -116,7 +110,6 @@ class TestPerUnitSelection:
         assert selected == ["size", "nesting"]
 
     def test_should_leave_out_a_check_timed_just_over_the_limit(self):
-        benchmark = load_benchmark()
         limit = benchmark.PER_UNIT_LIMIT_SECONDS
 
         selected = benchmark.select_per_unit({"size": 0.3, "crap": limit + 0.1})
@@ -126,7 +119,6 @@ class TestPerUnitSelection:
     def test_should_place_a_check_from_the_declaration_alone_with_no_timing_at_run_time(
         self, tmp_path
     ):
-        benchmark = load_benchmark()
         declaration_path = write_declaration(tmp_path)
         limit = benchmark.PER_UNIT_LIMIT_SECONDS
         benchmark.write_per_unit(
@@ -142,7 +134,6 @@ class TestPerUnitSelection:
         assert placed == ("size",)
 
     def test_should_keep_the_declarations_comments_on_rewrite(self, tmp_path):
-        benchmark = load_benchmark()
         declaration_path = write_declaration(tmp_path)
 
         benchmark.write_per_unit(declaration_path, ["size"])
