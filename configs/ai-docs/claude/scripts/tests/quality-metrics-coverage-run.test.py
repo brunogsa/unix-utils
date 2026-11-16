@@ -1,3 +1,4 @@
+import itertools
 import sys
 from collections import namedtuple
 from pathlib import Path
@@ -159,6 +160,27 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twi
         "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
         "exit_class": "timeout", "side_pr_candidate": "repo jest timed out twice",
     }, 2)
+
+
+def test_should_stop_a_repo_tool_that_always_times_out_after_3_attempts_when_headroom_never_reads_go_on_the_first_poll(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, JEST_REPO_FILES)
+    install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
+    global_calls = []
+    install_global_collector(monkeypatch, global_calls, GLOBAL_HITS)
+
+    # Each timeout polls NO-GO once, then GO.
+    polls = itertools.cycle([False, True])
+    policy = TimeoutPolicy(
+        timeout_seconds=0.5, headroom_is_go=lambda: next(polls), sleep=lambda seconds: None
+    )
+    coverage_run = coverage_run_for(repo, tmp_path, policy=policy)
+
+    coverage_records_of(tmp_path, js_target(repo), coverage_run)
+
+    assert attempts_in(tmp_path) == 3
+    assert len(global_calls) == 1
 
 
 def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(

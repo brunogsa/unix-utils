@@ -45,6 +45,10 @@ TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
 GENUINE_TIMEOUTS_ALLOWED = 2
+
+# Total attempts, headroom waits included: a run that pushes
+# the load past the headroom limit itself must still end.
+MAX_ATTEMPTS = 3
 ASK_CHOICES = ("fix now", "defer")
 ENTRYPOINT_VARIABLE = "CLAUDE_CODE_ENTRYPOINT"
 INTERACTIVE_ENTRYPOINT = "cli"
@@ -281,10 +285,16 @@ class TimeoutPolicy:
         """
         genuine_timeouts = 0
         waited_seconds = 0
+        attempts_made = 0
         while True:
             try:
+                attempts_made += 1
                 return attempt(self.timeout_seconds)
             except subprocess.TimeoutExpired as error:
+                if attempts_made == MAX_ATTEMPTS:
+                    raise ToolTimedOutTwice(
+                        f"{error.cmd} timed out on all {MAX_ATTEMPTS} attempts"
+                    ) from error
                 waited_seconds, genuine_timeouts = self._count_timeout(
                     error, waited_seconds, genuine_timeouts
                 )
