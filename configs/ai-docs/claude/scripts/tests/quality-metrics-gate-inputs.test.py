@@ -148,6 +148,24 @@ class TestFailureScenarios:
         ]
         assert len(size_records_of(report, "src/parse.ts")) == 1
 
+    def test_should_list_an_uncommitted_opt_out_as_a_violation_and_keep_measuring_with_the_committed_entry(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            COMMITTED_DECLARATION_NAME: COMMITTED_DECLARATION,
+            "src/parse.ts": PARSE_SOURCE,
+        })
+        (repo / COMMITTED_DECLARATION_NAME).write_text(DECLARATION_WITHOUT_TS_SIZE)
+        (repo / "src/parse.ts").write_text(PARSE_SOURCE + "\n// edited\n")
+
+        report = measure_report(repo, repo / COMMITTED_DECLARATION_NAME)
+
+        assert report["gate_input_violations"] == [
+            {"kind": "opt_out", "file": COMMITTED_DECLARATION_NAME, "value": "ts.size"}
+        ]
+        assert len(size_records_of(report, "src/parse.ts")) == 1
+
+
 class TestHappyPath:
     def test_should_pass_the_base_ref_config_to_a_repo_tool_through_its_config_flag_as_in_jest_config_tmp_jest_config_js(
         self, tmp_path, monkeypatch
