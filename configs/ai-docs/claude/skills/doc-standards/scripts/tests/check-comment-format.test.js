@@ -2025,4 +2025,23 @@ describe('python docstrings', () => {
       assert.equal(check(file).out, `== ${file}\nWIDTH 5:94`);
     });
   });
+
+  describe('a triple-quoted string that is not a docstring', () => {
+    const NOT_DOCSTRINGS = [
+      ['assigned to a variable', [`    template = """${AGGREGATOR}"""`]],
+      ['passed as a call argument', ['    print(', `        """${AGGREGATOR}"""`, '    )']],
+      ['opening an if block', ['    if records:', `        """${AGGREGATOR}"""`]],
+      ['standing later in a function body', ['    records.sort()', `    """${AGGREGATOR}"""`]],
+    ];
+
+    for (const [where, body] of NOT_DOCSTRINGS) {
+      it(`should not measure a long string ${where}, only the real docstring above it`, () => {
+        const file = put(
+          'strings.py',
+          lines('def collapse(records):', `    """${AGGREGATOR}"""`, ...body, '    return 1'),
+        );
+        assert.equal(check(file).out, `== ${file}\nWIDTH 2:97`);
+      });
+    }
+  });
 });
