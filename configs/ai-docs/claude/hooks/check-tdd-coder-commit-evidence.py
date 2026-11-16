@@ -189,8 +189,8 @@ BINARY_PROBE_BYTES = 8192
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>` or `git -C <plain path> "
-    "<status|diff|log>` in a repo whose config runs no program and has no such alias, "
-    "names a GIT_*, IFS or already "
+    "<status|diff|log>` in a repo whose config runs no program and has no such alias, runs git "
+    "in a dir that is no repo or a bare one, names a GIT_*, IFS or already "
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
     "a command, env, export, declare -x, set -a), "
     "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "
@@ -233,13 +233,13 @@ def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | N
         return None
 
 
-def has_dot_git_dir(repo: str) -> bool:
+def has_dot_git_dir(repo: str | None) -> bool:
     # A non-repo or bare dir turns into a repo when a call
     # writes config, HEAD, objects and refs, none named .git.
     common = run_git(repo, "rev-parse", "--git-common-dir")
     if common is None or common.returncode != 0:
         return False
-    return (Path(repo) / common.stdout.removesuffix("\n")).resolve().name == ".git"
+    return (Path(repo or Path.cwd()) / common.stdout.removesuffix("\n")).resolve().name == ".git"
 
 
 def reads_in_safe_repo(text: str, end: int, cwd: str | None) -> bool:
@@ -338,7 +338,14 @@ def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
     elif GIT_WORD.search(text) is None:
         return False
     has_changed_directory = has_moved or DIRECTORY_CHANGE.search(text) is not None
-    return has_changed_directory or runs_configured_program(cwd)
+    runs_in_unsafe_cwd = runs_git_in_cwd(text) and not has_dot_git_dir(cwd)
+    return has_changed_directory or runs_in_unsafe_cwd or runs_configured_program(cwd)
+
+
+def runs_git_in_cwd(text: str) -> bool:
+    # A git -C read runs in its own repo, screened above.
+    git_ends = (match.end() for match in GIT_WORD.finditer(text))
+    return any(READ_ONLY_DIR_CALL.match(text, end) is None for end in git_ends)
 
 
 def get_glob_form(part: str) -> str:

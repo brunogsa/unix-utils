@@ -285,7 +285,7 @@ class TestCallsLetThrough:
         ids=["git-status", "git-log", "pytest-on-a-commit-named-path", "evidence-heredoc", "python-heredoc"],
     )
     def test_should_let_a_bash_call_through_when_it_runs_no_git_commit(self, tmp_path, command):
-        assert check_commit(tmp_path, command=command) is None
+        assert check_commit(tmp_path, command=command, cwd=str(git_repo(tmp_path))) is None
 
     @pytest.mark.parametrize(
         "agent_fields",
@@ -341,7 +341,9 @@ class TestCommitWrappedInAnotherCommand:
         assert str(EVIDENCE) in reason
 
     def test_should_let_a_wrapped_command_through_when_it_runs_no_git_commit(self, tmp_path):
-        assert check_commit(tmp_path, command="bash -c 'git status --short'") is None
+        repo = git_repo(tmp_path)
+
+        assert check_commit(tmp_path, command="bash -c 'git status --short'", cwd=str(repo)) is None
 
 
 def possible_commit_reason(tmp_path, command, **payload_fields):
@@ -445,7 +447,7 @@ class TestGitSubcommandAllowlist:
         ids=["diff", "show", "restore", "checkout-path", "worktree-add", "absolute-git-path"],
     )
     def test_should_let_a_git_call_through_when_its_subcommand_never_creates_a_commit(self, tmp_path, command):
-        assert check_commit(tmp_path, command=command) is None
+        assert check_commit(tmp_path, command=command, cwd=str(git_repo(tmp_path))) is None
 
     def test_should_deny_a_repo_alias_even_when_its_value_runs_no_commit(self, tmp_path):
         repo = git_repo(tmp_path)
@@ -612,7 +614,7 @@ class TestGitEnvironmentNameForms:
         ids=["braced-read", "plain-read", "length-and-default-read"],
     )
     def test_should_let_a_call_through_that_only_reads_a_git_environment_name(self, tmp_path, command):
-        assert check_commit(tmp_path, command=command) is None
+        assert check_commit(tmp_path, command=command, cwd=str(git_repo(tmp_path))) is None
 
 
 class TestDirectoryChangeBeforeScripts:
@@ -905,6 +907,32 @@ class TestReadOnlyGitInAnotherRepo:
         possible_commit_reason(tmp_path, f"git -C {target} status")
 
 
+PLANT_BARE_LAYOUT = (
+    "printf '[core]\\n\\tfsmonitor = ./release.sh\\n' > config; "
+    "mkdir objects refs; echo 'ref: refs/heads/main' > HEAD; "
+)
+
+
+class TestGitInANonRepoDir:
+    @pytest.mark.parametrize(
+        "command",
+        [f"{PLANT_BARE_LAYOUT}git status", "git diff --no-index a.txt b.txt"],
+        ids=["planted-bare-layout", "no-index-diff"],
+    )
+    def test_should_deny_git_running_in_a_dir_that_is_no_repo(self, tmp_path, command):
+        plain = tmp_path / "plain"
+        plain.mkdir()
+
+        possible_commit_reason(tmp_path, command, cwd=str(plain))
+
+    def test_should_deny_git_running_in_a_bare_repo(self, tmp_path):
+        bare = tmp_path / "bare"
+        bare.mkdir()
+        git(bare, "init", "-q", "--bare")
+
+        possible_commit_reason(tmp_path, "git log --oneline -3", cwd=str(bare))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
@@ -942,9 +970,10 @@ class TestScriptFileScreen:
         possible_commit_reason(tmp_path, command)
 
     def test_should_let_a_script_through_when_its_text_names_no_commit(self, tmp_path):
-        (tmp_path / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+        repo = git_repo(tmp_path)
+        (repo / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
 
-        assert check_commit(tmp_path, command="bash status.sh") is None
+        assert check_commit(tmp_path, command="bash status.sh", cwd=str(repo)) is None
 
     @pytest.mark.parametrize(
         "command",
