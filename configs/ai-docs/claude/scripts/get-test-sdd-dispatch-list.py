@@ -16,8 +16,11 @@ from pathlib import Path
 
 UNPLANNED_TESTS_FINDING_TITLE = "Unplanned tests added by the branch"
 
+# Optional mark before the severity tag: [Done], or the
+# selection mark [AI!], [AI!: <message>] or [AI! <message>].
 FINDING_HEADING = re.compile(
-    r"^### \d+\. (?:\[Done\])?\[[A-Z]+\] (?P<title>.*?)\s*$"
+    r"^### \d+\. (?:\[Done\]|\[AI!(?:[: ][^\]]*)?\])?"
+    r"\[[A-Z]+\] (?P<title>.*?)\s*$"
 )
 
 FENCE_OPENER = re.compile(r"^\s*(?:```|~~~)")

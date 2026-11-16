@@ -58,6 +58,42 @@ class TestTestSddFindingsSentToTddCoder:
             '### 3. [Done][HIGH] Missing planned test - task 4: "sums a column"',
         ]
 
+    def test_should_keep_a_finding_the_human_marked_for_address_verdicts_on_the_dispatch_list_whether_the_mark_carries_a_message_or_not(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            "### 1. [AI!][HIGH] Some planned test\n\n"
+            "### 2. [AI!: use the csv fixture][MEDIUM] Other test\n\n"
+            "### 3. [AI! use the csv fixture][LOW] Third test\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            "### 1. [AI!][HIGH] Some planned test",
+            "### 2. [AI!: use the csv fixture][MEDIUM] Other test",
+            "### 3. [AI! use the csv fixture][LOW] Third test",
+        ]
+
+    def test_should_keep_the_unplanned_tests_finding_off_the_dispatch_list_even_when_the_human_marked_it_for_address_verdicts(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            "### 3. [AI!][LOW] Unplanned tests added by the branch\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout == ""
+
     def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
         self, tmp_path
     ):
