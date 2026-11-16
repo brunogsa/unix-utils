@@ -87,6 +87,23 @@ class TestMainGuards:
         assert "per_unit: []" in declaration_path.read_text()
         assert "no/such/sample.py" in capsys.readouterr().err
 
+    def test_should_exit_2_with_one_stderr_line_naming_the_path_before_timing_anything_when_the_declaration_does_not_exist(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        missing = tmp_path / "no-such-dir" / "quality-metrics.yaml"
+
+        def fail_if_timed(repo_root):
+            raise AssertionError("timed the metrics before checking the declaration")
+
+        monkeypatch.setattr(benchmark, "benchmark", fail_if_timed)
+
+        exit_code = benchmark.main(["--declaration", str(missing)])
+
+        error_lines = capsys.readouterr().err.strip().splitlines()
+        assert exit_code == 2
+        assert len(error_lines) == 1
+        assert str(missing) in error_lines[0]
+
     def test_should_exit_2_and_leave_the_file_untouched_when_a_block_style_per_unit_list_would_break_the_rewrite(
         self, declaration_path, monkeypatch
     ):

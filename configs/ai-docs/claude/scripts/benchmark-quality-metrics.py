@@ -220,6 +220,15 @@ def has_every_sample_file():
     return not missing
 
 
+def has_declaration_file(declaration_path):
+    """True when the declaration file exists; a missing one is
+    printed before any metric is timed."""
+    is_file = Path(declaration_path).is_file()
+    if not is_file:
+        print(f"declaration file not found: {declaration_path}", file=sys.stderr)
+    return is_file
+
+
 def is_written(declaration_path, per_unit):
     """True when per_unit was written; a rejected rewrite is
     printed."""
@@ -249,7 +258,7 @@ def parse_options(arguments):
 
 def main(arguments):
     options = parse_options(arguments)
-    if not has_every_sample_file():
+    if not has_declaration_file(options.declaration) or not has_every_sample_file():
         return EXIT_UNMEASURED
     results = benchmark(REPO_ROOT)
     measured = measured_seconds(results)
