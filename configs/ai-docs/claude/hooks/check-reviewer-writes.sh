@@ -56,7 +56,15 @@ INPUT=$(cat)
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 BASENAME=${FILE_PATH##*/}
 
-if [[ "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ]]; then
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+CWD=${CWD:-$PWD}
+CWD=${CWD%/}
+
+# Top level of the working directory only, so a verdict-named
+# file cannot be dropped into a CI or source directory.
+if [[ ( "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ) \
+  && "$FILE_PATH" != *..* \
+  && ( "$FILE_PATH" != */* || "${FILE_PATH%/*}" == "$CWD" ) ]]; then
   # Auto-approve: bypasses the permission prompt the background
   # subagent can't answer.
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its verdict to its verdict file (%s)"}}\n' "$BASENAME"

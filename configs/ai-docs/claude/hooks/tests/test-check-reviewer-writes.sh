@@ -72,5 +72,23 @@ assert_eq "blocks a layers_inferred name with a non-yaml extension" \
 assert_eq "blocks a write whose path is missing" \
   "2 no-allow" "$(run_hook "")"
 
+assert_eq "allows a verdict file at the working directory top level" \
+  "0 allow" "$(run_hook "/work/repo/verdict_x.md")"
+
+assert_eq "allows a bare relative verdict file name" \
+  "0 allow" "$(run_hook "verdict_x.html")"
+
+assert_eq "blocks a verdict file under a CI workflow directory" \
+  "2 no-allow" "$(run_hook "/work/repo/.github/verdict_x.md")"
+
+assert_eq "blocks a relative verdict file name that has a slash" \
+  "2 no-allow" "$(run_hook "sub/verdict_x.md")"
+
+assert_eq "blocks a verdict file in a directory other than the working one" \
+  "2 no-allow" "$(run_hook "/work/other/verdict_x.md")"
+
+assert_eq "blocks a verdict file reached through a parent-directory hop" \
+  "2 no-allow" "$(run_hook "/work/repo/sub/../verdict_x.md")"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
