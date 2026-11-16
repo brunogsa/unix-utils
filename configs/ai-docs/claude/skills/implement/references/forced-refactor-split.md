@@ -24,7 +24,7 @@ Run `scripts/split-forced-refactors.py` (next to this skill's `SKILL.md`) with t
 
 - `--refactor-branch <feature-branch>-forced-refactor`, so the new branch name traces back to its feature branch.
 
-- `--finding-out verdict_metrics-split_<branch>_<ts>.md` in CWD, where a conflict writes its finding.
+- `--finding-out verdict_metrics-split_<branch>_<ts>.md` in CWD, with every `/` in `<branch>` replaced by `-` because a slash would name a missing subdirectory and crash the write, where a conflict writes its finding.
 
 - `--plan <plan-file> --feature-pr <PR-N>` only on a PR-label run, because only then does the plan have a PR Breakdown for the script to extend.
 
