@@ -92,7 +92,7 @@ Issue every independent call in one message - the reads that open the files, the
    - The caller raises that record and relays the answer.
 
 7. Commit, one commit per logical change, in the order the caller listed them, each under `commit-standards` including the `Co-Authored-By` trailer - the git-guard hook rejects commits without it.
-   - A refactor the per-unit check forced carries `Gate: metrics` in the final `-m` paragraph with Co-Authored-By: `-m "Gate: metrics\nCo-Authored-By: ..."`.
+   - A refactor the per-unit check forced adds `--trailer "Gate: metrics"` to its `git commit`, so git puts it in the Co-Authored-By trailer block.
 
 ## Boundaries
 
