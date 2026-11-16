@@ -91,7 +91,7 @@ NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCO
 # possible commit. Only a $NAME or ${NAME...} read passes.
 GIT_ENVIRONMENT_NAMES = r"GIT_\w*|HOME|XDG_CONFIG_HOME|PATH|PAGER|EDITOR|VISUAL"
 GIT_ENVIRONMENT_READ = re.compile(
-    rf"\$(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|\$\{{[#!]?(?:{GIT_ENVIRONMENT_NAMES})(?!\w)(?!:?=)"
+    rf"\$(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|\$\{{[#!]?(?:{GIT_ENVIRONMENT_NAMES})(?!\w)(?!:{{0,2}}=)"
 )
 
 # zsh ties its path array to PATH, so path+=(dir) sets PATH.
@@ -122,6 +122,11 @@ HOOKS_PATH_KEY = "core.hookspath"
 # The program check reads the payload's cwd, so a git call
 # after a directory change runs where it never looked.
 DIRECTORY_CHANGE = re.compile(r"(?<![\w./-])(?:cd|pushd|popd|chdir)(?![\w./-])")
+
+# The program check runs before the call, so a call that
+# writes git's config or hooks files plants a program its own
+# git call then runs.
+GIT_CONFIG_FILE = re.compile(r"(?<![\w-])\.git(?![\w-])|gitconfig|gitattributes|/git/(?:config|attributes)")
 
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
@@ -157,7 +162,8 @@ SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, HOME, XDG_CONFIG_HOME, PATH, PAGER, EDITOR or VISUAL "
     "variable other than in a $NAME or ${NAME} read, "
-    "runs git after cd/pushd or in a repo whose git config or hooks run a program, "
+    "runs git or a relative script after cd/pushd/popd/chdir, runs git beside a .git, "
+    "gitconfig or gitattributes path or in a repo whose git config or hooks run a program, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
     "one, append the GREEN entry first"
@@ -274,7 +280,9 @@ def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
         return True
     elif GIT_WORD.search(text) is None:
         return False
-    return has_moved or DIRECTORY_CHANGE.search(text) is not None or runs_configured_program(cwd)
+    names_config_file = GIT_CONFIG_FILE.search(text) is not None
+    has_changed_directory = has_moved or DIRECTORY_CHANGE.search(text) is not None
+    return has_changed_directory or names_config_file or runs_configured_program(cwd)
 
 
 def is_separator(word: str) -> bool:
@@ -450,6 +458,10 @@ def get_command_words(command: str) -> list[str] | None:
     return expand_substitutions(words) if words is not None else None
 
 
+def changes_directory(*texts: str) -> bool:
+    return any(DIRECTORY_CHANGE.search(text) is not None for text in texts)
+
+
 def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
@@ -461,7 +473,7 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # com""mit reads as the git commit the shell runs.
     if may_commit(" ".join(words), cwd):
         return True
-    has_moved = DIRECTORY_CHANGE.search(command) is not None
+    has_moved = changes_directory(command, " ".join(words))
     return any(names_commit_in_script(script, cwd, has_moved) for script in get_scripts(words))
 
 

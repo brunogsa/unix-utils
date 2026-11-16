@@ -679,6 +679,33 @@ class TestHooksPathWhitespace:
         possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
 
 
+class TestSameCallGitGaps:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ": ${HOME::=/tmp/planted-home}; git status --short",
+            'export H""OME=/tmp/planted-home; git status --short',
+            "printf '[core]\\n\\tfsmonitor = ./release.sh\\n' >> .git/config; git status --short",
+            "cp release.sh ~/.gitconfig; git log",
+        ],
+        ids=["zsh-unconditional-assign", "quote-split-export", "repo-config-plant", "global-config-plant"],
+    )
+    def test_should_deny_a_call_that_changes_what_its_own_git_call_reads(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(git_repo(tmp_path)))
+
+    def test_should_deny_an_absolute_script_running_git_after_a_quote_split_directory_change(self, tmp_path):
+        (tmp_path / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f'c""d /Users/brunoagostini/other-repo && sh {tmp_path}/status.sh')
+
+    def test_should_deny_a_script_that_plants_repo_config_before_its_git_call(self, tmp_path):
+        repo = git_repo(tmp_path)
+        script = "#!/bin/sh\nprintf '[core]\\n\\tpager = ./release.sh\\n' >> .git/config\ngit log\n"
+        (repo / "plant.sh").write_text(script, encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f"sh {repo}/plant.sh", cwd=str(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
