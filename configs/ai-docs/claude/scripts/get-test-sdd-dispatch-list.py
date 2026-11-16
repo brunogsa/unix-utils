@@ -20,6 +20,10 @@ from pathlib import Path
 UNPLANNED_TESTS_FINDING_TITLE = "Unplanned tests added by the branch"
 
 TEST_SDD_TAG = "test-sdd"
+
+# A heading with none of these tags reads as test-sdd, so a new
+# lens goes here as well as in the merge-check regex of
+# skills/quality-gate/SKILL.md.
 LENS_TAGS = {"auto-review", "refactor", "metrics", TEST_SDD_TAG}
 
 # Optional mark before the severity tag: [Done], or the

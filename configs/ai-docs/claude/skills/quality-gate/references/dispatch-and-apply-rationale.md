@@ -40,6 +40,8 @@ The unplanned-tests finding is one exception: it names tests the branch already 
 
 `get-test-sdd-dispatch-list.py` keys on the finding's exact title, so the test-sdd report schema and that script must change together.
 
+The script reads a heading with none of its `LENS_TAGS` tags as test-sdd, so a new lens goes in `LENS_TAGS` and in the `auto-review|refactor|test-sdd|metrics` regex of the quality-gate `SKILL.md` merge check together.
+
 ## Why the rendered metrics verdict goes first
 
 The rendered file is copied verbatim ahead of every other finding, so an open metrics violation or a rejected exception is the first thing a reader meets, and the PR is never blocked on it.
