@@ -207,6 +207,7 @@ def measure(target, metrics, dependency_run):
         return []
     repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
     layer_map = dependency_run.layer_map
+    layer_map_source = layer_map.source if layer_map else None
     try:
         problems = dependency_run.problems_by(tool)
     except ToolError as error:
@@ -220,7 +221,7 @@ def measure(target, metrics, dependency_run):
             "kind": TOOL_FAILURE_KIND,
             "detail": str(error),
             "other_file": None,
-            "layer_map_source": layer_map.source if layer_map else None,
+            "layer_map_source": layer_map_source,
         }]
     return [
         {
@@ -233,7 +234,7 @@ def measure(target, metrics, dependency_run):
             "kind": problem["kind"],
             "detail": problem["detail"],
             "other_file": problem.get("other_file"),
-            "layer_map_source": layer_map.source if layer_map else None,
+            "layer_map_source": layer_map_source,
             "hotspot": not problem["is_introduced"],
         }
         for problem in problems
