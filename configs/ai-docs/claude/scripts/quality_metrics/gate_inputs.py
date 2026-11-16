@@ -18,6 +18,7 @@ from pathlib import Path
 
 from quality_metrics.declaration import parse_yaml
 from quality_metrics.tool_map import load_detector_rules
+from quality_metrics.touched import DELETED_FILE_HEADER, DIFF_COMMAND, NEW_FILE_HEADER
 from quality_metrics.tools import run_command, run_tool
 
 # The edit-time hook reads the same shared pattern, so a token
@@ -38,8 +39,6 @@ METRICS_KEY = "metrics"
 
 HUNK_HEADER = "@@"
 FILE_HEADER_PREFIX = "diff --git"
-NEW_FILE_HEADER = "+++ b/"
-NO_NEW_FILE = "+++ /dev/null"
 
 # A list ends at a `]` before a comma or the closing brace, so
 # a character class in an entry does not cut the list short.
@@ -193,8 +192,7 @@ def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
 def _suppression_counts_in_diff(repo_dir, base_ref, head_ref):
     refs = [base_ref] if head_ref is None else [base_ref, head_ref]
     diff_text = run_tool(
-        ["git", "-c", "core.quotepath=false", "diff", "--no-ext-diff",
-         "--no-color", "--relative", "-U0", *refs],
+        ["git", *DIFF_COMMAND, "--no-color", "-U0", *refs],
         cwd=repo_dir,
     )
     added_by_file = defaultdict(Counter)
@@ -210,7 +208,7 @@ def _suppression_counts_in_diff(repo_dir, base_ref, head_ref):
             removed_by_file[current_path] += count_suppressions(line[1:])
         elif line.startswith(HUNK_HEADER):
             is_in_hunk = True
-        elif line.startswith(NO_NEW_FILE):
+        elif line.startswith(DELETED_FILE_HEADER):
             current_path = None
         elif line.startswith(NEW_FILE_HEADER):
             # A name holding a space gets a trailing tab.
