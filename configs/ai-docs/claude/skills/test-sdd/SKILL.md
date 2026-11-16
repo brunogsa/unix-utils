@@ -22,6 +22,7 @@ Fixing what it finds is a separate step, run by hand or by `/quality-gate`, whic
 - `task-ids` - comma-list of numeric task prefixes, `1,2,5`. Omit it to check **every** task in the plan.
 
 - `--base-ref <ref>` - the ref the branch's added tests are measured from, for the unplanned-tests finding (§5, §6). Omit it and run `~/.claude/scripts/resolve-base-ref.sh`, the same default `/quality-gate` uses.
+  - If that base equals HEAD, stop and ask for `--base-ref` - never report 0 unplanned tests.
   - A caller that already knows its range, as `/quality-gate` does, passes it here, so both skills diff the same range.
 
 - `--out-dir <dir>` - the directory the verdict file is written to. Omit it and it lands in CWD.
