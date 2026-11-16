@@ -392,8 +392,9 @@ FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev
 # space-separated; nothing when new_string is empty or absent.
 #
 # Every occurrence, even without replace_all: the payload
-# never says which copy the Edit wrote, and a superset only
-# re-reports identical text.
+# never says which copy the Edit wrote. The match is a
+# substring one, so a short new_string also marks any other
+# line containing it, re-reporting that line's old violations.
 LOCATE_EDITED_LINES_PY='
 import json, sys
 new = json.load(sys.stdin).get("tool_input", {}).get("new_string")
