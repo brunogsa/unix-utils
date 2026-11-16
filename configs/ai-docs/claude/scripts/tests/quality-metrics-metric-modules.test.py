@@ -1,18 +1,18 @@
 import importlib
-import runpy
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    MEASURE_SCRIPT, SCRIPTS_DIR, SHIPPED_DECLARATION, commit_all, head_of,
+    SCRIPTS_DIR, SHIPPED_DECLARATION, commit_all, head_of,
     make_repo, run_measure,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 declaring = importlib.import_module("quality_metrics.declaration")
+measuring = importlib.import_module("quality_metrics.measuring")
 
 DECLARATION = """\
 excluded_paths: [dist/]
@@ -26,12 +26,6 @@ languages:
 
 GO_BASE = "package main\n\nfunc keep(a int) int {\n\treturn a\n}\n"
 GO_CHANGED = GO_BASE + "\nfunc added(a int) int {\n\treturn a + 1\n}\n"
-
-
-def load_measure_script():
-    """The script's top-level names, without running its
-    main."""
-    return runpy.run_path(str(MEASURE_SCRIPT), run_name="measure_quality_metrics")
 
 
 def run_diff_with_metrics(tmp_path, metrics):
@@ -55,14 +49,11 @@ class TestDeclaredMetricsWithoutAModule:
         assert "complexity" in result.stderr
 
     def test_should_leave_entangled_tests_out_of_every_module_group_when_it_is_declared(self):
-        measuring = load_measure_script()
-
-        grouped = measuring["_group_by_module"](["size", "entangled_tests"])
+        grouped = measuring._group_by_module(["size", "entangled_tests"])
 
         assert grouped == {"size": ["size"]}
 
     def test_should_map_or_skip_on_purpose_every_metric_the_shipped_declaration_declares(self):
-        measuring = load_measure_script()
         loaded = declaring.load_declaration(SHIPPED_DECLARATION)
         declared = {
             metric
@@ -70,8 +61,8 @@ class TestDeclaredMetricsWithoutAModule:
             for metric in language.metrics
         }
 
-        mapped = set(measuring["METRIC_MODULES"])
+        mapped = set(measuring.METRIC_MODULES)
 
-        unhandled = declared - mapped - measuring["SKIPPED_ON_PURPOSE"]
+        unhandled = declared - mapped - measuring.SKIPPED_ON_PURPOSE
 
         assert unhandled == set()

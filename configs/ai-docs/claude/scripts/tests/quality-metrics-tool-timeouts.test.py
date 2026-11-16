@@ -17,13 +17,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from quality_metrics_support import (
     SCRIPTS_DIR,
     commit_all,
-    load_measure_script,
     make_repo,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 from quality_metrics import declaration as declaring
-from quality_metrics import duplication, size, tools
+from quality_metrics import duplication, measuring, size, tools
 from quality_metrics.failures import TimeoutPolicy
 from quality_metrics.functions import FunctionToolError
 from quality_metrics.touched import Target
@@ -126,12 +125,10 @@ def test_should_apply_the_timeout_policy_to_resolved_since_base_side_run_when_th
     monkeypatch.chdir(repo)
 
     with pytest.raises(FunctionToolError) as error:
-        load_measure_script()._resolved_since(
+        measuring.resolved_since(
             declaration_in(tmp_path), declaring.BATCH_END_MODE,
             "HEAD~1...HEAD", immediate_policy(),
         )
 
     assert error.value.tool == "lizard"
     assert ran == ["lizard", "lizard"]
-
-
