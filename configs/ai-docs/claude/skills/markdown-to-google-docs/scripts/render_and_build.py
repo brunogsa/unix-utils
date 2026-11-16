@@ -75,7 +75,7 @@ def rewrite_image_refs(text, rendered_pngs, src_dir, width_attr):
     return IMAGE_REF_RE.sub(repl_img, text)
 
 
-def main():
+def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("input_md")
     ap.add_argument("--out-dir", default=None,
@@ -84,21 +84,14 @@ def main():
                     help="max image width as a pandoc attr (page text width ~6.5in)")
     ap.add_argument("--scale", default="2",
                     help="mmdc render scale; 2 = crisp text without huge files")
-    args = ap.parse_args()
+    return ap.parse_args()
 
-    src = Path(args.input_md).resolve()
-    if not src.exists():
-        sys.exit(f"input not found: {src}")
-    src_dir = src.parent
 
-    out_dir = Path(args.out_dir) if args.out_dir else Path("/tmp/md2gdoc") / src.stem
-    render_dir = out_dir / "rendered"
-    render_dir.mkdir(parents=True, exist_ok=True)
+def render_mermaid_blocks(text, render_dir, scale):
+    """Render every mermaid fence in text to a PNG.
 
-    text = src.read_text(encoding="utf-8")
-    width_attr = "{width=%s}" % args.width
-
-    # 1. render mermaid blocks
+    Return the PNG paths in fence order.
+    """
     blocks = MERMAID_RE.findall(text)
     print(f"mermaid blocks: {len(blocks)}", file=sys.stderr)
     rendered = []
@@ -107,26 +100,79 @@ def main():
         png = render_dir / f"mermaid_{i:02d}.png"
         mmd.write_text(code + "\n", encoding="utf-8")
         r = subprocess.run(
-            ["mmdc", "-i", str(mmd), "-o", str(png), "-b", "white", "-s", str(args.scale)],
+            ["mmdc", "-i", str(mmd), "-o", str(png), "-b", "white", "-s", str(scale)],
             capture_output=True, text=True,
         )
         if r.returncode != 0 or not png.exists():
             sys.exit(f"mmdc failed on block {i}:\n{r.stderr}")
         rendered.append(png)
         print(f"  rendered block {i} -> {png.name}", file=sys.stderr)
+    return rendered
 
-    text = rewrite_image_refs(text=text, rendered_pngs=rendered,
-                              src_dir=src_dir, width_attr=width_attr)
 
-    out_md = out_dir / f"{src.stem}.pandoc.md"
+def write_pandoc_md(text, out_md):
+    """Write text to out_md; fail if a mermaid fence remains."""
     out_md.write_text(text, encoding="utf-8")
 
     leftover = text.count("```mermaid")
     if leftover:
         sys.exit(f"unexpected: {leftover} mermaid fences remain after substitution")
 
+
+def build_docx(out_md, out_docx):
+    """Run pandoc on out_md to emit out_docx."""
+
+    # -raw_html: the docx writer drops raw HTML, so `<valor>`
+    # placeholders would vanish. -implicit_figures: caption
+    # paragraphs keep-with-next, so Google Docs pushes diagrams
+    # to the next page.
+    r = subprocess.run(["pandoc", "-f", "markdown-implicit_figures-raw_html",
+                        str(out_md), "-o", str(out_docx)],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit(f"pandoc failed:\n{r.stderr}")
+
+
+def report_media_counts(text, out_docx):
+    """Print image refs vs embedded media in the docx."""
+    media = subprocess.run(["unzip", "-l", str(out_docx)],
+                           capture_output=True, text=True).stdout
+    media_count = media.count("word/media/")
+    img_refs = len(re.findall(r"!\[[^\]]*\]\(", text))
+    print(f"image refs: {img_refs}; embedded media in docx: {media_count}", file=sys.stderr)
+
+
+def main():
+    args = parse_args()
+
+    src = Path(args.input_md).resolve()
+    if not src.exists():
+        sys.exit(f"input not found: {src}")
+
+    out_dir = Path(args.out_dir) if args.out_dir else Path("/tmp/md2gdoc") / src.stem
+    render_dir = out_dir / "rendered"
+    render_dir.mkdir(parents=True, exist_ok=True)
+
+    text = src.read_text(encoding="utf-8")
+
+    # 1. render mermaid blocks
+    rendered = render_mermaid_blocks(text, render_dir, args.scale)
+
+    text = rewrite_image_refs(text=text, rendered_pngs=rendered,
+                              src_dir=src.parent,
+                              width_attr="{width=%s}" % args.width)
+
+    out_md = out_dir / f"{src.stem}.pandoc.md"
+    write_pandoc_md(text, out_md)
+
     # 4. pandoc -> docx
     out_docx = out_dir / f"{src.stem}.docx"
+    build_docx(out_md, out_docx)
+
+    # sanity: embedded media count should equal image refs
+    report_media_counts(text, out_docx)
+
+    print(str(out_docx))  # last line = the artifact path
 
     # -raw_html: the docx writer drops raw HTML, so `<valor>`
     # placeholders would vanish. -implicit_figures: caption
