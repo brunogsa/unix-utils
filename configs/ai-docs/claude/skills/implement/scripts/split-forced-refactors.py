@@ -245,7 +245,7 @@ def get_moved_report_fields(refactor_branch, feature_branch):
     }
 
 
-def get_planned_entry(arguments):
+def read_plan_with_refactor_entry(arguments):
     if arguments.plan is None:
         return None
     return get_plan_with_refactor_entry(
@@ -283,7 +283,7 @@ def get_conflict_report_fields(arguments, operation, report):
 def move_forced_refactors(arguments, report):
     # Read the plan before any git move, so a bad
     # plan leaves the repo untouched.
-    planned_entry = get_planned_entry(arguments)
+    plan_update = read_plan_with_refactor_entry(arguments)
     conflicting_operation = move_onto_refactor_branch(
         arguments.repo,
         arguments.base,
@@ -303,8 +303,8 @@ def move_forced_refactors(arguments, report):
             arguments.refactor_branch, arguments.feature_branch
         )
     )
-    if planned_entry is not None:
-        plan_text, label = planned_entry
+    if plan_update is not None:
+        plan_text, label = plan_update
         write_text_atomically(arguments.plan, plan_text, PLAN_TEMP_PREFIX)
         report["pr_entry"] = label
 
