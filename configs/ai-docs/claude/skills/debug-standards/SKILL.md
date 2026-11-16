@@ -115,7 +115,7 @@ Reveals: secrets reached the workflow ✓, but didn't propagate to the build scr
 - [Instruction] **CRITICAL: After three failed fixes, stop and escalate: write their shared premise in one sentence, then ask whether layer boundaries or the data model are wrong, not just the code.**
   - [Why] Three failures is empirical evidence your mental model is wrong; a new symptom each fix means the pattern is broken.
 
-  - [Example] Step one is a web search of the exact symptom - error message, stack-trace fragment, library + version, framework + error code.
+  - [Example] Then web-search the exact symptom - error message, stack-trace fragment, library + version, framework + error code.
 
 ### When there's no single root cause
 
