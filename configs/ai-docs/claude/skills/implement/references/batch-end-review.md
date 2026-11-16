@@ -15,12 +15,12 @@ SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the on
 
 **Entry: unconditional - batch end's first step, before either gate.**
 
-Delivered work reaches the remote before anything that can stall gets a turn - two audited batches once stalled unpushed for ~40 hours on this gap.
+Delivered work reaches the remote before anything that can stall gets a turn - two audited batches once stalled unpushed for ~40 hours.
 
 1. **Push the branch on every batch end, regardless of `pr.wanted`.**
    - Use `git push -u origin HEAD`, with or without an upstream.
    - **`~/.claude/skills/implement/scripts/get-push-route.py` printing `by-hand` (main/master, which `hooks/claude-git-guard.sh` blocks) skips every §8 push, never halting.**
-     - The package prints `git rev-list --count @{u}..HEAD` and `git push -u origin HEAD`.
+     - The package prints `git rev-list --count @{u}..HEAD` (`<BATCH_BASE_SHA>..HEAD` when `@{u}` does not resolve) and `git push -u origin HEAD`.
 
    - A pushed branch with no PR is an ordinary outcome.
    - **On a stacked run**, [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) replaces this step.
@@ -181,10 +181,10 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 1. **Split forced refactors off the feature PR - only when `pr.wanted: true`.** Follow [`forced-refactor-split.md`](forced-refactor-split.md), which also says why it runs first.
 
 2. **Re-push and refresh the PR description - only when §8.2 or §8.3 landed commits.** Decide from the tree: `git rev-list --count @{u}..HEAD` above zero is the trigger.
-   - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
+   - **Nothing landed → skip both halves.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
 
    - **Something landed → `git push -u origin HEAD` first**, so the remote carries the gate fixes before anything describes them.
-     - Any push failure here is a §5.5 halt, and `by-hand` skips it, both on §8.1's terms.
+     - Any push failure here is a §5.5 halt, and `by-hand` skips it, per §8.1.
 
    - **Then update the PR body**, only when `pr.wanted: true` and §8.1 opened one - via the `pr-creator` dispatch and REST-API path [`batch-end-pr.md`](batch-end-pr.md) owns.
      - The gate commits belong under its **"Unexpected extras"** section.
