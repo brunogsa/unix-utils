@@ -27,6 +27,7 @@ import importlib
 import json
 import sys
 import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 from quality_metrics import crap_coverage
@@ -106,10 +107,8 @@ def main(arguments):
             Path.cwd(), judged_against,
             declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
-        measurements, unclaimed = _measure(
-            declaration, mode, touched_by_file, coverage_run,
-            dependency_run, head_ref,
-        )
+        setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
+        measurements, unclaimed = _measure(setup, touched_by_file, head_ref)
         resolved = _resolved_since(declaration, mode, options.diff)
         gate_input_violations = _gate_input_violations(
             options, judged_against, head_ref
@@ -244,32 +243,55 @@ def _judged_against_ref(options):
     return options.base
 
 
-def _measure(declaration, mode, touched_by_file, coverage_run, dependency_run,
-             head_ref=None):
+@dataclass(frozen=True)
+class MeasureSetup:
+    """What every file of one run is measured with."""
+
+    declaration: object
+    mode: str
+    coverage_run: object
+    dependency_run: object
+
+
+def _measure(setup, touched_by_file, head_ref=None):
     """Measure each file; with `head_ref`, measure its text at that ref."""
     measurements = []
     unclaimed = []
     with tempfile.TemporaryDirectory() as directory:
         for path, touched_lines in touched_by_file.items():
-            try:
-                language = declaring.language_for_file(declaration, path)
-            except declaring.NoLanguageEntryError:
-                unclaimed.append(path)
-                continue
-            if language is None:
-                continue
-            if head_ref and _reads_working_tree(declaration, mode, language, path):
-                _require_worktree_at(head_ref, path)
-            source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
-            target = Target(source, language, touched_lines, repo_path=path)
-            found = _measure_target(
-                declaration, mode, target, coverage_run, dependency_run
+            found = _measure_file(
+                setup, path, touched_lines, head_ref, directory
             )
-            if head_ref:
-                # The copy is in a temp dir; name the real path.
-                found = [{**item, "file": path} for item in found]
-            measurements += found
+            if found is None:
+                unclaimed.append(path)
+            else:
+                measurements += found
     return measurements, unclaimed
+
+
+def _measure_file(setup, path, touched_lines, head_ref, directory):
+    """One file's measurements; [] when it has no language and
+    None when no declared language claims it."""
+    try:
+        language = declaring.language_for_file(setup.declaration, path)
+    except declaring.NoLanguageEntryError:
+        return None
+    if language is None:
+        return []
+    if head_ref and _reads_working_tree(
+        setup.declaration, setup.mode, language, path
+    ):
+        _require_worktree_at(head_ref, path)
+    source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
+    target = Target(source, language, touched_lines, repo_path=path)
+    found = _measure_target(
+        setup.declaration, setup.mode, target,
+        setup.coverage_run, setup.dependency_run,
+    )
+    if head_ref:
+        # The copy is in a temp dir; name the real path.
+        found = [{**item, "file": path} for item in found]
+    return found
 
 
 def _reads_working_tree(declaration, mode, language, path):
