@@ -832,6 +832,57 @@ class TestIncludesAndHooksLocation:
         assert check_commit(tmp_path, command="git status --short", cwd=str(repo)) is None
 
 
+class TestReadOnlyGitInAnotherRepo:
+    @pytest.mark.parametrize(
+        "command_for",
+        [
+            lambda repo: f"git -C {repo} status --short",
+            lambda repo: f"git -C {repo} diff -- a.py",
+            lambda repo: f"git -C {repo} log --oneline -3",
+            lambda repo: "git -C repo status",
+        ],
+        ids=["status", "diff", "log", "relative-path"],
+    )
+    def test_should_let_a_read_only_call_through_in_a_repo_running_no_program(self, tmp_path, command_for):
+        repo = git_repo(tmp_path)
+
+        assert check_commit(tmp_path, command=command_for(repo)) is None
+
+    @pytest.mark.parametrize(
+        ("key", "value"),
+        [
+            ("core.fsmonitor", "./release.sh"),
+            ("core.hooksPath", ".git/hooks"),
+            ("alias.status", "!./release.sh"),
+            ("include.path", "/tmp/aliases.gitconfig"),
+            ("diff.external", "./release.sh"),
+        ],
+        ids=["fsmonitor", "hooks-path", "alias-status", "include-path", "external-diff"],
+    )
+    def test_should_deny_a_read_only_call_in_a_repo_whose_config_runs_a_program(self, tmp_path, key, value):
+        repo = git_repo(tmp_path)
+        git(repo, "config", key, value)
+
+        possible_commit_reason(tmp_path, f"git -C {repo} status --short")
+
+    @pytest.mark.parametrize(
+        "command_for",
+        [
+            lambda repo: f"git -C {repo.parent}/missing status",
+            lambda repo: f"git -C {repo} show HEAD",
+            lambda repo: f"git -C {repo} -c core.pager=./release.sh status",
+            lambda repo: f'git -C "{repo}" status',
+            lambda repo: "git -C $REPO status",
+            lambda repo: "git -C ~/repo status",
+        ],
+        ids=["missing-path", "other-subcommand", "dash-c-option", "quoted-path", "variable-path", "tilde-path"],
+    )
+    def test_should_deny_a_dash_C_call_that_is_not_a_plain_read(self, tmp_path, command_for):
+        repo = git_repo(tmp_path)
+
+        possible_commit_reason(tmp_path, command_for(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

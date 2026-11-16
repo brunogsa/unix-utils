@@ -89,6 +89,12 @@ GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
 # after it splices on more, so diff"tool" runs difftool.
 NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?=[\s;&|()<>]|$)")
 
+# A read in another repo runs that repo's config, so only a
+# plain path - no quote, $ or ~ - is read and screened, and
+# its aliases or hooksPath count as programs there.
+READ_ONLY_DIR_CALL = re.compile(r"[ \t]+-C[ \t]+([\w.+/][\w.+/-]*)[ \t]+(?:status|diff|log)(?=[\s;&|()<>]|$)")
+DIR_CALL_PROGRAM_KEY = re.compile(r"core\.hookspath|alias\.(?:status|diff|log)", re.IGNORECASE)
+
 # A name already exported hands any new value to every later
 # program, as GIT_* names do to git and IFS does to the
 # shell's own word splitting.
@@ -181,7 +187,9 @@ BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
-    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, IFS or already "
+    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>` or `git -C <plain path> "
+    "<status|diff|log>` in a repo whose config runs no program, has no core.hooksPath and no such "
+    "alias, names a GIT_*, IFS or already "
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
     "a command, env, export, declare -x, set -a), "
     "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "
@@ -224,11 +232,26 @@ def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | N
         return None
 
 
-def runs_other_git_subcommand(text: str) -> bool:
+def reads_in_safe_repo(text: str, end: int, cwd: str | None) -> bool:
+    match = READ_ONLY_DIR_CALL.match(text, end)
+    if match is None:
+        return False
+    repo = str(Path(cwd or Path.cwd()) / match.group(1))
+    entries = get_config_entries(repo)
+    if entries is None or runs_configured_program(repo):
+        return False
+    return not any(DIR_CALL_PROGRAM_KEY.fullmatch(key) for key, _ in entries)
+
+
+def is_no_commit_call(text: str, end: int, cwd: str | None) -> bool:
+    return NO_COMMIT_GIT_CALL.match(text, end) is not None or reads_in_safe_repo(text, end, cwd)
+
+
+def runs_other_git_subcommand(text: str, cwd: str | None) -> bool:
     # A git word followed by anything but blanks and a listed
     # subcommand - an option, a quote, nothing - may commit.
     git_ends = (match.end() for match in GIT_WORD.finditer(text))
-    has_other_call = any(NO_COMMIT_GIT_CALL.match(text, end) is None for end in git_ends)
+    has_other_call = not all(is_no_commit_call(text, end, cwd) for end in git_ends)
     return has_other_call or sets_git_environment(text)
 
 
@@ -238,9 +261,9 @@ def sets_git_environment(text: str) -> bool:
     return is_exported or GIT_ENVIRONMENT_NAME.search(unread) is not None
 
 
-def names_commit(text: str) -> bool:
+def names_commit(text: str, cwd: str | None) -> bool:
     has_commit_name = COMMIT_WORD.search(text) or DASHED_COMMIT_BINARY.search(text)
-    return has_commit_name is not None or runs_other_git_subcommand(text)
+    return has_commit_name is not None or runs_other_git_subcommand(text, cwd)
 
 
 def has_active_hook(hooks_dir: Path) -> bool:
@@ -300,7 +323,7 @@ def runs_configured_program(cwd: str | None) -> bool:
 
 
 def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
-    if names_commit(text) or GIT_CONFIG_FILE.search(text):
+    if names_commit(text, cwd) or GIT_CONFIG_FILE.search(text):
         return True
     elif GIT_WORD.search(text) is None:
         return False
