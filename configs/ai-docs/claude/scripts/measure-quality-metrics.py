@@ -78,7 +78,8 @@ EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
 def main(arguments):
     options = _parse_arguments(arguments)
     try:
-        declaration = _load_committed_declaration(options)
+        judged_against = _judged_against_ref(options)
+        declaration = _load_committed_declaration(options, judged_against)
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
@@ -87,7 +88,7 @@ def main(arguments):
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
         dependency_run = dependencies.DependencyRun(
-            Path.cwd(), _judged_against_ref(options),
+            Path.cwd(), judged_against,
             declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
         measurements, unclaimed = _measure(
@@ -95,7 +96,9 @@ def main(arguments):
             dependency_run, head_ref,
         )
         resolved = _resolved_since(declaration, mode, options.diff)
-        gate_input_violations = _gate_input_violations(options, head_ref)
+        gate_input_violations = _gate_input_violations(
+            options, judged_against, head_ref
+        )
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
         return EXIT_UNMEASURED
@@ -156,7 +159,7 @@ def _range_ends(diff_range):
     return base_ref, head_ref or "HEAD"
 
 
-def _gate_input_violations(options, head_ref):
+def _gate_input_violations(options, judged_against, head_ref):
     """The gate inputs the change adds, read against the base ref.
 
     Explicit --files name no change, so they have none to judge.
@@ -164,12 +167,12 @@ def _gate_input_violations(options, head_ref):
     if options.files:
         return []
     return gate_inputs.find_violations(
-        Path.cwd(), _judged_against_ref(options), head_ref,
+        Path.cwd(), judged_against, head_ref,
         declaration_path=options.declaration,
     )
 
 
-def _load_committed_declaration(options):
+def _load_committed_declaration(options, judged_against):
     """The declaration as the base ref committed it, so a branch
     edit never loosens its own gate. Explicit --files name no
     change, so they read the file as given."""
@@ -177,7 +180,7 @@ def _load_committed_declaration(options):
         return declaring.load_declaration(options.declaration)
     with tempfile.TemporaryDirectory() as directory:
         committed_path = gate_inputs.write_base_ref_declaration(
-            Path.cwd(), _judged_against_ref(options), options.declaration, directory
+            Path.cwd(), judged_against, options.declaration, directory
         )
         return declaring.load_declaration(committed_path)
 
