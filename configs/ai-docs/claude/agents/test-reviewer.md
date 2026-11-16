@@ -6,7 +6,7 @@ effort: medium
 maxTurns: 64
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit"
+    - matcher: "Write|Edit|Bash"
       hooks:
         - type: command
           command: "bash ~/.claude/hooks/check-reviewer-writes.sh"

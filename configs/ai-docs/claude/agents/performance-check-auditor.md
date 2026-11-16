@@ -8,7 +8,7 @@ skills:
   - performance-check-principles-and-skills
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit"
+    - matcher: "Write|Edit|Bash"
       hooks:
         - type: command
           command: "bash ~/.claude/hooks/check-reviewer-writes.sh"

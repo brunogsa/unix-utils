@@ -7,7 +7,7 @@ maxTurns: 128
 allowedSubagents: code-reviewer, general-purpose
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit"
+    - matcher: "Write|Edit|Bash"
       hooks:
         - type: command
           command: "bash ~/.claude/hooks/check-reviewer-writes.sh"

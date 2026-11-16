@@ -90,5 +90,52 @@ assert_eq "blocks a verdict file in a directory other than the working one" \
 assert_eq "blocks a verdict file reached through a parent-directory hop" \
   "2 no-allow" "$(run_hook "/work/repo/sub/../verdict_x.md")"
 
+# run_bash - feeds a Bash payload with one command and the
+# session cwd; prints the exit code.
+run_bash() {
+  local command="$1" cwd="${2:-/work/repo}" code
+  jq -n --arg c "$cwd" --arg m "$command" \
+    '{cwd:$c,tool_name:"Bash",tool_input:{command:$m}}' \
+    | bash "$SCRIPT" >/dev/null 2>&1
+  code=$?
+  printf '%s' "$code"
+}
+
+assert_eq "blocks a Bash redirect into a repo source file" \
+  "2" "$(run_bash 'echo x > src/a.py')"
+
+assert_eq "blocks a Bash append redirect into a repo file" \
+  "2" "$(run_bash 'git diff >> /work/repo/notes.txt')"
+
+assert_eq "blocks tee into a repo file" \
+  "2" "$(run_bash 'echo x | tee src/a.py')"
+
+assert_eq "blocks an in-place sed edit" \
+  "2" "$(run_bash 'sed -i s/a/b/ src/a.py')"
+
+assert_eq "blocks a redirect that traverses out of /tmp" \
+  "2" "$(run_bash 'echo x > /tmp/../work/repo/a.py')"
+
+assert_eq "allows a Bash redirect into the /tmp run directory" \
+  "0" "$(run_bash 'git diff > /tmp/auto-review.abc123/d.txt')"
+
+assert_eq "allows tee into the /tmp run directory" \
+  "0" "$(run_bash 'git diff | tee /tmp/auto-review.abc123/d.txt')"
+
+assert_eq "allows a plain grep" \
+  "0" "$(run_bash 'grep -rn foo src')"
+
+assert_eq "allows stderr merged into stdout and discarded output" \
+  "0" "$(run_bash 'git log 2>&1 >/dev/null')"
+
+assert_eq "allows a quoted angle bracket that is not a redirect" \
+  "0" "$(run_bash 'grep "a > b" src/a.py')"
+
+assert_eq "allows a verdict redirect at the working directory top level" \
+  "0" "$(run_bash 'echo done > /work/repo/verdict_x.md')"
+
+assert_eq "blocks a verdict redirect in a subdirectory" \
+  "2" "$(run_bash 'echo done > .github/verdict_x.md')"
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

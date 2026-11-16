@@ -53,54 +53,92 @@
 
 INPUT=$(cat)
 
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
-BASENAME=${FILE_PATH##*/}
-
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 CWD=${CWD:-$PWD}
 CWD=${CWD%/}
 
-# Top level of the working directory only, so a verdict-named
-# file cannot be dropped into a CI or source directory.
-if [[ ( "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ) \
-  && "$FILE_PATH" != *..* \
-  && ( "$FILE_PATH" != */* || "${FILE_PATH%/*}" == "$CWD" ) ]]; then
-  # Auto-approve: bypasses the permission prompt the background
-  # subagent can't answer.
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its verdict to its verdict file (%s)"}}\n' "$BASENAME"
-  exit 0
-fi
-
-# quality-gate's metrics lens saves its inferred layer map in
-# the working directory, where the verdict links to it.
-#
-# Allowed in the working directory only: a basename match
-# alone would let a reviewer write a CI workflow such as
+# A verdict or layer-map file counts only in the working
+# directory itself: a basename match alone would let a reviewer
+# write a CI workflow such as
 # .github/workflows/layers_inferred_x.yaml, which would run.
+#
+# The same holds for a verdict_x.md in a source directory.
 #
 # A relative path counts as the working directory only when
 # it has no slash.
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
-CWD=${CWD:-$PWD}
-CWD=${CWD%/}
-if [[ "$BASENAME" == layers_inferred_*.yaml && "$FILE_PATH" != *..* \
-  && ( "$FILE_PATH" != */* || "${FILE_PATH%/*}" == "$CWD" ) ]]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its inferred layer map (%s)"}}\n' "$BASENAME"
+is_in_cwd_top_level() {
+  local path="$1"
+  [[ "$path" != *..* && ( "$path" != */* || "${path%/*}" == "$CWD" ) ]]
+}
+
+# Prints the allow reason for a write target, or nothing when
+# the target is not one this reviewer may write.
+#
+# Scratch under /tmp (the pipeline's wave-artifact dir, e.g.
+# /tmp/auto-review.XXXXXX) is allowed, but a path containing
+# `..` is rejected first, so /tmp/../<repo>/file can't escape
+# /tmp back into repo source.
+allowed_write_reason() {
+  local path="$1" base="${1##*/}"
+  if [[ "$base" == verdict_*.md || "$base" == verdict_*.html ]] \
+    && is_in_cwd_top_level "$path"; then
+    echo "this reviewer may persist its verdict to its verdict file ($base)"
+  elif [[ "$base" == layers_inferred_*.yaml ]] \
+    && is_in_cwd_top_level "$path"; then
+    echo "this reviewer may persist its inferred layer map ($base)"
+  elif [[ "$path" != *..* && ( "$path" == /tmp/* || "$path" == /private/tmp/* ) ]]; then
+    echo "this reviewer may write scratch under /tmp ($path)"
+  fi
+}
+
+# A Bash command is checked for the write forms it can use to
+# reach repo source: a `>`/`>>` redirect, `tee`, and `sed -i`.
+#
+# The same allowed targets apply as for Write/Edit, plus
+# /dev/null. A command with none of those forms (git diff,
+# grep, a metrics script) passes with no approval output, so
+# the normal permission flow still decides it.
+#
+# Known gap: a write hidden inside `bash -c`, a script, an
+# interpreter (`python3 -c`) or `cp`/`mv` is not parsed - the
+# guard is best-effort, not a sandbox.
+CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+if [ -n "$CMD" ]; then
+  # Quoted text is replaced by a placeholder, so `grep "a > b"`
+  # is not read as a redirect while `> "src/a.py"` still leaves
+  # a target no allow rule accepts.
+  STRIPPED=$(printf '%s' "$CMD" | sed -E "s/\"[^\"]*\"/Q/g; s/'[^']*'/Q/g; s/[0-9]*>&[0-9-]+//g")
+  TARGETS=$(printf '%s\n' "$STRIPPED" \
+    | grep -oE '>>?[[:space:]]*[^[:space:]<>|;&]*' | sed -E 's/^>>?[[:space:]]*//')
+  TEE_ARGS=$(printf '%s\n' "$STRIPPED" \
+    | grep -oE '(^|[|;&[:space:]])tee[[:space:]]+[^|;&]*' \
+    | sed -E 's/^[|;&[:space:]]*tee[[:space:]]+//' | tr ' ' '\n' | grep -v '^-')
+  while IFS= read -r target; do
+    [ -z "$target" ] && continue
+    [ "$target" = /dev/null ] && continue
+    [ -n "$(allowed_write_reason "$target")" ] && continue
+    echo "Blocked: this reviewer's Bash may write only to verdict_*.md, verdict_*.html, layers_inferred_*.yaml in the working directory, or scratch under /tmp (attempted: $target)" >&2
+    exit 2
+  done <<< "$TARGETS
+$TEE_ARGS"
+  if printf '%s' "$STRIPPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--in-place)'; then
+    echo "Blocked: this reviewer may not edit files in place with sed -i" >&2
+    exit 2
+  fi
   exit 0
 fi
 
-# Also auto-approve scratch writes under /tmp (the pipeline's
-# wave-artifact dir, e.g. /tmp/auto-review.XXXXXX).
-#
-# Reject any path containing `..` first, so a
-# traversal like /tmp/../<repo>/file can't escape /tmp back into
-# repo source.
-if [[ "$FILE_PATH" != *..* && ( "$FILE_PATH" == /tmp/* || "$FILE_PATH" == /private/tmp/* ) ]]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may write scratch under /tmp (%s)"}}\n' "$FILE_PATH"
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+REASON=$(allowed_write_reason "$FILE_PATH")
+if [ -n "$REASON" ]; then
+  # Auto-approve: bypasses the permission prompt the background
+  # subagent can't answer.
+  jq -nc --arg reason "$REASON" \
+    '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"allow",permissionDecisionReason:$reason}}'
   exit 0
 fi
 
 # Any other write target is a repo-source/artifact mutation -
 # deny it outright.
-echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, layers_inferred_*.yaml, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
+echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, layers_inferred_*.yaml in the working directory, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2
