@@ -41,7 +41,7 @@ disable-model-invocation: false
 
 ## What this is
 
-This is the only apply step for any `verdict_*.md`, whichever lens wrote it (`/refactor`, `/auto-review`, `/test-sdd`, `/quality-gate`), so the routing, commit, and annotation rules have one home.
+This is the only apply step for any `verdict_*.md`, whichever lens wrote it (`/refactor`, `/auto-review`, `/test-sdd`, `/quality-gate` and its metrics leg), so the routing, commit, and annotation rules have one home.
 
 `/quality-gate` decides *which* findings to apply and calls this skill with that triaged list plus `--no-ask`, so nothing prompts; a human picks with `<which ones>` and may get §2's clarifying question.
 
