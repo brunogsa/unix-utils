@@ -242,6 +242,19 @@ elif [[ "$OS" == "linux" ]]; then
     grep -q 'DENO_INSTALL/bin' ~/.zshrc || echo 'export PATH="$DENO_INSTALL/bin:$PATH"' >> ~/.zshrc
 fi
 
+# Node 22: dependency-cruiser 18.7.2 needs Node ^22, ^24, >=26.
+# Skipped when Node on PATH is already 22 or newer.
+if ! command -v node &> /dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
+    if [[ "$OS" == "macos" ]]; then
+        brew install node@22
+        brew link --overwrite --force node@22
+    elif [[ "$OS" == "linux" ]]; then
+        # NodeSource: apt's own nodejs is older than 22.
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    fi
+fi
+
 # Node packages
 npm install -g json-schema-generator
 curl -fsSL https://claude.ai/install.sh | bash
@@ -339,6 +352,10 @@ fi
 # Injected unconditionally on both OSes: pip is a no-op when
 # it is already present.
 pipx inject pytest pyyaml
+
+# pytest-xdist: pytest.ini's addopts runs the suite with -n 3,
+# and pytest fails on an unknown -n without the plugin.
+pipx inject pytest pytest-xdist
 
 # pyrightconfig.json - point the type checker at the pipx
 # pytest venv's site-packages.
