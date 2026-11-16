@@ -359,7 +359,7 @@ pytest_site_packages="${pytest_site_packages_matches[${#pytest_site_packages_mat
 if [[ -d "$pytest_site_packages" ]]; then
     cat > ~/unix-utils/pyrightconfig.json <<EOF
 {
-  "extraPaths": ["$pytest_site_packages"]
+  "extraPaths": ["configs/ai-docs/claude/scripts", "$pytest_site_packages"]
 }
 EOF
     echo "pyrightconfig.json -> $pytest_site_packages"
