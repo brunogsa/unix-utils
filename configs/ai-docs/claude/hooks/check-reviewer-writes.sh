@@ -261,6 +261,21 @@ if [ -n "$CMD" ]; then
     echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote, a substitution inside double quotes, a quote left open at a line break or the end, a heredoc, or a blank other than space, tab or newline); write with a plain one-line command instead" >&2
     exit 2
   fi
+
+  # Bash drops a backslash inside an unquoted word, so `t\ee`
+  # runs tee and `se\d` runs sed.
+  #
+  # The tee and sed -i checks below read the escaped text, so a
+  # tee whose name holds an inner backslash is denied here, and
+  # sed -i is matched on a copy with every backslash removed.
+  UNESCAPED=${STRIPPED//\\/}
+  ESCAPED_TEE_WORDS=$(printf '%s\n' "$STRIPPED" \
+    | grep -oE '[A-Za-z0-9_\\-]*[A-Za-z0-9_-]\\[A-Za-z0-9_\\-]*' \
+    | tr -d '\\' | grep -cx 'tee')
+  if [ "$ESCAPED_TEE_WORDS" != 0 ]; then
+    echo "Blocked: this reviewer's Bash names tee with a backslash inside the name; spell tee plainly" >&2
+    exit 2
+  fi
   TARGETS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(&>>?|>>?\|?)[[:space:]]*[^[:space:]<>|;&)]*' \
     | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')
@@ -284,7 +299,7 @@ if [ -n "$CMD" ]; then
     echo "Blocked: this reviewer's Bash may write only to /dev/null or scratch under /tmp (attempted: $target)" >&2
     exit 2
   done <<< "$TEE_ARGS"
-  if printf '%s' "$STRIPPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--in-place)'; then
+  if printf '%s' "$UNESCAPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--in-place)'; then
     echo "Blocked: this reviewer may not edit files in place with sed -i" >&2
     exit 2
   fi

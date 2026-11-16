@@ -156,6 +156,45 @@ assert_eq "blocks an in-place sed edit when sed is named by its path" \
 assert_eq "allows tee named by its path into a /tmp file" \
   "0" "$(run_bash 'echo x | /usr/bin/tee /tmp/x')"
 
+# Bash drops a backslash inside an unquoted word, so `t\ee`
+# runs tee and `se\d` runs sed.
+escaped_word_writes=('echo x | t\ee src/a.py'
+  'se\d -i s/a/b/ src/a.py' 'echo x | \t\ee src/a.py'
+  'echo x | /usr/bin/t\ee src/a.py')
+allowed_escaped_word=""
+for c in "${escaped_word_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_escaped_word="$allowed_escaped_word [$c]"
+done
+assert_eq "blocks tee or sed -i into a repo file when a backslash sits inside the command name" \
+  "" "$allowed_escaped_word"
+
+escaped_flag_writes=('sed -\i s/a/b/ src/a.py'
+  's\ed --in-plac\e s/a/b/ src/a.py')
+allowed_escaped_flag=""
+for c in "${escaped_flag_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_escaped_flag="$allowed_escaped_flag [$c]"
+done
+assert_eq "blocks an in-place sed edit when a backslash sits inside its in-place flag" \
+  "" "$allowed_escaped_flag"
+
+# A quoted backslash stays in the path, so this writes the
+# repo-relative `\/tmp/x`, never /tmp/x.
+assert_eq "blocks tee into a repo path that starts with a quoted backslash before /tmp" \
+  "2" "$(run_bash "echo x | tee '\\'/tmp/x")"
+
+escaped_reads=("grep -n 'a\\.b' f" "printf 'a\\n'"
+  'echo x > /tmp/ok.txt' "grep 'a\\.b' f | tee /tmp/x"
+  'echo x | \tee /tmp/x')
+denied_escaped_reads=""
+for c in "${escaped_reads[@]}"; do
+  [ "$(run_bash "$c")" = "0" ] \
+    || denied_escaped_reads="$denied_escaped_reads [$c]"
+done
+assert_eq "allows escaped grep patterns, a printf escape, a leading-backslash tee and /tmp writes" \
+  "" "$denied_escaped_reads"
+
 assert_eq "allows a plain grep" \
   "0" "$(run_bash 'grep -rn foo src')"
 
