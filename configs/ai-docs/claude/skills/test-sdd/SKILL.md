@@ -15,11 +15,14 @@ Fixing what it finds is a separate step, run by hand or by `/quality-gate`, whic
 ## Usage
 
 ```
-/test-sdd [plan-file] [task-ids]
+/test-sdd [plan-file] [task-ids] [--base-ref <ref>]
 ```
 
 - `plan-file` - the plan to check. Omit it, or pass the bare word `plan`, to discover `plan_*.md` in CWD.
 - `task-ids` - comma-list of numeric task prefixes, `1,2,5`. Omit it to check **every** task in the plan.
+
+- `--base-ref <ref>` - the ref the branch's added tests are measured from, for the unplanned-tests finding (§5, §6). Omit it and run `~/.claude/scripts/resolve-base-ref.sh`, the same default `/quality-gate` uses.
+  - A caller that already knows its range, as `/quality-gate` does, passes it here, so both skills diff the same range.
 
 Examples:
 
@@ -91,7 +94,7 @@ Fresh context is the point: the invoking session often wrote the tests under che
 Lead the prompt with the report-only preamble from [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), substituting `$VERDICT_PATH`.
 That file is the single source of truth for the contract wording.
 
-Push into the prompt: the resolved plan path, the resolved task-ids with their status markers, `$VERDICT_PATH`, §5's matching procedure, and §6's report schema.
+Push into the prompt: the resolved plan path, the resolved task-ids with their status markers, the resolved base ref, `$VERDICT_PATH`, §5's matching procedure, and §6's report schema.
 
 ## 5. The matching procedure (pushed into the dispatch)
 
@@ -134,6 +137,26 @@ A semantic match must cite `path:line`; a match nobody can point at is a miss, n
 
 Classify every title as `found` (with its `path:line`) or `missing`.
 
+Then list the tests the branch added that the plan never named:
+
+```bash
+~/.claude/scripts/get-unplanned-tests.py <plan-path> --base <base-ref>
+```
+
+It runs over the whole plan, whatever `--tasks` narrows, because a test planned under a skipped task is still planned.
+
+**Exit 2** (bad ref, unreadable plan, or a plan with no titles) → record the failure in the report and mark the whole run inconclusive, like the other parse failures.
+
+Otherwise it prints a JSON array of `{path,line,title,gate}`.
+
+Apply the same semantic check as above to each listed test, so a test whose name is a reworded planned title is dropped from the list, citing the plan title it matches.
+
+Then write a one-line design of what each remaining test asserts.
+
+The vacuous-test review applies to these tests too, wherever the reviewer runs one; this skill defines no such check of its own.
+
+Why the semantic pass: the script matches titles textually, so a reworded planned title would otherwise be reported as unplanned noise.
+
 ## 6. Report schema
 
 Write the complete report to `$VERDICT_PATH`. Every missing title is one numbered finding.
@@ -144,6 +167,7 @@ Write the complete report to `$VERDICT_PATH`. Every missing title is one numbere
 - **Plan:** `<plan-file>`
 - **Tasks checked:** <ids>, of <total> in the plan
 - **Result:** <M> of <T> planned tests present - <K> missing
+- **Unplanned tests:** <U> added by the branch that match no planned title
 
 ## Summary
 
@@ -163,11 +187,21 @@ Tasks opted out via `**DECISION:** Skip planned-test check`: <ids with reasons, 
 - **Searched:** the grep command run, and what the semantic pass looked for after it
 - **Nearest existing test:** `path:line` of the closest match, or `none found`
 - **Why it is a miss:** why the nearest match does not cover the planned title
+
+### 2. [LOW] Unplanned tests added by the branch
+
+- `path:line` - "<title>" - <one-line design of what it asserts> - gate: <changed-line coverage | CRAP | entangled-test split | gate unknown>
 ```
 
 Rules the schema depends on:
 
 - Severity is fixed at `[HIGH]` for every missing title - a test the plan declared is not optional, so there is no judgment call to make and none to get wrong.
+
+- The unplanned-tests finding is one per run, listing every unplanned test, at fixed severity `[LOW]`.
+  - Its title is exactly `Unplanned tests added by the branch`, which `get-test-sdd-dispatch-list.py` matches to keep it away from `tdd-coder`.
+  - The gate is the `Gate: <name>` trailer value the script returns, and `gate unknown` when it has none.
+  - Zero unplanned tests → write no such finding.
+  - `[Done]` on it means the developer reviewed the tests, not that anything was fixed.
 
 - Findings are numbered from `1`, sequentially, with the number in the heading.
 
@@ -175,7 +209,7 @@ Rules the schema depends on:
   `/quality-gate`'s apply step stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`.
   This follows the same prefix-after-the-number convention `plan-status-markers` defines for plan headings.
 
-- **Zero missing titles** → write the file anyway, with a `## Findings` section reading `None - every planned test is present.`
+- **Zero findings of either kind** → write the file anyway, with a `## Findings` section reading `None - every planned test is present.`
   A run that produces no artifact leaves nothing to point at later.
 
 The subagent's return message must carry only the counts, the file path, and one title line per finding - return messages are capped and truncate long lists.
