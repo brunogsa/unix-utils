@@ -142,20 +142,22 @@ bash_target_allowed() {
   else
     return 1
   fi
-  has_no_parent_step "$rest"
+  is_literal_path_below "$rest"
 }
 
-# Succeeds when a path below the scratch dir cannot hop out:
-# a `..` segment is denied.
+# Succeeds when a path below the scratch dir is plain literal
+# text with no `..` segment, so it cannot hop out.
 #
-# A `..` inside a name, as in `a..b.txt`, passes only in a
-# plain literal path, since a variable, glob or brace can
-# still turn that name into a `..` step when the shell runs.
-has_no_parent_step() {
+# A variable, substitution, glob, brace, tilde or extended
+# glob is denied rather than modelled, since the shell may
+# expand any of them into a `..` step or another directory.
+#
+# A `..` inside a name, as in `a..b.txt`, still passes.
+is_literal_path_below() {
   local rest="$1"
-  [[ "$rest" != *..* ]] && return 0
   case "$rest" in
-    *'$'* | *'`'* | *'*'* | *'?'* | *'['* | *'{'*) return 1 ;;
+    *'$'* | *'`'* | *'*'* | *'?'* | *'['* | *'{'* | *'~'* | *'('*)
+      return 1 ;;
   esac
   [[ "/$rest/" != */../* ]]
 }

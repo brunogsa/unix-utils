@@ -306,6 +306,28 @@ assert_eq "blocks a /tmp segment that starts with two dots then a variable" \
 assert_eq "blocks a /tmp segment that starts with two dots then a glob" \
   "2" "$(run_bash 'echo x > /tmp/..*/x')"
 
+assert_eq "allows a /tmp redirect with stderr merged into it" \
+  "0" "$(run_bash 'git diff > /tmp/x.txt 2>&1')"
+
+# A target holding an expansion or glob character becomes a
+# path only when the shell runs, so it is denied even with no
+# parent step in sight.
+expanding_targets=('/tmp/a$P' '/tmp/a`id`' '/tmp/a*' '/tmp/a?'
+  '/tmp/[ab]' '/tmp/{a,b}' '/tmp/~a')
+allowed_expanding=""
+for t in "${expanding_targets[@]}"; do
+  [ "$(run_bash "echo x > $t")" = "2" ] \
+    || allowed_expanding="$allowed_expanding $t"
+done
+assert_eq "blocks a /tmp target holding a variable, command substitution, glob, brace or tilde" \
+  "" "$allowed_expanding"
+
+assert_eq "blocks a scratch dir target holding a glob" \
+  "2" "$(run_bash 'echo x > $work_dir/*.json')"
+
+assert_eq "blocks a /tmp target holding an extended glob that can spell a parent step" \
+  "2" "$(run_bash 'echo x > /tmp/@(..)/x')"
+
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
 # first scratch write. Lines are derived by grep at test time:
