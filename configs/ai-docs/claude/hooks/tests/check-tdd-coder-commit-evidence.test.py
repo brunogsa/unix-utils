@@ -612,6 +612,26 @@ class TestGitEnvironmentNameForms:
         assert check_commit(tmp_path, command=command) is None
 
 
+class TestDirectoryChangeBeforeScripts:
+    def test_should_deny_a_relative_script_run_after_a_directory_change(self, tmp_path):
+        (tmp_path / "status.sh").write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "cd /Users/brunoagostini/other-repo && sh status.sh")
+
+    def test_should_deny_an_absolute_script_running_git_after_a_directory_change(self, tmp_path):
+        (tmp_path / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f"cd /Users/brunoagostini/other-repo && sh {tmp_path}/status.sh")
+
+    @pytest.mark.parametrize(
+        "command",
+        ["chdir /Users/brunoagostini/other-repo && git status --short", "popd && git status --short"],
+        ids=["chdir", "popd"],
+    )
+    def test_should_deny_a_git_call_after_another_directory_change_builtin(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

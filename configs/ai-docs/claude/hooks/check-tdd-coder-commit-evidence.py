@@ -19,8 +19,9 @@
 # git with anything but a fixed no-commit subcommand, or runs
 # a script file whose text does either, is a possible commit.
 #
-# So is any git call after cd or pushd, or in a repo whose git
-# config or hooks run a program of their own.
+# So is any git call or relative script after a cd, pushd,
+# popd or chdir, and any git call in a repo whose git config
+# or hooks run a program of their own.
 #
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
@@ -114,7 +115,7 @@ SAMPLE_HOOK_SUFFIX = ".sample"
 
 # The program check reads the payload's cwd, so a git call
 # after a directory change runs where it never looked.
-DIRECTORY_CHANGE = re.compile(r"(?<![\w./-])(?:cd|pushd)(?![\w./-])")
+DIRECTORY_CHANGE = re.compile(r"(?<![\w./-])(?:cd|pushd|popd|chdir)(?![\w./-])")
 
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
@@ -234,12 +235,12 @@ def runs_configured_program(cwd: str | None) -> bool:
     return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.strip())
 
 
-def may_commit(text: str, cwd: str | None) -> bool:
+def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
     if names_commit(text):
         return True
     elif GIT_WORD.search(text) is None:
         return False
-    return DIRECTORY_CHANGE.search(text) is not None or runs_configured_program(cwd)
+    return has_moved or DIRECTORY_CHANGE.search(text) is not None or runs_configured_program(cwd)
 
 
 def is_separator(word: str) -> bool:
@@ -396,14 +397,18 @@ def read_script_text(path: Path) -> str | None:
     return "" if b"\0" in content[:BINARY_PROBE_BYTES] else content.decode("utf-8", errors="replace")
 
 
-def names_commit_in_script(script: object, cwd: str | None) -> bool:
-    if script is SCRIPT_FROM_STDIN:
+def names_commit_in_script(script: object, cwd: str | None, has_moved: bool) -> bool:
+    # After a directory change a relative script resolves
+    # somewhere the screen cannot know, and its git calls run
+    # where the program check never looked.
+    script_path = Path(str(script)).expanduser()
+    if script is SCRIPT_FROM_STDIN or (has_moved and not script_path.is_absolute()):
         return True
 
     # Joining an absolute path keeps it as it is.
-    path = (Path(cwd or Path.cwd()) / Path(str(script)).expanduser()).resolve()
+    path = (Path(cwd or Path.cwd()) / script_path).resolve()
     text = "" if is_committed_unchanged(path) else read_script_text(path)
-    return text is None or may_commit(text, cwd)
+    return text is None or may_commit(text, cwd, has_moved)
 
 
 def get_command_words(command: str) -> list[str] | None:
@@ -422,7 +427,8 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # com""mit reads as the git commit the shell runs.
     if may_commit(" ".join(words), cwd):
         return True
-    return any(names_commit_in_script(script, cwd) for script in get_scripts(words))
+    has_moved = DIRECTORY_CHANGE.search(command) is not None
+    return any(names_commit_in_script(script, cwd, has_moved) for script in get_scripts(words))
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:
