@@ -175,7 +175,7 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 
 ## Finalize - the step order inside §8.4
 
-1. **Split forced refactors off the feature PR - only when `pr.wanted: true`.** Follow [`forced-refactor-split.md`](forced-refactor-split.md); it rewrites the branch, so it runs before the re-push.
+1. **Split forced refactors off the feature PR - only when `pr.wanted: true`.** Follow [`forced-refactor-split.md`](forced-refactor-split.md), which also says why it runs first.
 
 2. **Re-push and refresh the PR description - only when §8.2 or §8.3 landed commits.** Decide from the tree, not from memory: `git rev-list --count @{u}..HEAD` above zero is the trigger.
    - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
