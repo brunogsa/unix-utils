@@ -340,6 +340,20 @@ assert_eq "blocks a write in a command holding a command substitution inside dou
 assert_eq "blocks a write in a command holding a backtick substitution inside double quotes" \
   "2" "$(run_bash 'echo "`id`" > /tmp/x.txt')"
 
+# A quote the hook cannot pair on its own line may be paired
+# with the wrong partner, hiding a redirect between the two.
+assert_eq "blocks a write after a comment holding an apostrophe" \
+  "2" "$(run_bash $'# don\'t\necho x > src/a.py')"
+
+assert_eq "blocks a write in a command whose quote stays open across a line break" \
+  "2" "$(run_bash $'echo \'a\nb\' > /tmp/x.txt')"
+
+assert_eq "blocks a write in a command whose quote is never closed" \
+  "2" "$(run_bash "echo x > /tmp/x.txt '")"
+
+assert_eq "blocks a write in a command holding a heredoc" \
+  "2" "$(run_bash $'cat <<EOF > /tmp/x.txt\nhello\nEOF')"
+
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
 # first scratch write. Lines are derived by grep at test time:

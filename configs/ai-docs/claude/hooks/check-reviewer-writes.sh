@@ -182,12 +182,13 @@ UNREADABLE_MARKER=$'\003'
 # A backslash is kept with the character it escapes.
 #
 # UNREADABLE_MARKER is added for a substitution inside double
-# quotes.
+# quotes, a quote open at a line break, and a quote never
+# closed.
 remove_quotes() {
   printf '%s' "$1" | awk -v space="$SPACE_PLACEHOLDER" -v inert="$INERT_PLACEHOLDER" \
     -v unreadable="$UNREADABLE_MARKER" '
     function quoted(c, is_single) {
-      if (c ~ /[[:space:]]/) return space
+      if (index(" \t\n", c)) return space
       if (c ~ /[<>|;&()]/) return inert
       if (is_single && (c == "$" || c == "`")) return inert
       return c
@@ -197,6 +198,7 @@ remove_quotes() {
       n = length(text)
       for (i = 1; i <= n; i++) {
         c = substr(text, i, 1)
+        if (state != "" && c == "\n") out = out unreadable
         if (state == "double" && (c == "`" || (c == "$" && substr(text, i + 1, 1) == "(")))
           out = out unreadable
         if (state == "single") {
@@ -213,6 +215,7 @@ remove_quotes() {
           if (substr(out, length(out)) == "$") out = substr(out, 1, length(out) - 1)
         } else out = out c
       }
+      if (state != "") out = out unreadable
       printf "%s", out
     }'
 }
@@ -224,12 +227,13 @@ if [ -n "$CMD" ]; then
   # The write form is read from the raw command, so a quote
   # paired wrongly cannot hide it.
   #
-  # An ANSI-C quote or an UNREADABLE_MARKER spot in a command
-  # that writes is denied rather than modelled.
+  # An ANSI-C quote, an UNREADABLE_MARKER spot or a heredoc
+  # in a command that writes is denied rather than modelled.
   if printf '%s' "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g' \
       | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|g?sed)([[:space:]]|$)' \
-    && [[ "$CMD" == *"\$'"* || "$STRIPPED" == *"$UNREADABLE_MARKER"* ]]; then
-    echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote or a substitution inside double quotes); write with a plain one-line command instead" >&2
+    && [[ "$CMD" == *"\$'"* || "$STRIPPED" == *"$UNREADABLE_MARKER"* \
+      || "$STRIPPED" == *'<<'* ]]; then
+    echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote, a substitution inside double quotes, a quote left open at a line break or the end, or a heredoc); write with a plain one-line command instead" >&2
     exit 2
   fi
   TARGETS=$(printf '%s\n' "$STRIPPED" \
