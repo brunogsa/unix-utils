@@ -94,7 +94,7 @@ Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review 
   - `<SESSION_ID>` is main's own, the last segment of its scratchpad path.
   - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
 
-**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
+**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** The one carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`, spawn-depth rule).
 
 Tell each leg this, since its skill describes dispatching a reviewer. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
 
