@@ -33,6 +33,7 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 declaring = importlib.import_module("quality_metrics.declaration")
+write_text_atomically = importlib.import_module("quality_metrics.atomic_write").write_text_atomically
 REPO_ROOT = SCRIPTS_DIR.parents[3]
 
 MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
@@ -77,8 +78,12 @@ def write_per_unit(declaration_path, metrics):
     text = path.read_text()
     if not PER_UNIT_LINE.search(text):
         raise declaring.DeclarationError(f"{path} has no top-level per_unit line")
-    path.write_text(PER_UNIT_LINE.sub(f"per_unit: [{', '.join(metrics)}]", text, count=1))
-    declaring.load_declaration(path)
+    new_text = PER_UNIT_LINE.sub(f"per_unit: [{', '.join(metrics)}]", text, count=1)
+    with tempfile.TemporaryDirectory() as directory:
+        candidate = Path(directory) / path.name
+        candidate.write_text(new_text)
+        declaring.load_declaration(candidate)
+    write_text_atomically(path, new_text, temp_prefix=".quality-metrics-")
 
 
 def metrics_with_a_module():
@@ -177,12 +182,21 @@ def has_every_sample_file():
     return not missing
 
 
-def record_results(options, results, per_unit):
-    """Append the evidence and write per_unit, as the options ask."""
+def is_written(declaration_path, per_unit):
+    """True when per_unit was written; a rejected rewrite is printed."""
+    try:
+        write_per_unit(declaration_path, per_unit)
+    except declaring.DeclarationError as error:
+        print(error, file=sys.stderr)
+        return False
+    return True
+
+
+def is_recorded(options, results, per_unit):
+    """Append the evidence and write per_unit; False when the write is rejected."""
     if options.evidence:
         append_text(options.evidence, evidence_section(results, per_unit))
-    if not options.dry_run:
-        write_per_unit(options.declaration, per_unit)
+    return options.dry_run or is_written(options.declaration, per_unit)
 
 
 def parse_options(arguments):
@@ -201,7 +215,8 @@ def main(arguments):
     measured = measured_seconds(results)
     per_unit = select_per_unit(measured)
     print(f"per_unit: {per_unit}")
-    record_results(options, results, per_unit)
+    if not is_recorded(options, results, per_unit):
+        return EXIT_UNMEASURED
     return EXIT_DONE if len(measured) == len(results) else EXIT_UNMEASURED
 
 

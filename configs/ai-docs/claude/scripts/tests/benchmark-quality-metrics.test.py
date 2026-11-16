@@ -86,6 +86,21 @@ class TestMainGuards:
         assert "per_unit: []" in declaration_path.read_text()
         assert "no/such/sample.py" in capsys.readouterr().err
 
+    def test_should_exit_2_and_leave_the_file_untouched_when_a_block_style_per_unit_list_would_break_the_rewrite(
+        self, tmp_path, monkeypatch
+    ):
+        benchmark = load_benchmark()
+        declaration_path = write_declaration(tmp_path)
+        block_style = DECLARATION_BODY.replace("per_unit: []", "per_unit:\n  - size")
+        declaration_path.write_text(block_style)
+        monkeypatch.setattr(benchmark, "SAMPLE_FILES", ())
+        monkeypatch.setattr(benchmark, "benchmark", lambda repo_root: {})
+
+        exit_code = benchmark.main(["--declaration", str(declaration_path)])
+
+        assert exit_code == 2
+        assert declaration_path.read_text() == block_style
+
 
 class TestPerUnitSelection:
     def test_should_keep_a_check_timed_at_exactly_8_0_seconds_in_per_unit(self):

@@ -154,7 +154,10 @@ def parse_yaml(text):
             "pyyaml is required to read the quality-metrics declaration; "
             "run install.sh, or: python3 -m pip install --user pyyaml"
         ) from error
-    return yaml.safe_load(text) or {}
+    try:
+        return yaml.safe_load(text) or {}
+    except yaml.YAMLError as error:
+        raise DeclarationError(f"the declaration is not valid YAML: {error}") from error
 
 
 def _validate_metric_names(entry_name, metrics):
