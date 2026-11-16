@@ -68,7 +68,7 @@ def write_killed_before_rename(target, text):
 
 
 class TestMetricsLegIsReadOnly:
-    def test_should_leave_the_metrics_declaration_byte_identical_after_a_run_whose_inspector_proposes_an_opt_out(
+    def test_should_leave_the_metrics_declaration_byte_identical_after_a_measure_run_over_a_branchy_script(
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {"invoice.sh": BRANCHY_BASH})
