@@ -352,6 +352,32 @@ def test_should_count_lines_of_a_script_run_as_a_subprocess_by_a_test_as_covered
     assert result.hits_by_file["tool.py"][1] > 0
 
 
+def test_should_honour_the_omit_in_a_repo_pyproject_coverage_section(tmp_path):
+    from quality_metrics.collection import NoFreshCoverageError, collect_python
+
+    repo = write_repo(tmp_path, {
+        **SUBPROCESS_REPO_FILES,
+        "pyproject.toml": '[tool.coverage.run]\nomit = ["*"]\n',
+    })
+
+    # Everything omitted leaves no coverage data to read.
+    with pytest.raises(NoFreshCoverageError):
+        collect_python(repo)
+
+
+def test_should_still_measure_a_subprocess_when_the_repo_pyproject_has_no_coverage_section(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    repo = write_repo(tmp_path, {
+        **SUBPROCESS_REPO_FILES,
+        "pyproject.toml": '[tool.other]\nkey = "value"\n',
+    })
+
+    result = collect_python(repo)
+
+    assert result.hits_by_file["tool.py"][1] > 0
+
+
 def test_should_leave_only_the_lcov_report_as_a_new_file_in_the_repo_after_a_subprocess_coverage_run(tmp_path):
     from quality_metrics.collection import collect_python
 

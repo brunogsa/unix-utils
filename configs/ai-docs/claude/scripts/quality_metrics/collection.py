@@ -56,9 +56,25 @@ PYTHON_LCOV_COMMAND = [*PYTHON_COVERAGE_WITH, "lcov", "-o"]
 
 # `patch = subprocess` measures Python subprocesses a test
 # starts; `parallel` gives each process its own data file for
-# `combine`. The config lives outside the repo. Documented at
+# `combine`. Documented at
 # coverage.readthedocs.io/en/latest/subprocess.html
+#
+# coverage.py reads one config file and `COVERAGE_RCFILE`
+# replaces the repo's own, with no flag or env var for `patch`
+# (coverage.readthedocs.io/en/latest/config.html).
+#
+# So this config applies only to a repo with no coverage config.
+# A repo with its own keeps it and loses subprocess measurement.
 SUBPROCESS_COVERAGE_CONFIG = "[run]\nparallel = True\npatch = subprocess\n"
+
+# Files that only ever configure coverage, and the section
+# marker that shows a shared file configures it too.
+DEDICATED_COVERAGE_CONFIGS = [".coveragerc", ".coveragerc.toml"]
+SHARED_COVERAGE_CONFIG_MARKERS = {
+    "setup.cfg": "[coverage:",
+    "tox.ini": "[coverage:",
+    "pyproject.toml": "[tool.coverage",
+}
 
 JAVASCRIPT_TEST_COMMAND = [
     "c8", "--reporter=lcov", "--reports-dir=coverage", "npm", "test",
@@ -205,16 +221,36 @@ def _source_entry(language, measured):
     }
 
 
+def repo_has_coverage_config(repo_dir):
+    """True when the repo declares its own coverage settings.
+
+    A file that cannot be read counts as declaring them, so the
+    repo's config wins on doubt and the run reports no more
+    coverage than the repo's own settings allow.
+    """
+    repo_dir = Path(repo_dir)
+    if any((repo_dir / name).exists() for name in DEDICATED_COVERAGE_CONFIGS):
+        return True
+    for name, marker in SHARED_COVERAGE_CONFIG_MARKERS.items():
+        path = repo_dir / name
+        if not path.exists():
+            continue
+        try:
+            if marker in path.read_text():
+                return True
+        except (OSError, UnicodeDecodeError):
+            return True
+    return False
+
+
 def collect_python(repo_dir):
     with tempfile.TemporaryDirectory() as data_dir:
         data_file_outside_repo = Path(data_dir) / ".coverage"
-        config_file = Path(data_dir) / "coveragerc"
-        config_file.write_text(SUBPROCESS_COVERAGE_CONFIG)
-        env = {
-            **os.environ,
-            "COVERAGE_FILE": str(data_file_outside_repo),
-            "COVERAGE_RCFILE": str(config_file),
-        }
+        env = {**os.environ, "COVERAGE_FILE": str(data_file_outside_repo)}
+        if not repo_has_coverage_config(repo_dir):
+            config_file = Path(data_dir) / "coveragerc"
+            config_file.write_text(SUBPROCESS_COVERAGE_CONFIG)
+            env["COVERAGE_RCFILE"] = str(config_file)
         run_started = time.time()
         test_run = run_command(PYTHON_TEST_COMMAND, cwd=repo_dir, env=env)
         if test_run.returncode == PYTEST_NO_TESTS_EXIT:
