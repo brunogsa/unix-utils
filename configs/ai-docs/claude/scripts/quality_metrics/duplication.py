@@ -29,6 +29,10 @@ SIMILARITY_LIMIT = 0.82
 # of 4 or more lines.
 JSCPD_MIN_LINES = "3"
 
+# Tests repeat their arrange steps on purpose, so a test clone
+# is flagged only from 9 lines up: 8 keeps a pair of 9 or more.
+TEST_JSCPD_MIN_LINES = "8"
+
 # --similarity does not read Bash, HTML or CSS, so only exact
 # token clones are found there. jscpd's default token minimum
 # would hide a clone of 4 short lines, so the line minimum alone
@@ -50,16 +54,14 @@ def measure(target, metrics, declaration):
     metric = TEST_METRIC if is_test else CODE_METRIC
     if metric not in metrics:
         return []
+    min_lines = TEST_JSCPD_MIN_LINES if is_test else JSCPD_MIN_LINES
     extensions = declaration.languages[target.language].extensions
-    peers = [
-        peer for peer in _peers_of(repo_path, is_test, extensions)
-        if not is_excluded_path(declaration, peer)
-    ]
+    peers = _scannable_peers(repo_path, is_test, extensions, declaration)
     with tempfile.TemporaryDirectory() as scan_dir:
         names = _stage_corpus(
             target, repo_path, suffix, peers, Path(scan_dir)
         )
-        clones = _scan(Path(scan_dir), suffix)
+        clones = _scan(Path(scan_dir), suffix, min_lines)
     return _flagged_records(target, metric, repo_path, names, clones)
 
 
@@ -78,6 +80,14 @@ def _stage_corpus(target, repo_path, suffix, peers, scan_dir):
     return names
 
 
+def _scannable_peers(repo_path, is_test, extensions, declaration):
+    """Peers of the target that the declaration does not exclude."""
+    return [
+        peer for peer in _peers_of(repo_path, is_test, extensions)
+        if not is_excluded_path(declaration, peer)
+    ]
+
+
 def _peers_of(repo_path, is_test, extensions):
     """Repo files, committed or not, in the target's language and kind."""
     listed = run_tool(
@@ -90,7 +100,7 @@ def _peers_of(repo_path, is_test, extensions):
     ]
 
 
-def _scan(scan_dir, suffix):
+def _scan(scan_dir, suffix, min_lines):
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
         if suffix in TOKEN_ONLY_SUFFIXES else []
@@ -101,7 +111,7 @@ def _scan(scan_dir, suffix):
         # apply.
         run_tool([
             "jscpd", f"--similarity={SIMILARITY_LIMIT}",
-            "--min-lines", JSCPD_MIN_LINES, *token_options,
+            "--min-lines", min_lines, *token_options,
             "--reporters", "json", "--output", report_dir,
             "--no-gitignore", "--no-tips", "--silent", str(scan_dir),
         ], cwd=report_dir)
@@ -112,11 +122,7 @@ def _scan(scan_dir, suffix):
 def _flagged_records(target, metric, repo_path, names, clones):
     records = []
     for clone in clones:
-        touched_sides = [
-            (target_side, other_side)
-            for target_side, other_side in _sides(clone)
-            if target.touches(target_side["start"], target_side["end"])
-        ]
+        touched_sides = _touched_sides(target, clone)
         if not touched_sides:
             continue
         target_side, other_side = touched_sides[0]
@@ -131,6 +137,15 @@ def _flagged_records(target, metric, repo_path, names, clones):
             "other_line": other_side["start"],
         })
     return records
+
+
+def _touched_sides(target, clone):
+    """Each (target side, other side) pair on a touched line."""
+    return [
+        (target_side, other_side)
+        for target_side, other_side in _sides(clone)
+        if target.touches(target_side["start"], target_side["end"])
+    ]
 
 
 def _sides(clone):

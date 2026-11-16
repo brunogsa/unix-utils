@@ -211,13 +211,30 @@ class TestDuplicatedCode:
         }
 
 
+NINE_LINE_TEST = """\
+def test_{name}():
+    calculator = Calculator()
+    calculator.reset()
+    result = calculator.add({first}, {second})
+    assert result == {total}
+    assert calculator.history == [{total}]
+    calculator.clear()
+    assert calculator.history == []
+    assert calculator.is_empty()
+"""
+
+
 class TestDuplicatedTests:
-    def test_should_flag_two_tests_differing_only_in_literals_as_duplicated_tests(self, tmp_path):
+    def test_should_flag_two_tests_sharing_a_9_line_block_as_duplicated_tests(self, tmp_path):
         violations = measure_files(
             tmp_path,
             {
-                "tests/test_adds_two.py": ADDS_TWO_NUMBERS,
-                "tests/test_adds_other.py": ADDS_OTHER_NUMBERS,
+                "tests/test_adds_two.py": NINE_LINE_TEST.format(
+                    name="adds_two", first=2, second=3, total=5
+                ),
+                "tests/test_adds_other.py": NINE_LINE_TEST.format(
+                    name="adds_other", first=7, second=8, total=15
+                ),
             },
         )
 
@@ -225,6 +242,26 @@ class TestDuplicatedTests:
             ("test_duplication", "tests/test_adds_two.py"),
             ("test_duplication", "tests/test_adds_other.py"),
         }
+
+    @pytest.mark.parametrize(
+        "folder, prefix, flagged_metrics",
+        [
+            pytest.param("tests", "test_", set(), id="test files are not flagged"),
+            pytest.param("src", "", {"code_duplication"}, id="source files are still flagged"),
+        ],
+    )
+    def test_should_flag_a_5_line_block_shared_by_source_files_but_not_by_test_files(
+        self, tmp_path, folder, prefix, flagged_metrics
+    ):
+        violations = measure_files(
+            tmp_path,
+            {
+                f"{folder}/{prefix}adds_two.py": ADDS_TWO_NUMBERS,
+                f"{folder}/{prefix}adds_other.py": ADDS_OTHER_NUMBERS,
+            },
+        )
+
+        assert {item["metric"] for item in violations} == flagged_metrics
 
 
 class TestSimilarityThreshold:
@@ -313,28 +350,27 @@ class TestRepoDuplicationConfigCountingOnlyTokenClones:
 class TestTokenClonesInLanguagesWithoutSimilarity:
     @pytest.mark.parametrize("line_count", [4, 3])
     @pytest.mark.parametrize(
-        "extension, head, blocks",
+        "extension, head_and_blocks",
         [
             pytest.param(
-                ".sh", 'echo "beta"\n', {4: BASH_FOUR_LINES, 3: BASH_THREE_LINES}, id="bash"
+                ".sh", ('echo "beta"\n', {4: BASH_FOUR_LINES, 3: BASH_THREE_LINES}), id="bash"
             ),
             pytest.param(
                 ".html",
-                "<h1>Title</h1>\n",
-                {4: HTML_FOUR_LINES, 3: HTML_THREE_LINES},
+                ("<h1>Title</h1>\n", {4: HTML_FOUR_LINES, 3: HTML_THREE_LINES}),
                 id="html",
             ),
             pytest.param(
                 ".css",
-                "body { margin: 1px; }\n",
-                {4: CSS_FOUR_LINES, 3: CSS_THREE_LINES},
+                ("body { margin: 1px; }\n", {4: CSS_FOUR_LINES, 3: CSS_THREE_LINES}),
                 id="css",
             ),
         ],
     )
     def test_should_flag_an_exact_bash_html_or_css_token_clone_spanning_4_lines_and_pass_one_spanning_3_lines(
-        self, tmp_path, extension, head, blocks, line_count
+        self, tmp_path, extension, head_and_blocks, line_count
     ):
+        head, blocks = head_and_blocks
         violations = measure_files(
             tmp_path,
             {f"src/first{extension}": blocks[line_count], f"src/second{extension}": head + blocks[line_count]},
