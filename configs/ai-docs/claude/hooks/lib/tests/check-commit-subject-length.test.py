@@ -610,6 +610,49 @@ class TestMessageFileInAssignedVariable:
         assert (result.returncode, result.stdout) == (0, "")
 
 
+def _run_attribution_check(command):
+    return subprocess.run(
+        [sys.executable, str(CHECKER), checker.ATTRIBUTED_FLAG, command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+ATTRIBUTED_COMMIT = f'git commit --allow-empty -m "{SHORT_SUBJECT}" -m "{ATTRIBUTION}"'
+
+
+class TestAttributionAcrossSeveralCommits:
+    """The attribution check must read every commit a command
+    runs: one it cannot read may lack the trailer, so the whole
+    command reads as unattributed."""
+
+    @pytest.mark.parametrize(
+        "unreadable_commit",
+        [
+            pytest.param(f'git commit --allow-empty -m "$SUBJECT" -m "{ATTRIBUTION}"', id="expanded-message"),
+            pytest.param(f'git commit --allow-empty -s -m "{SHORT_SUBJECT}" -m "{ATTRIBUTION}"', id="unknown-option"),
+            pytest.param("git commit --allow-empty -F - < msg.txt", id="message-from-stdin"),
+            pytest.param("git commit --allow-empty -F missing-message.txt", id="missing-message-file"),
+            pytest.param(f"eval 'git commit --allow-empty -m \"{SHORT_SUBJECT}\"'", id="commit-run-through-eval"),
+        ],
+    )
+    def test_should_withhold_the_verdict_when_any_commit_cannot_be_read(self, unreadable_commit):
+        result = _run_attribution_check(f"{unreadable_commit} && {ATTRIBUTED_COMMIT}")
+
+        assert (result.returncode, result.stdout) == (0, "")
+
+    def test_should_still_attribute_when_only_a_non_commit_stage_expands(self):
+        result = _run_attribution_check(f'echo "$HOME" && {ATTRIBUTED_COMMIT}')
+
+        assert (result.returncode, result.stdout) == (0, checker.ATTRIBUTED_VERDICT)
+
+    def test_should_attribute_two_commits_that_both_carry_the_trailer(self):
+        result = _run_attribution_check(f"{ATTRIBUTED_COMMIT} && {ATTRIBUTED_COMMIT}")
+
+        assert (result.returncode, result.stdout) == (0, checker.ATTRIBUTED_VERDICT)
+
+
 def _git_env(home):
     inherited = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     return {

@@ -68,6 +68,10 @@ ATTRIBUTED_VERDICT = "attributed"
 TRAILER_PARSER = ("git", "interpret-trailers", "--parse", "--no-divider")
 TRAILER_PARSER_TIMEOUT_SECONDS = 10
 
+# A stage naming git then commit may run one the resolver cannot
+# read, as eval "git commit ..." or bash -c '...' would.
+GIT_COMMIT_MENTION = re.compile(r"\bgit\b.*\bcommit\b", re.DOTALL)
+
 # A --trailer value may use = where a message trailer uses :.
 ATTRIBUTION_TRAILER = re.compile(r"co-authored-by\s*[:=].*claude", re.IGNORECASE)
 
@@ -708,14 +712,20 @@ def _is_assignment_order_known(text):
     return not ("&&" in text and (";" in text or "\n" in text))
 
 
-def compute_commits(command, cwd=None):
-    """Return the Commit of each commit the command surely
-    records.
+def _may_run_commit(stage):
+    """True when a stage may run git commit: it is one, or it
+    names git and commit, as eval or bash -c would run them."""
+    if _commit_subcommand_index(stage.words) is not None:
+        return True
+    return bool(GIT_COMMIT_MENTION.search(" ".join(word.text for word in stage.words)))
+
+
+def _read_commit_stages(command, cwd):
+    """Return one entry per stage that may run git commit: its
+    Commit, or None when its message is not surely known.
 
     cwd is the directory a relative -F path resolves against.
-    A commit whose message is not surely known adds nothing, so
-    each caller must pick the safe reading of a missing message:
-    the subject check allows, the attribution check denies.
+    A command that cannot be parsed for sure returns [].
     """
     parse_lib = _load_parse_lib()
     if parse_lib is None or PLACEHOLDER_MARK in command:
@@ -738,9 +748,23 @@ def compute_commits(command, cwd=None):
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
     commits = []
     for stage, is_piped in stages:
-        commits.append(_commit(stage, values, state))
+        if _may_run_commit(stage):
+            commits.append(_commit(stage, values, state))
         _update_state(stage, is_piped, state)
-    return [commit for commit in commits if commit is not None]
+    return commits
+
+
+def compute_commits(command, cwd=None):
+    """Return the Commit of each commit the command surely
+    records.
+
+    A commit whose message is not surely known adds nothing, so
+    each caller must pick the safe reading of a missing message:
+    the subject check allows; the attribution check reads
+    _read_commit_stages instead and denies.
+    """
+    commit_stages = _read_commit_stages(command, cwd)
+    return [commit for commit in commit_stages if commit is not None]
 
 
 def compute_subjects(command, cwd=None):
@@ -786,8 +810,14 @@ def main(argv):
         # A crash here makes the guard deny, the safe side for
         # the attribution check, so no try/except softens it.
         cwd = os.environ.get(COMMIT_CWD_ENV) or os.getcwd()
-        commits = compute_commits(command, cwd)
-        if commits and all(_has_attribution_trailer(commit, cwd) for commit in commits):
+
+        # One commit it cannot read may lack the trailer, so it
+        # withholds the verdict for the whole command.
+        commit_stages = _read_commit_stages(command, cwd)
+        is_every_commit_read = None not in commit_stages
+        if commit_stages and is_every_commit_read and all(
+            _has_attribution_trailer(commit, cwd) for commit in commit_stages
+        ):
             sys.stdout.write(ATTRIBUTED_VERDICT)
         return 0
     subjects = compute_subjects(command, os.environ.get(COMMIT_CWD_ENV))

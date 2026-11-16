@@ -783,6 +783,13 @@ it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution() {
   assert_eq "should allow a heredoc message whose last paragraph is the attribution" "0" "$HOOK_EXIT"
 }
 
+it_should_block_a_command_whose_first_commit_cannot_be_read() {
+  local dir
+  dir=$(make_repo main)
+  run_hook 'git commit --allow-empty -m "$SUBJECT" && git commit --allow-empty -m "fix(git-guard): read trailers" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir"
+  assert_eq "should block a command when one of its commits cannot be read, even if another is attributed" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -862,6 +869,7 @@ it_should_block_an_attribution_after_a_literal_backslash_n
 it_should_allow_an_attribution_in_its_own_last_message_option
 it_should_allow_an_attribution_passed_as_a_trailer_option
 it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution
+it_should_block_a_command_whose_first_commit_cannot_be_read
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

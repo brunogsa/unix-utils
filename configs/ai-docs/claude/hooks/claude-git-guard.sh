@@ -469,9 +469,10 @@ fi
 # a missing lib, "-F -" stdin, an unreadable file) fails
 # closed: a lost attribution is the defect this rule prevents.
 #
-# When the resolver is unsure (a cd before a relative -F, ||,
-# a subshell, an unknown option), it reads no commit, so the
-# deny stands. The subject check reads that as "allow".
+# When the resolver is unsure of any one commit (a cd before a
+# relative -F, ||, a subshell, an unknown option, eval), the
+# deny stands for the whole command, however many others it
+# read. The subject check reads that as "allow".
 commit_has_attribution_trailer() {
   local verdict
   verdict=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" --attributed "$CMD" 2>/dev/null) || return 1
