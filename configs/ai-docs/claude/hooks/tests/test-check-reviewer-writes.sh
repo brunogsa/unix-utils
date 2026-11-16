@@ -263,6 +263,27 @@ assert_eq "blocks a quoted /tmp target that hops out to /etc" \
 assert_eq "blocks a scratch dir target whose double-quoted part hops out to source" \
   "2" "$(run_bash 'echo x > $work_dir/"../../src/a.py"')"
 
+assert_eq "blocks a /tmp target whose double-quoted part hops out to /etc" \
+  "2" "$(run_bash 'echo x > /tmp/"../../etc/x"')"
+
+assert_eq "blocks a /tmp target whose single-quoted part is a parent step" \
+  "2" "$(run_bash "echo x > /tmp/'..'/x")"
+
+assert_eq "blocks a /tmp target whose parent step is split across a quote" \
+  "2" "$(run_bash 'echo x > /tmp/."."/x')"
+
+assert_eq "blocks a /tmp target whose parent step is split by an empty quote" \
+  "2" "$(run_bash "echo x > /tmp/.''./x")"
+
+assert_eq "blocks tee into a quoted /tmp prefix followed by an unquoted hop out" \
+  "2" "$(run_bash 'echo x | tee "/tmp/a/"../../x')"
+
+assert_eq "blocks a /tmp target whose parent step is ANSI-C quoted" \
+  "2" "$(run_bash "echo x > /tmp/\$'..'/x")"
+
+assert_eq "blocks a /tmp target whose parent step hides a backslash escape" \
+  "2" "$(run_bash 'echo x > /tmp/.\./x')"
+
 # A redirect after a quoted string ending in `>` is still a
 # redirect, and a single-quoted `$` is a literal dollar sign.
 assert_eq "blocks a repo source redirect that follows a quoted angle bracket" \

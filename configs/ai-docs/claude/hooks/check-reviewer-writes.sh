@@ -128,9 +128,13 @@ SCRATCH_VAR_TARGET_REGEX='^\$(\{('"$SCRATCH_DIR_VARS"')\}|('"$SCRATCH_DIR_VARS"'
 # Bash writes are narrower than Write/Edit: a verdict file is
 # written with the Write tool, and a Bash redirect into one
 # lands wherever a prior `cd` left the shell.
+#
+# A backslash is denied rather than modelled, since an escape
+# such as `.\.` can still spell a `..` step.
 bash_target_allowed() {
   local path="$1"
   [[ "$path" == /dev/null ]] && return 0
+  [[ "$path" == *\\* ]] && return 1
   [[ "$path" == *..* ]] && return 1
   [[ "$path" =~ $SCRATCH_VAR_TARGET_REGEX ]] && return 0
   [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]
