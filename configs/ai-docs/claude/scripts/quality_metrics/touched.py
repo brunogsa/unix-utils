@@ -1,7 +1,7 @@
 """Finds the code a change touched, as line numbers per file.
 
-A whitespace-only edit and a detected rename carry no touched lines,
-so the code they move is never bound by a limit.
+A whitespace-only edit and a detected rename carry no touched
+lines, so the code they move is never bound by a limit.
 """
 
 import re
@@ -35,15 +35,17 @@ DIFF_ARGUMENTS = (
 
 
 class GitError(RuntimeError):
-    """A git command the touched-line lookup depends on failed."""
+    """A git command the touched-line lookup depends on
+    failed."""
 
 
 @dataclass(frozen=True)
 class Target:
     """One file to measure, with the lines the change touched.
 
-    `path` can be a temporary copy; `repo_path` names the real file,
-    relative to the repo, and is None when `path` is already it.
+    `path` can be a temporary copy; `repo_path` names the
+    real file, relative to the repo, and is None when `path`
+    is already it.
     """
 
     path: Path
@@ -63,9 +65,9 @@ class Target:
 def touched_files_since(base_ref):
     """Map each changed or new file to its touched lines.
 
-    The diff covers the working tree against `base_ref`, so staged and
-    unstaged edits both count. New files git does not track yet are
-    touched on every line.
+    The diff covers the working tree against `base_ref`,
+    so staged and unstaged edits both count.
+    New files git does not track yet are touched on every line.
     """
     touched = _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, base_ref))
 
@@ -78,20 +80,23 @@ def touched_files_since(base_ref):
 
 
 def touched_files_between(base_ref, head_ref):
-    """Map each file the range `base_ref...head_ref` changed to its touched lines."""
+    """Map each file the range `base_ref...head_ref` changed to
+    its touched lines."""
     return _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, f"{base_ref}...{head_ref}"))
 
 
 @dataclass(frozen=True)
 class Change:
-    """A file the range changed: its path at the base, and at the head (None when deleted)."""
+    """A file the range changed: its path at the base, and at
+    the head (None when deleted)."""
 
     old_path: str
     new_path: Optional[str]
 
 
 def changes_between(base_ref, head_ref):
-    """List the files the range modified, renamed or deleted, as base-side paths."""
+    """List the files the range modified, renamed or deleted,
+    as base-side paths."""
     output = _git(*DIFF_COMMAND, "--name-status", "-M", f"{base_ref}...{head_ref}")
     changes = []
     for line in output.splitlines():
@@ -106,12 +111,14 @@ def changes_between(base_ref, head_ref):
 
 
 def merge_base(base_ref, head_ref):
-    """The commit a three-dot range `base_ref...head_ref` diffs from."""
+    """The commit a three-dot range `base_ref...head_ref`
+    diffs from."""
     return _git("merge-base", base_ref, head_ref).strip()
 
 
 def file_text_at(ref, path):
-    """The text of `path` (relative to the working directory) as of `ref`."""
+    """The text of `path` (relative to the working directory)
+    as of `ref`."""
     return _git("show", f"{ref}:./{path}")
 
 

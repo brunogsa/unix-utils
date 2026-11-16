@@ -1,4 +1,5 @@
-"""A changed code file no language entry claims never reads clean.
+"""A changed code file no language entry claims never reads
+clean.
 
 The CLI asks about it when a session can ask, and scores it as
 not measured otherwise, so skipping a language is no way around
@@ -37,7 +38,8 @@ NOT_MEASURED_STATUS = "not measured: no language entry"
 
 
 def measure_unclaimed_ruby_file(tmp_path, entry_point, *extra_arguments):
-    """The script's (result, repo) for lib/convert.rb, which no entry claims."""
+    """The script's (result, repo) for lib/convert.rb, which no
+    entry claims."""
     repo = make_repo(tmp_path, {"lib/convert.rb": "def convert(x)\n  x\nend\n"})
     declaration_path = tmp_path / "declaration.yaml"
     declaration_path.write_text(NO_RUBY_DECLARATION_TEXT)

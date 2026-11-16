@@ -39,7 +39,8 @@ def detect(repo, map_dir, *extra_flags):
 
 
 def crashing_coverage_setup(tmp_path, monkeypatch):
-    """A repo and a measure call whose coverage tools both fail."""
+    """A repo and a measure call whose coverage tools both
+    fail."""
     repo = make_repo(tmp_path, {
         "package.json": PACKAGE_WITH_TEST_SCRIPT, "src/cart.js": CART_SOURCE,
         "jest.config.js": JEST_CONFIG,

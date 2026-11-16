@@ -1,13 +1,16 @@
-"""Tests for check-commit-subject-length.py, the git guard's check that a
-commit subject fits commit-standards' 64-character cap.
+"""Tests for check-commit-subject-length.py, the git guard's
+check that a commit subject fits
+commit-standards' 64-character cap.
 
-The checker computes the subject git would record from the raw Bash
-command, before the shell runs it. Every form it claims to check is
-replayed against real git, so a mis-modelled message rule shows up as a
-mismatch here instead of as a false deny on someone's commit.
+The checker computes the subject git would record from the raw
+Bash command, before the shell runs it.
+
+Every form it claims to check is replayed against real git, so a
+mis-modelled message rule shows up as a mismatch here instead of
+as a false deny on someone's commit.
 
 Usage:
-  pytest configs/ai-docs/claude/hooks/lib/tests/check-commit-subject-length.test.py
+  ./run-tests.py <this file>
 """
 
 import importlib.util

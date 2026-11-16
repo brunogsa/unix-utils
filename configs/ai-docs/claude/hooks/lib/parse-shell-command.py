@@ -36,11 +36,20 @@ _ANY_SINK_PATTERN = re.compile(r'')
 
 
 def strip_heredoc_bodies_for_sinks(text, sink_pattern):
-    """Drop heredoc body lines, but only for heredocs whose opening line matches `sink_pattern` before the `<<` - keeping the opener and delimiter lines.
+    """Drop heredoc body lines, but only for heredocs whose
+    opening line matches `sink_pattern` before the `<<` -
+    keeping the opener and delimiter lines.
 
-    Body text between `<<'EOF'` and its closing marker is inert data fed to a redirect target - never executed as a shell command - so prose in there (e.g. a commit message describing a past incident) must not be scanned as if it were code, PROVIDED the sink reading it never executes it.
+    Body text between `<<'EOF'` and its closing marker is inert
+    data fed to a redirect target - never executed as a shell
+    command - so prose in there (e.g. a commit message
+    describing a past incident) must not be scanned as if it
+    were code, PROVIDED the sink reading it never executes it.
 
-    A heredoc fed to `bash`/`sh`/`ssh` DOES execute its body as shell commands, so a caller wanting to preserve those (to still catch a dangerous command smuggled through `bash <<EOF`) passes a sink_pattern that excludes them.
+    A heredoc fed to `bash`/`sh`/`ssh` DOES execute its body as
+    shell commands, so a caller wanting to preserve those
+    (to still catch a dangerous command smuggled through
+    `bash <<EOF`) passes a sink_pattern that excludes them.
     """
     lines = text.split('\n')
     kept = []
@@ -65,10 +74,12 @@ def strip_heredoc_bodies_for_sinks(text, sink_pattern):
 
 
 def strip_heredoc_bodies(text):
-    """Drop every heredoc's body lines, regardless of which sink reads it.
+    """Drop every heredoc's body lines, regardless of which sink
+    reads it.
 
     A thin wrapper over strip_heredoc_bodies_for_sinks() with a
-    match-everything sink pattern - see that function for the mechanics.
+    match-everything sink pattern - see that function for the
+    mechanics.
     """
     return strip_heredoc_bodies_for_sinks(text, _ANY_SINK_PATTERN)
 
@@ -76,19 +87,20 @@ def strip_heredoc_bodies(text):
 def split_into_pipelines(text):
     """Split a command into statements of pipeline stages.
 
-    Quote-aware, because a separator inside a quoted argument is data,
-    not structure: `grep 'a|b' f` is one stage, and splitting it would
-    misread the pattern as a second command.
+    Quote-aware, because a separator inside a quoted argument
+    is data, not structure: `grep 'a|b' f` is one stage, and
+    splitting it would misread the pattern as a second command.
 
-    A redirect's `&` (`2>&1`, `&>log`) and a backslash-escaped separator
-    outside quotes (`rm foo \\; echo bar`, one literal `;` character) are
-    likewise data, not a statement separator.
+    A redirect's `&` (`2>&1`, `&>log`) and a backslash-escaped
+    separator outside quotes (`rm foo \\; echo bar`, one literal
+    `;` character) are likewise data, not a statement separator.
 
-    Returns a list of statements; each statement is a list of its
-    pipeline stages (split on `|`). A caller that only wants a flat list
-    of command segments - one per `;`/`&&`/`||`/`|`/`&`/newline, with no
-    interest in which separator produced which cut - flattens the
-    result: `[stage for statement in split_into_pipelines(c) for stage
+    Returns a list of statements; each statement is a list of
+    its pipeline stages (split on `|`). A caller that only
+    wants a flat list of command segments - one per
+    `;`/`&&`/`||`/`|`/`&`/newline, with no interest in which
+    separator produced which cut - flattens the result:
+    `[stage for statement in split_into_pipelines(c) for stage
     in statement]`.
     """
     statements = []

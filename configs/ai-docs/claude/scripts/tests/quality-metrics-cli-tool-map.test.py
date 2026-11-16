@@ -1,7 +1,8 @@
-"""The measure script takes the repo's coverage tool from the tool map.
+"""The measure script takes the repo's coverage tool from the
+tool map.
 
-Every test runs the real script as a subprocess against a temp repo
-whose jest is a stub.
+Every test runs the real script as a subprocess against a temp
+repo whose jest is a stub.
 """
 
 import json
@@ -29,7 +30,8 @@ JEST_COVERAGE_PERCENT = 92
 
 
 def measure_cart(tmp_path, monkeypatch, *flags):
-    """The script's result for src/cart.js, with a stub jest on PATH."""
+    """The script's result for src/cart.js, with a stub jest
+    on PATH."""
     repo = make_repo(tmp_path, JEST_REPO_FILES)
     install_jest_reporting_cart_coverage(tmp_path, monkeypatch)
     declaration_path = tmp_path / "declaration.yaml"

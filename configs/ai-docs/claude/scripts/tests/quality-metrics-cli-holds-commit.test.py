@@ -1,8 +1,10 @@
-"""The report's `holds_commit` tells a coder whether to hold its commit.
+"""The report's `holds_commit` tells a coder whether to hold its
+commit.
 
-Exit 1 covers a measured violation, a pending ask and a gate input
-violation alike. Only a real measured violation on a touched function
-holds the commit, and the report says so itself.
+Exit 1 covers a measured violation, a pending ask and a gate
+input violation alike. Only a real measured violation on a
+touched function holds the commit, and the report says so
+itself.
 """
 
 import json

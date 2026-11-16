@@ -1,7 +1,8 @@
-"""The measure script reports tooling asks and never exits clean on one.
+"""The measure script reports tooling asks and never exits clean
+on one.
 
-An ask means a metric went unmeasured. Its records read as the worst
-case, so the run exits 1 like any failing measurement.
+An ask means a metric went unmeasured. Its records read as
+the worst case, so the run exits 1 like any failing measurement.
 """
 
 import json

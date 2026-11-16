@@ -1,20 +1,21 @@
 """pytest suite for check-tdd-coder-commit-evidence.py.
 
 The hook runs as tdd-coder's PreToolUse Bash hook. It denies a
-`git commit` unless the run's evidence file already holds a confirmed
-RED entry followed by a confirmed GREEN entry. The run label comes from
-the run files the agent's own Write and Edit calls named, read from its
-JSONL transcript.
+`git commit` unless the run's evidence file already holds a
+confirmed RED entry followed by a confirmed GREEN entry.
+The run label comes from the run files the agent's own Write
+and Edit calls named, read from its JSONL transcript.
 
-Every case writes a real agent transcript under tmp_path in the layout
-Claude Code uses (<session>/subagents/agent-<id>.jsonl beside
-<session>.jsonl), writes any evidence file under /tmp with a label
-unique to this test run, feeds a realistic payload, and removes the
-files afterwards. Nothing inside the hook is stubbed.
+Every case writes a real agent transcript under tmp_path in the
+layout Claude Code uses (<session>/subagents/agent-<id>.jsonl
+beside <session>.jsonl), writes any evidence file under /tmp
+with a label unique to this test run,
+feeds a realistic payload, and removes the files afterwards.
+Nothing inside the hook is stubbed.
 
-The last class reads tdd-coder.md itself, so a rename of the hook file
-or a rewording of the entry header fails a test here instead of
-silently disabling the gate.
+The last class reads tdd-coder.md itself, so a rename of the
+hook file or a rewording of the entry header fails a test here
+instead of silently disabling the gate.
 """
 
 import importlib.util
@@ -98,8 +99,9 @@ def stamped(record):
 
 
 def write_agent_transcript(tmp_path, records, is_stamped=True):
-    """Write the agent transcript where Claude Code keeps it; return the
-    parent session transcript path a PreToolUse payload carries."""
+    """Write the agent transcript where Claude Code keeps it;
+    return the parent session transcript path a PreToolUse
+    payload carries."""
     session_transcript = tmp_path / f"{SESSION_ID}.jsonl"
     session_transcript.write_text("", encoding="utf-8")
     agent_transcript = tmp_path / SESSION_ID / "subagents" / f"agent-{AGENT_ID}.jsonl"
@@ -112,8 +114,9 @@ OMITTED = object()
 
 
 def payload(command, transcript_path, agent_type="tdd-coder", agent_id=AGENT_ID, **extra):
-    """A PreToolUse Bash payload; an agent field passed as OMITTED is left
-    out, the way a main-session call carries none."""
+    """A PreToolUse Bash payload; an agent field passed as
+    OMITTED is left out, the way a main-session call carries
+    none."""
     fields = {
         "session_id": SESSION_ID,
         "transcript_path": str(transcript_path),
@@ -155,7 +158,8 @@ def git_repo(tmp_path):
 
 
 def deny_reason(result):
-    """The deny reason the hook printed, or None when it let the call through."""
+    """The deny reason the hook printed, or None when it let the
+    call through."""
     assert result.returncode == 0
     if result.stdout == "":
         return None
@@ -831,7 +835,8 @@ class TestRunLabelBinding:
 
 
 def frontmatter_pretooluse_command():
-    """The command wired under hooks: PreToolUse: in tdd-coder.md's frontmatter."""
+    """The command wired under hooks: PreToolUse: in
+    tdd-coder.md's frontmatter."""
     frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
     match = re.search(
         r"^  PreToolUse:\n +- matcher: \"?Bash\"?\n(?:^ {4,}.*\n)*?^ +command: \"(.+)\"$",

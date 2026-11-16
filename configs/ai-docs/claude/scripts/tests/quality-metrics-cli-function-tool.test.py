@@ -1,7 +1,9 @@
-"""A crashed or hung global function tool (lizard), through the real script.
+"""A crashed or hung global function tool (lizard), through the
+real script.
 
-With a tool map (a session id) the run asks and scores the file's
-function metrics pessimistically; without one the run is unmeasured.
+With a tool map (a session id) the run asks and scores the
+file's function metrics pessimistically; without one the run
+is unmeasured.
 """
 
 import json

@@ -133,7 +133,8 @@ def main(arguments):
 
 
 def _print_report(measurements, unclaimed, resolved, gate_input_violations, coverage_run):
-    """Print the JSON report and return the exit code it earns."""
+    """Print the JSON report and return the exit code
+    it earns."""
     violations = [item for item in measurements if is_over_limit(item)]
     report = {
         "measurements": measurements,
@@ -193,7 +194,8 @@ def _add_tool_map_arguments(parser):
 
 
 def _coverage_run_for(options, judged_against):
-    """The coverage run; with a session id it reads the repo's tool map."""
+    """The coverage run; with a session id it reads the
+    repo's tool map."""
     if options.session_id is None:
         return CoverageRun(Path.cwd())
     tool_map = lazy_tool_map_for(
@@ -222,7 +224,8 @@ def _range_ends(diff_range):
 
 
 def _gate_input_violations(options, judged_against, head_ref):
-    """The gate inputs the change adds, read against the base ref.
+    """The gate inputs the change adds,
+    read against the base ref.
 
     Explicit --files name no change, so they have none to judge.
     """
@@ -248,7 +251,8 @@ def _load_committed_declaration(options, judged_against):
 
 
 def _judged_against_ref(options):
-    """The ref the change's cycles and gate inputs are judged against."""
+    """The ref the change's cycles and gate inputs are
+    judged against."""
     if options.diff:
         base_ref, head_ref = _range_ends(options.diff)
         return merge_base(base_ref, head_ref)
@@ -266,7 +270,8 @@ class MeasureSetup:
 
 
 def _measure(setup, touched_by_file, head_ref=None):
-    """Measure each file; with `head_ref`, measure its text at that ref."""
+    """Measure each file; with `head_ref`, measure its text
+    at that ref."""
     measurements = []
     unclaimed = []
     with tempfile.TemporaryDirectory() as directory:
@@ -306,7 +311,8 @@ def _measure_file(setup, path, touched_lines, head_ref, directory):
 
 
 def _source_path(setup, language, path, head_ref, directory):
-    """The file to measure: the working tree's, or a copy at `head_ref`."""
+    """The file to measure: the working tree's, or a copy
+    at `head_ref`."""
     if not head_ref:
         return Path(path)
     if _reads_working_tree(setup.declaration, setup.mode, language, path):
@@ -345,10 +351,10 @@ def _measure_target(declaration, mode, target, coverage_run=None,
     coverage and duplication, and with no `dependency_run`, skip
     dependency direction.
 
-    The base-side copy of a resolved function has no test run of its
-    own, so scoring it against the working tree's coverage would be wrong.
-    Resolved findings keep only function-scoped items, so a base-side
-    duplication scan would be discarded.
+    The base-side copy of a resolved function has no test run of
+    its own, so scoring it against the working tree's coverage
+    would be wrong. Resolved findings keep only function-scoped
+    items, so a base-side duplication scan would be discarded.
     """
     measurements = []
     metrics = _metrics_binding(
@@ -368,7 +374,8 @@ def _measure_target(declaration, mode, target, coverage_run=None,
 
 
 def _measure_module(setup, target, module_name, module_metrics):
-    """One module's records for `target`; none when the run it needs is absent."""
+    """One module's records for `target`; none when the run
+    it needs is absent."""
     run_needed = {
         COVERAGE_MODULE: setup.coverage_run,
         DUPLICATION_MODULE: setup.coverage_run,
@@ -387,7 +394,8 @@ def _measure_module(setup, target, module_name, module_metrics):
 
 
 def _measure_with_module_file(setup, target, module_name, module_metrics):
-    """Records from a `quality_metrics/<module_name>.py` module."""
+    """Records from a
+    `quality_metrics/<module_name>.py` module."""
     module = importlib.import_module(f"quality_metrics.{module_name}")
     if module_name == DUPLICATION_MODULE:
         return module.measure(target, module_metrics, declaration=setup.declaration)

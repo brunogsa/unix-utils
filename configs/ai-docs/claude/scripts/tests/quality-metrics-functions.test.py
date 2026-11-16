@@ -62,7 +62,8 @@ def measured_functions(report, metric):
 
 
 def go_function_nested(name, depth):
-    """A Go function whose `if` statements nest `depth` levels deep."""
+    """A Go function whose `if` statements nest `depth` levels
+    deep."""
     lines = [f"func {name}(a int) int {{"]
     for level in range(1, depth + 1):
         lines.append("\t" * level + f"if a > {level} {{")
@@ -74,9 +75,11 @@ def go_function_nested(name, depth):
 
 
 def go_function_with_lines(name, code_lines):
-    """A Go function of exactly `code_lines` non-blank, non-comment lines.
+    """A Go function of exactly `code_lines` non-blank,
+    non-comment lines.
 
-    A blank line and a comment sit inside the body to pin that neither counts.
+    A blank line and a comment sit inside the body to pin that
+    neither counts.
     """
     body_statements = code_lines - 4
     lines = [f"func {name}() int {{", "\ttotal := 0", "", "\t// comment lines do not count"]
@@ -277,9 +280,9 @@ class TestBashComplexity:
 def bash_function_with_statements(name, statements, with_heredoc=False):
     """A Bash function of exactly `statements` logical lines.
 
-    The heredoc form opens with one statement whose body holds a bare `}`
-    line and a quoted brace, which a brace-counting reader takes for the
-    end of the function.
+    The heredoc form opens with one statement whose body holds
+    a bare `}` line and a quoted brace, which a brace-counting
+    reader takes for the end of the function.
     """
     lines = [f"{name}() {{"]
     remaining = statements

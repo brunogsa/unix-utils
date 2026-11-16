@@ -114,7 +114,8 @@ ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
 
 
 class CannotBeSure(Exception):
-    """The command's structure is past what this checker models."""
+    """The command's structure is past what this checker
+    models."""
 
 
 class Word(NamedTuple):
@@ -133,7 +134,8 @@ class Stage(NamedTuple):
 
 
 class ShellState:
-    """What the command's earlier stages leave for a later commit."""
+    """What the command's earlier stages leave for a later
+    commit."""
 
     def __init__(self, cwd, is_assignment_trackable):
         self.cwd = cwd
@@ -148,7 +150,8 @@ class ShellState:
 
 
 def _load_parse_lib():
-    """Return (HEREDOC_OPENER, split_into_pipelines), or None."""
+    """Return (HEREDOC_OPENER, split_into_pipelines), or
+    None."""
     try:
         spec = importlib.util.spec_from_file_location("parse_shell_command", PARSE_LIB)
         if spec is None or spec.loader is None:
@@ -182,8 +185,9 @@ def _lift_heredocs(command, heredoc_opener):
     """Return (text, values): each heredoc and each HEREDOC-form
     message swapped for a placeholder keyed into values.
 
-    The shared splitter knows nothing of heredocs, so a body left
-    in place would be split line by line as if it were commands.
+    The shared splitter knows nothing of heredocs, so a body
+    left in place would be split line by line as if it were
+    commands.
     """
     if "<<<" in command:
         raise CannotBeSure
@@ -391,7 +395,8 @@ def _is_assignment(word):
 
 
 def _command_word_index(words):
-    """Return the index past assignments and wrappers, or None."""
+    """Return the index past assignments and wrappers, or
+    None."""
     index = 0
     while index < len(words):
         word = words[index]
@@ -438,8 +443,8 @@ def _subcommand_index(words, index):
 
 
 def _split_short_cluster(cluster):
-    """Return (value option letter or "", its attached value), or
-    None for a letter outside the known set.
+    """Return (value option letter or "", its attached value),
+    or None for a letter outside the known set.
     """
     for position, letter in enumerate(cluster[1:], start=1):
         if letter in SHORT_VALUE_OPTIONS:
@@ -450,8 +455,8 @@ def _split_short_cluster(cluster):
 
 
 def _read_option(text):
-    """Return (value kind or "", attached value, has attached value),
-    or None for an option outside the known set.
+    """Return (value kind or "", attached value, has attached
+    value), or None for an option outside the known set.
     """
     if text.startswith("--"):
         name, has_value, value = text.partition("=")
@@ -466,9 +471,9 @@ def _read_option(text):
 
 
 def _read_commit_options(words):
-    """Return ({"message": [...], "file": [...]}, index of the --
-    ending options or None, the word index each -F value came
-    from), or None.
+    """Return ({"message": [...], "file": [...]}, index of
+    the -- ending options or None, the word index each -F value
+    came from), or None.
 
     git keeps parsing options after a pathspec, until --.
     """
@@ -514,8 +519,8 @@ def _join_message_options(messages):
 
 
 def _read_message_file(path, state, is_git_dir_moved):
-    """Return the text of a -F file, or None when it is not surely
-    the file git reads.
+    """Return the text of a -F file, or None when it is not
+    surely the file git reads.
     """
     if not os.path.isabs(path) and (state.is_cwd_moved or is_git_dir_moved):
         return None
@@ -553,7 +558,8 @@ def _is_directory_change(words):
 
 def _is_plain_assignment(stage, is_piped):
     """True for a stage of only NAME=literal words that runs in
-    the main shell, so its names surely hold those literals after.
+    the main shell, so its names surely hold those
+    literals after.
     """
     if is_piped or not stage.is_sure or not stage.words:
         return False
@@ -586,7 +592,8 @@ def _update_state(stage, is_piped, state):
 
 
 def _commit_message(stage, values, state):
-    """Return the message a git commit stage surely records, or None."""
+    """Return the message a git commit stage surely records, or
+    None."""
     if not stage.is_sure or len(stage.heredoc_keys) > 1:
         return None
     words = stage.words
@@ -643,13 +650,15 @@ def _subject_of(message):
 
 
 def _is_assignment_order_known(text):
-    """True when each assignment surely ran before a later commit.
+    """True when each assignment surely ran before a later
+    commit.
 
     Statements come back without their separators, so these
     leave it open whether an assignment ran at all: || and a
-    background & (own subshell), and && mixed with ; or a newline
-    (a failed && leaves a later ; statement running unassigned).
-    A quoted ; or newline only makes this answer False.
+    background & (own subshell), and && mixed with ; or a
+    newline (a failed && leaves a later ; statement running
+    unassigned). A quoted ; or newline only makes this answer
+    False.
     """
     if "||" in text or LONE_AMPERSAND.search(text):
         return False
@@ -657,7 +666,8 @@ def _is_assignment_order_known(text):
 
 
 def compute_messages(command, cwd=None):
-    """Return the message of each commit the command surely records.
+    """Return the message of each commit the command surely
+    records.
 
     cwd is the directory a relative -F path resolves against.
     A commit whose message is not surely known adds nothing, so
@@ -691,7 +701,8 @@ def compute_messages(command, cwd=None):
 
 
 def compute_subjects(command, cwd=None):
-    """Return the subject of each commit the command surely runs."""
+    """Return the subject of each commit the command surely
+    runs."""
     return [_subject_of(message) for message in compute_messages(command, cwd)]
 
 
