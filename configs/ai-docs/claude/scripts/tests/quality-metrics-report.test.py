@@ -12,6 +12,7 @@ crap = importlib.import_module("quality_metrics.crap")
 size = importlib.import_module("quality_metrics.size")
 report = importlib.import_module("quality_metrics.report")
 hotspots = importlib.import_module("quality_metrics.hotspots")
+is_over_limit = importlib.import_module("quality_metrics.functions").is_over_limit
 
 CRAP_LIMIT = crap.CRAP_LIMIT
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
@@ -27,6 +28,12 @@ def function_record(file, function, metric, value, limit):
     }
 
 
+def crap_record(file, function, value):
+    """A CRAP record, flagged at its limit as crap.py does."""
+    record = function_record(file, function, "crap", value, CRAP_LIMIT)
+    return {**record, "flagged_at_limit": True}
+
+
 def file_record(file, metric, value, limit):
     return {
         "file": file, "function": None, "scope": "file",
@@ -38,7 +45,7 @@ def measured(*records):
     """A measure report: every record, and the over-limit ones as violations."""
     return {
         "measurements": list(records),
-        "violations": [item for item in records if item["value"] >= item["limit"]],
+        "violations": [item for item in records if is_over_limit(item)],
         "gate_input_violations": [],
     }
 
@@ -66,7 +73,7 @@ class TestExceptions:
             "file": "src/report.py", "function": "buildReport", "metric": "crap",
             "split_value": 6, "diff_path": str(split_diff),
         }
-        run = measured(function_record("src/report.py", "buildReport", "crap", 11, CRAP_LIMIT))
+        run = measured(crap_record("src/report.py", "buildReport", 11))
 
         verdict = report.build_verdict(run, exceptions=[claim])
 
@@ -88,7 +95,7 @@ class TestExceptions:
             "file": "src/report.py", "function": "buildReport", "metric": "crap",
             "split_value": 6, "diff_path": str(unsaved_diff),
         }
-        run = measured(function_record("src/report.py", "buildReport", "crap", 11, CRAP_LIMIT))
+        run = measured(crap_record("src/report.py", "buildReport", 11))
 
         verdict = report.build_verdict(run, exceptions=[claim])
 
@@ -110,8 +117,8 @@ class TestExceptions:
             "split_value": 5, "diff_path": str(split_diff), "rejected": True,
         }
         run = measured(
-            function_record("src/rows.py", "mergeRows", "crap", 12, CRAP_LIMIT),
-            function_record("src/cells.py", "splitCells", "crap", 9, CRAP_LIMIT),
+            crap_record("src/rows.py", "mergeRows", 12),
+            crap_record("src/cells.py", "splitCells", 9),
         )
 
         verdict = report.build_verdict(run, exceptions=[rejected_claim])
@@ -131,7 +138,7 @@ class TestDeferredMetrics:
         label = "pessimistic, tooling deferred"
         deferred = [
             {
-                **function_record("src/report.py", name, "crap", CRAP_LIMIT, CRAP_LIMIT),
+                **crap_record("src/report.py", name, CRAP_LIMIT),
                 "pessimistic": True, "label": label,
             }
             for name in ("buildReport", "mergeRows")
@@ -156,9 +163,9 @@ class TestDeferredMetrics:
 class TestRankedLists:
     def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):
         run = measured(
-            function_record("src/low.py", "tidy", "crap", 3, CRAP_LIMIT),
-            function_record("src/worst.py", "tangle", "crap", 14, CRAP_LIMIT),
-            function_record("src/middle.py", "branchy", "crap", 9, CRAP_LIMIT),
+            crap_record("src/low.py", "tidy", 3),
+            crap_record("src/worst.py", "tangle", 14),
+            crap_record("src/middle.py", "branchy", 9),
             file_record("src/grown.py", "size", 400, FILE_LINES_LIMIT),
         )
 
@@ -175,10 +182,10 @@ class TestRankedLists:
 
 
 HOTSPOT_RUN = measured(
-    function_record("src/red.py", "tangle", "crap", 14, CRAP_LIMIT),
+    crap_record("src/red.py", "tangle", 14),
     file_record("src/red.py", "size", 100, FILE_LINES_LIMIT),
-    function_record("src/amber.py", "branchy", "crap", 6, CRAP_LIMIT),
-    function_record("src/green.py", "tidy", "crap", 3, CRAP_LIMIT),
+    crap_record("src/amber.py", "branchy", 6),
+    crap_record("src/green.py", "tidy", 3),
     file_record("src/limit.py", "size", 300, FILE_LINES_LIMIT),
     file_record("src/edge70.py", "size", 210, FILE_LINES_LIMIT),
     file_record("src/under70.py", "size", 209, FILE_LINES_LIMIT),
@@ -239,8 +246,8 @@ class TestHotspotLabels:
         mmdc = shutil.which("mmdc")
         assert mmdc, "mmdc is installed by install.sh; the render check needs it"
         run = measured(
-            function_record("src/[id].tsx", "Page", "crap", 3, CRAP_LIMIT),
-            function_record('a"b.ts', "pick", "crap", 6, CRAP_LIMIT),
+            crap_record("src/[id].tsx", "Page", 3),
+            crap_record('a"b.ts', "pick", 6),
         )
 
         verdict = report.build_verdict(run)
@@ -268,7 +275,7 @@ class TestNoCodeMeasured:
 
 class TestNoGitVerdict:
     def test_should_name_the_no_git_verdict_and_state_the_removed_code_check_and_base_ref_reads_were_skipped(self):
-        run = measured(function_record("tool.sh", "main", "crap", 3, CRAP_LIMIT))
+        run = measured(crap_record("tool.sh", "main", 3))
 
         verdict = report.build_verdict(run, in_git=False)
 
