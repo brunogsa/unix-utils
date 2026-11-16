@@ -264,7 +264,9 @@ def install_global_collector(monkeypatch, calls, hits_by_file=None, error=None):
         calls.append(repo_dir)
         if error is not None:
             raise error
-        return collection.CoverageResult(hits_by_file or {}, False)
+        return collection.CoverageResult(
+            hits_by_file or {}, has_failed_tests=False
+        )
 
     for language in ("js", "ts", "python"):
         monkeypatch.setitem(collection.COLLECTORS, language, collector)

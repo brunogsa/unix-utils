@@ -466,7 +466,7 @@ class TestLcovPathForms:
             else str(tmp_path / SOURCE_FILE)
         )
         result = collection.CoverageResult(
-            {SOURCE_FILE: {1: 1, 2: 1, 3: 0, 4: 1}}, False
+            {SOURCE_FILE: {1: 1, 2: 1, 3: 0, 4: 1}}, has_failed_tests=False
         )
 
         records = crap_coverage.measure(
@@ -557,7 +557,7 @@ class TestJavascriptCollector:
         result = collection.collect_javascript(repo)
 
         assert result == collection.CoverageResult(
-            {SOURCE_FILE: {1: 3, 2: 0, 3: 1}}, False
+            {SOURCE_FILE: {1: 3, 2: 0, 3: 1}}, has_failed_tests=False
         )
 
     def test_should_report_no_coverage_data_without_running_c8_when_the_repo_has_no_package_json(
@@ -607,7 +607,7 @@ class TestGoCollector:
         result = collection.collect_go(repo)
 
         assert result == collection.CoverageResult(
-            {SOURCE_FILE: {1: 2, 2: 0, 3: 4}}, False
+            {SOURCE_FILE: {1: 2, 2: 0, 3: 4}}, has_failed_tests=False
         )
 
 
