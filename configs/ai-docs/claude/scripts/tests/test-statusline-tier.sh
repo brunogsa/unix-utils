@@ -221,7 +221,11 @@ case "$*" in
     printf '%s' "$fake_mode"
     if [ "$fake_kill_parent" = "kill-parent" ]; then
       kill -TERM "$PPID" 2>/dev/null
-      sleep 1
+      # Wait for the parent to die, at most 1s.
+      for _ in $(seq 1 100); do
+        kill -0 "$PPID" 2>/dev/null || break
+        sleep 0.01
+      done
     fi
     if [ "$fake_delay_after_secret_secs" != "0" ]; then
       sleep "$fake_delay_after_secret_secs"
@@ -1401,8 +1405,8 @@ it_should_re_read_subscriptiontype_when_the_invalidation_timestamp_is_newer_than
   # Now advance the credentials file's mtime strictly past
   # the cached epoch, and change its content: a correct
   # implementation must re-read.
-  sleep 1
   printf '{"subscriptionType":"new-tier"}' >"$sandbox/credentials.json"
+  touch -t "202001010001" "$sandbox/credentials.json"
 
   second=$(
     STATUSLINE_CREDENTIALS_FILE="$sandbox/credentials.json" \
