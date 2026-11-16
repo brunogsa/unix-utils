@@ -69,6 +69,10 @@ class TestDeclaredForTiming:
         benchmark = load_benchmark()
 
         assert benchmark.metrics_declared_for("crap") == ["crap", "coverage"]
+
+    def test_should_declare_only_the_check_itself_for_any_other_metric(self):
+        benchmark = load_benchmark()
+
         assert benchmark.metrics_declared_for("size") == ["size"]
 
 
