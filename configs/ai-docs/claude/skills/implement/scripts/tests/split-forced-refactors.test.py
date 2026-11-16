@@ -76,6 +76,10 @@ def subjects_between(repo, older, newer):
 
 
 SDD_SCRIPTS = Path.home() / ".claude/skills/spec-driven-development/scripts"
+FINDING_CHECKER = (
+    Path(__file__).resolve().parents[3]
+    / "code-review-pipeline/scripts/check-finding-bodies.py"
+)
 
 PLAN_TEXT = """\
 ## Task Breakdown
@@ -256,5 +260,70 @@ def test_should_sum_only_gate_metrics_refactor_commits_leaving_gate_forced_test_
     assert report["files"] == 1
     assert report["lines"] == 30
     assert report["commits"] == [refactor_sha]
+
+
+def run_split_expecting_conflict(tmp_path, repo, base):
+    plan = tmp_path / "plan_fixture.md"
+    plan.write_text(PLAN_TEXT)
+    finding = tmp_path / "finding_fixture.md"
+    report = run_split(
+        repo, base,
+        "--plan", str(plan), "--feature-pr", "PR-2",
+        "--finding-out", str(finding),
+    )
+    return report, plan, finding
+
+
+def assert_repo_restored_after_conflict(repo, original_head):
+    assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == FEATURE_BRANCH
+    assert git(repo, "rev-parse", "HEAD") == original_head
+    for leftover in ("CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"):
+        assert not (repo / ".git" / leftover).exists()
+    assert git(repo, "branch", "--list", REFACTOR_BRANCH) == ""
+    assert git(repo, "status", "--porcelain") == ""
+
+
+def assert_finding_passes_the_body_checker(finding):
+    assert finding.read_text().startswith("### 1. [MEDIUM][metrics] ")
+    checked = subprocess.run(
+        [sys.executable, str(FINDING_CHECKER), str(finding)],
+        capture_output=True, text=True,
+    )
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+
+
+def assert_conflict_kept_the_commits_in_the_feature_pr(
+    repo, report, finding, operation, original_head
+):
+    # Each fixture's only forced refactor is the branch head.
+    assert report["outcome"] == "conflict"
+    assert report["conflict_operation"] == operation
+    assert report["commits"] == [original_head]
+    assert report["refactor_branch"] is None
+    assert report["needs_push"] == []
+    assert report["pr_entry"] is None
+    assert report["finding"] == str(finding)
+    assert_repo_restored_after_conflict(repo, original_head)
+    assert_finding_passes_the_body_checker(finding)
+
+
+def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_cherry_pick_conflict(
+    tmp_path,
+):
+    # The refactor rewrites parser.py, made by a feature commit,
+    # so the base has no parser.py: a modify/delete conflict.
+    repo, base = build_feature_repo(tmp_path, [
+        ("feat: add parser", {"parser.py": 3}, None),
+        ("refactor: rewrite parser", {"parser.py": 120}, "metrics"),
+    ])
+    original_head = git(repo, "rev-parse", "HEAD")
+
+    report, plan, finding = run_split_expecting_conflict(tmp_path, repo, base)
+
+    assert_conflict_kept_the_commits_in_the_feature_pr(
+        repo, report, finding, "cherry-pick", original_head
+    )
+    assert plan.read_text() == PLAN_TEXT
+
 
 

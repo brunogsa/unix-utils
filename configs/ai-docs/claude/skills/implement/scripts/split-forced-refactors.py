@@ -6,12 +6,16 @@
 # Usage:
 #   split-forced-refactors.py --repo <path> --base <ref>
 #     --feature-branch <name> --refactor-branch <name>
-#     [--plan <path> --feature-pr <PR-N>]
+#     [--plan <file> --feature-pr <PR-N>] [--finding-out <file>]
 #
 # stdin: unused
-# stdout: one JSON object: outcome, files, lines, commits,
-#   refactor_branch, needs_push, pr_entry (label or null)
-# exit: 0 on moved or kept, 2 on bad usage or a bad plan
+#
+# stdout: one JSON object: outcome (moved, kept or conflict),
+#   files, lines, commits, refactor_branch, needs_push,
+#   pr_entry (label or null); a conflict adds
+#   conflict_operation and finding (path or null)
+#
+# exit: 0 on moved, kept or conflict, 2 on bad usage or plan
 
 import argparse
 import json
@@ -28,6 +32,7 @@ FORCED_REFACTOR_GATE = "metrics"
 MAX_FILES = 5
 MAX_CHANGED_LINES = 100
 PLAN_TEMP_PREFIX = ".split-forced-refactors-"
+FINDING_TEMP_PREFIX = ".split-forced-refactors-finding-"
 PR_BREAKDOWN_HEADING_RE = re.compile(r"^## PR Breakdown[ \t]*$", re.M)
 SECTION_HEADING_RE = re.compile(r"^## ", re.M)
 PR_ENTRY_HEADING_RE = re.compile(r"^### PR-(\d+)\.", re.M)
@@ -50,6 +55,25 @@ REFACTOR_PR_ENTRY_TEMPLATE = """\
 **Linear**:
 
 Forced refactors moved off {feature_pr} so they land first."""
+CONFLICT_FINDING_TEMPLATE = """\
+### 1. [MEDIUM][metrics] Forced refactors stay in the feature PR: {operation} conflict
+
+**[RECOMMENDED]**
+
+`{feature_branch}` has {count} `Gate: metrics` refactor commit(s), {files} files and {lines} lines, over the {max_files}-file or {max_changed_lines}-line limit, but moving them hit a {operation} conflict, so they stay in this PR.
+
+```
+{commit_list}
+```
+
+**Suggestion**
+
+Resolve the {operation} conflict by hand and move the commits to their own PR.
+
+**Trade-off of not doing it**
+
+The PR keeps {lines} lines of forced refactor beside the feature, which is harder to review.
+"""
 
 
 def run_git(repo, *args):
@@ -69,6 +93,7 @@ def parse_arguments(argv):
     parser.add_argument("--refactor-branch", required=True)
     parser.add_argument("--plan", type=Path)
     parser.add_argument("--feature-pr")
+    parser.add_argument("--finding-out", type=Path)
     arguments = parser.parse_args(argv)
     if (arguments.plan is None) != (arguments.feature_pr is None):
         parser.error("--plan and --feature-pr go together")
@@ -164,10 +189,31 @@ def count_text_lines(numstat_cell):
     return 0 if numstat_cell == "-" else int(numstat_cell)
 
 
+def git_succeeds(repo, *args):
+    result = subprocess.run(
+        ["git", *args], cwd=repo, capture_output=True, text=True
+    )
+    return result.returncode == 0
+
+
 def move_onto_refactor_branch(repo, base, shas, refactor_branch, feature_branch):
+    """Return None once moved, else the operation that conflicted.
+
+    A conflict is aborted and the repo goes back to the branch and
+    commit it started on, with no refactor branch left behind.
+    """
+    original_branch = run_git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     run_git(repo, "checkout", "-b", refactor_branch, base)
-    run_git(repo, "cherry-pick", *shas)
-    run_git(repo, "rebase", refactor_branch, feature_branch)
+    conflicting_operation = None
+    if not git_succeeds(repo, "cherry-pick", *shas):
+        conflicting_operation = "cherry-pick"
+    else:
+        run_git(repo, "rebase", refactor_branch, feature_branch)
+    if conflicting_operation is not None:
+        run_git(repo, conflicting_operation, "--abort")
+        run_git(repo, "checkout", original_branch)
+        run_git(repo, "branch", "-D", refactor_branch)
+    return conflicting_operation
 
 
 def get_kept_report(shas, files, lines):
@@ -203,35 +249,69 @@ def get_planned_entry(arguments):
     )
 
 
-def main(argv):
-    arguments = parse_arguments(argv)
-    repo = arguments.repo
-    shas = list_forced_refactor_commits(
-        repo, arguments.base, arguments.feature_branch
+def get_conflict_finding(arguments, operation, report):
+    return CONFLICT_FINDING_TEMPLATE.format(
+        operation=operation,
+        feature_branch=arguments.feature_branch,
+        count=len(report["commits"]),
+        files=report["files"],
+        lines=report["lines"],
+        max_files=MAX_FILES,
+        max_changed_lines=MAX_CHANGED_LINES,
+        commit_list="\n".join(report["commits"]),
     )
-    files, lines = sum_changed_files_and_lines(repo, shas)
-    is_over_threshold = files > MAX_FILES or lines > MAX_CHANGED_LINES
-    report = get_kept_report(shas, files, lines)
-    if is_over_threshold:
-        # Read the plan before any git move, so a bad
-        # plan leaves the repo untouched.
-        planned_entry = get_planned_entry(arguments)
-        move_onto_refactor_branch(
-            repo,
-            arguments.base,
-            shas,
-            arguments.refactor_branch,
-            arguments.feature_branch,
-        )
+
+
+def get_conflict_report_fields(arguments, operation, report):
+    finding_path = arguments.finding_out
+    if finding_path is not None:
+        finding = get_conflict_finding(arguments, operation, report)
+        write_text_atomically(finding_path, finding, FINDING_TEMP_PREFIX)
+    return {
+        "outcome": "conflict",
+        "conflict_operation": operation,
+        "finding": None if finding_path is None else str(finding_path),
+    }
+
+
+def move_forced_refactors(arguments, report):
+    # Read the plan before any git move, so a bad
+    # plan leaves the repo untouched.
+    planned_entry = get_planned_entry(arguments)
+    conflicting_operation = move_onto_refactor_branch(
+        arguments.repo,
+        arguments.base,
+        report["commits"],
+        arguments.refactor_branch,
+        arguments.feature_branch,
+    )
+    if conflicting_operation is not None:
         report.update(
-            get_moved_report_fields(
-                arguments.refactor_branch, arguments.feature_branch
+            get_conflict_report_fields(
+                arguments, conflicting_operation, report
             )
         )
-        if planned_entry is not None:
-            plan_text, label = planned_entry
-            write_text_atomically(arguments.plan, plan_text, PLAN_TEMP_PREFIX)
-            report["pr_entry"] = label
+        return
+    report.update(
+        get_moved_report_fields(
+            arguments.refactor_branch, arguments.feature_branch
+        )
+    )
+    if planned_entry is not None:
+        plan_text, label = planned_entry
+        write_text_atomically(arguments.plan, plan_text, PLAN_TEMP_PREFIX)
+        report["pr_entry"] = label
+
+
+def main(argv):
+    arguments = parse_arguments(argv)
+    shas = list_forced_refactor_commits(
+        arguments.repo, arguments.base, arguments.feature_branch
+    )
+    files, lines = sum_changed_files_and_lines(arguments.repo, shas)
+    report = get_kept_report(shas, files, lines)
+    if files > MAX_FILES or lines > MAX_CHANGED_LINES:
+        move_forced_refactors(arguments, report)
     print(json.dumps(report))
     return 0
 
