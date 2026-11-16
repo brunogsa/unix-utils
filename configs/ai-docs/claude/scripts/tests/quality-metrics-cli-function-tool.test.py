@@ -7,6 +7,7 @@ is unmeasured.
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,10 +52,16 @@ echo "  File \\"lizard.py\\", line 88, in <module>" >&2
 exit 1
 """
 
-# `exec` so a kill lands on sleep itself, not a parent shell.
-LIZARD_HANG_STUB = """#!/bin/bash
-exec sleep 5
-"""
+def make_function_tool_time_out(monkeypatch):
+    """Make every function tool run end in a timeout.
+
+    The run raises the timeout itself, so the outcome never
+    depends on how long a stub takes to start under load.
+    """
+    def run_tool(command, input_text=None, timeout=None):
+        raise subprocess.TimeoutExpired(command, timeout)
+
+    monkeypatch.setattr("quality_metrics.functions.run_tool", run_tool)
 
 
 def measure_cart(tmp_path, monkeypatch, lizard_stub, *extra_arguments):
@@ -104,7 +111,7 @@ def test_should_ask_about_a_function_tool_that_timed_out_twice(
     tmp_path, monkeypatch, capsys
 ):
     repo = make_repo(tmp_path, {"src/cart.py": CART_PYTHON})
-    install_stub_tool(tmp_path, monkeypatch, "lizard", LIZARD_HANG_STUB)
+    make_function_tool_time_out(monkeypatch)
     declaration_path = tmp_path / "declaration.yaml"
     declaration_path.write_text(DECLARATION_TEXT)
     monkeypatch.setenv("CLAUDE_CODE_ENTRYPOINT", "cli")
