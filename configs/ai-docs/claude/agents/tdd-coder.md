@@ -229,7 +229,7 @@ PHASE METRICS, after GREEN and before any commit:
 
 PHASE COMMIT:
 
-- A commit forced by a gate carries a `Gate:` trailer above `Co-Authored-By`, which the unplanned-tests script reads back.
+- A commit forced by a gate carries a `Gate:` trailer in the same final `-m` paragraph as `Co-Authored-By` (`-m "Gate: metrics\nCo-Authored-By: ..."`), which the unplanned-tests script reads back.
   - A test written because a gate demanded it, such as changed-line coverage, carries that gate's name, e.g. `Gate: changed-line coverage`.
   - A refactor written because the per-unit metrics check demanded it carries `Gate: metrics`, a value no test commit uses.
   - A commit no gate forced carries no `Gate:` trailer.
