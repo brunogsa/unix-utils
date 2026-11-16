@@ -48,7 +48,7 @@ A duplicate is the same defect at overlapping lines of the same file, across the
 
 - Tag it `refactor` when the fix is structure-only.
 
-A `test-sdd`, metrics judge or detector-edit finding never collapses into another, even at the same lines. Everything that is not a duplicate is copied verbatim, with its source lens as its tag.
+A `test-sdd`, metrics judge or detector-edit finding never collapses into another, even at the same lines. Everything that is not a duplicate is copied verbatim, with its source lens as its tag. The checker below skips `[test-sdd]` findings, because they follow test-sdd's own schema instead of the review-comment layout.
 
 ## Check and return
 

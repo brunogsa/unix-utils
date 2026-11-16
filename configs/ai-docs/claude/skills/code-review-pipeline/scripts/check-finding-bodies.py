@@ -3,6 +3,9 @@
 # a verdict file or a findings JSON array follows the review
 # comment layout and its length budget.
 #
+# A finding whose heading carries the [test-sdd] tag is
+# skipped: test-sdd findings follow test-sdd's own schema.
+#
 # Usage:
 #   check-finding-bodies.py <verdict.md> [<verdict.md> ...]
 #   check-finding-bodies.py --findings-json <findings.json>
@@ -34,6 +37,11 @@ BRACKET_TOKEN = re.compile(r"\[([^\]]*)\]")
 # Lines /address-verdicts appends after review, never part of
 # the comment a reviewer wrote.
 ANNOTATION_PREFIXES = ("APPLIED (", "SKIPPED (")
+
+# Heading lens tag of a test-sdd finding, which follows
+# test-sdd's own schema, so the review comment layout is
+# not applied to it.
+TEST_SDD_LENS_TAG = "test-sdd"
 
 ORDINAL_BY_TAG = {
     "MANDATORY": "HIGH",
@@ -317,6 +325,8 @@ def _report_verdicts(paths):
             print(f"{path}: line {line_number}: {MISPLACED_HEADING_REASON}")
             has_violation = True
         for finding in findings:
+            if TEST_SDD_LENS_TAG in finding.heading_tokens:
+                continue
             for reason in check_finding(finding):
                 print(f"{path}: finding {finding.number}: {reason}")
                 has_violation = True

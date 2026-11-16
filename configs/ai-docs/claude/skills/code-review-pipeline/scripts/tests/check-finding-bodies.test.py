@@ -563,3 +563,39 @@ class TestFindingsJsonModeErrors:
         )
         assert result.returncode == 2
         assert "usage" in result.stderr.lower()
+
+
+class TestTestSddLensExemption:
+    UNPLANNED_BULLETS = "\n".join(
+        f"- `test_case_{index}` in `tests/billing/test_fees_{index}.py` was not in the plan"
+        for index in range(12)
+    )
+
+    def _unplanned_finding(self):
+        heading = "[LOW][test-sdd] Unplanned tests added by the branch"
+        return f"### 1. {heading}\n\n{self.UNPLANNED_BULLETS}\n"
+
+    def _auto_review_finding(self, is_suggestion_present):
+        body = _body(
+            tag="RECOMMENDED",
+            suggestion_label=EN_SUGGESTION if is_suggestion_present else None,
+        )
+        return f"### 2. [MEDIUM][auto-review] Fee rate unit\n\n{body}\n"
+
+    def test_test_sdd_finding_is_skipped_while_a_same_file_auto_review_finding_is_checked(
+        self, tmp_path,
+    ):
+        assert len(self.UNPLANNED_BULLETS) > NON_MANDATORY_CAP
+        text = "# Merged\n\n" + self._unplanned_finding() + "\n" + self._auto_review_finding(False)
+        path = _write(tmp_path, text)
+        lines = _violations(_run(path))
+        assert lines
+        assert all(line.startswith(f"{path}: finding 2: ") for line in lines)
+
+        fixed = "# Merged\n\n" + self._unplanned_finding() + "\n" + self._auto_review_finding(True)
+        _assert_passes(_check(tmp_path, fixed))
+
+    def test_finding_whose_title_merely_mentions_test_sdd_is_still_checked(self, tmp_path):
+        finding = "### 1. [LOW] Rename the test-sdd helper\n\n- no layout here\n"
+        lines = _violations(_check(tmp_path, "# Merged\n\n" + finding))
+        assert all("finding 1:" in line for line in lines)
