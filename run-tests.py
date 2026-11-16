@@ -297,6 +297,16 @@ def kill_and_reap(processes):
         process.wait()
 
 
+def launch_pending(entries, pending, running, passed_by_index, stop_request):
+    while pending and len(running) < MAX_CONCURRENT_SUITES and stop_request.signum is None:
+        index = pending.popleft()
+        process = launch_into_log(entries[index].command, entries[index].log_file)
+        if process is None:
+            passed_by_index[index] = False
+        else:
+            running[index] = process
+
+
 def run_entries(entries, tally, stop_request):
     """Run entries MAX_CONCURRENT_SUITES at a time; report
     them in list order.
@@ -314,13 +324,7 @@ def run_entries(entries, tally, stop_request):
     next_to_report = 0
     try:
         while (pending or running) and stop_request.signum is None:
-            while pending and len(running) < MAX_CONCURRENT_SUITES and stop_request.signum is None:
-                index = pending.popleft()
-                process = launch_into_log(entries[index].command, entries[index].log_file)
-                if process is None:
-                    passed_by_index[index] = False
-                else:
-                    running[index] = process
+            launch_pending(entries, pending, running, passed_by_index, stop_request)
 
             collect_finished(running, passed_by_index)
 
