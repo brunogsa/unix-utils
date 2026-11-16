@@ -237,3 +237,24 @@ def test_should_append_the_refactor_prs_entry_and_make_the_feature_pr_depend_on_
     assert projection.returncode == 0, projection.stderr
 
 
+def test_should_sum_only_gate_metrics_refactor_commits_leaving_gate_forced_test_commits_out(
+    tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: split parser", {"parser.py": 30}, "metrics"),
+        (
+            "test: cover the parser branches",
+            {"test_parser.py": 150},
+            "changed-line coverage",
+        ),
+    ])
+    refactor_sha = git(repo, "rev-parse", f"{FEATURE_BRANCH}~1")
+
+    report = run_split(repo, base)
+
+    assert report["outcome"] == "kept"
+    assert report["files"] == 1
+    assert report["lines"] == 30
+    assert report["commits"] == [refactor_sha]
+
+
