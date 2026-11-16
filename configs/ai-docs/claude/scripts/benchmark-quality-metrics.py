@@ -42,8 +42,19 @@ DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
 
 PER_UNIT_LIMIT_SECONDS = 8.0
 
+
+def load_measure_script():
+    spec = importlib.util.spec_from_file_location("measure_quality_metrics", MEASURE_SCRIPT)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {MEASURE_SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+measuring = load_measure_script()
+
 EXIT_DONE, EXIT_UNMEASURED = 0, 2
-MEASURE_EXIT_UNMEASURED = 2
 
 # Production Python files of this repo, measured whole.
 SAMPLE_FILES = (
@@ -89,10 +100,7 @@ def write_per_unit(declaration_path, metrics):
 
 def metrics_with_a_module():
     """The metrics the measure script can run, in declaration order."""
-    spec = importlib.util.spec_from_file_location("measure_quality_metrics", MEASURE_SCRIPT)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return [metric for metric in declaring.METRIC_NAMES if metric in module.METRIC_MODULES]
+    return [metric for metric in declaring.METRIC_NAMES if metric in measuring.METRIC_MODULES]
 
 
 def metrics_declared_for(metric):
@@ -108,7 +116,7 @@ def run_measured(exit_code, stdout):
     Exit 2 did not measure. A report holding a pessimistic result
     (a red build scored 0%) timed a failure path, not the check.
     """
-    if exit_code == MEASURE_EXIT_UNMEASURED:
+    if exit_code == measuring.EXIT_UNMEASURED:
         return False
     try:
         report = json.loads(stdout)

@@ -62,7 +62,7 @@ class TestRunMeasured:
         assert benchmark.run_measured(1, report)
 
     def test_should_leave_out_a_check_whose_run_could_not_measure(self):
-        assert not benchmark.run_measured(benchmark.MEASURE_EXIT_UNMEASURED, "")
+        assert not benchmark.run_measured(benchmark.measuring.EXIT_UNMEASURED, "")
 
 
 class TestDeclaredForTiming:
