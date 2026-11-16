@@ -6,7 +6,8 @@
 # performance-check-auditor.
 #
 # It screens Write/Edit paths and Bash write forms (a `>`,
-# `>>`, `>|`, `&>` or `&>>` redirect, `tee`, `sed -i`).
+# `>>`, `>|`, `&>` or `&>>` redirect, `tee`, `sed -i`, and a
+# sed script that is not a plain read-only print).
 #
 # Each is a read-only judge.
 #
@@ -98,7 +99,8 @@ allowed_write_reason() {
 }
 
 # A Bash command is checked for the write forms it can use to
-# reach repo source: a `>`/`>>` redirect, `tee`, and `sed -i`.
+# reach repo source: a `>`/`>>` redirect, `tee`, `sed -i`, and
+# a sed script holding anything but read-only commands.
 #
 # The allowed targets are /dev/null and scratch under /tmp.
 # A command with none of those forms (git diff, grep, a
@@ -265,6 +267,87 @@ remove_quotes() {
 # characters bash keeps inside a word.
 FD_DUP_SED='s/[0-9]*>&([0-9]+-?|-)([ '$'\t'';|&()<>]|$)/\2/g'
 
+# GNU sed writes a file through its w and W commands and the
+# s command's w flag, and runs a shell command through its e
+# command and the s command's e flag, with no -i at all:
+# https://www.gnu.org/software/sed/manual/sed.html#Extended-Commands
+#
+# Modelling every sed script is out of reach, so a sed call
+# passes only when each script is one of the read-only shapes
+# below, or when --sandbox, which rejects w, r and e, is its
+# first option.
+#
+# A backslash, `$` or backtick in a script is denied rather
+# than modelled: the hook cannot tell a backslash the shell
+# removes from one sed reads, as in '/A\/p'\/'w src/p'.
+SED_BLANK="[ "$'\t'"$SPACE_PLACEHOLDER$INERT_PLACEHOLDER]"
+SED_BODY='[^/\$`]*'
+
+# A line number, a quoted `$` (last line) or a /regex/.
+SED_ADDRESS="([0-9]+|$INERT_PLACEHOLDER|/$SED_BODY/)"
+SED_COMMAND="([pPdDqQnNgGhHxlz=]|s/$SED_BODY/$SED_BODY/[gpiImM0-9]*)"
+SED_STEP="($SED_ADDRESS(,$SED_ADDRESS)?!?)?$SED_COMMAND"
+SED_READ_ONLY_REGEX="^$SED_BLANK*($SED_STEP($SED_BLANK+$SED_STEP)*)?$SED_BLANK*\$"
+SED_FLAG_REGEX='^(-[nEsruzb]+|--(posix|silent|quiet|debug|regexp-extended|sandbox))$'
+
+# Succeeds when the sed call whose arguments are "$@" only
+# prints: every option is a known flag, and every script is
+# read-only.
+#
+# Its scripts are the -e arguments, or else its first operand,
+# as GNU sed picks them; any other option, such as -f, -l or
+# --expression=, is denied rather than modelled.
+sed_args_read_only() {
+  local word script first_operand="" has_operand=no has_e=no
+  local -a scripts=()
+  [ "${1-}" = --sandbox ] && return 0
+  while [ $# -gt 0 ]; do
+    word=$1
+    shift
+    if [ "$word" = '>' ]; then
+      [ $# -gt 0 ] && shift
+    elif [[ "$word" =~ ^-[nEsruzb]*e$ ]]; then
+      scripts+=("${1-}")
+      [ $# -gt 0 ] && shift
+      has_e=yes
+    elif [[ "$word" =~ $SED_FLAG_REGEX ]]; then
+      :
+    elif [[ "$word" == -* ]]; then
+      return 1
+    elif [ "$has_operand" = no ]; then
+      first_operand=$word
+      has_operand=yes
+    fi
+  done
+  [ "$has_e" = no ] && [ "$has_operand" = yes ] && scripts+=("$first_operand")
+  for script in "${scripts[@]}"; do
+    [[ "$script" =~ $SED_READ_ONLY_REGEX ]] || return 1
+  done
+}
+
+# Succeeds when every sed call in the quote-removed command $1
+# only prints.
+#
+# Each redirect operator becomes a `>` word, whose target the
+# check skips, and each other shell operator a line break, so
+# every line is one simple command.
+#
+# A sed word anywhere in a line counts, since `xargs sed` and
+# `find -exec sed` run it, so `grep sed f` reads as a sed call.
+every_sed_call_read_only() {
+  local line name i
+  local -a words
+  while IFS= read -r line; do
+    read -ra words <<< "$line"
+    for ((i = 0; i < ${#words[@]}; i++)); do
+      name=${words[i]//\\/}
+      name=${name##*/}
+      [[ "$name" == sed || "$name" == gsed ]] || continue
+      sed_args_read_only "${words[@]:i+1}" || return 1
+    done
+  done < <(printf '%s\n' "$1" | sed -E 's/[0-9]*&?[<>]+[|&]?/ > /g' | tr '|;&()' '\n\n\n\n\n')
+}
+
 if [ -n "$CMD" ]; then
   # Quotes are removed first, so a target whose quote sits
   # anywhere in the word is judged as the path the shell uses.
@@ -334,6 +417,10 @@ if [ -n "$CMD" ]; then
   # after it, as in `--i;`, cannot hide it.
   if printf '%s' "$UNESCAPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--i)'; then
     echo "Blocked: this reviewer may not edit files in place with sed -i" >&2
+    exit 2
+  fi
+  if ! every_sed_call_read_only "$STRIPPED"; then
+    echo "Blocked: this reviewer's sed call may write a file or run a command (a w, W or e command or flag, a script file, or a script or option the hook does not read); print with a plain sed such as sed -n 1,5p file, or spell a search for the word sed as [s]ed" >&2
     exit 2
   fi
   exit 0

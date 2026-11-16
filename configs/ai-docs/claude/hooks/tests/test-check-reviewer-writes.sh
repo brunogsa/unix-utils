@@ -237,6 +237,34 @@ done
 assert_eq "blocks an in-place sed edit whose --in-place option ends at a shell operator" \
   "" "$allowed_operator_flag"
 
+# sed writes a file through its w and W commands and the s
+# command's w flag, and runs a shell command through its e
+# command and the s command's e flag, with no -i at all.
+script_writes=('sed -n s/a/b/w\ src/a.py f'
+  "sed -n 's/a/b/w src/a.py' f" "sed -n 'w src/a.py' f"
+  "sed -n '1W src/a.py' f" "sed '1e touch src/a.py' f"
+  "sed 's/x/touch src.py/e' f" "sed -n -e p -e 'w src/a.py' f"
+  'sed -n -f script.sed f' "sed -n '/A\\/p'\\/'w src/p' f")
+allowed_script_write=""
+for c in "${script_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_script_write="$allowed_script_write [$c]"
+done
+assert_eq "blocks a sed script that writes a file or runs a command, or that the hook cannot read" \
+  "" "$allowed_script_write"
+
+read_only_sed=('sed -n 1,5p f' "sed -n '/x/p' f"
+  'sed --posix -n 1p f' 'sed --silent 1p f' 'sed --debug -n 1p f'
+  "git diff | sed -n '1,200p'" "sed '/^\$/d' f" "sed 's/^/  /' f"
+  "sed --sandbox -n 'w src/a.py' f")
+denied_read_only_sed=""
+for c in "${read_only_sed[@]}"; do
+  [ "$(run_bash "$c")" = "0" ] \
+    || denied_read_only_sed="$denied_read_only_sed [$c]"
+done
+assert_eq "allows a sed call that only prints or substitutes to stdout, and any sed call opened with --sandbox" \
+  "" "$denied_read_only_sed"
+
 # A quoted backslash stays in the path, so this writes the
 # repo-relative `\/tmp/x`, never /tmp/x.
 assert_eq "blocks tee into a repo path that starts with a quoted backslash before /tmp" \
