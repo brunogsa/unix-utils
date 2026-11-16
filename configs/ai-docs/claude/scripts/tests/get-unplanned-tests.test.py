@@ -139,3 +139,30 @@ class TestUnplannedTests:
             ("tests/parse.test.ts", 39, "rejects an empty row"),
             ("tests/format.test.ts", 12, "formats zero"),
         }
+
+    def test_names_the_gate_from_the_adding_commit_trailer_else_gate_unknown(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/parse.test.ts",
+            _it_lines_at(40, "rejects an empty row"),
+        )
+        _commit(repo, "test: reject empty rows", GATE_TRAILER)
+        _write(
+            repo,
+            "tests/format.test.ts",
+            _it_lines_at(12, "formats zero"),
+        )
+        _commit(repo, "test: format zero")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        gate_by_title = {row["title"]: row["gate"] for row in listed}
+        assert gate_by_title == {
+            "rejects an empty row": "changed-line coverage",
+            "formats zero": "gate unknown",
+        }
