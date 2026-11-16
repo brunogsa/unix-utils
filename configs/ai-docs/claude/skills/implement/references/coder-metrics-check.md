@@ -16,7 +16,13 @@ A coder never asks the human. It returns each tooling problem as an `ask` record
 
 Follow [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md) section 2 for who can be asked, the `defer` default when nobody can, and what `fix now` and `defer` mean.
 
-Relay the answer by re-dispatching the same task with the answer in its Context. A deferred metric reads pessimistic and holds no commit.
+The ask arrives after the coder has committed, so never re-dispatch the same task: that would hand the coder a change already in HEAD.
+
+On `fix now`, once the tool is fixed, create a follow-up task that re-runs the per-unit check on the committed task's files (`--per-unit --files <those files>`), with the answer in its Context.
+
+On `defer`, record it with `detect-repo-metric-tools.py --repo <repo> --base <base> --session-id <id> --defer <tool>`, passing the ask's `tool` value verbatim because the map matches it by exact string.
+
+A deferred metric reads pessimistic and holds no commit, so `defer` re-dispatches nothing.
 
 ## 3. Claimed exceptions
 

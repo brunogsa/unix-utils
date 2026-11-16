@@ -40,6 +40,9 @@ The variable decides, never your judgment. Answer `defer` without asking:
   - A fix that fails asks again: fix again or defer.
 
 - **defer**: the leg scores the metric as above, and the batch completes.
+  - Before the leg re-runs, main records the deferral with `detect-repo-metric-tools.py --repo <repo> --base <base> --session-id <id> --defer <tool>`.
+
+  - Copy `tool` verbatim from the ask, because the map matches it by exact string. Usage is in the script's header.
 
 ## 3. No git
 
