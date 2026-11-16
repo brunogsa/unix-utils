@@ -156,6 +156,21 @@ def test_should_screen_a_later_git_word_whose_name_or_config_may_differ_from_the
     assert _attribution_verdict(command) == WITHHELD_VERDICT
 
 
+# An alias set in the environment, or a command word read
+# only at run time, hides what git will run.
+@pytest.mark.parametrize(
+    "command",
+    [
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.ci GIT_CONFIG_VALUE_0=commit git ci -m x",
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.zz GIT_CONFIG_VALUE_0=commit git zz -m x",
+        "$X git ci -m x",
+        "$X git zz -m x",
+    ],
+)
+def test_should_screen_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
 # A config git cannot read hides which names are aliases.
 def test_should_screen_as_a_possible_commit_a_later_git_word_when_git_aliases_cannot_be_read(_git_aliases):
     _git_aliases.write_text("[alias\n")

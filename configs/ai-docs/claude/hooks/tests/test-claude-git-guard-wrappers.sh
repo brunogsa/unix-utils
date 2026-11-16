@@ -89,6 +89,16 @@ it_should_block_an_xargs_that_rewrites_its_git_words() {
   assert_eq "should block an xargs that rewrites its git words" "2" "$HOOK_EXIT"
 }
 
+it_should_block_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word() {
+  local cmd
+  for cmd in \
+    'GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.zz GIT_CONFIG_VALUE_0=commit git zz -m x' \
+    '$X git zz -m x'; do
+    run_hook "$cmd"
+    assert_eq "should block a git alias set in the environment or run by an expandable word: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
 it_should_allow_a_later_git_word_naming_no_alias_for_commit() {
   local cmd
   for cmd in 'grep git file' 'rg git configs'; do
@@ -114,6 +124,7 @@ it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
+it_should_block_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word
 it_should_allow_a_later_git_word_naming_no_alias_for_commit
 it_should_allow_a_wrapper_running_no_git_alias
 
