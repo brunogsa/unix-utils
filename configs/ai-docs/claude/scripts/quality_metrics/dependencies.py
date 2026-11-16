@@ -326,12 +326,11 @@ def _globs_to_regex(globs):
 def _problem_from_dependency_cruiser(violation):
     if violation["rule"]["name"] == CYCLE_RULE_NAME:
         members = [step["name"] for step in violation["cycle"]]
-        return {
-            "key": (CYCLE_KIND, violation["from"], violation["to"]),
-            "kind": CYCLE_KIND,
-            "detail": " -> ".join([*members, members[0]]),
-            "paths": members,
-        }
+        return _cycle_problem(
+            (violation["from"], violation["to"]),
+            " -> ".join([*members, members[0]]),
+            members,
+        )
     return _layer_problem(
         violation["rule"]["name"], violation["from"], violation["to"]
     )
@@ -344,6 +343,15 @@ def _layer_problem(rule, importer, imported):
         "detail": f"{importer} imports {imported}, breaking {rule}",
         "paths": [importer],
         "other_file": imported,
+    }
+
+
+def _cycle_problem(key, detail, paths):
+    return {
+        "key": (CYCLE_KIND, *key),
+        "kind": CYCLE_KIND,
+        "detail": detail,
+        "paths": paths,
     }
 
 
@@ -527,18 +535,17 @@ def _problems_from_import_linter(output, tree, package_roots):
         if edge_match and root:
             importer, imported = edge_match.groups()
             package_dir = _module_dir(package_roots, root)
-            problems.append({
-                "key": (CYCLE_KIND, root, importer, imported),
-                "kind": CYCLE_KIND,
-                "detail": f"{root}.{importer} -> {root}.{imported}",
+            problems.append(_cycle_problem(
+                (root, importer, imported),
+                f"{root}.{importer} -> {root}.{imported}",
 
                 # A sibling: package dir or module file.
-                "paths": [
+                [
                     f"{package_dir}/{sibling}{suffix}"
                     for sibling in (importer, imported)
                     for suffix in ("/", ".py")
                 ],
-            })
+            ))
     return problems
 
 
