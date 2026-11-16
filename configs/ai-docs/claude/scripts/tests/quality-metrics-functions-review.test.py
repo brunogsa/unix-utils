@@ -10,6 +10,23 @@ from quality_metrics_functions_support import (
 from quality_metrics_support import commit_all, git, head_of, make_repo, measure_report
 
 
+def nesting_review_report(tmp_path, repo, revision_range):
+    declaration_path = write_declaration(tmp_path, ["nesting"])
+    return measure_report(repo, declaration_path, "--diff", revision_range)
+
+
+def repo_after_dropping(tmp_path, dropped_name, dropped_depth):
+    keep = go_function_nested("keep_small", 1)
+    repo = make_repo(
+        tmp_path,
+        {"report.go": PACKAGE_LINE + go_function_nested(dropped_name, dropped_depth) + keep},
+    )
+    base = head_of(repo)
+    (repo / "report.go").write_text(PACKAGE_LINE + keep)
+    commit_all(repo, f"drop {dropped_name}")
+    return repo, base
+
+
 class TestReviewMode:
     def test_should_measure_only_functions_the_diff_changes_adds_or_removes_in_review_mode(
         self, tmp_path
@@ -31,9 +48,8 @@ class TestReviewMode:
             + go_function_nested("added_deep", 4)
         )
         commit_all(repo, "change the report")
-        declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = nesting_review_report(tmp_path, repo, f"{base}...HEAD")
 
         assert measured_functions(report, "nesting") == ["added_deep", "edited_deep"]
         assert violation_summary(report) == [
@@ -44,17 +60,9 @@ class TestReviewMode:
     def test_should_list_a_removed_over_limit_function_as_resolved_with_its_last_score_and_no_violation(
         self, tmp_path
     ):
-        repo = make_repo(
-            tmp_path,
-            {"report.go": PACKAGE_LINE + go_function_nested("legacy_parse", 5)
-             + go_function_nested("keep_small", 1)},
-        )
-        base = head_of(repo)
-        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("keep_small", 1))
-        commit_all(repo, "drop the legacy parser")
-        declaration_path = write_declaration(tmp_path, ["nesting"])
+        repo, base = repo_after_dropping(tmp_path, "legacy_parse", 5)
 
-        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = nesting_review_report(tmp_path, repo, f"{base}...HEAD")
 
         assert [
             (item["file"], item["function"], item["metric"], item["value"], item["limit"])
@@ -65,17 +73,9 @@ class TestReviewMode:
     def test_should_leave_a_removed_function_under_every_limit_out_of_the_resolved_list(
         self, tmp_path
     ):
-        repo = make_repo(
-            tmp_path,
-            {"report.go": PACKAGE_LINE + go_function_nested("trim_cell", 1)
-             + go_function_nested("keep_small", 1)},
-        )
-        base = head_of(repo)
-        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("keep_small", 1))
-        commit_all(repo, "drop the small helper")
-        declaration_path = write_declaration(tmp_path, ["nesting"])
+        repo, base = repo_after_dropping(tmp_path, "trim_cell", 1)
 
-        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = nesting_review_report(tmp_path, repo, f"{base}...HEAD")
 
         assert report["resolved"] == []
 
@@ -97,9 +97,8 @@ class TestReviewMode:
             PACKAGE_LINE + go_function_nested("shared_small", 1).replace("return 0", "return 2")
         )
         commit_all(repo, "feature edits the report")
-        declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure_report(repo, declaration_path, "--diff", "main...HEAD")
+        report = nesting_review_report(tmp_path, repo, "main...HEAD")
 
         assert report["resolved"] == []
 
@@ -116,9 +115,8 @@ class TestReviewMode:
         git(repo, "checkout", "--quiet", "feature")
         (repo / "gone.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
         commit_all(repo, "feature deepens the function")
-        declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure_report(repo, declaration_path, "--diff", "main...HEAD")
+        report = nesting_review_report(tmp_path, repo, "main...HEAD")
 
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["resolved"] == []
@@ -135,9 +133,8 @@ class TestReviewMode:
         )
         commit_all(repo, "change the committed function body")
         (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("edited_small", 6))
-        declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = nesting_review_report(tmp_path, repo, f"{base}...HEAD")
 
         assert violation_summary(report) == []
         assert [item["value"] for item in report["measurements"]
@@ -148,18 +145,12 @@ class TestResolvedReadsTheHeadRef:
     def test_should_list_a_removed_over_limit_function_as_resolved_when_only_the_working_tree_still_holds_it(
         self, tmp_path
     ):
-        keep = go_function_nested("keep_small", 1)
-        repo = make_repo(
-            tmp_path,
-            {"report.go": PACKAGE_LINE + go_function_nested("legacy_parse", 5) + keep},
+        repo, base = repo_after_dropping(tmp_path, "legacy_parse", 5)
+        brought_back = (
+            PACKAGE_LINE + go_function_nested("legacy_parse", 5) + go_function_nested("keep_small", 1)
         )
-        base = head_of(repo)
-        (repo / "report.go").write_text(PACKAGE_LINE + keep)
-        commit_all(repo, "drop the legacy parser")
-        brought_back = PACKAGE_LINE + go_function_nested("legacy_parse", 5) + keep
         (repo / "report.go").write_text(brought_back)
-        declaration_path = write_declaration(tmp_path, ["nesting"])
 
-        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+        report = nesting_review_report(tmp_path, repo, f"{base}...HEAD")
 
         assert [item["function"] for item in report["resolved"]] == ["legacy_parse"]
