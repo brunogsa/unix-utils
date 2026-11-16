@@ -305,7 +305,12 @@ def _resolved_since(declaration, mode, diff_range):
         language = _language_or_none(declaration, path)
         if language is None:
             return set()
-        return {function.name for function in measure_functions(Path(path), language)}
+        with tempfile.TemporaryDirectory() as directory:
+            head_copy = _copy_at(head_ref, path, directory)
+            return {
+                function.name
+                for function in measure_functions(head_copy, language)
+            }
 
     # The three-dot range diffs from the merge base, so the
     # base-side text is read there, not at the tip of a base

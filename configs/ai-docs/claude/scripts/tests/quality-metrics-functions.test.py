@@ -557,3 +557,24 @@ class TestBashDeclaredMetrics:
         assert result.returncode == 2
         assert "TypeError" not in result.stderr
         assert "bash" in result.stderr and metric in result.stderr
+
+
+class TestResolvedReadsTheHeadRef:
+    def test_should_list_a_removed_over_limit_function_as_resolved_when_only_the_working_tree_still_holds_it(
+        self, tmp_path
+    ):
+        keep = go_function_nested("keep_small", 1)
+        repo = make_repo(
+            tmp_path,
+            {"report.go": PACKAGE_LINE + go_function_nested("legacy_parse", 5) + keep},
+        )
+        base = head_of(repo)
+        (repo / "report.go").write_text(PACKAGE_LINE + keep)
+        commit_all(repo, "drop the legacy parser")
+        brought_back = PACKAGE_LINE + go_function_nested("legacy_parse", 5) + keep
+        (repo / "report.go").write_text(brought_back)
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert [item["function"] for item in report["resolved"]] == ["legacy_parse"]
