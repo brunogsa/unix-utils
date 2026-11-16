@@ -224,7 +224,9 @@ def _text_at(repo_dir, ref, path, working_tree_dir=None):
     if ref is None:
         file_path = Path(working_tree_dir) / path
         return file_path.read_text() if file_path.exists() else None
-    shown = run_command(["git", "show", f"{ref}:{path}"], cwd=repo_dir)
+
+    # `./` resolves the path from the cwd, not the repo root.
+    shown = run_command(["git", "show", f"{ref}:./{path}"], cwd=repo_dir)
     return shown.stdout if shown.returncode == 0 else None
 
 

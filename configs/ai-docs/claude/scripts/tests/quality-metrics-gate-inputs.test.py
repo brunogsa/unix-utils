@@ -184,6 +184,20 @@ class TestFailureScenarios:
         assert len(size_records_of(report, "src/parse.ts")) == 1
 
 
+class TestRunFromASubdirectory:
+    def test_should_not_list_a_committed_jest_exclude_as_a_violation_when_run_from_a_package_subdirectory(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "mono/pkg/jest.config.js": JEST_CONFIG_EXCLUDING_REPORT,
+            "mono/pkg/src/report.ts": REPORT_SOURCE,
+        })
+
+        report = measure_report(repo / "mono/pkg", write_declaration(tmp_path))
+
+        assert report["gate_input_violations"] == []
+
+
 class TestJestListsWithCharacterClasses:
     def test_should_list_a_coverage_path_ignore_added_after_an_entry_holding_a_character_class(
         self, tmp_path
