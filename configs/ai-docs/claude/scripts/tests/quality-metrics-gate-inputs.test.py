@@ -287,6 +287,16 @@ class TestHappyPath:
             {"kind": "suppression", "file": "src/parse.ts", "value": "istanbul ignore"}
         ]
 
+    def test_should_list_a_suppression_in_a_new_uncommitted_file_as_a_violation(self, tmp_path):
+        repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})
+        (repo / "src/new.ts").write_text("// eslint-disable-next-line\nexport {};\n")
+
+        report = measure_report(repo, write_declaration(tmp_path))
+
+        assert report["gate_input_violations"] == [
+            {"kind": "suppression", "file": "src/new.ts", "value": "eslint-disable-next-line"}
+        ]
+
     def test_should_list_a_coverage_exclude_the_branch_adds_as_a_violation_and_measure_with_the_base_ref_excludes(
         self, tmp_path
     ):
