@@ -12,6 +12,7 @@ from pathlib import Path
 
 from quality_metrics.coverage import coverage_measurement, coverage_record
 from quality_metrics.crap import parse_lcov
+from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
 from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
@@ -57,13 +58,33 @@ FALL_THROUGH_REASONS = {
     UNCLASSIFIED: "exited non-zero with no recognized cause",
 }
 
-REPO_COVERAGE_SOURCE = {"kind": "repo", "tool": "jest"}
+JEST = "jest"
+REPO_COVERAGE_SOURCE = {"kind": "repo", "tool": JEST}
 
-# The global tool measuring each metric when the repo has none.
+LIZARD, SHELLMETRICS, LINE_COUNT = "lizard", "shellmetrics", "line count"
+COVERAGE_PY, C8, GCOV2LCOV = "coverage.py", "c8", "gcov2lcov"
+JSCPD = "jscpd"
+LIZARD_LANGUAGES = ("js", "ts", "python", "go")
+ALL_LANGUAGES = (*LIZARD_LANGUAGES, "bash", "html", "css")
+
+# The global tool each metric module runs per language, when the
+# repo has none. A pair missing here has no global tool.
 GLOBAL_TOOLS = {
-    "coverage": "coverage.py",
-    "code_duplication": "jscpd",
-    "test_duplication": "jscpd",
+    "size": {
+        **dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
+        "bash": SHELLMETRICS,
+        **dict.fromkeys(("html", "css"), LINE_COUNT),
+    },
+    "complexity": {**dict.fromkeys(LIZARD_LANGUAGES, LIZARD), "bash": SHELLMETRICS},
+    "nesting": dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
+    "parameters": dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
+    "coverage": {"python": COVERAGE_PY, "js": C8, "ts": C8, "go": GCOV2LCOV},
+    "code_duplication": dict.fromkeys(ALL_LANGUAGES, JSCPD),
+    "test_duplication": dict.fromkeys(ALL_LANGUAGES, JSCPD),
+    "dependency_direction": {
+        "js": DEPENDENCY_CRUISER, "ts": DEPENDENCY_CRUISER,
+        "python": IMPORT_LINTER, "go": GO_ARCH_LINT,
+    },
 }
 
 
@@ -73,6 +94,13 @@ class RepoToolFailure(ToolError):
     def __init__(self, exit_class, detail):
         super().__init__(f"{exit_class}: {detail}")
         self.exit_class = exit_class
+
+
+class NoGlobalToolError(ToolError):
+    """No global tool measures `metric` for `language`."""
+
+    def __init__(self, metric, language):
+        super().__init__(f"not measured: no global {metric} tool for {language}")
 
 
 def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
@@ -135,7 +163,7 @@ def measure_coverage(target, repo, measure_globally, policy=None, base_ref=None)
                 "side_pr_candidate": None,
             }
         return {
-            "source": {"kind": "global", "tool": GLOBAL_TOOLS["coverage"]},
+            "source": {"kind": "global", "tool": COVERAGE_PY},
             "exit_class": failure.exit_class, "red_build": False,
             "measurements": measure_globally(),
             "side_pr_candidate": f"repo jest {FALL_THROUGH_REASONS[failure.exit_class]}",
@@ -154,7 +182,7 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
     When no session can ask (see `session_can_ask`, read from
     `environ`), a failure defers on the spot with no ask.
     """
-    global_tool = GLOBAL_TOOLS["coverage"]
+    global_tool = COVERAGE_PY
     asks = []
 
     def measure_globally_or_defer():
@@ -269,25 +297,39 @@ def _function_from_eslint_message(message):
     )
 
 
-def source_for(metric, tool_map):
+def global_tool_for(metric, language):
+    """The global tool measuring `metric` for `language`, or NoGlobalToolError."""
+    tool = GLOBAL_TOOLS.get(metric, {}).get(language)
+    if tool is None:
+        raise NoGlobalToolError(metric, language)
+    return tool
+
+
+def _repo_tool_for(metric, tool_map):
+    """The tool-map entry measuring `metric`, or None."""
+    if tool_map is None:
+        return None
+    return next((tool for tool in tool_map.entry()["tools"] if tool["metric"] == metric), None)
+
+
+def source_for(metric, tool_map, language):
     """Which tool measures `metric`, and the side-PR candidate if the repo lacks one.
 
     `tool_map` is None outside a git repo, where no repo tool can
-    be missing, so there is no candidate.
+    be missing, so there is no candidate. With no repo tool, the
+    global one for `language` measures; none for that pair raises
+    NoGlobalToolError.
     """
-    if tool_map is not None:
-        repo_tool = next(
-            (tool for tool in tool_map.entry()["tools"] if tool["metric"] == metric), None
-        )
-        if repo_tool is not None:
-            return {
-                "metric": metric,
-                "source": {"kind": "repo", "tool": repo_tool["tool"]},
-                "side_pr_candidate": None,
-            }
+    repo_tool = _repo_tool_for(metric, tool_map)
+    if repo_tool is not None:
+        return {
+            "metric": metric,
+            "source": {"kind": "repo", "tool": repo_tool["tool"]},
+            "side_pr_candidate": None,
+        }
     gap = None if tool_map is None else f"no repo {metric.replace('_', ' ')} tool"
     return {
         "metric": metric,
-        "source": {"kind": "global", "tool": GLOBAL_TOOLS[metric]},
+        "source": {"kind": "global", "tool": global_tool_for(metric, language)},
         "side_pr_candidate": gap,
     }

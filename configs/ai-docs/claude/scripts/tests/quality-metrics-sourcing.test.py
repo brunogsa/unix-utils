@@ -14,12 +14,14 @@ from quality_metrics.coverage import coverage_measurement
 from quality_metrics.failures import TimeoutPolicy
 from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
+    NoGlobalToolError,
     lazy_tool_map_for,
     measure_coverage_with_repo_tool,
     measure_function_size_with_repo_tool,
     source_for,
 )
 from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
+from quality_metrics.tools import ToolError
 from quality_metrics.touched import Target
 
 SESSION_ID = "session-7b1d3e"
@@ -28,16 +30,68 @@ JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} }
 PYTHON_MODULE = "def add(first, second):\n    return first + second\n"
 
 
-def source_of_coverage(working_directory, map_dir):
+def source_of_coverage(working_directory, map_dir, language):
     rules = load_detector_rules(DETECTOR_RULES_PATH)
     tool_map = lazy_tool_map_for(working_directory, rules, SESSION_ID, map_dir, base_ref="HEAD")
-    return source_for("coverage", tool_map)
+    return source_for("coverage", tool_map, language)
+
+
+@pytest.mark.parametrize(
+    ("metric", "language", "expected_tool"),
+    [
+        ("size", "bash", "shellmetrics"),
+        ("complexity", "bash", "shellmetrics"),
+        ("size", "python", "lizard"),
+        ("nesting", "ts", "lizard"),
+        ("parameters", "go", "lizard"),
+        ("complexity", "js", "lizard"),
+        ("size", "css", "line count"),
+        ("coverage", "js", "c8"),
+        ("coverage", "ts", "c8"),
+        ("coverage", "python", "coverage.py"),
+        ("coverage", "go", "gcov2lcov"),
+        ("code_duplication", "bash", "jscpd"),
+        ("test_duplication", "python", "jscpd"),
+        ("dependency_direction", "js", "dependency-cruiser"),
+        ("dependency_direction", "python", "import-linter"),
+        ("dependency_direction", "go", "go-arch-lint"),
+    ],
+)
+def test_should_name_the_global_tool_the_metric_module_runs_for_the_language_when_there_is_no_tool_map(
+    metric, language, expected_tool
+):
+    assert source_for(metric, None, language) == {
+        "metric": metric,
+        "source": {"kind": "global", "tool": expected_tool},
+        "side_pr_candidate": None,
+    }
+
+
+@pytest.mark.parametrize(
+    ("metric", "language"),
+    [
+        ("dependency_direction", "bash"),
+        ("dependency_direction", "html"),
+        ("dependency_direction", "css"),
+        ("crap", "python"),
+        ("coverage", "bash"),
+        ("nesting", "bash"),
+    ],
+)
+def test_should_say_not_measured_with_the_metric_and_language_when_no_global_tool_measures_the_pair(
+    metric, language
+):
+    with pytest.raises(NoGlobalToolError) as raised:
+        source_for(metric, None, language)
+
+    assert str(raised.value) == f"not measured: no global {metric} tool for {language}"
+    assert isinstance(raised.value, ToolError)
 
 
 def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_one(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG, "src/index.js": "module.exports = 1;\n"})
 
-    coverage_source = source_of_coverage(repo, tmp_path)
+    coverage_source = source_of_coverage(repo, tmp_path, "js")
 
     assert coverage_source == {
         "metric": "coverage",
@@ -51,7 +105,7 @@ def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_
     rules = load_detector_rules(DETECTOR_RULES_PATH)
     tool_map = lazy_tool_map_for(repo, rules, SESSION_ID, tmp_path, base_ref="HEAD")
 
-    size_source = source_for("size", tool_map)
+    size_source = source_for("size", tool_map, "js")
 
     assert size_source == {
         "metric": "size",
@@ -63,7 +117,7 @@ def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_
 def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_the_repo_lacks_the_tool(tmp_path):
     repo = make_repo(tmp_path, {"calc.py": PYTHON_MODULE})
 
-    coverage_source = source_of_coverage(repo, tmp_path)
+    coverage_source = source_of_coverage(repo, tmp_path, "python")
 
     assert coverage_source == {
         "metric": "coverage",
@@ -77,7 +131,7 @@ def test_should_measure_with_the_global_fallback_named_as_the_source_outside_any
     working_directory.mkdir()
     (working_directory / "tool.sh").write_text("#!/bin/bash\necho tool\n")
 
-    coverage_source = source_of_coverage(working_directory, tmp_path)
+    coverage_source = source_of_coverage(working_directory, tmp_path, "python")
 
     assert coverage_source == {
         "metric": "coverage",
