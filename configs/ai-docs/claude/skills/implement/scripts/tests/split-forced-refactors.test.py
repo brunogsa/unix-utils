@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -53,7 +54,7 @@ def build_feature_repo(tmp_path, commits):
     return repo, base
 
 
-def run_split(repo, base):
+def run_split(repo, base, *extra_arguments):
     completed = subprocess.run(
         [
             sys.executable, str(SCRIPT),
@@ -61,6 +62,7 @@ def run_split(repo, base):
             "--base", base,
             "--feature-branch", FEATURE_BRANCH,
             "--refactor-branch", REFACTOR_BRANCH,
+            *extra_arguments,
         ],
         env=GIT_ENV, capture_output=True, text=True,
     )
@@ -71,6 +73,72 @@ def run_split(repo, base):
 def subjects_between(repo, older, newer):
     log = git(repo, "log", "--format=%s", f"{older}..{newer}")
     return log.splitlines()
+
+
+SDD_SCRIPTS = Path.home() / ".claude/skills/spec-driven-development/scripts"
+
+PLAN_TEXT = """\
+## Task Breakdown
+
+### 1. Parse the declaration
+
+**Depends on**: none
+
+### 2. Gate the metrics
+
+**Depends on**:
+- Task 1
+
+## PR Breakdown
+
+### PR-1. Parse the declaration
+
+**Tasks**: 1
+
+**Depends on**: none
+
+**Gates**: none
+
+**Branch**: `master`
+
+**Linear**:
+
+The declaration is parsed.
+
+### PR-2. Gate the metrics
+
+**Tasks**: 2
+
+**Depends on**: PR-1
+
+**Gates**: none
+
+**Branch**: `feature/pr-3-metrics-gate`
+
+**Linear**:
+
+The metrics gate runs.
+
+---
+
+## Open Questions
+
+None.
+"""
+
+
+def run_plan_checker(checker, plan):
+    return subprocess.run(
+        [str(SDD_SCRIPTS / checker), str(plan)],
+        capture_output=True, text=True,
+    )
+
+
+def get_pr_entry(plan_text, label):
+    start = plan_text.index(f"### {label}.")
+    following = plan_text.find("\n### ", start + 1)
+    end = following if following != -1 else len(plan_text)
+    return plan_text[start:end]
 
 
 def test_should_move_forced_refactors_of_2_files_and_101_changed_lines_onto_a_new_branch_from_the_base(
@@ -138,4 +206,34 @@ def test_should_keep_exactly_5_files_and_100_changed_lines_in_the_feature_pr(
     assert report["needs_push"] == []
     assert git(repo, "rev-parse", FEATURE_BRANCH) == feature_head
     assert git(repo, "branch", "--list", REFACTOR_BRANCH) == ""
+
+
+def test_should_append_the_refactor_prs_entry_and_make_the_feature_pr_depend_on_it(
+    tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: split parser", {"parser.py": 51}, "metrics"),
+        ("refactor: split writer", {"writer.py": 50}, "metrics"),
+    ])
+    plan = tmp_path / "plan_fixture.md"
+    plan.write_text(PLAN_TEXT)
+
+    report = run_split(
+        repo, base, "--plan", str(plan), "--feature-pr", "PR-2"
+    )
+
+    plan_text = plan.read_text()
+    new_entry = get_pr_entry(plan_text, "PR-3")
+    assert report["pr_entry"] == "PR-3"
+    assert re.findall(r"^### (PR-\d+)\.", plan_text, re.M) == [
+        "PR-1", "PR-2", "PR-3",
+    ]
+    assert f"**Branch**: `{REFACTOR_BRANCH}`" in new_entry
+    assert "**Depends on**: PR-1\n" in new_entry
+    assert "**Depends on**: PR-1, PR-3\n" in get_pr_entry(plan_text, "PR-2")
+    assert plan_text.index("### PR-3.") < plan_text.index("## Open Questions")
+    assert run_plan_checker("check-pr-dag.sh", plan).returncode == 0
+    projection = run_plan_checker("check-pr-task-projection.py", plan)
+    assert projection.returncode == 0, projection.stderr
+
 

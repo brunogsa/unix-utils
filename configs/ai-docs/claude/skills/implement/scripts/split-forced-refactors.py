@@ -6,20 +6,50 @@
 # Usage:
 #   split-forced-refactors.py --repo <path> --base <ref>
 #     --feature-branch <name> --refactor-branch <name>
+#     [--plan <path> --feature-pr <PR-N>]
 #
 # stdin: unused
-# stdout: one JSON object - outcome ("moved" or "kept"),
-#   files, lines, commits, refactor_branch, needs_push
-# exit: 0 on moved or kept, 2 on bad usage
+# stdout: one JSON object: outcome, files, lines, commits,
+#   refactor_branch, needs_push, pr_entry (label or null)
+# exit: 0 on moved or kept, 2 on bad usage or a bad plan
 
 import argparse
 import json
+import re
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
+
+from quality_metrics.atomic_write import write_text_atomically
 
 FORCED_REFACTOR_GATE = "metrics"
 MAX_FILES = 5
 MAX_CHANGED_LINES = 100
+PLAN_TEMP_PREFIX = ".split-forced-refactors-"
+PR_BREAKDOWN_HEADING_RE = re.compile(r"^## PR Breakdown[ \t]*$", re.M)
+SECTION_HEADING_RE = re.compile(r"^## ", re.M)
+PR_ENTRY_HEADING_RE = re.compile(r"^### PR-(\d+)\.", re.M)
+
+# A PR entry ends at the next heading or the --- divider.
+PR_ENTRY_END_RE = re.compile(r"^(#{2,3} |---)", re.M)
+DEPENDS_LINE_RE = re.compile(r"^\*\*Depends on\*\*:[ \t]*(.*)$", re.M)
+PR_LABEL_RE = re.compile(r"PR-\d+")
+REFACTOR_PR_ENTRY_TEMPLATE = """\
+### {label}. Forced refactors split out of {feature_pr}
+
+**Tasks**: none
+
+**Depends on**: {dependencies}
+
+**Gates**: none
+
+**Branch**: `{refactor_branch}`
+
+**Linear**:
+
+Forced refactors moved off {feature_pr} so they land first."""
 
 
 def run_git(repo, *args):
@@ -37,7 +67,70 @@ def parse_arguments(argv):
     parser.add_argument("--base", required=True)
     parser.add_argument("--feature-branch", required=True)
     parser.add_argument("--refactor-branch", required=True)
-    return parser.parse_args(argv)
+    parser.add_argument("--plan", type=Path)
+    parser.add_argument("--feature-pr")
+    arguments = parser.parse_args(argv)
+    if (arguments.plan is None) != (arguments.feature_pr is None):
+        parser.error("--plan and --feature-pr go together")
+    return arguments
+
+
+def fail_on_bad_plan(message):
+    print(f"error: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def get_pr_breakdown_span(plan_text):
+    heading = PR_BREAKDOWN_HEADING_RE.search(plan_text)
+    if heading is None:
+        fail_on_bad_plan("the plan has no PR Breakdown section")
+    next_section = SECTION_HEADING_RE.search(plan_text, heading.end())
+    end = next_section.start() if next_section else len(plan_text)
+    return heading.end(), end
+
+
+def get_pr_entry_span(plan_text, label):
+    heading = re.search(rf"^### {re.escape(label)}\.", plan_text, re.M)
+    if heading is None:
+        fail_on_bad_plan(f"the plan has no {label} entry")
+    entry_end = PR_ENTRY_END_RE.search(plan_text, heading.end())
+    return heading.start(), entry_end.start() if entry_end else len(plan_text)
+
+
+def add_dependency_to_feature_pr(plan_text, feature_pr, label):
+    feature_start, feature_end = get_pr_entry_span(plan_text, feature_pr)
+    depends = DEPENDS_LINE_RE.search(plan_text, feature_start, feature_end)
+    if depends is None:
+        fail_on_bad_plan(f"{feature_pr} has no Depends on field")
+    dependencies = PR_LABEL_RE.findall(depends.group(1))
+    depends_line = "**Depends on**: " + ", ".join([*dependencies, label])
+    updated_text = (
+        plan_text[: depends.start()] + depends_line + plan_text[depends.end():]
+    )
+    return updated_text, dependencies
+
+
+def get_plan_with_refactor_entry(plan_text, feature_pr, refactor_branch):
+    start, end = get_pr_breakdown_span(plan_text)
+    numbers = PR_ENTRY_HEADING_RE.findall(plan_text, start, end)
+    if not numbers:
+        fail_on_bad_plan("the PR Breakdown has no PR entry")
+    label = f"PR-{max(map(int, numbers)) + 1}"
+    last_label = f"PR-{numbers[-1]}"
+    plan_text, dependencies = add_dependency_to_feature_pr(
+        plan_text, feature_pr, label
+    )
+    new_entry = REFACTOR_PR_ENTRY_TEMPLATE.format(
+        label=label,
+        feature_pr=feature_pr,
+        dependencies=", ".join(dependencies) or "none",
+        refactor_branch=refactor_branch,
+    )
+    _, last_end = get_pr_entry_span(plan_text, last_label)
+    head = plan_text[:last_end].rstrip("\n")
+    tail = plan_text[last_end:]
+    separator = "\n" + tail if tail else ""
+    return f"{head}\n\n{new_entry}\n{separator}", label
 
 
 def list_forced_refactor_commits(repo, base, feature_branch):
@@ -85,6 +178,7 @@ def get_kept_report(shas, files, lines):
         "commits": shas,
         "refactor_branch": None,
         "needs_push": [],
+        "pr_entry": None,
     }
 
 
@@ -99,6 +193,16 @@ def get_moved_report_fields(refactor_branch, feature_branch):
     }
 
 
+def get_planned_entry(arguments):
+    if arguments.plan is None:
+        return None
+    return get_plan_with_refactor_entry(
+        arguments.plan.read_text(),
+        arguments.feature_pr,
+        arguments.refactor_branch,
+    )
+
+
 def main(argv):
     arguments = parse_arguments(argv)
     repo = arguments.repo
@@ -109,6 +213,9 @@ def main(argv):
     is_over_threshold = files > MAX_FILES or lines > MAX_CHANGED_LINES
     report = get_kept_report(shas, files, lines)
     if is_over_threshold:
+        # Read the plan before any git move, so a bad
+        # plan leaves the repo untouched.
+        planned_entry = get_planned_entry(arguments)
         move_onto_refactor_branch(
             repo,
             arguments.base,
@@ -121,6 +228,10 @@ def main(argv):
                 arguments.refactor_branch, arguments.feature_branch
             )
         )
+        if planned_entry is not None:
+            plan_text, label = planned_entry
+            write_text_atomically(arguments.plan, plan_text, PLAN_TEMP_PREFIX)
+            report["pr_entry"] = label
     print(json.dumps(report))
     return 0
 
