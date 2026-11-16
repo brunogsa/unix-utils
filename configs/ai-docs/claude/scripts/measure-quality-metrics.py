@@ -26,7 +26,7 @@ from pathlib import Path
 
 from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
-from quality_metrics import dependencies
+from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
@@ -87,7 +87,7 @@ def main(arguments):
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
         dependency_run = dependencies.DependencyRun(
-            Path.cwd(), _dependency_base_ref(options),
+            Path.cwd(), _judged_against_ref(options),
             declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
         measurements, unclaimed = _measure(
@@ -95,6 +95,7 @@ def main(arguments):
             dependency_run, head_ref,
         )
         resolved = _resolved_since(declaration, mode, options.diff)
+        gate_input_violations = _gate_input_violations(options, head_ref)
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
         return EXIT_UNMEASURED
@@ -102,11 +103,13 @@ def main(arguments):
     report = {
         "measurements": measurements,
         "violations": violations,
+        "gate_input_violations": gate_input_violations,
         "resolved": resolved,
         "unclaimed_files": unclaimed,
     }
     print(json.dumps(report, indent=2))
-    return EXIT_VIOLATION if violations else EXIT_CLEAN
+    has_violation = violations or gate_input_violations
+    return EXIT_VIOLATION if has_violation else EXIT_CLEAN
 
 
 def _parse_arguments(arguments):
@@ -153,8 +156,20 @@ def _range_ends(diff_range):
     return base_ref, head_ref or "HEAD"
 
 
-def _dependency_base_ref(options):
-    """The ref whose import cycles the change is judged against."""
+def _gate_input_violations(options, head_ref):
+    """The gate inputs the change adds, read against the base ref.
+
+    Explicit --files name no change, so they have none to judge.
+    """
+    if options.files:
+        return []
+    return gate_inputs.find_violations(
+        Path.cwd(), _judged_against_ref(options), head_ref
+    )
+
+
+def _judged_against_ref(options):
+    """The ref the change's cycles and gate inputs are judged against."""
     if options.diff:
         base_ref, head_ref = _range_ends(options.diff)
         return merge_base(base_ref, head_ref)

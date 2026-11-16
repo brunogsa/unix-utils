@@ -319,11 +319,12 @@ UNRELATED_TEST_TEXT = (
 
 # The pragma excludes the block from coverage, as a
 # type-only change leaves no executable line behind.
-TYPE_ONLY_CHANGE = (
+TYPE_ONLY_BASE = (
     SOURCE_BASE
     + "\nif False:  # pragma: no cover\n"
-    "    from decimal import Decimal\n"
+    "    pass\n"
 )
+TYPE_ONLY_CHANGE = TYPE_ONLY_BASE + "    from decimal import Decimal\n"
 
 
 class TestChangedFileCoverageReading:
@@ -349,7 +350,7 @@ class TestChangedFileCoverageReading:
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {
-            "invoice_totals.py": SOURCE_BASE,
+            "invoice_totals.py": TYPE_ONLY_BASE,
             TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=100),
         })
         (repo / "invoice_totals.py").write_text(TYPE_ONLY_CHANGE)

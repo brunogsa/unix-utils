@@ -7,8 +7,35 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 HOOK = SCRIPTS_DIR.parent / "hooks" / "check-lint-suppressions.py"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from quality_metrics_support import commit_all, head_of, make_repo, measure_report
 
 FEEDBACK_EXIT = 2
+
+DECLARATION_TEXT = """\
+excluded_paths: []
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  ts:
+    extensions: [.ts]
+    metrics: [size]
+  js:
+    extensions: [.js]
+    metrics: [size]
+"""
+
+PARSE_SOURCE = "export function parse(text: string): number {\n  return text.length;\n}\n"
+PARSE_SOURCE_WITH_ISTANBUL_IGNORE = (
+    "/* istanbul ignore next */\n" + PARSE_SOURCE
+)
+
+
+def write_declaration(tmp_path):
+    path = tmp_path / "quality-metrics.yaml"
+    path.write_text(DECLARATION_TEXT)
+    return path
 
 
 def run_hook_on_added_line(file_path, added_line):
@@ -42,3 +69,17 @@ class TestCornerCases:
 
         assert result.returncode == FEEDBACK_EXIT
         assert token in result.stderr
+
+
+class TestHappyPath:
+    def test_should_list_an_added_istanbul_ignore_comment_as_a_violation(self, tmp_path):
+        repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})
+        base = head_of(repo)
+        (repo / "src/parse.ts").write_text(PARSE_SOURCE_WITH_ISTANBUL_IGNORE)
+        commit_all(repo, "ignore a branch")
+
+        report = measure_report(repo, write_declaration(tmp_path), "--diff", f"{base}...HEAD")
+
+        assert report["gate_input_violations"] == [
+            {"kind": "suppression", "file": "src/parse.ts", "value": "istanbul ignore"}
+        ]
