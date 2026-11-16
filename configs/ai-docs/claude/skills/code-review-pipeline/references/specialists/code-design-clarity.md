@@ -43,7 +43,7 @@ suggest the purpose (`totalInvoice`).
 
 ## Measured values
 
-Wave 1 saved `quality-metrics.json` (see wave1-repo-wide-checks.md).
+Wave 1 saved `$work_dir/quality-metrics.json`.
 For size, nesting, complexity and duplication, cite the measured value
 with its label, never an estimate: "`loadUser` is 42 lines (measured)".
 A deferred metric is cited as labelled, e.g. "pessimistic, tooling
