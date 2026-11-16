@@ -9,6 +9,9 @@
 # which prints "attributed" when every commit it surely knows
 # carries Co-Authored-By: Claude as a git trailer.
 #
+# It prints "no-commit" when no stage may run one, and nothing
+# otherwise.
+#
 # stdout: one deny reason when a commit in the command records
 #   a subject over 64 characters, nothing otherwise.
 # exit: 0 either way. Any other exit is a crash, which the git
@@ -68,9 +71,15 @@ ATTRIBUTED_VERDICT = "attributed"
 TRAILER_PARSER = ("git", "interpret-trailers", "--parse", "--no-divider")
 TRAILER_PARSER_TIMEOUT_SECONDS = 10
 
+# commit as a word of its own: a path such as
+# check-commit-subject-length.py names no commit.
+STANDALONE_COMMIT = re.compile(r"(?<![\w.-])commit(?![\w.-])")
+COMMIT_WORD = "commit"
+NO_COMMIT_VERDICT = "no-commit"
+
 # A stage naming git then commit may run one the resolver cannot
 # read, as eval "git commit ..." or bash -c '...' would.
-GIT_COMMIT_MENTION = re.compile(r"\bgit\b.*\bcommit\b", re.DOTALL)
+GIT_COMMIT_MENTION = re.compile(r"\bgit\b.*" + STANDALONE_COMMIT.pattern, re.DOTALL)
 
 # A --trailer value may use = where a message trailer uses :.
 ATTRIBUTION_TRAILER = re.compile(r"co-authored-by\s*[:=].*claude", re.IGNORECASE)
@@ -442,6 +451,14 @@ def _is_cleanup_setting(setting):
     return key.startswith(CLEANUP_CONFIG_SECTION) or key in CLEANUP_CONFIG_KEYS
 
 
+def _is_unsafe_setting(words, setting_index):
+    """True when the -c value is missing or may change the
+    message."""
+    if setting_index >= len(words):
+        return True
+    return _is_cleanup_setting(words[setting_index].text)
+
+
 def _subcommand_index(words, index):
     """Return the index past git's global options, or None."""
     while index < len(words):
@@ -449,7 +466,7 @@ def _subcommand_index(words, index):
         if text == "-C":
             index += 2
         elif text == "-c":
-            if index + 1 >= len(words) or _is_cleanup_setting(words[index + 1].text):
+            if _is_unsafe_setting(words, index + 1):
                 return None
             index += 2
         elif text in GLOBAL_FLAG_OPTIONS:
@@ -712,12 +729,26 @@ def _is_assignment_order_known(text):
     return not ("&&" in text and (";" in text or "\n" in text))
 
 
+def _names_commit(words):
+    """True when a stage that is not plain git may run commit:
+    any command word with a commit word after it, as an alias,
+    a function or $GIT may be git, or git and commit inside one
+    string, as eval or bash -c would run them."""
+    texts = [word.text for word in words]
+    return COMMIT_WORD in texts or bool(GIT_COMMIT_MENTION.search(" ".join(texts)))
+
+
 def _may_run_commit(stage):
-    """True when a stage may run git commit: it is one, or it
-    names git and commit, as eval or bash -c would run them."""
+    """True when a stage may run git commit."""
     if _commit_subcommand_index(stage.words) is not None:
         return True
-    return bool(GIT_COMMIT_MENTION.search(" ".join(word.text for word in stage.words)))
+    return _names_commit(stage.words)
+
+
+def _may_text_run_commit(command):
+    """True when a command the lexer cannot split may run git
+    commit, judged from its raw text."""
+    return bool(STANDALONE_COMMIT.search(command))
 
 
 def _read_commit_stages(command, cwd):
@@ -725,11 +756,11 @@ def _read_commit_stages(command, cwd):
     Commit, or None when its message is not surely known.
 
     cwd is the directory a relative -F path resolves against.
-    A command that cannot be parsed for sure returns [].
+    A command that cannot be parsed for sure returns None.
     """
     parse_lib = _load_parse_lib()
     if parse_lib is None or PLACEHOLDER_MARK in command:
-        return []
+        return None
     heredoc_opener, split_into_pipelines = parse_lib
     try:
         text, values = _lift_heredocs(command, heredoc_opener)
@@ -737,14 +768,14 @@ def _read_commit_stages(command, cwd):
         # bash joins a backslash-newline where shlex-style
         # lexing would keep it, so neither reading is safe.
         if "\\\n" in text:
-            return []
+            return None
         stages = [
             (StageLexer(stage, values).lex(), len(statement) > 1)
             for statement in split_into_pipelines(text)
             for stage in statement
         ]
     except CannotBeSure:
-        return []
+        return None
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
     commits = []
     for stage, is_piped in stages:
@@ -763,7 +794,7 @@ def compute_commits(command, cwd=None):
     the subject check allows; the attribution check reads
     _read_commit_stages instead and denies.
     """
-    commit_stages = _read_commit_stages(command, cwd)
+    commit_stages = _read_commit_stages(command, cwd) or []
     return [commit for commit in commit_stages if commit is not None]
 
 
@@ -797,6 +828,23 @@ def _deny_reason(subject):
     )
 
 
+def _attribution_verdict(command, cwd):
+    """Return "no-commit", "attributed", or "" to deny.
+
+    One commit it cannot read may lack the trailer, so it
+    withholds the verdict for the whole command.
+    """
+    commit_stages = _read_commit_stages(command, cwd)
+    if commit_stages is None:
+        return "" if _may_text_run_commit(command) else NO_COMMIT_VERDICT
+    if not commit_stages:
+        return NO_COMMIT_VERDICT
+    is_every_commit_read = None not in commit_stages
+    if is_every_commit_read and all(_has_attribution_trailer(commit, cwd) for commit in commit_stages):
+        return ATTRIBUTED_VERDICT
+    return ""
+
+
 def main(argv):
     is_attributed_mode = len(argv) > 1 and argv[1] == ATTRIBUTED_FLAG
     command_index = 2 if is_attributed_mode else 1
@@ -810,15 +858,7 @@ def main(argv):
         # A crash here makes the guard deny, the safe side for
         # the attribution check, so no try/except softens it.
         cwd = os.environ.get(COMMIT_CWD_ENV) or os.getcwd()
-
-        # One commit it cannot read may lack the trailer, so it
-        # withholds the verdict for the whole command.
-        commit_stages = _read_commit_stages(command, cwd)
-        is_every_commit_read = None not in commit_stages
-        if commit_stages and is_every_commit_read and all(
-            _has_attribution_trailer(commit, cwd) for commit in commit_stages
-        ):
-            sys.stdout.write(ATTRIBUTED_VERDICT)
+        sys.stdout.write(_attribution_verdict(command, cwd))
         return 0
     subjects = compute_subjects(command, os.environ.get(COMMIT_CWD_ENV))
     over_cap = [subject for subject in subjects if len(subject) > SUBJECT_CAP]

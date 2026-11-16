@@ -790,6 +790,35 @@ it_should_block_a_command_whose_first_commit_cannot_be_read() {
   assert_eq "should block a command when one of its commits cannot be read, even if another is attributed" "2" "$HOOK_EXIT"
 }
 
+# A commit run through an expanded or aliased command word never
+# shows a literal "git commit" for the guard to spot.
+it_should_block_a_commit_run_through_an_unknown_command_word() {
+  local cmd
+  for cmd in \
+    '$GIT commit -m msg' \
+    '"$G" commit -m msg' \
+    '${GIT} commit -m msg' \
+    '$GIT "commit" -m msg' \
+    'alias g=git; g commit -m msg' \
+    'g commit -m msg' \
+    '$GIT commit -m msg # note'; do
+    run_hook "$cmd"
+    assert_eq "should block a commit run through an unknown command word: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_allow_a_command_whose_paths_only_contain_the_word_commit() {
+  local cmd
+  for cmd in \
+    'git add configs/ai-docs/claude/hooks/lib/check-commit-subject-length.py' \
+    'git diff -- configs/ai-docs/claude/hooks/lib/check-commit-subject-length.py' \
+    'cat hooks/claude-git-guard.sh hooks/lib/check-commit-subject-length.py' \
+    "$(printf '# note\ngit status')"; do
+    run_hook "$cmd"
+    assert_eq "should allow a command whose paths only contain the word commit: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -870,6 +899,8 @@ it_should_allow_an_attribution_in_its_own_last_message_option
 it_should_allow_an_attribution_passed_as_a_trailer_option
 it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution
 it_should_block_a_command_whose_first_commit_cannot_be_read
+it_should_block_a_commit_run_through_an_unknown_command_word
+it_should_allow_a_command_whose_paths_only_contain_the_word_commit
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

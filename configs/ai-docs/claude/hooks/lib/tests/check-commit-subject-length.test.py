@@ -635,6 +635,10 @@ class TestAttributionAcrossSeveralCommits:
             pytest.param("git commit --allow-empty -F - < msg.txt", id="message-from-stdin"),
             pytest.param("git commit --allow-empty -F missing-message.txt", id="missing-message-file"),
             pytest.param(f"eval 'git commit --allow-empty -m \"{SHORT_SUBJECT}\"'", id="commit-run-through-eval"),
+            pytest.param(f'$GIT commit --allow-empty -m "{SHORT_SUBJECT}"', id="expanded-command-word"),
+            pytest.param(f'"$G" commit --allow-empty -m "{SHORT_SUBJECT}"', id="quoted-expanded-command-word"),
+            pytest.param(f'${{GIT}} commit --allow-empty -m "{SHORT_SUBJECT}"', id="braced-expanded-command-word"),
+            pytest.param(f'alias g=git && g commit --allow-empty -m "{SHORT_SUBJECT}"', id="alias-command-word"),
         ],
     )
     def test_should_withhold_the_verdict_when_any_commit_cannot_be_read(self, unreadable_commit):
@@ -646,6 +650,11 @@ class TestAttributionAcrossSeveralCommits:
         result = _run_attribution_check(f'echo "$HOME" && {ATTRIBUTED_COMMIT}')
 
         assert (result.returncode, result.stdout) == (0, checker.ATTRIBUTED_VERDICT)
+
+    def test_should_report_no_commit_for_a_command_that_runs_none(self):
+        result = _run_attribution_check("git status && cat hooks/claude-git-guard.sh hooks/lib/check-commit-subject-length.py")
+
+        assert (result.returncode, result.stdout) == (0, checker.NO_COMMIT_VERDICT)
 
     def test_should_attribute_two_commits_that_both_carry_the_trailer(self):
         result = _run_attribution_check(f"{ATTRIBUTED_COMMIT} && {ATTRIBUTED_COMMIT}")

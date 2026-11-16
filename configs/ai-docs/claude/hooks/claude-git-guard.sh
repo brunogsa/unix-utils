@@ -473,16 +473,44 @@ fi
 # relative -F, ||, a subshell, an unknown option, eval), the
 # deny stands for the whole command, however many others it
 # read. The subject check reads that as "allow".
+attribution_verdict() {
+  CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" --attributed "$CMD" 2>/dev/null
+}
+
 commit_has_attribution_trailer() {
   local verdict
-  verdict=$(CLAUDE_GIT_COMMIT_CWD="$CWD_INPUT" python3 "$CLAUDE_HOOKS_DIR/lib/check-commit-subject-length.py" --attributed "$CMD" 2>/dev/null) || return 1
+  verdict=$(attribution_verdict) || return 1
   [ "$verdict" = "attributed" ]
 }
+
+# git or commit as a word of its own, so a path such as
+# check-commit-subject-length.py or .gitignore names neither,
+# or a $ that may expand to either, as in $GIT "commit".
+MAY_COMMIT_TRIGGER='(^|[^[:alnum:]_.-])(git|commit)([^[:alnum:]_.-]|$)|[$]'
+COMMIT_WORD='(^|[^[:alnum:]_.-])commit([^[:alnum:]_.-]|$)'
+
+# A plain git commit is always screened. Any other command
+# naming git or commit may still run one, through $GIT, a
+# shell alias or a git alias, so the lib decides: "no-commit"
+# lets it pass.
+#
+# A lib that crashes screens it only when it names commit, so
+# git status still runs without the lib.
+is_commit_screened=false
+if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
+  is_commit_screened=true
+elif echo "$CMD_STRUCT" | grep -qE "$MAY_COMMIT_TRIGGER"; then
+  if verdict=$(attribution_verdict); then
+    [ "$verdict" != "no-commit" ] && is_commit_screened=true
+  elif echo "$CMD_STRUCT" | grep -qE "$COMMIT_WORD"; then
+    is_commit_screened=true
+  fi
+fi
 
 # Block git commit without Co-Authored-By: Claude attribution.
 # The trigger checks CMD_STRUCT (a real invocation); the
 # attribution check reads the message the commit records.
-if echo "$CMD_STRUCT" | grep -qE 'git\s+commit\b'; then
+if [ "$is_commit_screened" = true ]; then
   if ! commit_has_attribution_trailer; then
     echo 'git commit must include Co-Authored-By: Claude attribution as a git trailer. Put it in its own last -m "Co-Authored-By: ...", or pass --trailer "Co-Authored-By: ...". Glued onto a body sentence or after a literal \n, git keeps it as body text.' >&2
     exit 2
