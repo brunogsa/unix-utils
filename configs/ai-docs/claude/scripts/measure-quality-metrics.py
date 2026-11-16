@@ -9,13 +9,18 @@
 #   measure-quality-metrics.py --diff BASE...HEAD
 #   measure-quality-metrics.py [--per-unit] --files FILE...
 #
+# Add --session-id ID [--map-base REF] [--map-dir DIR] to
+# measure coverage with the repo's own tool when its tool map
+# lists one.
+#
 # stdin: none (run inside the repo, or pass --files).
 #
 # stdout: JSON holding measurements, violations (the
 # measurements over their limit), resolved (over-limit
-# functions a --diff range removes) and unclaimed_files.
+# functions a --diff range removes), unclaimed_files,
+# sources (the coverage tool per language) and asks.
 #
-# exit: 0 no violation, 1 violation found, 2 not measured.
+# exit: 0 no violation, 1 violation or ask, 2 not measured.
 
 import argparse
 import importlib
@@ -30,6 +35,12 @@ from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
+from quality_metrics.sourcing import lazy_tool_map_for
+from quality_metrics.tool_map import (
+    DETECTOR_RULES_PATH,
+    load_detector_rules,
+    TOOL_MAP_DIR,
+)
 from quality_metrics.tools import ToolError, run_command
 from quality_metrics.touched import (
     changes_between,
@@ -87,7 +98,7 @@ def main(arguments):
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
-        coverage_run = CoverageRun(Path.cwd())
+        coverage_run = _coverage_run_for(options, judged_against)
         layer_map = (
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
@@ -106,6 +117,13 @@ def main(arguments):
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
         return EXIT_UNMEASURED
+    return _print_report(
+        measurements, unclaimed, resolved, gate_input_violations, coverage_run
+    )
+
+
+def _print_report(measurements, unclaimed, resolved, gate_input_violations, coverage_run):
+    """Print the JSON report and return the exit code it earns."""
     violations = [item for item in measurements if is_over_limit(item)]
     report = {
         "measurements": measurements,
@@ -113,9 +131,14 @@ def main(arguments):
         "gate_input_violations": gate_input_violations,
         "resolved": resolved,
         "unclaimed_files": unclaimed,
+        "sources": coverage_run.sources,
+        "asks": coverage_run.asks,
     }
     print(json.dumps(report, indent=2))
-    has_violation = violations or gate_input_violations
+
+    # An ask comes with pessimistic records; exiting 1 on it
+    # too keeps unmeasured coverage from reading clean.
+    has_violation = violations or gate_input_violations or coverage_run.asks
     return EXIT_VIOLATION if has_violation else EXIT_CLEAN
 
 
@@ -139,6 +162,7 @@ def _parse_arguments(arguments):
     parser.add_argument("--layers", metavar="FILE",
                         help="layer map the layer imports are checked against "
                              "(default: none, so only cycles are checked)")
+    _add_tool_map_arguments(parser)
     parser.add_argument("--declaration", default=DEFAULT_DECLARATION,
                         help="declaration file to read (default: the shipped one)")
     options = parser.parse_args(arguments)
@@ -147,6 +171,29 @@ def _parse_arguments(arguments):
     if options.diff and "..." not in options.diff:
         parser.error("--diff takes a range written BASE...HEAD")
     return options
+
+
+def _add_tool_map_arguments(parser):
+    parser.add_argument("--session-id", metavar="ID",
+                        help="session whose tool map names the repo's own tools; "
+                             "without it every metric uses the global tools")
+    parser.add_argument("--map-base", metavar="REF",
+                        help="ref the repo's tools are detected at "
+                             "(default: the ref the change is judged against)")
+    parser.add_argument("--map-dir", default=TOOL_MAP_DIR, metavar="DIR",
+                        help="directory holding the tool map (default: /tmp)")
+
+
+def _coverage_run_for(options, judged_against):
+    """The coverage run; with a session id it reads the repo's tool map."""
+    if options.session_id is None:
+        return CoverageRun(Path.cwd())
+    map_base = options.map_base or judged_against
+    tool_map = lazy_tool_map_for(
+        Path.cwd(), load_detector_rules(DETECTOR_RULES_PATH),
+        options.session_id, options.map_dir, map_base,
+    )
+    return CoverageRun(Path.cwd(), tool_map, base_ref=map_base)
 
 
 def _targets_from(options):

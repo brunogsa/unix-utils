@@ -33,6 +33,54 @@ exit 1
 """
 
 
+# 25 coverable lines, 23 run: 92% changed-line coverage.
+CART_LCOV = "SF:src/cart.js\n" + "".join(
+    f"DA:{line},{1 if line <= 23 else 0}\n" for line in range(1, 26)
+) + "end_of_record\n"
+
+# Writes an lcov report where it is told to, then fails the
+# repo's own 95% threshold the way jest words it.
+JEST_STUB = """#!/bin/bash
+echo attempt >> "$ATTEMPT_LOG"
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+done
+cp "$LCOV_FIXTURE" "$report_dir/lcov.info"
+echo 'Jest: "global" coverage threshold for lines (95%) not met: 92%' >&2
+exit 1
+"""
+
+# A c8 that passes yet writes no coverage report.
+C8_NO_REPORT_STUB = """#!/bin/bash
+exit 0
+"""
+
+
+def install_jest_reporting_cart_coverage(tmp_path, monkeypatch, lcov_text=CART_LCOV):
+    lcov_fixture = tmp_path / "cart.lcov"
+    lcov_fixture.write_text(lcov_text)
+    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
+    monkeypatch.setenv("ATTEMPT_LOG", str(tmp_path / "attempts.log"))
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_STUB)
+
+
+def attempts_in(tmp_path):
+    attempt_log = tmp_path / "attempts.log"
+    return len(attempt_log.read_text().splitlines()) if attempt_log.exists() else 0
+
+
+def stubbed_env():
+    """The environment a script subprocess needs to see stub tools.
+
+    GIT_ENV froze its PATH at import, so a stub installed by
+    `install_stub_tool` is only on os.environ's PATH.
+    """
+    return {**os.environ, **GIT_ENV, "PATH": os.environ["PATH"],
+            "CLAUDE_CODE_ENTRYPOINT": "cli"}
+
+
 def install_stub_tool(tmp_path, monkeypatch, name, script):
     """Put an executable `name` first on PATH, standing in for a real tool."""
     bin_dir = tmp_path / "bin"
@@ -126,6 +174,39 @@ def install_global_collector(monkeypatch, calls, hits_by_file=None, error=None):
 
     for language in ("js", "ts", "python"):
         monkeypatch.setitem(collection.COLLECTORS, language, collector)
+
+
+PACKAGE_WITH_TEST_SCRIPT = '{"scripts": {"test": "jest"}}\n'
+
+CART_SOURCE = (
+    "function applyDiscount(total, rate) {\n"
+    "  if (rate > 0) {\n"
+    "    return total - total * rate;\n"
+    "  }\n"
+    "  return total;\n"
+    "}\n"
+)
+
+
+def measure_cart_where_global_c8_writes_no_data(
+    tmp_path, monkeypatch, extra_files, declaration_text
+):
+    """The script's result for src/cart.js with a c8 that writes no report.
+
+    With a session id the script can ask, so the failed global
+    collector raises an ask. `extra_files` may add the repo's jest.
+    """
+    repo = make_repo(tmp_path, {
+        "package.json": PACKAGE_WITH_TEST_SCRIPT, "src/cart.js": CART_SOURCE, **extra_files,
+    })
+    install_stub_tool(tmp_path, monkeypatch, "c8", C8_NO_REPORT_STUB)
+    declaration_path = tmp_path / "declaration.yaml"
+    declaration_path.write_text(declaration_text)
+    return run_measure(
+        repo, declaration_path, "--files", "src/cart.js",
+        "--session-id", "session-b2c41d", "--map-dir", str(tmp_path),
+        env=stubbed_env(),
+    )
 
 
 def measure_report(repo, declaration_path, *arguments, env=None):

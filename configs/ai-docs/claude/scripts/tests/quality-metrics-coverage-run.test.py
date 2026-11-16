@@ -5,10 +5,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
+    CART_LCOV,
     JEST_CRASH_STUB,
     SCRIPTS_DIR,
+    attempts_in,
     coverage_records_of,
     install_global_collector,
+    install_jest_reporting_cart_coverage,
     install_stub_tool,
     make_repo,
 )
@@ -34,25 +37,6 @@ PYTEST_COV_REPO_FILES = {".coveragerc": "[run]\n", "src/cart.py": "# covered\n"}
 # What the global collector reports: 2 of 2 lines run.
 GLOBAL_COVERAGE_PERCENT = 100
 GLOBAL_HITS = {"src/cart.js": {1: 1, 2: 1}, "src/cart.py": {1: 1, 2: 1}}
-
-# 25 coverable lines, 23 run: 92% changed-line coverage.
-CART_LCOV = "SF:src/cart.js\n" + "".join(
-    f"DA:{line},{1 if line <= 23 else 0}\n" for line in range(1, 26)
-) + "end_of_record\n"
-
-# Writes an lcov report where it is told to, then fails the
-# repo's own 95% threshold the way jest words it.
-JEST_STUB = """#!/bin/bash
-echo attempt >> "$ATTEMPT_LOG"
-for argument in "$@"; do
-  case "$argument" in
-    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
-  esac
-done
-cp "$LCOV_FIXTURE" "$report_dir/lcov.info"
-echo 'Jest: "global" coverage threshold for lines (95%) not met: 92%' >&2
-exit 1
-"""
 
 # Logs each attempt in $ATTEMPT_LOG, then hangs past a timeout.
 # `exec` so a kill lands on sleep itself, not a parent shell.
@@ -86,19 +70,6 @@ done
 """
 
 FallThroughCase = namedtuple("FallThroughCase", "stub exit_class candidate attempts")
-
-
-def install_jest_reporting_cart_coverage(tmp_path, monkeypatch, lcov_text=CART_LCOV):
-    lcov_fixture = tmp_path / "cart.lcov"
-    lcov_fixture.write_text(lcov_text)
-    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
-    monkeypatch.setenv("ATTEMPT_LOG", str(tmp_path / "attempts.log"))
-    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_STUB)
-
-
-def attempts_in(tmp_path):
-    attempt_log = tmp_path / "attempts.log"
-    return len(attempt_log.read_text().splitlines()) if attempt_log.exists() else 0
 
 
 def js_target(repo):
