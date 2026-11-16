@@ -7,7 +7,7 @@ since the change did not measure them.
 
 import math
 
-from quality_metrics.functions import is_over_limit
+from quality_metrics.functions import display_value, is_over_limit
 
 AMBER_PERCENT = 70
 RED_PERCENT = 100
@@ -108,7 +108,7 @@ def _color_and_label(record):
     if record["limit"] <= 0:
         return color, record["metric"]
     if record.get("flagged_below_limit"):
-        return color, f"{record['metric']} {record['value']:g}%"
+        return color, f"{record['metric']} {display_value(record)}%"
     percent = int(record["value"] * 100 / record["limit"])
     return color, f"{record['metric']} {percent}%"
 

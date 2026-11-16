@@ -462,6 +462,17 @@ class TestTruncatedValueDisplay:
         assert "split CRAP 7.99," in entry
 
 
+class TestHotspotCoverageLabel:
+    def test_should_label_a_file_with_coverage_of_89_996_percent_as_coverage_89_99_percent(self):
+        run = measured(coverage.coverage_record(target("src/untested.py"), 89.996))
+
+        view = hotspots.hotspot_view(run["measurements"], [])
+
+        [(_, label, _)] = NODE_LINE.findall(view)
+        assert "coverage 89.99%" in label
+        assert "89.996" not in label
+
+
 class TestNoGitVerdict:
     def test_should_name_the_no_git_verdict_and_state_the_removed_code_check_and_base_ref_reads_were_skipped(self):
         run = measured(crap_record("tool.sh", "main", 3))
