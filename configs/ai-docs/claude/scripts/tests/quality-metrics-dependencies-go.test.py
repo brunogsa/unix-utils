@@ -144,3 +144,9 @@ def test_raises_a_tool_error_when_go_arch_lint_reports_execution_warnings_instea
 
     with pytest.raises(ToolError, match="skipped the check: .*config notice"):
         go_arch_lint.find_with_go_arch_lint(tmp_path, SHOP_LAYER_MAP)
+
+
+def test_finds_no_problems_without_a_layer_map(tmp_path, monkeypatch):
+    stub_go_arch_lint_output(monkeypatch, "go-arch-lint must not run")
+
+    assert go_arch_lint.find_with_go_arch_lint(tmp_path, None) == []
