@@ -351,6 +351,15 @@ def build_cherry_pick_conflict_repo(tmp_path):
     ])
 
 
+def split_cherry_pick_conflict(run_split, tmp_path):
+    repo, base = build_cherry_pick_conflict_repo(tmp_path)
+    original_head = git(repo, "rev-parse", "HEAD")
+    report, plan, finding = run_split_expecting_conflict(
+        run_split, tmp_path, repo, base
+    )
+    return repo, original_head, report, plan, finding
+
+
 def assert_repo_restored_after_conflict(repo, original_head):
     assert git(repo, "rev-parse", "--abbrev-ref", "HEAD") == FEATURE_BRANCH
     assert git(repo, "rev-parse", "HEAD") == original_head
@@ -387,11 +396,8 @@ def assert_conflict_kept_the_commits_in_the_feature_pr(
 def test_should_keep_the_forced_refactors_in_the_feature_pr_with_a_metrics_finding_when_the_cherry_pick_conflicts(
     tmp_path, run_split,
 ):
-    repo, base = build_cherry_pick_conflict_repo(tmp_path)
-    original_head = git(repo, "rev-parse", "HEAD")
-
-    report, plan, finding = run_split_expecting_conflict(
-        run_split, tmp_path, repo, base
+    repo, original_head, report, plan, finding = (
+        split_cherry_pick_conflict(run_split, tmp_path)
     )
 
     assert_conflict_kept_the_commits_in_the_feature_pr(
@@ -493,20 +499,19 @@ def test_should_exit_2_and_leave_the_repo_untouched_when_the_plan_has_no_pr_brea
 def test_should_report_the_same_conflict_again_on_a_rerun_after_a_cherry_pick_conflict(
     tmp_path, run_split,
 ):
-    repo, base = build_cherry_pick_conflict_repo(tmp_path)
-    original_head = git(repo, "rev-parse", "HEAD")
-    first_report, _, _ = run_split_expecting_conflict(
-        run_split, tmp_path, repo, base
+    repo, original_head, first_report, _, _ = (
+        split_cherry_pick_conflict(run_split, tmp_path)
     )
+    base = git(repo, "rev-parse", "master")
 
     report, plan, finding = run_split_expecting_conflict(
         run_split, tmp_path, repo, base
     )
 
     assert report == first_report
-    assert report["conflict_operation"] == "cherry-pick"
-    assert report["finding"] == str(finding)
-    assert_repo_restored_after_conflict(repo, original_head)
+    assert_conflict_kept_the_commits_in_the_feature_pr(
+        repo, report, finding, "cherry-pick", original_head
+    )
     assert plan.read_text() == PLAN_TEXT
 
 
