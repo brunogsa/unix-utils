@@ -18,7 +18,12 @@ from pathlib import Path
 
 from quality_metrics.declaration import parse_yaml
 from quality_metrics.tool_map import load_detector_rules
-from quality_metrics.touched import DELETED_FILE_HEADER, DIFF_COMMAND, NEW_FILE_HEADER
+from quality_metrics.touched import (
+    DELETED_FILE_HEADER,
+    DIFF_COMMAND,
+    NEW_FILE_HEADER,
+    UNTRACKED_LISTING,
+)
 from quality_metrics.tools import run_command, run_tool
 
 # The edit-time hook reads the same shared pattern, so a token
@@ -217,10 +222,7 @@ def _suppression_counts_in_diff(repo_dir, base_ref, head_ref):
 
 
 def _untracked_texts(repo_dir):
-    # NUL-separated output skips git's quoting of unusual names.
-    listing = run_tool(
-        ["git", "ls-files", "-z", "--others", "--exclude-standard"], cwd=repo_dir
-    )
+    listing = run_tool(["git", *UNTRACKED_LISTING], cwd=repo_dir)
     texts = {}
     for name in filter(None, listing.split("\0")):
         try:

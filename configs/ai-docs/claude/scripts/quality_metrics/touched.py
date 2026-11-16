@@ -23,6 +23,10 @@ DELETED_FILE_HEADER = "+++ /dev/null"
 DIFF_COMMAND = (
     "-c", "core.quotepath=false", "diff", "--relative", "--no-ext-diff",
 )
+
+# NUL-separated (-z) output skips git's path quoting.
+UNTRACKED_LISTING = ("ls-files", "-z", "--others", "--exclude-standard")
+
 DIFF_ARGUMENTS = (
     *DIFF_COMMAND, "--no-color",
     "--src-prefix=a/", "--dst-prefix=b/",
@@ -64,7 +68,7 @@ def touched_files_since(base_ref):
 
     # NUL-separated output skips git's path quoting, which would
     # otherwise turn a name like café.go into "caf\303\251.go".
-    untracked = _git("ls-files", "-z", "--others", "--exclude-standard").split("\0")
+    untracked = _git(*UNTRACKED_LISTING).split("\0")
     for path in filter(None, untracked):
         touched[path] = WHOLE_FILE
     return touched
