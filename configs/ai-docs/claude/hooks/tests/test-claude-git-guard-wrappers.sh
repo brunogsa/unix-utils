@@ -76,7 +76,8 @@ it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_comma
   for cmd in \
     'git status --short | xargs -n1 dirname' \
     'git log --format=%h -3 | xargs -n1 basename' \
-    'git status --short | xargs -n 1 dirname'; do
+    'git status --short | xargs -n 1 dirname' \
+    'ls /tmp | xargs -n1 basename'; do
     run_hook "$cmd"
     assert_eq "should allow read-only git output piped into xargs -n1 running a non-git command: $cmd" "0" "$HOOK_EXIT"
   done
@@ -89,6 +90,13 @@ it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_comma
 it_should_block_an_xargs_whose_glued_option_value_the_shell_may_split() {
   run_hook 'git log -3 | xargs -n$X git status'
   assert_eq "should block an xargs whose glued option value the shell may split" "2" "$HOOK_EXIT"
+}
+
+# X='1 git commit -m x' splits -n $X into -n 1 git commit -m x,
+# so the git status after it is not surely the command run.
+it_should_block_a_wrapper_whose_separate_option_value_the_shell_may_split() {
+  run_hook 'git log -3 | xargs -n $X git status'
+  assert_eq "should block a wrapper whose separate option value the shell may split" "2" "$HOOK_EXIT"
 }
 
 it_should_block_a_wrapper_whose_options_it_cannot_read() {
@@ -205,6 +213,7 @@ it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_command
 it_should_block_an_xargs_whose_glued_option_value_the_shell_may_split
+it_should_block_a_wrapper_whose_separate_option_value_the_shell_may_split
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words

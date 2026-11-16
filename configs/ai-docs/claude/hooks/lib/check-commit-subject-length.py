@@ -503,12 +503,18 @@ SCREENED_WRAPPERS = {
 
 def _skip_wrapper_options(words, index, options):
     """Return the index past a wrapper's options and positional
-    words; raise UnknownWrapperOption for any other option."""
+    words; raise UnknownWrapperOption for any other option.
+
+    An expandable word among them raises too: the shell may
+    split X='1 git commit -m x' into more words, so the word
+    after it is not surely the command the wrapper runs.
+    """
     while index < len(words) and words[index].text.startswith("-"):
         text = words[index].text
         if text in options.flags:
             index += 1
         elif text in options.valued:
+            _raise_if_any_expandable(words[index + 1:index + 2])
             index += 2
         elif text[:2] in options.valued and not words[index].is_expandable:
             # getopt reads -n1 as -n 1, its value glued on; the
@@ -516,7 +522,20 @@ def _skip_wrapper_options(words, index, options):
             index += 1
         else:
             raise UnknownWrapperOption(text)
-    return index + options.positionals
+    end = index + options.positionals
+
+    # The word at end is the command, or an option an expansion
+    # may hide, as $OPT does in xargs $OPT git status.
+    _raise_if_any_expandable(words[index:end + 1])
+    return end
+
+
+def _raise_if_any_expandable(words):
+    """Raise UnknownWrapperOption when the shell may split one
+    of the words into more."""
+    for word in words:
+        if word.is_expandable:
+            raise UnknownWrapperOption(word.text)
 
 
 def _command_word_index(words, wrappers):
