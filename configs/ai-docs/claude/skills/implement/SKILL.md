@@ -192,7 +192,7 @@ Number the entries seeded as `Batch-end <i>/<N>` in the fixed order above.
 
 Prefix each with the owning `PR-N ·` on a PR-label run.
 
-Flip each to `in_progress` when its step starts and `completed` when it lands. The push step has no toggle, so that reminder never completes as skipped.
+Flip each to `in_progress` when its step starts and `completed` when it lands. The push reminder completes as skipped only when get-push-route.py prints by-hand.
 
 A toggled-off step's skip is recorded only in the batch-end package (§8.4), never as a TaskList entry.
 
