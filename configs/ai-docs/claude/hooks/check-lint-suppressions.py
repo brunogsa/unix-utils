@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-# check-lint-suppressions - Flag lint/type-checker suppression
-# comments that an Edit, MultiEdit or Write just added.
+# check-lint-suppressions - Flag lint, type-check, coverage and
+# duplication suppression comments that an Edit, MultiEdit or
+# Write just added.
 #
 # Usage (PostToolUse hook, matcher Edit|MultiEdit|Write):
 #   check-lint-suppressions.py < tool-call.json
@@ -79,11 +80,12 @@ def get_replaced_and_new_text(tool_name, tool_input, tool_response):
 def build_feedback(file_path, added_tokens):
     token_list = ", ".join(f"`{token}`" for token in sorted(added_tokens))
     return (
-        f"This edit added a lint/type-checker suppression to "
+        f"This edit added a checker suppression to "
         f"{file_path}: {token_list}.\n"
         "1. Remove the suppression - do not copy it from sibling "
         "files that carry it.\n"
-        "2. Run the project's linter or type-checker on the file.\n"
+        "2. Fix the code the comment hides from its checker - "
+        "linter, type-checker, coverage or duplication tool.\n"
         "3. Keep it only if the check genuinely fails and the "
         "underlying issue cannot be fixed - then say so in chat, "
         "with the failing output.\n"

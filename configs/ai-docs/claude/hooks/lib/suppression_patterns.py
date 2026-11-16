@@ -1,4 +1,5 @@
-"""The lint/type-checker suppression comments the harness rejects.
+"""The suppression comments the harness rejects: lint, type-check,
+coverage and duplication ignores.
 
 The edit-time hook and the quality-metrics script share this one
 pattern, so a token blocked at edit time is also listed as a
