@@ -1947,3 +1947,62 @@ describe('lexing false positives', () => {
     });
   });
 });
+
+// A docstring is prose a reader scans like a comment, so it
+// answers to the same width cap even though python stores it
+// as a string.
+describe('python docstrings', () => {
+  describe('an over-cap docstring line', () => {
+    it('should report the over-cap line of a module docstring', () => {
+      const file = put(
+        'module.py',
+        lines(SHEBANG, '"""Bill one unit per response.', '', AGGREGATOR, '"""', 'import os'),
+      );
+      assert.equal(check(file).out, `== ${file}\nWIDTH 4:87`);
+    });
+
+    it('should report the over-cap line of a raw-string class docstring', () => {
+      const file = put(
+        'klass.py',
+        lines('class Aggregator:', `    r"""${AGGREGATOR}"""`, '    pass'),
+      );
+      assert.equal(check(file).out, `== ${file}\nWIDTH 2:98`);
+    });
+
+    it('should report the over-cap docstring of an async function whose header spans lines', () => {
+      const file = put(
+        'func.py',
+        lines(
+          'async def collapse(',
+          '    records,',
+          ') -> int:',
+          `    '''${AGGREGATOR}'''`,
+          '    return len(records)',
+        ),
+      );
+      assert.equal(check(file).out, `== ${file}\nWIDTH 4:97`);
+    });
+
+    it('should leave an over-cap docstring byte-identical under --fix and still report it', () => {
+      const original = lines('def collapse(records):', `    """${AGGREGATOR}"""`, '    return 1');
+      const file = put('fixed.py', original);
+      const result = fix(file);
+      assert.equal(read(file), original);
+      assertContains(result.out, 'WIDTH 2:97');
+    });
+
+    it('should leave an over-cap docstring line that opens with # byte-identical under --fix', () => {
+      const original = lines(
+        'def run():',
+        '    """Run the example.',
+        '',
+        `    # ${AGGREGATOR}`,
+        '    """',
+        '    return 1',
+      );
+      const file = put('hash.py', original);
+      fix(file);
+      assert.equal(read(file), original);
+    });
+  });
+});

@@ -17,7 +17,7 @@ The caps themselves live in `SKILL.md`; this file holds the remedies and bad/goo
 
 It covers TypeScript/JavaScript, shell, and Python, taking the language from the file extension and then the `#!` shebang - pass `--lang` when a file has neither.
 
-A Python module docstring is a string, not a comment, so the script skips it and its width goes unmeasured.
+A Python docstring - the first statement of a module, class, or function body - is held to the width cap only, since every other rule reads `#` comment shape a docstring never has. Any other triple-quoted string is data and goes unmeasured.
 
 ## WIDTH - over-64-char lines
 
