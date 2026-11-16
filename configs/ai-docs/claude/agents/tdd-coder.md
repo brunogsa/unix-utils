@@ -15,11 +15,11 @@ hooks:
     - matcher: Bash
       hooks:
         - type: command
-          command: "python3 ~/.claude/hooks/check-tdd-coder-commit-evidence.py || true"
+          command: "python3 ~/.claude/hooks/run-committed-hook.py ~/.claude/hooks/check-tdd-coder-commit-evidence.py || true"
   Stop:
     - hooks:
         - type: command
-          command: "python3 ~/.claude/hooks/check-tdd-coder-report-files.py || true"
+          command: "python3 ~/.claude/hooks/run-committed-hook.py ~/.claude/hooks/check-tdd-coder-report-files.py || true"
 ---
 
 ## Objective

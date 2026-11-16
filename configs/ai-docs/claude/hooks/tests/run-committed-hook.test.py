@@ -13,12 +13,16 @@ only in the one case that needs git to fail mid-snapshot.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 HOOKS_DIR = Path(__file__).resolve().parent.parent
 LAUNCHER = HOOKS_DIR / "run-committed-hook.py"
+AGENT_FILE = HOOKS_DIR.parent / "agents" / "tdd-coder.md"
 
 HOOK_NAME = "check-example.py"
 HELPER_NAME = "example-helper.py"
@@ -191,3 +195,41 @@ class TestNoCommittedHook:
         output = get_hook_output(run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload()))
 
         assert output["version"] == "new, untracked"
+
+
+def frontmatter_command(event: str) -> str:
+    """The command wired under hooks: <event>: in
+    tdd-coder.md's frontmatter."""
+    frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
+    match = re.search(rf"^  {event}:\n(?:^ {{4,}}.*\n)*?^ +command: \"(.+)\"$", frontmatter, re.MULTILINE)
+    assert match, f"tdd-coder.md frontmatter wires no hooks: {event}: command"
+    return match.group(1)
+
+
+class TestAgentFileWiring:
+    @pytest.mark.parametrize(
+        ("event", "hook_name", "payload"),
+        [
+            ("PreToolUse", "check-tdd-coder-commit-evidence.py", pretooluse_payload()),
+            ("Stop", "check-tdd-coder-report-files.py", {**stop_payload(), "tool_name": "none"}),
+        ],
+        ids=["commit-evidence", "report-files"],
+    )
+    def test_should_run_the_committed_hook_through_the_frontmatter_command_when_the_working_hook_crashes(
+        self, tmp_path, event, hook_name, payload
+    ):
+        home = tmp_path / "home"
+        hooks_dir = commit_hooks(home / ".claude", {hook_name: hook_source(), HELPER_NAME: helper_source("committed")})
+        (hooks_dir / hook_name).write_text(CRASHING_SOURCE, encoding="utf-8")
+        (hooks_dir / LAUNCHER.name).symlink_to(LAUNCHER)
+
+        result = subprocess.run(
+            ["bash", "-c", frontmatter_command(event)],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            check=False,
+            env={**GIT_ENV, "HOME": str(home)},
+        )
+
+        assert json.loads(result.stdout or "null") == {"version": "committed", "tool": payload["tool_name"]}
