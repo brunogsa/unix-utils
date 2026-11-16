@@ -51,7 +51,8 @@ def shellmetrics_rows(path, run=run_tool):
     return list(csv.reader(io.StringIO(output)))[1:]
 
 
-def bash_file_lloc(path):
+def bash_file_lloc(path, run=run_tool):
     """A Bash file's logical lines: its functions' plus the
-    top-level script's."""
-    return sum(int(row[SHELLMETRICS_LLOC]) for row in shellmetrics_rows(path))
+    top-level script's; `run(command)` returns a command's
+    stdout."""
+    return sum(int(row[SHELLMETRICS_LLOC]) for row in shellmetrics_rows(path, run=run))

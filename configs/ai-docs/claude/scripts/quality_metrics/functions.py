@@ -78,7 +78,7 @@ class FunctionToolError(ToolError):
         self.tool = tool
 
 
-def _run_function_tool(policy, command, input_text=None):
+def run_function_tool(policy, command, input_text=None, cwd=None):
     """The tool's stdout, run under `policy`'s timeout when
     given.
 
@@ -86,10 +86,13 @@ def _run_function_tool(policy, command, input_text=None):
     FunctionToolError naming the tool, so a caller can ask about
     it.
     """
+    options = {"cwd": cwd} if cwd else {}
     try:
         if policy is None:
-            return run_tool(command, input_text)
-        return policy.run(lambda timeout: run_tool(command, input_text, timeout=timeout))
+            return run_tool(command, input_text, **options)
+        return policy.run(
+            lambda timeout: run_tool(command, input_text, timeout=timeout, **options)
+        )
     except ToolError as error:
         raise FunctionToolError(command[0], str(error)) from error
 
@@ -189,7 +192,7 @@ def _lizard_nesting(row, nesting_reader):
 
 
 def _measure_functions_with_lizard(path, policy, nesting_reader):
-    output = _run_function_tool(policy, [
+    output = run_function_tool(policy, [
         "lizard", "--csv", "-E", "nd", "-E", "ns", "-E", "cognitive", str(path),
     ])
     return [
@@ -210,7 +213,7 @@ def _measure_functions_with_lizard(path, policy, nesting_reader):
 def _measure_bash_functions(path, policy):
     end_lines = _bash_function_end_lines(path, policy)
     functions = []
-    rows = shellmetrics_rows(path, run=lambda command: _run_function_tool(policy, command))
+    rows = shellmetrics_rows(path, run=lambda command: run_function_tool(policy, command))
     for row in rows:
         name, start = row[SHELLMETRICS_NAME], int(row[SHELLMETRICS_START])
         if name in SHELLMETRICS_PSEUDO_FUNCTIONS:
@@ -238,7 +241,7 @@ def _bash_function_end_lines(path, policy):
     supplies it: a parser knows where a function ends when a
     heredoc or a quoted brace holds a `}`.
     """
-    tree = json.loads(_run_function_tool(
+    tree = json.loads(run_function_tool(
         policy, ["shfmt", "--to-json", "-ln=bash"], Path(path).read_text()
     ))
     return {

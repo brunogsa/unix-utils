@@ -12,9 +12,10 @@ import re
 from quality_metrics.functions import (
     BASH,
     measurement,
+    run_function_tool,
     touched_functions,
 )
-from quality_metrics.tools import ToolError, bash_file_lloc, run_tool
+from quality_metrics.tools import ToolError, bash_file_lloc
 
 FUNCTION_LINES_LIMIT = 30
 FILE_LINES_LIMIT = 300
@@ -82,8 +83,13 @@ def _count_web_lines(target):
 
 def _count_code_lines(target):
     if target.language == BASH:
-        return bash_file_lloc(target.path)
-    output = run_tool(["lizard", "--xml", str(target.path)])
+        return bash_file_lloc(
+            target.path,
+            run=lambda command: run_function_tool(target.tool_policy, command),
+        )
+    output = run_function_tool(
+        target.tool_policy, ["lizard", "--xml", str(target.path)]
+    )
     match = LIZARD_FILE_NCSS.search(output)
     if match is None:
         raise ToolError(f"lizard reported no file length for {target.path}")
