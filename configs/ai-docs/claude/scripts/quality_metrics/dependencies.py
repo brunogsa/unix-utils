@@ -81,6 +81,7 @@ OUTSIDE_PACKAGE_DETAIL = (
 )
 
 PYTHON_PACKAGE_MARKER = "__init__.py"
+MIN_CHECKABLE_LAYERS = 2
 SKIPPED_DIRECTORY_NAMES = ("node_modules",)
 
 
@@ -561,8 +562,9 @@ def _importable_layers(tree, package_roots, layer_map):
 
     A layer glob that is not a plain package path, or whose
     package is missing, is left out: import-linter fails on an
-    unknown package, and one layer alone has nothing to
-    compare against.
+    unknown package. A layer map left with under two layers
+    checks no layer direction, so it raises rather than read
+    as clean.
     """
     if layer_map is None:
         return []
@@ -576,7 +578,18 @@ def _importable_layers(tree, package_roots, layer_map):
         ]
         if modules:
             layers.append((layer.name, modules))
-    return layers if len(layers) >= 2 else []
+    if len(layers) < MIN_CHECKABLE_LAYERS:
+        resolved_names = {name for name, _ in layers}
+        unresolved_names = [
+            layer.name for layer in layer_map.layers
+            if layer.name not in resolved_names
+        ]
+        raise ToolError(
+            f"layer map names fewer than {MIN_CHECKABLE_LAYERS} Python "
+            "packages, so no layer direction was checked; unresolved "
+            f"layers: {', '.join(unresolved_names) or 'none declared'}"
+        )
+    return layers
 
 
 def _glob_to_module(glob, package_roots):

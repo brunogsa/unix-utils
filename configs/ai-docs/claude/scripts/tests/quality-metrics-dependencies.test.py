@@ -785,6 +785,50 @@ def test_exits_not_measured_naming_the_layer_map_file_when_it_is_not_valid_yaml(
     assert "Traceback" not in result.stderr
 
 
+def test_scores_a_python_file_as_a_deferred_violation_when_only_one_declared_layer_names_a_package(tmp_path):
+    base_files = {
+        "infra/__init__.py": "",
+        "infra/db.py": PYTHON_INFRA_DB,
+    }
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"infra/db.py": "SAVED = 2\n"},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["metric"] == "dependency_direction"
+    assert deferred["file"] == "infra/db.py"
+    assert deferred["kind"] == "tool-failure"
+    assert "domain" in deferred["detail"]
+    assert deferred["layer_map_source"] == "declared"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
+def test_scores_a_python_file_as_a_deferred_violation_when_a_layer_glob_keeps_a_wildcard_in_its_path(tmp_path):
+    base_files = {
+        "domain/__init__.py": "",
+        "domain/order.py": PYTHON_DOMAIN_WITHOUT_INFRA,
+        "infra/__init__.py": "",
+        "infra/db.py": PYTHON_INFRA_DB,
+    }
+    wildcard_layers = DECLARED_LAYERS.replace("infra/**", "inf*/**")
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"domain/order.py": PYTHON_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, wildcard_layers),
+    )
+
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "tool-failure"
+    assert "infra" in violations[0]["detail"]
+    assert violations[0]["pessimistic"] is True
+
+
 def test_flags_a_cycle_the_range_adds_when_an_uncommitted_edit_to_an_untouched_file_breaks_it(tmp_path):
     repo = make_repo(tmp_path, PYTHON_CYCLE_BASE_FILES)
     base_sha = head_of(repo)
