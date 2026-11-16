@@ -72,7 +72,6 @@ def test_should_screen_a_git_alias_run_through_a_bare_wrapper_like_the_unwrapped
         "nice -n 5 git ci -m x",
         "xargs -0 git ci -m x",
         "xargs -r git ci -m x",
-        "xargs -I {} git ci -m {}",
         "xargs -n 1 git ci -m x",
         "env -i git ci -m x",
         "env -u HOME git ci -m x",
@@ -95,6 +94,7 @@ def test_should_screen_a_git_alias_run_through_a_wrapper_given_its_known_options
         "timeout --foreground 5 git status",
         "xargs --null git status",
         "exec -a name git status",
+        "xargs -I {} git ci -m {}",
     ],
 )
 def test_should_screen_as_a_possible_commit_a_wrapper_whose_options_it_cannot_read(command):
@@ -113,6 +113,12 @@ def test_should_screen_as_a_possible_commit_a_wrapper_whose_options_it_cannot_re
 )
 def test_should_screen_a_git_alias_run_by_a_command_not_known_as_a_wrapper(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+# xargs -I swaps each named word for a stdin line, so the
+# status here may run as commit.
+def test_should_screen_as_a_possible_commit_an_xargs_that_rewrites_its_git_words():
+    assert _attribution_verdict("xargs -I status git status -m x") == WITHHELD_VERDICT
 
 
 

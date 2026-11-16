@@ -74,6 +74,13 @@ it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper() {
   assert_eq "should block a git alias run by a command not known as a wrapper" "2" "$HOOK_EXIT"
 }
 
+# xargs -I swaps each named word for a stdin line, so the
+# status here may run as commit.
+it_should_block_an_xargs_that_rewrites_its_git_words() {
+  run_hook 'xargs -I status git status -m x'
+  assert_eq "should block an xargs that rewrites its git words" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_wrapper_running_no_git_alias() {
   local cmd
   for cmd in \
@@ -90,6 +97,7 @@ it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
+it_should_block_an_xargs_that_rewrites_its_git_words
 it_should_allow_a_wrapper_running_no_git_alias
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

@@ -482,7 +482,9 @@ SCREENED_WRAPPERS = {
     "sudo": WrapperOptions(flags=frozenset({"-E", "-n"}), valued=frozenset({"-u"})),
     "time": WrapperOptions(flags=frozenset({"-p"})),
     "timeout": WrapperOptions(valued=frozenset({"-k", "-s"}), positionals=1),
-    "xargs": WrapperOptions(flags=frozenset({"-0", "-r"}), valued=frozenset({"-I", "-n"})),
+
+    # -I is left out: it swaps the words of the command it runs.
+    "xargs": WrapperOptions(flags=frozenset({"-0", "-r"}), valued=frozenset({"-n"})),
 }
 
 
