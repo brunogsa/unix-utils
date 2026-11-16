@@ -117,7 +117,7 @@ def main(arguments):
 
 def _parse_arguments(arguments):
     parser = argparse.ArgumentParser(
-        description="Measure the code a change touched against the size limits."
+        description="Measure the code a change touched against the declared limits."
     )
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument("--per-unit", action="store_true",
