@@ -62,6 +62,24 @@ JEST_CONFIG_EXCLUDING_REPORT = (
     "  coveragePathIgnorePatterns: ['src/report.ts'],\n"
     "};\n"
 )
+JEST_CONFIG_IGNORING_SPEC_FILES = (
+    "module.exports = {\n"
+    "  coveragePathIgnorePatterns: ['\\\\.(spec|test)\\\\.[jt]s$'],\n"
+    "};\n"
+)
+JEST_CONFIG_IGNORING_SPEC_FILES_AND_REPORT = (
+    "module.exports = {\n"
+    "  coveragePathIgnorePatterns: ['\\\\.(spec|test)\\\\.[jt]s$', 'src/report.ts'],\n"
+    "};\n"
+)
+JEST_CONFIG_COLLECTING_FROM_SRC_FILES = (
+    "module.exports = {\n  collectCoverageFrom: ['src/[a-z]*.ts'],\n};\n"
+)
+JEST_CONFIG_COLLECTING_WITHOUT_REPORT = (
+    "module.exports = {\n"
+    "  collectCoverageFrom: ['src/[a-z]*.ts', '!src/report.ts'],\n"
+    "};\n"
+)
 REPORT_SOURCE = "export function render(rows: string[]): string {\n  return rows.join('\\n');\n}\n"
 
 
@@ -164,6 +182,38 @@ class TestFailureScenarios:
             {"kind": "opt_out", "file": COMMITTED_DECLARATION_NAME, "value": "ts.size"}
         ]
         assert len(size_records_of(report, "src/parse.ts")) == 1
+
+
+class TestJestListsWithCharacterClasses:
+    def test_should_list_a_coverage_path_ignore_added_after_an_entry_holding_a_character_class(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": JEST_CONFIG_IGNORING_SPEC_FILES,
+            "src/report.ts": REPORT_SOURCE,
+        })
+        (repo / "jest.config.js").write_text(JEST_CONFIG_IGNORING_SPEC_FILES_AND_REPORT)
+
+        report = measure_report(repo, write_declaration(tmp_path))
+
+        assert report["gate_input_violations"] == [
+            {"kind": "coverage_exclude", "file": "jest.config.js", "value": "src/report.ts"}
+        ]
+
+    def test_should_list_a_negated_collect_glob_added_after_a_glob_holding_a_character_class(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": JEST_CONFIG_COLLECTING_FROM_SRC_FILES,
+            "src/report.ts": REPORT_SOURCE,
+        })
+        (repo / "jest.config.js").write_text(JEST_CONFIG_COLLECTING_WITHOUT_REPORT)
+
+        report = measure_report(repo, write_declaration(tmp_path))
+
+        assert report["gate_input_violations"] == [
+            {"kind": "coverage_exclude", "file": "jest.config.js", "value": "!src/report.ts"}
+        ]
 
 
 class TestHappyPath:

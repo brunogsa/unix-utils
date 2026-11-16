@@ -41,11 +41,13 @@ FILE_HEADER_PREFIX = "diff --git"
 NEW_FILE_HEADER = "+++ b/"
 NO_NEW_FILE = "+++ /dev/null"
 
+# A list ends at a `]` before a comma or the closing brace, so
+# a character class in an entry does not cut the list short.
 EXCLUDE_LIST = re.compile(
-    r"coveragePathIgnorePatterns[\"']?\s*:\s*\[(.*?)\]", re.DOTALL
+    r"coveragePathIgnorePatterns[\"']?\s*:\s*\[(.*?)\]\s*(?:,|\})", re.DOTALL
 )
 COLLECT_LIST = re.compile(
-    r"collectCoverageFrom[\"']?\s*:\s*\[(.*?)\]", re.DOTALL
+    r"collectCoverageFrom[\"']?\s*:\s*\[(.*?)\]\s*(?:,|\})", re.DOTALL
 )
 QUOTED_STRING = re.compile(r"[\"']([^\"']*)[\"']")
 NEGATED_GLOB_MARK = "!"
