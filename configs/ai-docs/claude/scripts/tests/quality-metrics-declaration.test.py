@@ -73,7 +73,10 @@ class TestHappyPath:
         loaded = declaration.load_declaration(SHIPPED_DECLARATION)
 
         assert set(loaded.languages) == {"js", "ts", "html", "css", "python", "bash", "go"}
-        assert loaded.per_unit == ()
+        assert loaded.per_unit == (
+            "size", "nesting", "parameters",
+            "code_duplication", "test_duplication", "dependency_direction",
+        )
 
 
 class TestCornerCases:
