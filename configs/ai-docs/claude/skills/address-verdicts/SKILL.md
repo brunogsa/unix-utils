@@ -91,7 +91,7 @@ A lens with no finding gets no entry, since an empty task reads as work that sil
 
 **One entry per lens, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
-Each entry names its own count, and §5 still annotates every finding individually in its verdict file.
+Each entry names its own count of dispatched findings, and §5 still annotates every finding individually in its verdict file.
 Add one closing `[Reminder]` entry for the final report (§6) - it survives a mid-run compaction, so the wrap-up step can't get silently skipped.
 
 ## 4. Apply each lens through one pinned subagent
@@ -102,9 +102,7 @@ Dispatch one subagent per entry seeded above, **serially, in that seeded order**
 
 A finding whose target is a document, spec, plan, prompt-markdown, `SKILL.md`, agent file, comment, rename, file move, config value, or frontmatter value goes to `direct-coder`, whichever lens reported it.
 
-A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)` per §5.
-
-This overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally" - see [`references/design-rationale.md`](references/design-rationale.md).
+A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)`.
 
 A lens whose findings are all non-code dispatches its own agent zero times - a correct outcome. §3 still seeds its entry, and §5 still annotates every finding.
 
@@ -117,6 +115,8 @@ A lens whose findings are all non-code dispatches its own agent zero times - a c
 Each dispatch carries **all** findings assigned to it at once, each with the identifier, scope, and evidence its report gives, plus the test command from §2:
 
 - **`test-sdd` entry** (from `verdict_test-sdd_*.md`): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
+  - Dispatch only `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>` output, which omits the unplanned-tests finding, left unannotated.
+
   - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
 
   - Pass every planned title verbatim so each test lands under the name the plan declared.
