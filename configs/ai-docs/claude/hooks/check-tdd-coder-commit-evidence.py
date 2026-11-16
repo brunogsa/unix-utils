@@ -12,7 +12,7 @@
 #
 # stdout: a PreToolUse deny decision as JSON when a possible
 #   commit lacks that evidence; nothing otherwise
-# exit: always 0; stdin that is not a JSON object fails open
+# exit: always 0; stdin that is not a JSON object fails open.
 #
 # The gated agent is the adversary, so this screens instead of
 # parsing: any call whose raw text names the word commit, runs
@@ -85,9 +85,18 @@ GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
 # after it splices on more, so diff"tool" runs difftool.
 NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?=[\s;&|()<>]|$)")
 
-# HOME and XDG_CONFIG_HOME pick the global config git reads,
-# so setting either can plant a program-running key.
-GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)(?:GIT_\w*|HOME|XDG_CONFIG_HOME)=")
+# These pick git's config, binary, pager or editor, so any
+# write to one - NAME=, +=, export, read, unset, env -u - is a
+# possible commit. Only a $NAME or ${NAME...} read passes.
+GIT_ENVIRONMENT_NAMES = r"GIT_\w*|HOME|XDG_CONFIG_HOME|PATH|PAGER|EDITOR|VISUAL"
+GIT_ENVIRONMENT_READ = re.compile(
+    rf"\$(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|\$\{{[#!]?(?:{GIT_ENVIRONMENT_NAMES})(?!\w)(?!:?=)"
+)
+
+# zsh ties its path array to PATH, so path+=(dir) sets PATH.
+GIT_ENVIRONMENT_NAME = re.compile(
+    rf"(?<!\w)(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|(?<![\w.$-])path(?:\[[^\]]*\])?\+?="
+)
 
 # git-commit and git-commit-tree also run as dashed binaries
 # in git's exec path, so any name reaching for them counts.
@@ -139,7 +148,8 @@ BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
-    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, sets a GIT_*, HOME or XDG_CONFIG_HOME variable, "
+    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, HOME, XDG_CONFIG_HOME, PATH, PAGER, EDITOR or VISUAL "
+    "variable other than in a $NAME or ${NAME} read, "
     "runs git after cd/pushd or in a repo whose git config or hooks run a program, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
@@ -183,7 +193,12 @@ def runs_other_git_subcommand(text: str) -> bool:
     # subcommand - an option, a quote, nothing - may commit.
     git_ends = (match.end() for match in GIT_WORD.finditer(text))
     has_other_call = any(NO_COMMIT_GIT_CALL.match(text, end) is None for end in git_ends)
-    return has_other_call or GIT_VARIABLE_ASSIGNMENT.search(text) is not None
+    return has_other_call or sets_git_environment(text)
+
+
+def sets_git_environment(text: str) -> bool:
+    unread = GIT_ENVIRONMENT_READ.sub("", text)
+    return GIT_ENVIRONMENT_NAME.search(unread) is not None
 
 
 def names_commit(text: str) -> bool:

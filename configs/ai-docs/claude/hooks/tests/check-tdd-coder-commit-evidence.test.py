@@ -564,6 +564,54 @@ class TestGlobalConfigRedirect:
         possible_commit_reason(tmp_path, command)
 
 
+class TestGitEnvironmentNameForms:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "HOME+=-planted; git status --short",
+            "export XDG_CONFIG_HOME; git status --short",
+            "declare -x GIT_DIR; git status --short",
+            "read HOME <<< /tmp/planted-home; git status --short",
+            "printf -v HOME /tmp/planted-home; git status --short",
+            "unset HOME; git status --short",
+            "env -u HOME git status --short",
+            ": ${HOME:=/tmp/planted-home}; git status --short",
+            "PATH=/tmp/planted:$PATH git status --short",
+            "path+=(/tmp/planted); git status --short",
+            "PAGER=./release.sh git log",
+            "EDITOR=./release.sh git restore -p a.py",
+        ],
+        ids=[
+            "append",
+            "export",
+            "declare",
+            "read",
+            "printf-v",
+            "unset",
+            "env-u",
+            "default-assign",
+            "path",
+            "zsh-path-array",
+            "pager",
+            "editor",
+        ],
+    )
+    def test_should_deny_a_call_that_sets_a_git_environment_name_any_way(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            'ls "${HOME}/x" && git status --short',
+            'ls "$HOME" && git status --short',
+            "echo ${#PATH} ${HOME:-x}; git log",
+        ],
+        ids=["braced-read", "plain-read", "length-and-default-read"],
+    )
+    def test_should_let_a_call_through_that_only_reads_a_git_environment_name(self, tmp_path, command):
+        assert check_commit(tmp_path, command=command) is None
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
