@@ -211,10 +211,9 @@ class TestUnplannedTests:
         )
         _commit(repo, "test: csv tests the plan names", GATE_TRAILER)
 
-        completed = _run(repo, _plan(tmp_path), base)
+        listed = _listed(repo, _plan(tmp_path), base)
 
-        assert completed.returncode == 0, completed.stderr
-        assert json.loads(completed.stdout) == []
+        assert listed == []
 
     def test_should_ignore_it_calls_inside_string_literals_of_a_python_test_file(
         self, tmp_path
