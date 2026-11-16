@@ -440,6 +440,8 @@ def main():
     # the caller's directory before the chdir below, then name
     # each suite relative to the repo root.
     named_paths = [os.path.relpath(os.path.abspath(path), repo_root) for path in sys.argv[1:]]
+    if report_unusable_paths(sys.argv[1:], named_paths, repo_root):
+        return 1
     os.chdir(repo_root)
 
     # Pre-flight headroom gate, not a lock.

@@ -759,6 +759,41 @@ class TestPathArguments:
             assert result.status == 2
             assert not suite_bodies_ran(result)
 
+    class TestUnusablePath:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_with_paths(
+                tmp_path_factory,
+                shared_stub,
+                [FAKE_BASH_SUITE, "configs/ai-docs/claude/tests/missing.test.js"],
+                bash_suites={FAKE_BASH_SUITE: 0},
+            )
+
+        def test_should_exit_one_naming_a_path_that_does_not_exist(self, result):
+            assert result.status == 1
+            assert "configs/ai-docs/claude/tests/missing.test.js" in result.output
+
+        def test_should_run_nothing_when_any_named_path_is_unusable(self, result):
+            assert not suite_bodies_ran(result)
+            assert result_lines(result) == []
+
+    class TestUnknownKindOfFile:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            sandbox = build_sandbox(root, shared_stub)
+            (sandbox / "notes.txt").write_text("not a suite\n")
+            return run_runner(sandbox, args=["notes.txt"])
+
+        def test_should_exit_one_naming_an_existing_file_that_is_no_known_suite_kind(
+            self, result
+        ):
+            assert result.status == 1
+            assert "notes.txt" in result.output
+            assert result_lines(result) == []
+
 
 WAIT_BOUND_SECONDS = 10
 
