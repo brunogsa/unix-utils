@@ -36,7 +36,7 @@ classify() {
 }
 """
 
-COMPLETE_VERDICT_DIFF = "diff --git a/report.go b/report.go\n+complete earlier write\n"
+COMPLETE_SPLIT_DIFF = "diff --git a/report.go b/report.go\n+complete earlier write\n"
 LATER_VERDICT_DIFF = "diff --git a/report.go b/report.go\n+a later write the kill interrupts\n"
 
 # The temp file is fully written; the process dies before
@@ -88,7 +88,7 @@ class TestKilledAtomicWrite:
     ):
         verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_00:07.md"
 
-        killed = write_killed_before_rename(verdict, COMPLETE_VERDICT_DIFF)
+        killed = write_killed_before_rename(verdict, COMPLETE_SPLIT_DIFF)
 
         assert killed.returncode == -signal.SIGKILL
         assert list(tmp_path.glob("verdict_quality-gate_*")) == []
@@ -99,10 +99,10 @@ class TestKilledAtomicWrite:
         self, tmp_path
     ):
         split_diff = tmp_path / "diff_quality-gate_part-1.patch"
-        split_diff.write_text(COMPLETE_VERDICT_DIFF)
+        split_diff.write_text(COMPLETE_SPLIT_DIFF)
 
         killed = write_killed_before_rename(split_diff, LATER_VERDICT_DIFF)
 
         assert killed.returncode == -signal.SIGKILL
-        assert split_diff.read_text() == COMPLETE_VERDICT_DIFF
+        assert split_diff.read_text() == COMPLETE_SPLIT_DIFF
         assert list(tmp_path.glob("diff_quality-gate_*")) == [split_diff]
