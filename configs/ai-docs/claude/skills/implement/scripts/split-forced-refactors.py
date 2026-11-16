@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-# split-forced-refactors.py - Move forced refactors to a branch.
-#
-# Purpose: local git only, never pushes.
+# split-forced-refactors.py - Move forced refactors to a branch;
+# local git only, never pushes.
 #
 # Usage:
 #   split-forced-refactors.py --repo <path> --base <ref>
