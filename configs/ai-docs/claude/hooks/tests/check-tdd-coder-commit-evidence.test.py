@@ -933,6 +933,74 @@ class TestGitInANonRepoDir:
         possible_commit_reason(tmp_path, "git log --oneline -3", cwd=str(bare))
 
 
+def commit_all(repo, message):
+    git(repo, "add", ".")
+    git(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", message)
+
+
+def superproject_with_submodule(tmp_path):
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    git(origin, "init", "-q")
+    (origin / "lib.py").write_text("X = 1\n", encoding="utf-8")
+    commit_all(origin, "lib")
+    main = tmp_path / "main"
+    main.mkdir()
+    git(main, "init", "-q")
+    git(main, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(origin), "sub")
+    commit_all(main, "add submodule")
+    return main, main / "sub"
+
+
+class TestGitInASubmoduleDir:
+    def test_should_let_a_read_through_in_a_submodule_whose_git_dir_sits_in_the_superproject(self, tmp_path):
+        _, sub = superproject_with_submodule(tmp_path)
+
+        assert check_commit(tmp_path, command="git status --short", cwd=str(sub)) is None
+
+    def test_should_deny_git_in_a_submodule_whose_git_dir_sits_outside_the_superproject(self, tmp_path):
+        main, sub = superproject_with_submodule(tmp_path)
+        moved = tmp_path / "elsewhere" / "modules" / "sub"
+        moved.parent.mkdir(parents=True)
+        (main / ".git" / "modules" / "sub").rename(moved)
+        (sub / ".git").write_text(f"gitdir: {moved}\n", encoding="utf-8")
+        git(tmp_path, "config", "--file", str(moved / "config"), "core.worktree", str(sub))
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(sub))
+
+
+class TestGrepForTheWordGit:
+    @pytest.fixture
+    def runner_repo(self, tmp_path):
+        repo = git_repo(tmp_path)
+        (repo / "run-tests.py").write_text("import subprocess\nsubprocess.run(['git', 'status'])\n", encoding="utf-8")
+        commit_all(repo, "runner")
+        return repo
+
+    def test_should_let_a_grep_for_the_word_git_through(self, tmp_path, runner_repo):
+        command = 'grep -n "git" run-tests.py'
+
+        assert check_commit(tmp_path, command=command, cwd=str(runner_repo)) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        ['grep "git" run-tests.py; git config core.fsmonitor ./x', 'grep "$(git config core.pager)" run-tests.py'],
+        ids=["second-command-after-a-semicolon", "command-substitution"],
+    )
+    def test_should_deny_a_grep_line_that_also_runs_git(self, tmp_path, runner_repo, command):
+        possible_commit_reason(tmp_path, command, cwd=str(runner_repo))
+
+    def test_should_deny_a_committed_script_once_an_edit_deletes_the_guard_line_before_its_git_commit(self, tmp_path):
+        repo = git_repo(tmp_path)
+        script = repo / "release.sh"
+        script.write_text("#!/bin/sh\nexit 0\ngit commit -m x\n", encoding="utf-8")
+        script.chmod(0o755)
+        commit_all(repo, "guarded script")
+        script.write_text("#!/bin/sh\ngit commit -m x\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "./release.sh", cwd=str(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

@@ -84,6 +84,7 @@ GIT_TIMEOUT_SECONDS = 3
 # included, is a possible commit, as is any GIT_* variable.
 NO_COMMIT_GIT_SUBCOMMANDS = frozenset({"status", "diff", "log", "show", "restore", "checkout", "worktree"})
 GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
+GREP_COMMANDS = frozenset({"grep", "egrep", "fgrep"})
 
 # The name must end its shell word: a quote, backslash or $
 # after it splices on more, so diff"tool" runs difftool.
@@ -233,13 +234,29 @@ def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | N
         return None
 
 
+def sits_in_superproject_git_dir(repo: str | None, common_dir: Path) -> bool:
+    # A submodule keeps its git dir at
+    # <super>/.git/modules/<name>, so only a git dir under
+    # the superproject's own .git passes.
+    superproject = run_git(repo, "rev-parse", "--show-superproject-working-tree")
+    if superproject is None or superproject.returncode != 0 or superproject.stdout.strip() == "":
+        return False
+    super_root = superproject.stdout.removesuffix("\n")
+    super_common = run_git(super_root, "rev-parse", "--git-common-dir")
+    if super_common is None or super_common.returncode != 0:
+        return False
+    super_git_dir = (Path(super_root) / super_common.stdout.removesuffix("\n")).resolve()
+    return super_git_dir.name == ".git" and common_dir.is_relative_to(super_git_dir / "modules")
+
+
 def has_dot_git_dir(repo: str | None) -> bool:
     # A non-repo or bare dir turns into a repo when a call
     # writes config, HEAD, objects and refs, none named .git.
     common = run_git(repo, "rev-parse", "--git-common-dir")
     if common is None or common.returncode != 0:
         return False
-    return (Path(repo or Path.cwd()) / common.stdout.removesuffix("\n")).resolve().name == ".git"
+    common_dir = (Path(repo or Path.cwd()) / common.stdout.removesuffix("\n")).resolve()
+    return common_dir.name == ".git" or sits_in_superproject_git_dir(repo, common_dir)
 
 
 def reads_in_safe_repo(text: str, end: int, cwd: str | None) -> bool:
@@ -262,7 +279,17 @@ def runs_other_git_subcommand(text: str, cwd: str | None) -> bool:
     # subcommand - an option, a quote, nothing - may commit.
     git_ends = (match.end() for match in GIT_WORD.finditer(text))
     has_other_call = not all(is_no_commit_call(text, end, cwd) for end in git_ends)
-    return has_other_call or sets_git_environment(text)
+    return (has_other_call and not is_plain_grep(text)) or sets_git_environment(text)
+
+
+def is_plain_grep(text: str) -> bool:
+    # grep runs no program, so a git word in its arguments is
+    # data. One simple command only: no separator, redirect,
+    # substitution or variable that could start another call.
+    words = get_command_words(text)
+    if not words or words[0] not in GREP_COMMANDS:
+        return False
+    return not any(is_separator(word) or "$" in word or "`" in word for word in words)
 
 
 def sets_git_environment(text: str) -> bool:
@@ -335,7 +362,7 @@ def runs_configured_program(cwd: str | None) -> bool:
 def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
     if names_commit(text, cwd) or GIT_CONFIG_FILE.search(text):
         return True
-    elif GIT_WORD.search(text) is None:
+    elif GIT_WORD.search(text) is None or is_plain_grep(text):
         return False
     has_changed_directory = has_moved or DIRECTORY_CHANGE.search(text) is not None
     runs_in_unsafe_cwd = runs_git_in_cwd(text) and not has_dot_git_dir(cwd)
