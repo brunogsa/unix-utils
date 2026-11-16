@@ -15,6 +15,7 @@ from quality_metrics_support import (
     coverage_run_for,
     install_global_collector,
     install_jest_reporting_cart_coverage,
+    install_repo_tool_that_always_times_out,
     install_stub_tool,
     make_repo,
 )
@@ -32,13 +33,6 @@ JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} }
 JEST_REPO_FILES = {"jest.config.js": JEST_CONFIG, "src/cart.js": "// covered\n"}
 
 GLOBAL_HITS = {"src/cart.js": {1: 1, 2: 1}}
-
-# Logs each attempt in $ATTEMPT_LOG, then hangs past a timeout.
-# `exec` so a kill lands on sleep itself, not a parent shell.
-JEST_HANG_STUB = """#!/bin/bash
-echo attempt >> "$ATTEMPT_LOG"
-exec sleep 5
-"""
 
 # Exits cleanly but never writes the lcov report.
 JEST_NO_REPORT_STUB = """#!/bin/bash
@@ -134,14 +128,13 @@ def test_should_classify_a_crash_from_the_tool_output_and_fall_through_to_the_gl
 HEADROOM_POLICY = TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True)
 GLOBAL_C8_SOURCE = {"kind": "global", "tool": "c8"}
 FALL_THROUGH_CASES = [
-    FallThroughCase(JEST_HANG_STUB, "timeout", "repo jest timed out twice", 2),
     FallThroughCase(JEST_NO_REPORT_STUB, "no_coverage_data", "repo jest wrote no coverage data", 1),
 ]
-FALL_THROUGH_IDS = ["timeout-on-both-attempts", "no-coverage-report-written"]
+FALL_THROUGH_IDS = ["no-coverage-report-written"]
 
 
 @pytest.mark.parametrize("failure", FALL_THROUGH_CASES, ids=FALL_THROUGH_IDS)
-def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twice_or_writes_no_coverage_data(
+def test_should_fall_through_to_the_global_tool_when_the_repo_tool_writes_no_coverage_data(
     tmp_path, monkeypatch, failure
 ):
     measured = measure_js_with_jest_stub(tmp_path, monkeypatch, failure.stub, policy=HEADROOM_POLICY)
@@ -150,6 +143,22 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twi
         "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
         "exit_class": failure.exit_class, "side_pr_candidate": failure.candidate,
     }, failure.attempts)
+
+
+def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twice(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, JEST_REPO_FILES)
+    install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
+    global_calls = []
+    install_global_collector(monkeypatch, global_calls, GLOBAL_HITS)
+    coverage_run = coverage_run_for(repo, tmp_path, policy=HEADROOM_POLICY)
+    records = coverage_records_of(tmp_path, js_target(repo), coverage_run)
+
+    assert_fell_through_to_global(tmp_path, (coverage_run, records, global_calls), {
+        "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
+        "exit_class": "timeout", "side_pr_candidate": "repo jest timed out twice",
+    }, 2)
 
 
 def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(
