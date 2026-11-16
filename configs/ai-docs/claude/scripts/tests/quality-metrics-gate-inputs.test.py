@@ -1,3 +1,4 @@
+import importlib
 import json
 import subprocess
 import sys
@@ -7,6 +8,7 @@ import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 HOOK = SCRIPTS_DIR.parent / "hooks" / "check-lint-suppressions.py"
+sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import commit_all, head_of, make_repo, measure_report
@@ -30,6 +32,17 @@ PARSE_SOURCE = "export function parse(text: string): number {\n  return text.len
 PARSE_SOURCE_WITH_ISTANBUL_IGNORE = (
     "/* istanbul ignore next */\n" + PARSE_SOURCE
 )
+
+JEST_CONFIG_WITHOUT_EXCLUDES = (
+    "module.exports = {\n  collectCoverageFrom: ['src/**/*.ts'],\n};\n"
+)
+JEST_CONFIG_EXCLUDING_REPORT = (
+    "module.exports = {\n"
+    "  collectCoverageFrom: ['src/**/*.ts'],\n"
+    "  coveragePathIgnorePatterns: ['src/report.ts'],\n"
+    "};\n"
+)
+REPORT_SOURCE = "export function render(rows: string[]): string {\n  return rows.join('\\n');\n}\n"
 
 
 def write_declaration(tmp_path):
@@ -83,3 +96,25 @@ class TestHappyPath:
         assert report["gate_input_violations"] == [
             {"kind": "suppression", "file": "src/parse.ts", "value": "istanbul ignore"}
         ]
+
+    def test_should_list_a_coverage_exclude_the_branch_adds_as_a_violation_and_measure_with_the_base_ref_excludes(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": JEST_CONFIG_WITHOUT_EXCLUDES,
+            "src/report.ts": REPORT_SOURCE,
+        })
+        base = head_of(repo)
+        (repo / "jest.config.js").write_text(JEST_CONFIG_EXCLUDING_REPORT)
+        commit_all(repo, "exclude the report from coverage")
+        measured_with = tmp_path / "base-ref-inputs"
+        measured_with.mkdir()
+
+        report = measure_report(repo, write_declaration(tmp_path), "--diff", f"{base}...HEAD")
+        gate_inputs = importlib.import_module("quality_metrics.gate_inputs")
+        gate_inputs.write_base_ref_configs(repo, base, measured_with)
+
+        assert report["gate_input_violations"] == [
+            {"kind": "coverage_exclude", "file": "jest.config.js", "value": "src/report.ts"}
+        ]
+        assert (measured_with / "jest.config.js").read_text() == JEST_CONFIG_WITHOUT_EXCLUDES

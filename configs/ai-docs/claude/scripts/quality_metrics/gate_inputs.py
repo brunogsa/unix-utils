@@ -1,39 +1,77 @@
 """Judges a branch by gate inputs read from the base ref.
 
 A branch that edits the inputs it is measured by could pass its own
-gate. So a suppression comment it adds is listed as a violation.
+gate. So a suppression comment it adds, or a coverage exclude it adds
+to the repo's jest config, is listed as a violation, and the config is
+read as the base ref committed it.
 
 A suppression counts as added when the diff holds more of that token
 on its added lines than on its removed ones, so moving or keeping one
-is silent.
+is silent. A coverage exclude is read from the literal lists
+`coveragePathIgnorePatterns` and `collectCoverageFrom` (`!` entries).
 """
 
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from quality_metrics.tools import run_tool
+from quality_metrics.tool_map import load_detector_rules
+from quality_metrics.tools import run_command, run_tool
 
 # The edit-time hook owns the suppression pattern, so a token it
 # blocks is also listed here.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks" / "lib"))
 from suppression_patterns import PROSE_SUFFIXES, SUPPRESSION_PATTERN
 
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+DETECTORS_PATH = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
+
 SUPPRESSION_KIND = "suppression"
+COVERAGE_EXCLUDE_KIND = "coverage_exclude"
 
 HUNK_HEADER = "@@"
 FILE_HEADER_PREFIX = "diff --git"
 NEW_FILE_HEADER = "+++ b/"
 NO_NEW_FILE = "+++ /dev/null"
 
+EXCLUDE_LIST = re.compile(
+    r"coveragePathIgnorePatterns[\"']?\s*:\s*\[(.*?)\]", re.DOTALL
+)
+COLLECT_LIST = re.compile(
+    r"collectCoverageFrom[\"']?\s*:\s*\[(.*?)\]", re.DOTALL
+)
+QUOTED_STRING = re.compile(r"[\"']([^\"']*)[\"']")
+NEGATED_GLOB_MARK = "!"
+
 
 def find_violations(repo_dir, base_ref, head_ref=None):
-    """Every suppression the branch adds.
+    """Every suppression and coverage exclude the branch adds.
 
     `head_ref` None means the working tree, untracked files
     included.
     """
-    return added_suppressions(repo_dir, base_ref, head_ref)
+    return [
+        *added_suppressions(repo_dir, base_ref, head_ref),
+        *added_coverage_excludes(repo_dir, base_ref, head_ref),
+    ]
+
+
+def write_base_ref_configs(repo_dir, base_ref, directory):
+    """Copy the repo's jest configs as `base_ref` committed them.
+
+    A tool that reads its own config at run time is pointed at
+    the copy, so the branch's excludes never shape its numbers.
+    Returns the copies' paths by config file name.
+    """
+    copies = {}
+    for name in _jest_config_names():
+        text = _text_at(repo_dir, base_ref, name)
+        if text is not None:
+            copy_path = Path(directory) / name
+            copy_path.write_text(text)
+            copies[name] = copy_path
+    return copies
 
 
 def added_suppressions(repo_dir, base_ref, head_ref=None):
@@ -51,6 +89,18 @@ def added_suppressions(repo_dir, base_ref, head_ref=None):
         violations += [
             {"kind": SUPPRESSION_KIND, "file": path, "value": token}
             for token in sorted(net_added.elements())
+        ]
+    return violations
+
+
+def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
+    violations = []
+    for name in _jest_config_names():
+        base_excludes = _coverage_excludes(_text_at(repo_dir, base_ref, name))
+        head_excludes = _coverage_excludes(_text_at(repo_dir, head_ref, name, repo_dir))
+        violations += [
+            {"kind": COVERAGE_EXCLUDE_KIND, "file": name, "value": exclude}
+            for exclude in sorted(head_excludes - base_excludes)
         ]
     return violations
 
@@ -99,3 +149,32 @@ def _untracked_texts(repo_dir):
         except (UnicodeDecodeError, OSError):
             continue
     return texts
+
+
+def _jest_config_names():
+    rules = load_detector_rules(DETECTORS_PATH)
+    return next(rule["configs"] for rule in rules if rule["tool"] == "jest")
+
+
+def _text_at(repo_dir, ref, path, working_tree_dir=None):
+    """The file's text at `ref`, or in `working_tree_dir` when `ref`
+    is None; None when the file is absent there."""
+    if ref is None:
+        file_path = Path(working_tree_dir) / path
+        return file_path.read_text() if file_path.exists() else None
+    shown = run_command(["git", "show", f"{ref}:{path}"], cwd=repo_dir)
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def _coverage_excludes(config_text):
+    if config_text is None:
+        return set()
+    excludes = set()
+    for list_text in EXCLUDE_LIST.findall(config_text):
+        excludes.update(QUOTED_STRING.findall(list_text))
+    for list_text in COLLECT_LIST.findall(config_text):
+        excludes.update(
+            glob for glob in QUOTED_STRING.findall(list_text)
+            if glob.startswith(NEGATED_GLOB_MARK)
+        )
+    return excludes
