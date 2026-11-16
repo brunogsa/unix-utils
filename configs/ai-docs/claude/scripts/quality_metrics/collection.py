@@ -75,6 +75,10 @@ RED_BUILD = CoverageResult(hits_by_file={}, has_failed_tests=True)
 DEFERRED_COVERAGE = CoverageResult(hits_by_file={}, has_failed_tests=False, is_deferred=True)
 
 
+class NoFreshCoverageError(ToolError):
+    """A passing coverage run left no report newer than the run."""
+
+
 @dataclass(frozen=True)
 class _Measured:
     """A language's coverage and the tool that produced it."""
@@ -157,6 +161,8 @@ class CoverageRun:
             return self._defer_after_failure(tool, error)
 
     def _defer_after_failure(self, tool, error):
+        if self.tool_map is None and isinstance(error, NoFreshCoverageError):
+            return NO_COVERAGE_DATA
         if self.tool_map is None:
             raise error
         ask = ask_or_defer(self.tool_map, tool, "coverage", str(error), self.environ)
@@ -258,7 +264,7 @@ def read_fresh_lcov(repo_dir, run_started):
     """Hits from the lcov file, or no data when it predates the run."""
     lcov_file = repo_dir / LCOV_PATH
     if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
-        return NO_COVERAGE_DATA
+        raise NoFreshCoverageError(f"the passing coverage run wrote no coverage data under {repo_dir}")
     hits_by_file = parse_lcov(lcov_file.read_text())
     return CoverageResult(
         hits_by_file=_normalized_hits(repo_dir, hits_by_file, _go_module_prefix(repo_dir)),

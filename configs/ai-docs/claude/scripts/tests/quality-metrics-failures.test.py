@@ -288,6 +288,28 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
     assert len(global_calls) == 1
 
 
+def test_should_emit_an_ask_when_a_passing_global_coverage_run_writes_no_data(tmp_path, monkeypatch):
+    repo = make_repo(tmp_path, {
+        "jest.config.js": "module.exports = {};\n",
+        "package.json": '{"scripts": {"test": "node --test"}}\n',
+        "src/cart.js": "// covered\n",
+    })
+    target = Target(repo / "src/cart.js", "js", None, repo_path="src/cart.js")
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
+    install_stub_tool(tmp_path, monkeypatch, "c8", "#!/bin/sh\nexit 0\n")
+    coverage_run = CoverageRun(
+        repo, lazy_tool_map_with_detectors(repo, tmp_path), environ=INTERACTIVE_SESSION
+    )
+
+    records = coverage_records_of(tmp_path, target, coverage_run)
+
+    assert coverage_run.asks[0]["tool"] == "c8"
+    assert coverage_run.asks[0]["metric"] == "coverage"
+    assert coverage_run.asks[0]["choices"] == ["fix now", "defer"]
+    assert "wrote no coverage data" in coverage_run.asks[0]["reason"]
+    assert [(record["value"], record["pessimistic"]) for record in records] == [(0, True)]
+
+
 def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_and_the_global_tool_crashes(
     tmp_path, monkeypatch
 ):
