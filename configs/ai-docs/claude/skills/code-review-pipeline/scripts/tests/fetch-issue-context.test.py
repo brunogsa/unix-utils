@@ -309,7 +309,7 @@ def test_timeout_also_kills_the_children_the_linear_cli_spawned(tmp_path):
     child_pid = int(pid_file.read_text())
     deadline = time.monotonic() + 3
     while _is_alive(child_pid) and time.monotonic() < deadline:
-        time.sleep(0.2)
+        time.sleep(0.02)
     survived = _is_alive(child_pid)
     if survived:
         os.kill(child_pid, signal.SIGKILL)
