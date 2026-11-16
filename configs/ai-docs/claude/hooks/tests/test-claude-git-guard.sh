@@ -753,6 +753,36 @@ it_should_block_an_attribution_after_a_literal_backslash_n() {
   assert_eq "should block an attribution that follows a literal backslash-n" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_an_attribution_in_its_own_last_message_option() {
+  local dir
+  dir=$(make_repo main)
+  run_hook 'git commit --allow-empty -m "fix(git-guard): read trailers" -m "Why text." -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir"
+  assert_eq "should allow an attribution passed as its own last -m" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_an_attribution_passed_as_a_trailer_option() {
+  local dir
+  dir=$(make_repo main)
+  run_hook 'git commit --allow-empty -m "fix(git-guard): read trailers" --trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir"
+  assert_eq "should allow an attribution passed through --trailer" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution() {
+  local dir cmd
+  dir=$(make_repo main)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -m \"\$(cat <<'EOF'" \
+    'fix(git-guard): read trailers' \
+    '' \
+    'Why text.' \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF' \
+    ')"')
+  run_hook "$cmd" "$dir"
+  assert_eq "should allow a heredoc message whose last paragraph is the attribution" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -829,6 +859,9 @@ it_should_block_a_variable_message_file_path_whose_file_lacks_attribution
 it_should_block_a_relative_message_file_after_a_directory_change
 it_should_block_an_attribution_glued_onto_a_body_sentence
 it_should_block_an_attribution_after_a_literal_backslash_n
+it_should_allow_an_attribution_in_its_own_last_message_option
+it_should_allow_an_attribution_passed_as_a_trailer_option
+it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
