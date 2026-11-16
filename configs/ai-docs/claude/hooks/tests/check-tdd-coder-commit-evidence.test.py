@@ -550,6 +550,20 @@ class TestShellQuoteRemoval:
         possible_commit_reason(tmp_path, command)
 
 
+class TestGlobalConfigRedirect:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "HOME=/tmp/planted-home git status --short",
+            "XDG_CONFIG_HOME=/tmp/planted-config git status --short",
+            "export HOME=/tmp/planted-home; git status --short",
+        ],
+        ids=["home", "xdg-config-home", "exported-home"],
+    )
+    def test_should_deny_a_call_that_points_git_at_another_global_config(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

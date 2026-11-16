@@ -84,7 +84,10 @@ GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
 # The name must end its shell word: a quote, backslash or $
 # after it splices on more, so diff"tool" runs difftool.
 NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?=[\s;&|()<>]|$)")
-GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)GIT_\w*=")
+
+# HOME and XDG_CONFIG_HOME pick the global config git reads,
+# so setting either can plant a program-running key.
+GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)(?:GIT_\w*|HOME|XDG_CONFIG_HOME)=")
 
 # git-commit and git-commit-tree also run as dashed binaries
 # in git's exec path, so any name reaching for them counts.
@@ -136,7 +139,7 @@ BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
-    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, sets a GIT_* variable, "
+    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, sets a GIT_*, HOME or XDG_CONFIG_HOME variable, "
     "runs git after cd/pushd or in a repo whose git config or hooks run a program, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
