@@ -25,22 +25,12 @@
 # "create"; an overwrite ("update") is never flagged.
 
 import json
-import re
 import sys
 from collections import Counter
 
-FEEDBACK_EXIT = 2
+from lib.suppression_patterns import SUPPRESSION_PATTERN
 
-SUPPRESSION_PATTERN = re.compile(
-    r"eslint-disable(?:-next-line|-line)?"
-    r"|@ts-(?:ignore|expect-error|nocheck)"
-    r"|#\s*type:\s*ignore"
-    r"|#\s*noqa"
-    r"|#\s*pylint:\s*disable"
-    r"|//\s*nolint"
-    r"|#\s*shellcheck\s+disable"
-    r"|biome-ignore"
-)
+FEEDBACK_EXIT = 2
 
 # Rules and docs quote these tokens on purpose.
 PROSE_SUFFIXES = (".md", ".txt")
