@@ -3,8 +3,8 @@
 The hook runs as tdd-coder's PreToolUse Bash hook. It denies a
 `git commit` unless the run's evidence file already holds a confirmed
 RED entry followed by a confirmed GREEN entry. The run label comes from
-the paths the agent's own tool calls named, read from its JSONL
-transcript.
+the run files the agent's own Write and Edit calls named, read from its
+JSONL transcript.
 
 Every case writes a real agent transcript under tmp_path in the layout
 Claude Code uses (<session>/subagents/agent-<id>.jsonl beside
@@ -22,6 +22,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -87,14 +88,22 @@ def checklist_write_record(checklist_path=CHECKLIST):
     return tool_use_record("Write", {"file_path": checklist_path, "content": "- [ ] Unit 1\n"})
 
 
-def write_agent_transcript(tmp_path, records):
+# The run starts before any evidence file a test writes.
+RUN_START = datetime.now(timezone.utc) - timedelta(minutes=5)
+
+
+def stamped(record):
+    return {"timestamp": RUN_START.isoformat().replace("+00:00", "Z"), **record}
+
+
+def write_agent_transcript(tmp_path, records, is_stamped=True):
     """Write the agent transcript where Claude Code keeps it; return the
     parent session transcript path a PreToolUse payload carries."""
     session_transcript = tmp_path / f"{SESSION_ID}.jsonl"
     session_transcript.write_text("", encoding="utf-8")
     agent_transcript = tmp_path / SESSION_ID / "subagents" / f"agent-{AGENT_ID}.jsonl"
     agent_transcript.parent.mkdir(parents=True)
-    agent_transcript.write_text("".join(json.dumps(record) + "\n" for record in records), encoding="utf-8")
+    agent_transcript.write_text("".join(json.dumps(stamped(record) if is_stamped else record) + "\n" for record in records))
     return session_transcript
 
 
@@ -139,10 +148,10 @@ def deny_reason(result):
     return output["permissionDecisionReason"]
 
 
-def check_commit(tmp_path, command=COMMIT, records=None, **payload_fields):
+def check_commit(tmp_path, command=COMMIT, records=None, is_stamped=True, **payload_fields):
     if records is None:
         records = [prompt_record("Units: 1. block a commit"), checklist_write_record()]
-    transcript_path = write_agent_transcript(tmp_path, records)
+    transcript_path = write_agent_transcript(tmp_path, records, is_stamped)
     return deny_reason(run_hook(json.dumps(payload(command, transcript_path, **payload_fields))))
 
 
@@ -173,18 +182,6 @@ class TestCommitWithNoEvidenceFile:
     def test_should_take_the_run_label_from_the_agents_tool_calls_not_from_the_prompt_prose(self, tmp_path):
         OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
         records = [prompt_record(f"Prior attempt's evidence: {OTHER_EVIDENCE}"), checklist_write_record()]
-
-        reason = check_commit(tmp_path, records=records)
-
-        assert reason is not None
-        assert str(EVIDENCE) in reason
-
-    def test_should_take_the_latest_run_label_the_agents_tool_calls_named(self, tmp_path):
-        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
-        records = [
-            checklist_write_record(f"/tmp/tdd-coder_substeps_{OTHER_LABEL}.md"),
-            checklist_write_record(),
-        ]
 
         reason = check_commit(tmp_path, records=records)
 
@@ -322,6 +319,57 @@ class TestCommitWrappedInAnotherCommand:
 
     def test_should_let_a_wrapped_command_through_when_it_runs_no_git_commit(self, tmp_path):
         assert check_commit(tmp_path, command="bash -c 'git status --short && echo commit'") is None
+
+
+class TestRunLabelBinding:
+    def test_should_take_the_run_label_from_its_file_writes_not_from_a_bash_call_naming_another(self, tmp_path):
+        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        records = [checklist_write_record(), tool_use_record("Bash", {"command": f"tail -5 {OTHER_EVIDENCE}"})]
+
+        reason = check_commit(tmp_path, records=records)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_deny_when_only_a_read_names_a_run_file(self, tmp_path):
+        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        reason = check_commit(tmp_path, records=[tool_use_record("Read", {"file_path": str(OTHER_EVIDENCE)})])
+
+        assert reason is not None
+        assert "/tmp/tdd-coder_evidences_<run-label>.txt" in reason
+
+    def test_should_deny_naming_both_labels_when_the_runs_file_writes_name_two(self, tmp_path):
+        EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        records = [
+            checklist_write_record(f"/tmp/tdd-coder_substeps_{OTHER_LABEL}.md"),
+            checklist_write_record(),
+        ]
+
+        reason = check_commit(tmp_path, records=records)
+
+        assert reason is not None
+        assert RUN_LABEL in reason
+        assert OTHER_LABEL in reason
+
+    def test_should_deny_when_the_evidence_file_was_last_written_before_the_run_started(self, tmp_path):
+        EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+        before_the_run = (RUN_START - timedelta(hours=1)).timestamp()
+        os.utime(EVIDENCE, (before_the_run, before_the_run))
+
+        reason = check_commit(tmp_path)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+        assert "before this run started" in reason
+
+    def test_should_deny_when_the_transcript_records_carry_no_timestamp(self, tmp_path):
+        EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
+
+        reason = check_commit(tmp_path, is_stamped=False)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
 
 
 def frontmatter_pretooluse_command():

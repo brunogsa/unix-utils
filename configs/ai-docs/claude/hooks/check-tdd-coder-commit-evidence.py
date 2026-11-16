@@ -19,6 +19,7 @@ import json
 import re
 import shlex
 import sys
+from datetime import datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -61,6 +62,10 @@ MAX_NESTED_SCRIPTS = 8
 # a heredoc body, so only a plain match over the raw command
 # can see that script.
 RAW_GIT_COMMIT = re.compile(r"\bgit\b[^;&|\n]*\bcommit\b")
+
+# Only the agent's file writes bind its run label: a Bash
+# string or a Read can name any other run's files at will.
+WRITE_TOOLS = {"Write", "Edit", "MultiEdit"}
 
 
 def read_payload() -> dict | None:
@@ -189,22 +194,42 @@ def get_agent_transcript_path(payload: dict) -> Path | None:
     return Path(session_path).with_suffix("") / "subagents" / f"agent-{agent_id}.jsonl"
 
 
-def get_tool_call_labels(block: dict) -> list[str]:
+def get_written_label(block: dict) -> str | None:
     tool_input = block.get("input")
-    if block.get("type") != "tool_use" or not isinstance(tool_input, dict):
-        return []
-    path_texts = [str(tool_input.get("file_path", "")), str(tool_input.get("command", ""))]
-    return RUN_FILE_LABEL.findall("\n".join(path_texts))
+    is_file_write = block.get("type") == "tool_use" and block.get("name") in WRITE_TOOLS
+    if not is_file_write or not isinstance(tool_input, dict):
+        return None
+    match = RUN_FILE_LABEL.search(str(tool_input.get("file_path", "")))
+    return match.group(1) if match else None
 
 
-def get_run_label(transcript_path: Path) -> str | None:
-    # Only the agent's own tool calls count: its dispatch prompt
-    # can name a sibling or prior run's files in prose.
-    records = report_files.read_transcript_records(str(transcript_path))
-    labels = []
-    for block in report_files.iter_assistant_blocks(records):
-        labels += get_tool_call_labels(block)
-    return labels[-1] if labels else None
+def get_written_labels(records: list[dict]) -> list[str]:
+    # The dispatch prompt's prose is not a tool call, so a
+    # sibling or prior run's files named there never count.
+    labels = {get_written_label(block) for block in report_files.iter_assistant_blocks(records)}
+    return sorted(label for label in labels if label is not None)
+
+
+def get_run_start(records: list[dict]) -> float | None:
+    starts = []
+    for record in records:
+        stamp = record.get("timestamp")
+        try:
+            starts.append(datetime.fromisoformat(str(stamp).replace("Z", "+00:00")).timestamp())
+        except ValueError:
+            continue
+    return min(starts) if starts else None
+
+
+def get_staleness_problem(evidence_path: Path, records: list[dict]) -> str | None:
+    # An evidence file this run never wrote to proves another
+    # run's attempt, however well-formed its entries are.
+    run_start = get_run_start(records)
+    if run_start is None:
+        return f"{evidence_path} cannot be checked against this run's start: its transcript carries no timestamp"
+    if evidence_path.stat().st_mtime < run_start:
+        return f"{evidence_path} was last written before this run started, so it records another run's attempt"
+    return None
 
 
 def get_evidence_problem(evidence_path: Path) -> str | None:
@@ -253,14 +278,20 @@ def is_tdd_coder_commit(payload: dict) -> bool:
 
 def get_commit_problem(payload: dict) -> str | None:
     transcript_path = get_agent_transcript_path(payload)
-    label = get_run_label(transcript_path) if transcript_path is not None else None
-    if label is None:
+    records = report_files.read_transcript_records(str(transcript_path)) if transcript_path is not None else []
+    labels = get_written_labels(records)
+    if not labels:
         return (
-            "no tool call of this run named its checklist or evidence file, so its run label is "
-            f"unknown. Write {report_files.CHECKLIST_TEMPLATE} and append to "
+            "no Write or Edit of this run created its checklist or evidence file, so its run label "
+            f"is unknown. Write {report_files.CHECKLIST_TEMPLATE} and append to "
             f"{report_files.EVIDENCE_TEMPLATE} under your run label first"
         )
-    return get_evidence_problem(Path(EVIDENCE_PATH.format(label=label)))
+    if len(labels) > 1:
+        evidence_paths = ", ".join(EVIDENCE_PATH.format(label=label) for label in labels)
+        return f"this run's file writes name {len(labels)} run labels ({evidence_paths}); one run owns one label"
+
+    evidence_path = Path(EVIDENCE_PATH.format(label=labels[0]))
+    return get_evidence_problem(evidence_path) or get_staleness_problem(evidence_path, records)
 
 
 def main() -> int:

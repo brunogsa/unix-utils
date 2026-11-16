@@ -270,6 +270,11 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 - Open each entry with its header line, `=== RED <timestamp> ===` or `=== GREEN <timestamp> ===`, any extra words after the state name allowed.
   - A PreToolUse hook denies every `git commit` until a GREEN header follows the latest RED header, so an entry written after its commit cannot happen.
 
+- Create or check off this run's checklist with the Write or Edit tool, under one run label only.
+  - The hook reads the run label only from this run's Write and Edit calls, because a Bash string or a Read can name any other run's files.
+
+  - It also denies when two labels appear in those writes, or when the evidence file was last written before this run started.
+
 - On the cap-exhausted path, append one GREEN entry before committing, naming the units it covers and quoting their targeted runs' command, exit code, and output tail.
   - That entry is what unlocks the commits of the units that earned them; list it under Deviations.
 
