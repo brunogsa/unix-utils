@@ -2,7 +2,9 @@
 
 jscpd's --similarity pairs functions by structure: names and
 literals are normalized away, so two functions differing only in
-them score 1.0.
+them score 1.0. A verbatim block inside two different
+functions is a token clone with no similarity, also
+scored 1.0: it flags an exact copy, not equal functions.
 It leaves test files out by name, so every file is staged under
 a neutral name before the scan.
 Source files are compared with source files and test files with
