@@ -170,3 +170,24 @@ class TestUnreadableCommittedHook:
         assert result.stdout == ""
         assert result.returncode != 0
         assert str(hooks_dir / HOOK_NAME) in result.stderr
+
+
+class TestNoCommittedHook:
+    def test_should_run_the_working_hook_when_its_dir_is_no_git_repo(self, tmp_path):
+        hooks_dir = tmp_path / "hooks"
+        hooks_dir.mkdir()
+        (hooks_dir / HOOK_NAME).write_text(hook_source(), encoding="utf-8")
+        (hooks_dir / HELPER_NAME).write_text(helper_source("installed copy"), encoding="utf-8")
+
+        output = get_hook_output(run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload()))
+
+        assert output == {"version": "installed copy", "tool": "Bash"}
+
+    def test_should_run_the_working_hook_when_the_hook_was_never_committed(self, tmp_path):
+        hooks_dir = commit_hooks(tmp_path / "repo", {"README.md": "hooks\n"})
+        (hooks_dir / HOOK_NAME).write_text(hook_source(), encoding="utf-8")
+        (hooks_dir / HELPER_NAME).write_text(helper_source("new, untracked"), encoding="utf-8")
+
+        output = get_hook_output(run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload()))
+
+        assert output["version"] == "new, untracked"

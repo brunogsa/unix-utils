@@ -45,6 +45,13 @@ def run_git(hook_dir: Path, *args: str) -> subprocess.CompletedProcess | None:
         return None
 
 
+def has_committed_hook(hook: Path) -> bool:
+    # No repo, no git, or a hook HEAD never held: a fresh
+    # install copy, which has only its working file to run.
+    result = run_git(hook.parent, "rev-parse", "--verify", "--quiet", f"HEAD:./{hook.name}")
+    return result is not None and result.returncode == 0
+
+
 def is_hook_dir_unedited(hook_dir: Path) -> bool:
     # The whole dir, not the hook alone: a hook loads its
     # siblings, and a half-edited sibling breaks it the same.
@@ -71,7 +78,7 @@ def extract_committed_hook_dir(hook_dir: Path, snapshot_dir: Path) -> None:
 
 
 def get_hook_to_run(hook: Path, snapshot_dir: Path) -> Path:
-    if is_hook_dir_unedited(hook.parent):
+    if not has_committed_hook(hook) or is_hook_dir_unedited(hook.parent):
         return hook
     extract_committed_hook_dir(hook.parent, snapshot_dir)
     committed_hook = snapshot_dir / hook.name
