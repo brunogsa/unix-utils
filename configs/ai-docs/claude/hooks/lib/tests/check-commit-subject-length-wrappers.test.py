@@ -33,6 +33,20 @@ checker = _load_checker()
 # a commit it could not read.
 WITHHELD_VERDICT = ""
 
+GIT_ALIASES = "[alias]\n\tci = commit\n\tst = status\n"
+
+
+@pytest.fixture(autouse=True)
+def _git_aliases(tmp_path, monkeypatch):
+    """Run every case against one known set of git aliases, in
+    a directory outside any repository."""
+    config = tmp_path / "gitconfig"
+    config.write_text(GIT_ALIASES)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv(checker.COMMIT_CWD_ENV, str(tmp_path))
+    return config
+
 
 def _attribution_verdict(command):
     result = subprocess.run(
@@ -111,15 +125,47 @@ def test_should_screen_as_a_possible_commit_a_wrapper_whose_options_it_cannot_re
         "ionice -c 3 git ci -m x",
     ],
 )
-def test_should_screen_a_git_alias_run_by_a_command_not_known_as_a_wrapper(command):
+def test_should_screen_a_git_alias_for_commit_run_by_a_command_not_known_as_a_wrapper(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "grep git file",
+        "rg git configs",
+        "stdbuf -oL git st",
+    ],
+)
+def test_should_report_no_commit_for_a_later_git_word_naming_no_alias_for_commit(command):
+    assert _attribution_verdict(command) == checker.NO_COMMIT_VERDICT
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "stdbuf git CI -m x",
+        "stdbuf git commit-tree HEAD^{tree} -m x",
+        "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.zz GIT_CONFIG_VALUE_0=commit stdbuf git zz -m x",
+        "export HOME=/elsewhere; stdbuf git zz -m x",
+        "stdbuf git -C /elsewhere zz -m x",
+        "cd /elsewhere && stdbuf git zz -m x",
+    ],
+)
+def test_should_screen_a_later_git_word_whose_name_or_config_may_differ_from_the_one_read(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+# A config git cannot read hides which names are aliases.
+def test_should_screen_as_a_possible_commit_a_later_git_word_when_git_aliases_cannot_be_read(_git_aliases):
+    _git_aliases.write_text("[alias\n")
+    assert _attribution_verdict("grep git file") == WITHHELD_VERDICT
 
 
 # xargs -I swaps each named word for a stdin line, so the
 # status here may run as commit.
 def test_should_screen_as_a_possible_commit_an_xargs_that_rewrites_its_git_words():
     assert _attribution_verdict("xargs -I status git status -m x") == WITHHELD_VERDICT
-
 
 
 @pytest.mark.parametrize(

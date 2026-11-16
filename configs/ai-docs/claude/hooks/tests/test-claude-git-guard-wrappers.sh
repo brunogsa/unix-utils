@@ -16,6 +16,14 @@ bash_bin="$(command -v bash)"
 pass_count=0
 fail_count=0
 
+# One known set of git aliases, read from a directory outside
+# any repository, so no machine's own aliases leak in.
+alias_dir=$(mktemp -d)
+trap 'rm -rf "$alias_dir"' EXIT
+printf '[alias]\n\tci = commit\n' >"$alias_dir/gitconfig"
+export GIT_CONFIG_GLOBAL="$alias_dir/gitconfig"
+export GIT_CONFIG_NOSYSTEM=1
+
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -31,7 +39,7 @@ assert_eq() {
 # payload; HOOK_EXIT is 0 when allowed, 2 when blocked.
 run_hook() {
   local stdin_json
-  stdin_json=$(jq -n --arg c "$1" '{tool_input: {command: $c}}')
+  stdin_json=$(jq -n --arg c "$1" --arg d "$alias_dir" '{tool_input: {command: $c}, cwd: $d}')
   printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" >/dev/null 2>&1
   HOOK_EXIT=$?
 }
@@ -81,6 +89,14 @@ it_should_block_an_xargs_that_rewrites_its_git_words() {
   assert_eq "should block an xargs that rewrites its git words" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_a_later_git_word_naming_no_alias_for_commit() {
+  local cmd
+  for cmd in 'grep git file' 'rg git configs'; do
+    run_hook "$cmd"
+    assert_eq "should allow a later git word naming no alias for commit: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
 it_should_allow_a_wrapper_running_no_git_alias() {
   local cmd
   for cmd in \
@@ -98,6 +114,7 @@ it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
+it_should_allow_a_later_git_word_naming_no_alias_for_commit
 it_should_allow_a_wrapper_running_no_git_alias
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
