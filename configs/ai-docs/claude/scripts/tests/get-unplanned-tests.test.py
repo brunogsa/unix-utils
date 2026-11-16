@@ -166,3 +166,29 @@ class TestUnplannedTests:
             "rejects an empty row": "changed-line coverage",
             "formats zero": "gate unknown",
         }
+
+    def test_skips_base_ref_tests_and_tests_matching_a_planned_title_of_another_task(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(
+            repo,
+            {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
+        )
+        _write(
+            repo,
+            "tests/legacy.test.ts",
+            _it_lines_at(3, "keeps legacy rows")
+            + _it_lines_at(1, "rejects an empty row"),
+        )
+        _write(
+            repo,
+            "tests/export.test.ts",
+            _it_lines_at(7, "handles a trailing newline"),
+        )
+        _commit(repo, "test: more csv tests")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert [row["title"] for row in listed] == ["rejects an empty row"]
