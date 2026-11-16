@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+# benchmark-quality-metrics.py - Time each metric, set per_unit.
+#
+# Usage:
+#   benchmark-quality-metrics.py [--evidence FILE] [--dry-run]
+#
+# Run from the repo root on an idle machine. Each metric that
+# measure-quality-metrics.py has a module for is timed once,
+# alone, over a fixed sample of this repo's Python files.
+#
+# stdin: none.
+# stdout: one line per metric with its command and seconds.
+# exit: 0 declaration updated, 2 a metric could not be timed
+# or the declaration is unusable.
+#
+# The top-level per_unit list in quality-metrics.yaml is
+# rewritten with every metric timed at 8 seconds or less. A
+# metric whose run did not measure (exit 2) is left out.
+# --evidence appends the commands and timings to FILE.
+
+import argparse
+import importlib
+import importlib.util
+import re
+import subprocess
+import sys
+import tempfile
+import time
+from datetime import datetime
+from pathlib import Path
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+declaring = importlib.import_module("quality_metrics.declaration")
+
+MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
+DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
+
+PER_UNIT_LIMIT_SECONDS = 8.0
+
+EXIT_DONE, EXIT_UNMEASURED = 0, 2
+MEASURE_EXIT_UNMEASURED = 2
+
+# Production Python files of this repo, measured whole.
+SAMPLE_FILES = (
+    "configs/ai-docs/claude/scripts/measure-quality-metrics.py",
+    "configs/ai-docs/claude/scripts/get-repo-preflight.py",
+    "configs/ai-docs/claude/scripts/quality_metrics/size.py",
+    "configs/ai-docs/claude/scripts/quality_metrics/crap.py",
+)
+
+BENCHMARK_LANGUAGE_ENTRY = """\
+languages:
+  python:
+    extensions: [.py]
+    metrics: [{metric}]
+"""
+
+PER_UNIT_LINE = re.compile(r"^per_unit:.*$", re.MULTILINE)
+
+
+def select_per_unit(timings):
+    """Metrics timed at the limit or faster, in declaration order."""
+    return [
+        metric
+        for metric in declaring.METRIC_NAMES
+        if metric in timings and timings[metric] <= PER_UNIT_LIMIT_SECONDS
+    ]
+
+
+def write_per_unit(declaration_path, metrics):
+    """Replace the per_unit line, keeping the file's comments."""
+    path = Path(declaration_path)
+    text = path.read_text()
+    if not PER_UNIT_LINE.search(text):
+        raise declaring.DeclarationError(f"{path} has no top-level per_unit line")
+    path.write_text(PER_UNIT_LINE.sub(f"per_unit: [{', '.join(metrics)}]", text, count=1))
+    declaring.load_declaration(path)
+
+
+def metrics_with_a_module():
+    """The metrics the measure script can run, in declaration order."""
+    spec = importlib.util.spec_from_file_location("measure_quality_metrics", MEASURE_SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return [metric for metric in declaring.METRIC_NAMES if metric in module.METRIC_MODULES]
+
+
+def time_metric(metric, repo_root):
+    """Return (command, seconds, exit_code, stderr_tail) for one metric."""
+    with tempfile.TemporaryDirectory() as directory:
+        declaration_path = Path(directory) / "quality-metrics.yaml"
+        declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(metric=metric))
+        command = [
+            sys.executable, str(MEASURE_SCRIPT), "--batch-end",
+            "--declaration", str(declaration_path),
+            "--files", *SAMPLE_FILES,
+        ]
+        started = time.perf_counter()
+        completed = subprocess.run(command, cwd=repo_root, capture_output=True, text=True)
+        seconds = time.perf_counter() - started
+    return command, seconds, completed.returncode, completed.stderr.strip()[-400:]
+
+
+def benchmark(repo_root):
+    results = {}
+    for metric in metrics_with_a_module():
+        command, seconds, exit_code, stderr_tail = time_metric(metric, repo_root)
+        results[metric] = {
+            "command": command, "seconds": seconds,
+            "exit_code": exit_code, "stderr_tail": stderr_tail,
+        }
+        print(f"{metric}: {seconds:.2f}s exit {exit_code}: {' '.join(command)}")
+    return results
+
+
+def evidence_section(results, per_unit):
+    lines = [
+        f"\n## Metric benchmark {datetime.now().isoformat(timespec='seconds')}\n",
+        f"Limit: {PER_UNIT_LIMIT_SECONDS} s. per_unit set to: {per_unit}\n",
+    ]
+    for metric, result in results.items():
+        lines.append(f"### {metric}: {result['seconds']:.2f} s, exit {result['exit_code']}\n")
+        lines.append(f"```\n{' '.join(result['command'])}\n```\n")
+        if result["exit_code"] == MEASURE_EXIT_UNMEASURED:
+            lines.append(f"Not measured, left out. stderr tail:\n```\n{result['stderr_tail']}\n```\n")
+    return "\n".join(lines)
+
+
+def measured_seconds(results):
+    """Seconds per metric, leaving out a run that did not measure."""
+    return {
+        metric: result["seconds"]
+        for metric, result in results.items()
+        if result["exit_code"] != MEASURE_EXIT_UNMEASURED
+    }
+
+
+def append_text(path, text):
+    with open(path, "a") as target:
+        target.write(text)
+
+
+def main(arguments):
+    parser = argparse.ArgumentParser(description="Time each quality metric and set per_unit.")
+    parser.add_argument("--evidence", metavar="FILE", help="append commands and timings here")
+    parser.add_argument("--dry-run", action="store_true", help="time only, leave the declaration alone")
+    parser.add_argument("--declaration", default=DEFAULT_DECLARATION)
+    options = parser.parse_args(arguments)
+    results = benchmark(Path.cwd())
+    measured = measured_seconds(results)
+    per_unit = select_per_unit(measured)
+    print(f"per_unit: {per_unit}")
+    if options.evidence:
+        append_text(options.evidence, evidence_section(results, per_unit))
+    if not options.dry_run:
+        write_per_unit(options.declaration, per_unit)
+    return EXIT_DONE if len(measured) == len(results) else EXIT_UNMEASURED
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
