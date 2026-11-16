@@ -314,15 +314,19 @@ def _layer_rules(layer_map):
     ]
 
 
+# `**` crosses directories and `*` stays inside one.
+GLOB_WILDCARD_REGEX = {"**": ".*", "*": "[^/]*"}
+
+
 def _globs_to_regex(globs):
-    """`**` crosses directories and `*` stays inside one."""
     alternatives = []
     for glob in globs:
         pieces = re.split(r"(\*\*|\*)", glob)
-        translated = {"**": ".*", "*": "[^/]*"}
-        alternatives.append("^" + "".join(
-            translated.get(piece) or re.escape(piece) for piece in pieces
-        ) + "$")
+        body = "".join(
+            GLOB_WILDCARD_REGEX.get(piece) or re.escape(piece)
+            for piece in pieces
+        )
+        alternatives.append(f"^{body}$")
     return "|".join(alternatives)
 
 
