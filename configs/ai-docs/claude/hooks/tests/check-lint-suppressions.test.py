@@ -118,6 +118,9 @@ class EditAddingSuppression(LintSuppressionGuardTestCase):
             ("/repo/main.go", "x := y //nolint:errcheck\n", "nolint"),
             ("/repo/run.sh", "# shellcheck disable=SC2086\n", "shellcheck disable"),
             ("/repo/a.ts", "// biome-ignore lint/style: legacy\n", "biome-ignore"),
+            ("/repo/a.py", "x = 1  # pragma no cover\n", "# pragma no cover"),
+            ("/repo/a.py", "x = 1  # pragma:nocover\n", "# pragma:nocover"),
+            ("/repo/a.py", "x = 1  # PRAGMA: NO COVER\n", "# PRAGMA: NO COVER"),
         ]
         for file_path, added_line, token in cases:
             with self.subTest(token=token):
