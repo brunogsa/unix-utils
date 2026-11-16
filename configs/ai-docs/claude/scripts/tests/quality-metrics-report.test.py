@@ -100,6 +100,32 @@ class TestExceptions:
         assert "CRAP 11" in entry
 
 
+    def test_should_keep_an_unfixable_violation_and_a_rejected_exception_open_and_first(
+        self, tmp_path
+    ):
+        split_diff = tmp_path / "split_splitCells.diff"
+        split_diff.write_text("--- a/src/cells.py\n+++ b/src/cells.py\n")
+        rejected_claim = {
+            "file": "src/cells.py", "function": "splitCells", "metric": "crap",
+            "split_value": 5, "diff_path": str(split_diff), "rejected": True,
+        }
+        run = measured(
+            function_record("src/rows.py", "mergeRows", "crap", 12, CRAP_LIMIT),
+            function_record("src/cells.py", "splitCells", "crap", 9, CRAP_LIMIT),
+        )
+
+        verdict = report.build_verdict(run, exceptions=[rejected_claim])
+
+        assert "(0)" in section(verdict, "Exceptions").splitlines()[0]
+        violations = section(verdict, "Open violations")
+        assert "(2)" in violations.splitlines()[0]
+        merge_rows, split_cells = sorted(entry_headings(violations))
+        assert "mergeRows" in merge_rows
+        assert "splitCells" in split_cells
+        assert "exception rejected" in split_cells
+        assert verdict.index("## Open violations") < verdict.index("## Ranked: CRAP")
+
+
 class TestDeferredMetrics:
     def test_should_list_deferred_metrics_first_beside_the_exceptions_with_a_count(self):
         label = "pessimistic, tooling deferred"

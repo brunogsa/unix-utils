@@ -2,8 +2,8 @@
 
 Order: deferred metrics and exceptions first, then the open
 violations, then the rest. An exception counts only with a split
-diff saved on disk, so a claim made in prose alone stays an
-open violation.
+diff saved on disk and no rejection by the judge, so a claim made
+in prose alone, or one the judge rejected, stays an open violation.
 """
 
 import itertools
@@ -19,6 +19,8 @@ METRIC_TITLES = {
     ("size", "file"): "File size",
 }
 
+
+REJECTED_NOTE = ", exception rejected by the judge"
 
 NO_CODE_MEASURED = "No code file was measured."
 
@@ -38,7 +40,8 @@ def verdict_filename(timestamp, in_git=True):
 def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
     """Verdict markdown.
 
-    `exceptions` are claims with a saved split diff path;
+    `exceptions` are claims with a saved split diff path, marked
+    `rejected` once the judge ruled the split does not read worse;
     `import_edges` are (importer, imported) file pairs;
     `in_git` is False when no git repo encloses the working directory.
     """
@@ -48,10 +51,11 @@ def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
     open_violations = []
     for violation in report["violations"]:
         claim = claims_by_key.get(_key(violation))
-        if claim and Path(claim["diff_path"]).is_file():
+        is_rejected = bool(claim and claim.get("rejected"))
+        if claim and not is_rejected and Path(claim["diff_path"]).is_file():
             accepted.append((violation, claim))
         else:
-            open_violations.append((violation, False))
+            open_violations.append((violation, is_rejected))
     sections = [
         _deferred_section(report["measurements"], numbers),
         _exceptions_section(accepted, numbers),
@@ -101,8 +105,8 @@ def _deferred_section(measurements, numbers):
 
 def _violations_section(violations, numbers):
     entries = [
-        _entry(next(numbers), _describe(item))
-        for item, _ in violations
+        _entry(next(numbers), _describe(item) + (REJECTED_NOTE if is_rejected else ""))
+        for item, is_rejected in violations
     ]
     return _section(f"Open violations ({len(entries)})", entries)
 
