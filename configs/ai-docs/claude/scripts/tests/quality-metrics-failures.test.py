@@ -264,7 +264,7 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
     base_sha = head_of(repo)
     global_calls = []
     install_global_collector(
-        monkeypatch, global_calls, error=ToolError("coverage.py crashed with a traceback")
+        monkeypatch, global_calls, error=ToolError("c8 crashed with a traceback")
     )
     first_run = CoverageRun(
         repo, lazy_tool_map_with_detectors(repo, tmp_path), environ=INTERACTIVE_SESSION
@@ -279,7 +279,7 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
 
     assert first_run.asks[0]["tool"] == "c8"
     assert first_run.asks[0]["metric"] == "coverage"
-    assert "coverage.py crashed" in first_run.asks[0]["reason"]
+    assert "c8 crashed" in first_run.asks[0]["reason"]
     assert later_run.asks == []
     for records in (first_records, later_records):
         assert [(record["value"], record["pessimistic"], record["label"]) for record in records] == [
@@ -317,7 +317,7 @@ def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_an
     target = Target(repo / "src/cart.js", "js", None, repo_path="src/cart.js")
     monkeypatch.setenv("PATH", os.pathsep.join(["/usr/bin", "/bin"]))
     install_global_collector(
-        monkeypatch, [], error=ToolError("coverage.py crashed with a traceback")
+        monkeypatch, [], error=ToolError("c8 crashed with a traceback")
     )
     coverage_run = CoverageRun(
         repo, lazy_tool_map_with_detectors(repo, tmp_path), environ=INTERACTIVE_SESSION
@@ -326,7 +326,7 @@ def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_an
     coverage_records_of(tmp_path, target, coverage_run)
 
     assert coverage_run.asks[0]["tool"] == "c8"
-    assert "coverage.py crashed" in coverage_run.asks[0]["reason"]
+    assert "c8 crashed" in coverage_run.asks[0]["reason"]
     assert coverage_run.sources[0]["side_pr_candidate"] == "repo jest crashed"
 
 
