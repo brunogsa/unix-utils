@@ -20,8 +20,6 @@ The 60 KB gate is the largest diff that leaves ~30k tokens for reasoning under t
 
 Never Read a `tool-results/*.txt` file the post-compaction reminder names as too large to include - it is the output that overflowed, and everything a wave needs is re-derivable from `$work_dir`.
 
-Rubric prompts and validator rubric live in `references/`; bash glue in `scripts/`.
-
 ## How callers dispatch
 
 `/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then spawn one `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the header in its prompt body.
@@ -64,7 +62,7 @@ Deterministic check; no subagent needed. Only aborts on hard no-ops.
 
 - **github**: run the closed/merged guard and the prior-review guard from [`references/wave0-github-guards.md`](./references/wave0-github-guards.md) - abort per its stop conditions.
 
-- **local**: always proceed - Wave 0 is a no-op here (both guards are github-only). Empty diffs surface naturally - Wave 5 writes "auto-review: no findings".
+- **local**: always proceed - Wave 0 is a no-op here (both guards are github-only).
 
 ---
 
@@ -185,8 +183,6 @@ We don't comment on code outside the diff - noise the author didn't ask for and 
 The script settles set membership; judging it by eye invites the partial-overlap miss - a finding spanning both a commentable and an off-diff line reads as in-diff.
 
 The redirects above are the persistence - Wave 5 reads the kept findings, Wave 6 reads `wave4-drop-log.txt`.
-
-Zero surviving findings is normal - see Error handling for what Wave 5 emits.
 
 ---
 

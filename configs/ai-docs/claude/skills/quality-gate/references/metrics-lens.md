@@ -33,11 +33,9 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 
 Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`.
 
-The script skips `entangled_tests` by design, so its absence from the output means nothing. You judge it in section 4.
+The script skips `entangled_tests` by design; you judge it in section 4.
 
 ## 2. Infer a layer map when none is declared
-
-A repo with no declared layers still gets layer checks, because you infer the map.
 
 1. Look for a declared map first (the repo's own layers config or architecture doc). If one exists, convert it to the map format below with `source: declared` and skip inference.
 
@@ -57,7 +55,7 @@ layers:
     paths: ["domain/**"]
 ```
 
-5. Pass that file to `--layers`. An inferred map's `source` line reads `inferred, not declared`, a converted declared map's reads `declared`, and the script rejects any other value.
+5. Pass that file to `--layers`. The script rejects any `source` value other than those two.
 
 6. Link the saved file in your report, labelled "inferred, not declared".
 
@@ -107,7 +105,7 @@ Run these on every function the branch touches and every test it adds, even when
 
 ## 5. Opt-outs are proposals
 
-When a metric fits a language badly, propose the opt-out in your report with the evidence. Never edit `quality-metrics.yaml` or any limit.
+When a metric fits a language badly, propose the opt-out in your report with the evidence.
 - [Why] Only the human changes a limit or an opt-out; the declaration is read as committed at the base ref, so an edit would not count anyway.
 
 ## 6. Finding schema

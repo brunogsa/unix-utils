@@ -17,8 +17,6 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `auto-review` | correctness, edge cases, contract and spec conformance | `[auto-review]` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
 
-The `test-sdd` leg runs only when a plan resolves. The `metrics` leg needs no plan.
-
 ## Usage
 
 ```
@@ -39,8 +37,6 @@ The `test-sdd` leg runs only when a plan resolves. The `metrics` leg needs no pl
   - Both flags at once is a contradiction - stop and say so.
 
 See [`references/more-examples.md`](references/more-examples.md) for example invocations, opened only when the flags above leave a case unclear.
-
-`/implement`'s batch-end tail runs this, always with `--report-only`.
 
 ## 1. Ask about auto-solve - first, before anything else
 
@@ -81,8 +77,6 @@ Also resolve `<BASE_REF>`:
 If detection fails, ask which branch to diff against - but under either flag, stop and print what failed, since a missing base has no safe default.
 
 **No git repo encloses CWD** → skip this resolution and never stop: see [`references/metrics-leg.md`](references/metrics-leg.md) §3.
-
-`/implement`'s batch-end tail passes `BATCH_BASE_SHA` via `--base-ref`.
 
 ## 3. Dispatch the legs in parallel
 
@@ -194,8 +188,6 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 - **`--test-cmd` is passed** so its inference step has nothing left to prompt for.
 
 It runs in this session, never wrapped in a subagent, because it commits and a permission prompt only renders in main.
-
-See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why applying is its job.
 
 It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, failures with retry needs.
 
