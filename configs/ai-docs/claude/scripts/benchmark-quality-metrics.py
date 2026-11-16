@@ -19,7 +19,6 @@
 # --evidence appends the commands and timings to FILE.
 
 import argparse
-import importlib
 import importlib.util
 import json
 import re
@@ -32,8 +31,10 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
-declaring = importlib.import_module("quality_metrics.declaration")
-write_text_atomically = importlib.import_module("quality_metrics.atomic_write").write_text_atomically
+
+from quality_metrics import declaration as declaring
+from quality_metrics.atomic_write import write_text_atomically
+
 REPO_ROOT = SCRIPTS_DIR.parents[3]
 
 MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
