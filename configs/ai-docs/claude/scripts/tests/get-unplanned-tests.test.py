@@ -80,15 +80,18 @@ def _commit(repo, subject, trailer=None):
     _git(repo, "commit", "-q", "-m", message)
 
 
-def _init_repo(repo, base_files=None):
-    """Commit a baseline (the plan outside the repo stays untracked)
-    and return the base SHA the branch diffs against."""
+def _init_repo(tmp_path, base_files=None):
+    """Create tmp_path/"repo", commit a baseline (the plan outside the
+    repo stays untracked) and return (repo, base SHA the branch
+    diffs against)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
     _git(repo, "init", "-q")
     _write(repo, "README.md", "fixture\n")
     for relative_path, content in (base_files or {}).items():
         _write(repo, relative_path, content)
     _commit(repo, "chore: baseline")
-    return _git(repo, "rev-parse", "HEAD")
+    return repo, _git(repo, "rev-parse", "HEAD")
 
 
 def _run(repo, plan, base):
@@ -116,9 +119,7 @@ class TestUnplannedTests:
     def test_should_list_added_tests_matching_no_planned_title_by_path_line_and_title(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/parse.test.ts",
@@ -143,9 +144,7 @@ class TestUnplannedTests:
     def test_should_name_the_gate_from_the_adding_commits_trailer_else_gate_unknown(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/parse.test.ts",
@@ -170,10 +169,8 @@ class TestUnplannedTests:
     def test_should_skip_base_ref_tests_and_tests_matching_a_planned_title_outside_the_narrowed_tasks(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(
-            repo,
+        repo, base = _init_repo(
+            tmp_path,
             {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
         )
         _write(
@@ -196,9 +193,7 @@ class TestUnplannedTests:
     def test_should_emit_nothing_when_every_added_test_matches_a_planned_title(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/parse.test.ts",
@@ -218,9 +213,7 @@ class TestUnplannedTests:
     def test_should_ignore_it_calls_inside_string_literals_of_a_python_test_file(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/test_fixtures.py",
@@ -240,9 +233,7 @@ class TestUnplannedTests:
     def test_should_match_a_planned_title_with_an_apostrophe_to_a_python_name_without_it(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/test_gate.py",
@@ -274,10 +265,8 @@ describe("gate", () => {
     def test_should_not_list_a_test_the_base_branch_deleted_after_the_fork(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        _init_repo(
-            repo,
+        repo, _ = _init_repo(
+            tmp_path,
             {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
         )
         _git(repo, "branch", "feature")
@@ -295,10 +284,8 @@ describe("gate", () => {
     def test_should_not_list_tests_of_a_renamed_test_file_that_gains_no_new_test(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(
-            repo,
+        repo, base = _init_repo(
+            tmp_path,
             {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
         )
         _git(repo, "mv", "tests/legacy.test.ts", "tests/archive.test.ts")
@@ -311,9 +298,7 @@ describe("gate", () => {
     def test_should_list_an_unplanned_test_when_git_is_configured_to_omit_diff_path_prefixes(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _git(repo, "config", "diff.noprefix", "true")
         _write(
             repo,
@@ -331,9 +316,7 @@ describe("gate", () => {
     def test_should_list_an_unplanned_test_in_a_file_whose_directory_name_holds_a_space(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "my dir/parse.test.ts",
@@ -350,10 +333,8 @@ describe("gate", () => {
     def test_should_not_list_an_existing_test_whose_declaration_line_was_edited(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(
-            repo,
+        repo, base = _init_repo(
+            tmp_path,
             {
                 "tests/test_rows.py": "def test_should_reject_an_empty_row(self):\n"
                 "    pass\n"
@@ -374,9 +355,7 @@ describe("gate", () => {
     def test_should_name_the_gate_of_the_commit_that_added_a_test_not_a_later_edit(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/parse.test.ts",
@@ -399,9 +378,7 @@ describe("gate", () => {
     def test_should_not_list_a_regex_test_method_call_as_a_test_declaration(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "src/matcher.js",
@@ -416,9 +393,7 @@ describe("gate", () => {
     def test_should_list_tests_declared_through_only_skip_and_each_modifiers(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         _write(
             repo,
             "tests/modifiers.test.js",
@@ -439,9 +414,7 @@ describe("gate", () => {
     def test_should_list_an_added_test_whose_line_holds_a_latin_1_byte(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         legacy_file = repo / "tests" / "legacy.test.ts"
         legacy_file.parent.mkdir()
         legacy_file.write_bytes(b'it("caf\xe9 au lait", () => {});\n')
@@ -459,9 +432,7 @@ class TestUnresolvableInputsExitTwo:
     def test_should_exit_2_naming_the_base_ref_on_stderr_when_the_base_ref_does_not_resolve(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        _init_repo(repo)
+        repo, _ = _init_repo(tmp_path)
 
         completed = _run(repo, _plan(tmp_path), "no-such-branch-2026")
 
@@ -472,9 +443,7 @@ class TestUnresolvableInputsExitTwo:
     def test_should_exit_2_with_empty_stdout_when_the_plan_names_no_test_titles(
         self, tmp_path
     ):
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        base = _init_repo(repo)
+        repo, base = _init_repo(tmp_path)
         plan = _plan(tmp_path, "# Plan\n\n## Tasks\n\n- build it\n")
 
         completed = _run(repo, plan, base)
