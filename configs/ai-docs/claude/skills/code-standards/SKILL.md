@@ -55,8 +55,8 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
   - [Example] Bad: `const getKitBimestre = (kit) => kit.bimestre;`, or a body that is one call to what it wraps. Good: `kit.bimestre` at the call site, and call the callee directly.
 
 - [Instruction] When unifying duplicated code, normalize the callers onto one shared output - never add a parameter whose only job is to preserve a caller's existing wording or formatting.
-  - [Why] The function could have stayed simple; that parameter buys permanent branching for a difference no caller needs.
-  - [Example] Bad: `formatRateioViolation(sum, { prefix })`, whose body branches `const kit = options.prefix ? 'KIT' : 'Kit'`. Good: `formatRateioViolation(sum)`, with both callers' expected strings updated to the one message.
+  - [Why] That parameter buys permanent branching for a difference no caller needs.
+  - [Example] Bad: `formatRateioViolation(sum, { prefix })`, whose body branches `const kit = options.prefix ? 'KIT' : 'Kit'`. Good: `formatRateioViolation(sum)`, one message for both callers.
 
 ## Naming
 
@@ -151,7 +151,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Example] Bad: `hasReadableDetail: detail !== undefined` - inferred from whether a field happened to parse. Good: a `shouldPrintResponse` flag the caller sets deliberately.
 
 - [Instruction] Pass a single `ctx` object for cross-cutting values (request ID, user, trace) that logging and tracing need but business logic doesn't - not a new param at every layer.
-  - [Why] Cross-cutting concerns grow new params across every layer without a context - a hidden propagation tax.
+  - [Why] Without a context, cross-cutting values add a param at every layer.
 
 - [Instruction] Parallelize CPU-bound work with worker threads; use async only for I/O.
   - [Why] Async on CPU-bound tasks blocks the event loop - concurrency in name only.
@@ -160,29 +160,33 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
   - [Why] An optimization untied to profile or Big-O adds complexity that may miss the hot path - no measured benefit.
 
 - [Instruction] When a filter/dedup/build-style pipeline is hard to follow in one combined pass, split it into named steps even at a performance cost, absent profiling proof the combined form is needed.
-  - [Why] Tracing a combined pass forces holding every stage in mind at once; named steps let it verify one stage at a time.
+  - [Why] A combined pass forces holding every stage in mind; named steps verify one at a time.
 
 ## Functions, purity & side effects
 
 - [Instruction] Don't mark a function `async` (or return a `Promise`) unless it performs genuine asynchronous work.
   - [Why] Wrapping already-resolved or purely synchronous logic in `async` forces every caller to `await` for nothing.
 
-- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` purely to call a mapper marked `async` with nothing to await - it propagated through every caller with no real async work anywhere.
+- [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` only to call an `async` mapper with nothing to await, and the async spread to every caller.
 
 - [Instruction] Keep functions pure by default - isolate I/O into thin boundary functions.
-  - [Why] Pure functions test without mocks; I/O is the part that needs infrastructure - keep it at the edges.
+  - [Why] Pure functions test without mocks; I/O needs infrastructure, so keep it at the edges.
 
 - [Instruction] **Name a helper for what it returns, not its operation - a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
-  - [Why] The name is the only clue if a result is fresh or mutated; `getX` reads as a value, `appendX` a hidden command.
+  - [Why] The name is the only clue whether a result is fresh or mutated.
 
 - [Instruction] Inject what's hard to mock - pass I/O collaborators as parameters.
-  - [Why] Passing the collaborator as a param lets a test swap in a fake; an imported singleton binds at load, unsubstitutable.
+  - [Why] A passed-in collaborator lets a test swap in a fake; an imported singleton binds at load.
 
 - [Instruction] **Use named-param objects for any function with 2+ params.**
   - [Why] Positional args lose meaning at call sites (`configure(3, 5000)` - what's 3?).
 
+- [Instruction] Never add a boolean flag parameter that switches a function's behavior - split it into two named functions, or pass a named option or enum for a real mode choice.
+  - [Why] A bare `true` at the call site says nothing, and the function hides two behaviors behind one name.
+  - [Example] Bad: `render(user, true)`. Good: `renderCompact(user)`.
+
 - [Instruction] **CRITICAL: In the signature, list the specific fields the function needs rather than passing whole config objects.**
-  - [Why] Fat-object params hide internal coupling - the signature stops documenting what the function actually depends on.
+  - [Why] Fat-object params hide coupling - the signature stops documenting real dependencies.
 
 ## Logging & observability
 
@@ -197,7 +201,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Instruction] Never add code whose only purpose is to emit a log - no log-only branch, variable, threaded parameter, or early return.
   - [Why] A log-only branch buys observability an inline log already gives, and charges every future reader for the extra path.
-  - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }` - the branch exists only to gate the log. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
+  - [Example] Bad: `if (professorLines.length > 0) { logger.debug({ message: '…' }) }`. Good: log unconditionally and carry `professorLinesCount: professorLines.length` in the payload.
 
 - [Instruction] When a log field has no value, log it as `null` - never leave the key out.
   - [Why] `null` tells on-call the field was checked and empty; a missing key might mean an old deploy or code that never ran.
