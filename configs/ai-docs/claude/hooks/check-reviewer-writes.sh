@@ -65,7 +65,18 @@ fi
 
 # quality-gate's metrics lens saves its inferred layer map in
 # the working directory, where the verdict links to it.
-if [[ "$BASENAME" == layers_inferred_*.yaml ]]; then
+#
+# Allowed in the working directory only: a basename match
+# alone would let a reviewer write a CI workflow such as
+# .github/workflows/layers_inferred_x.yaml, which would run.
+#
+# A relative path counts as the working directory only when
+# it has no slash.
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+CWD=${CWD:-$PWD}
+CWD=${CWD%/}
+if [[ "$BASENAME" == layers_inferred_*.yaml && "$FILE_PATH" != *..* \
+  && ( "$FILE_PATH" != */* || "${FILE_PATH%/*}" == "$CWD" ) ]]; then
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its inferred layer map (%s)"}}\n' "$BASENAME"
   exit 0
 fi
