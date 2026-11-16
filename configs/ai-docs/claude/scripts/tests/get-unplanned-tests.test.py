@@ -271,3 +271,60 @@ describe("gate", () => {
         listed = _listed(repo, plan, base)
 
         assert listed == []
+
+    def test_should_not_list_a_test_the_base_branch_deleted_after_the_fork(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _init_repo(
+            repo,
+            {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
+        )
+        _git(repo, "branch", "feature")
+        _git(repo, "rm", "-q", "tests/legacy.test.ts")
+        _commit(repo, "test: base drops the legacy test")
+        base = _git(repo, "rev-parse", "HEAD")
+        _git(repo, "checkout", "-q", "feature")
+        _write(repo, "README.md", "fixture, edited on the branch\n")
+        _commit(repo, "docs: edit readme")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert listed == []
+
+    def test_should_not_list_tests_of_a_renamed_test_file_that_gains_no_new_test(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(
+            repo,
+            {"tests/legacy.test.ts": _it_lines_at(3, "keeps legacy rows")},
+        )
+        _git(repo, "mv", "tests/legacy.test.ts", "tests/archive.test.ts")
+        _commit(repo, "refactor: rename the legacy test file")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert listed == []
+
+    def test_should_list_an_unplanned_test_when_git_is_configured_to_omit_diff_path_prefixes(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _git(repo, "config", "diff.noprefix", "true")
+        _write(
+            repo,
+            "tests/parse.test.ts",
+            _it_lines_at(4, "rejects an empty row"),
+        )
+        _commit(repo, "test: reject empty rows")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert [(row["path"], row["line"]) for row in listed] == [
+            ("tests/parse.test.ts", 4)
+        ]

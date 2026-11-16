@@ -107,7 +107,15 @@ def declared_title(path, source_line):
 def list_added_tests(base):
     """Return (path, line at HEAD, title) for every test declaration
     on a `+` line of the diff from base to HEAD."""
-    diff = run_git("diff", "--no-color", "--no-renames", "-U0", f"{base}..HEAD")
+    diff = run_git(
+        "diff",
+        "--no-color",
+        "-M",
+        "--src-prefix=a/",
+        "--dst-prefix=b/",
+        "-U0",
+        f"{base}...HEAD",
+    )
     added = []
     path = None
     new_line = 0
