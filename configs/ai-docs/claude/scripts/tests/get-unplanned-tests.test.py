@@ -113,7 +113,7 @@ def _listed(repo, plan, base):
 
 
 class TestUnplannedTests:
-    def test_lists_added_tests_matching_no_planned_title_by_path_line_and_title(
+    def test_should_list_added_tests_matching_no_planned_title_by_path_line_and_title(
         self, tmp_path
     ):
         repo = tmp_path / "repo"
@@ -140,7 +140,7 @@ class TestUnplannedTests:
             ("tests/format.test.ts", 12, "formats zero"),
         }
 
-    def test_names_the_gate_from_the_adding_commit_trailer_else_gate_unknown(
+    def test_should_name_the_gate_from_the_adding_commits_trailer_else_gate_unknown(
         self, tmp_path
     ):
         repo = tmp_path / "repo"
@@ -167,7 +167,7 @@ class TestUnplannedTests:
             "formats zero": "gate unknown",
         }
 
-    def test_skips_base_ref_tests_and_tests_matching_a_planned_title_of_another_task(
+    def test_should_skip_base_ref_tests_and_tests_matching_a_planned_title_outside_the_narrowed_tasks(
         self, tmp_path
     ):
         repo = tmp_path / "repo"

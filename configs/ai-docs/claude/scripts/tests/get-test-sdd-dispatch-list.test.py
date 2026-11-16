@@ -44,7 +44,7 @@ def _run(verdict):
 
 
 class TestTestSddFindingsSentToTddCoder:
-    def test_keeps_the_unplanned_tests_finding_off_the_tdd_coder_dispatch_list_while_a_missing_planned_test_stays_on_it(
+    def test_should_keep_the_unplanned_tests_finding_off_the_tdd_coder_dispatch_list_while_a_missing_planned_test_stays_on_it(
         self, tmp_path
     ):
         verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
