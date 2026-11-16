@@ -1,0 +1,68 @@
+"""Blackbox CLI tests for get-test-sdd-dispatch-list.py.
+
+Fixtures: each test writes a throwaway verdict_test-sdd_*.md under
+tmp_path and runs the script on it. Nothing reads the live repo.
+
+Usage:
+  pytest configs/ai-docs/claude/scripts/tests/get-test-sdd-dispatch-list.test.py
+"""
+
+import subprocess
+import sys
+from pathlib import Path
+
+SCRIPT = Path(__file__).parent.parent / "get-test-sdd-dispatch-list.py"
+
+VERDICT_BODY = """# test-sdd verdict
+
+## Findings
+
+### 1. [HIGH] Missing planned test - task 3: "parses a quoted field"
+
+- **Task:** 3 - Parse quoted fields
+
+### 2. [LOW] Unplanned tests added by the branch
+
+- tests/parse.test.ts:39 rejects an empty row
+
+### 3. [Done][HIGH] Missing planned test - task 4: "sums a column"
+
+- **Task:** 4 - Sum a column
+
+```md
+### 4. [HIGH] Missing planned test - task 9: "inside a fence"
+```
+"""
+
+
+def _run(verdict):
+    return subprocess.run(
+        [sys.executable, str(SCRIPT), str(verdict)],
+        capture_output=True,
+        text=True,
+    )
+
+
+class TestTestSddFindingsSentToTddCoder:
+    def test_keeps_the_unplanned_tests_finding_off_the_tdd_coder_dispatch_list_while_a_missing_planned_test_stays_on_it(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(VERDICT_BODY, encoding="utf-8")
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 1. [HIGH] Missing planned test - task 3: "parses a quoted field"',
+            '### 3. [Done][HIGH] Missing planned test - task 4: "sums a column"',
+        ]
+
+    def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
+        self, tmp_path
+    ):
+        completed = _run(tmp_path / "verdict_test-sdd_missing.md")
+
+        assert completed.returncode != 0
+        assert completed.stderr.strip() != ""
+        assert completed.stdout == ""
