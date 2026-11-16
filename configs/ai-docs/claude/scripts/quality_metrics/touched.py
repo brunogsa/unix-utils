@@ -68,12 +68,16 @@ def touched_files_since(base_ref):
     The diff covers the working tree against `base_ref`,
     so staged and unstaged edits both count.
     New files git does not track yet are touched on every line.
+    Paths are relative to the repo root whatever the working
+    directory, so a run from a subdirectory still sees every
+    change.
     """
-    touched = _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, base_ref))
+    root = _git("rev-parse", "--show-toplevel").strip()
+    touched = _touched_lines_in_diff(_git(*DIFF_ARGUMENTS, base_ref, cwd=root))
 
     # NUL-separated output skips git's path quoting, which would
     # otherwise turn a name like café.go into "caf\303\251.go".
-    untracked = _git(*UNTRACKED_LISTING).split("\0")
+    untracked = _git(*UNTRACKED_LISTING, cwd=root).split("\0")
     for path in filter(None, untracked):
         touched[path] = WHOLE_FILE
     return touched
@@ -148,12 +152,12 @@ def _hunk_lines(hunk):
     return set(range(first_line, first_line + added_count))
 
 
-def _git(*arguments):
+def _git(*arguments, cwd=None):
     # A binary or Latin-1 file must not crash the run, so bytes
     # that are not UTF-8 decode to a replacement character.
     result = subprocess.run(
         ["git", *arguments], capture_output=True, text=True,
-        encoding="utf-8", errors="replace",
+        encoding="utf-8", errors="replace", cwd=cwd,
     )
     if result.returncode != 0:
         raise GitError(f"git {' '.join(arguments)} failed: {result.stderr.strip()}")

@@ -39,7 +39,7 @@ from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.collection import CoverageRun
 from quality_metrics.tool_map import DETECTOR_RULES_PATH, LazyToolMap, load_detector_rules, record_deferred_tool
 from quality_metrics.tools import ToolError, run_command
-from quality_metrics.touched import Target
+from quality_metrics.touched import Target, touched_files_since
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
 
@@ -347,3 +347,16 @@ def test_should_return_the_text_of_a_latin_1_file_shown_from_a_revision_instead_
     shown = run_command(["git", "show", "HEAD:legacy.txt"], cwd=repo)
 
     assert shown.stdout == "caf� au lait\n"
+
+
+def test_should_name_a_dirty_tracked_file_and_an_untracked_file_by_repo_root_path_when_run_from_a_subdirectory(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"top.py": "a = 1\n", "sub/inner.py": "b = 1\n"})
+    (repo / "top.py").write_text("a = 2\n")
+    (repo / "sub" / "new.py").write_text("c = 1\n")
+    monkeypatch.chdir(repo / "sub")
+
+    touched = touched_files_since("HEAD")
+
+    assert touched == {"top.py": {1}, "sub/new.py": None}
