@@ -627,3 +627,15 @@ class TestListedFilesUnderPerUnit:
 
         assert report["violations"] == []
         assert report["holds_commit"] is False
+
+    def test_should_still_hold_the_commit_when_the_touched_function_in_a_listed_file_breaks_a_limit_under_per_unit_files(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE + go_function_nested("edited_deep", 1)})
+        (repo / "report.go").write_text(PACKAGE_LINE + go_function_nested("edited_deep", 5))
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure_report(repo, declaration_path, "--per-unit", "--files", "report.go")
+
+        assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
+        assert report["holds_commit"] is True
