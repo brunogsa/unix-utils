@@ -223,26 +223,10 @@ def test_{name}():
     assert calculator.is_empty()
 """
 
-EIGHT_LINE_TEST = """\
-def test_{name}():
-    calculator = Calculator()
-    calculator.reset()
-    result = calculator.add({first}, {second})
-    assert result == {total}
-    assert calculator.history == [{total}]
-    calculator.clear()
-    assert calculator.history == []
-"""
-
-SEVEN_LINE_TEST = """\
-def test_{name}():
-    calculator = Calculator()
-    calculator.reset()
-    result = calculator.add({first}, {second})
-    assert result == {total}
-    assert calculator.history == [{total}]
-    calculator.clear()
-"""
+# The shorter tests are the 9-line test cut after its 8th and
+# 7th line, so the text is written once.
+EIGHT_LINE_TEST = "".join(NINE_LINE_TEST.splitlines(keepends=True)[:8])
+SEVEN_LINE_TEST = "".join(NINE_LINE_TEST.splitlines(keepends=True)[:7])
 
 
 # An exact clone is `line_count` identical statements at module
