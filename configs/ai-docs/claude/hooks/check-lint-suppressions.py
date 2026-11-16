@@ -28,12 +28,9 @@ import json
 import sys
 from collections import Counter
 
-from lib.suppression_patterns import SUPPRESSION_PATTERN
+from lib.suppression_patterns import PROSE_SUFFIXES, SUPPRESSION_PATTERN
 
 FEEDBACK_EXIT = 2
-
-# Rules and docs quote these tokens on purpose.
-PROSE_SUFFIXES = (".md", ".txt")
 
 WRITE_CREATE_TYPE = "create"
 

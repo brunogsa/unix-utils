@@ -16,4 +16,11 @@ SUPPRESSION_PATTERN = re.compile(
     r"|//\s*nolint"
     r"|#\s*shellcheck\s+disable"
     r"|biome-ignore"
+    r"|pragma:\s*no\s+cover"
+    r"|istanbul\s+ignore"
+    r"|c8\s+ignore"
+    r"|jscpd:ignore"
 )
+
+# Rules and docs quote these tokens on purpose.
+PROSE_SUFFIXES = (".md", ".txt")
