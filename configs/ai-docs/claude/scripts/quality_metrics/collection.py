@@ -20,7 +20,7 @@ from typing import Optional
 
 from quality_metrics.crap import parse_lcov
 from quality_metrics.failures import TimeoutPolicy, ask_or_defer
-from quality_metrics.repo_paths import repo_relative
+from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
@@ -275,8 +275,8 @@ def read_fresh_lcov(repo_dir, run_started):
 def _normalized_hits(repo_dir, hits_by_file, module_prefix):
     """Hits keyed by repo-relative name, with any go module prefix dropped."""
     return {
-        _without_prefix(repo_relative(repo_dir, name), module_prefix): hits
-        for name, hits in hits_by_file.items()
+        _without_prefix(name, module_prefix): hits
+        for name, hits in repo_relative_hits(repo_dir, hits_by_file).items()
     }
 
 

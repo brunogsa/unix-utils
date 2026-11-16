@@ -16,6 +16,7 @@ from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPOR
 from quality_metrics.failures import ToolTimedOutTwice
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.gate_inputs import write_base_ref_configs
+from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -198,7 +199,7 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
         report = Path(report_dir) / "lcov.info"
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
-        return {"exit_class": exit_class, "hits_by_file": parse_lcov(report.read_text())}
+        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
 
 
 def classify_exit(result):
