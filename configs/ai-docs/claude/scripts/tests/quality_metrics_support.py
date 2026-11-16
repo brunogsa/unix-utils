@@ -6,6 +6,7 @@ and never collects it.
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -207,6 +208,19 @@ def measure_cart_where_global_c8_writes_no_data(
         "--session-id", "session-b2c41d", "--map-dir", str(tmp_path),
         env=stubbed_env(),
     )
+
+
+def verdict_section(verdict, title_prefix):
+    """The text of the `## <title_prefix>...` section, up to the next `## `."""
+    match = re.search(
+        rf"^## {re.escape(title_prefix)}.*?$(.*?)(?=^## |\Z)", verdict, re.M | re.S
+    )
+    assert match, f"no section starting with {title_prefix!r} in:\n{verdict}"
+    return match.group(0)
+
+
+def verdict_entry_headings(text):
+    return re.findall(r"^### \d+\. .*$", text, re.M)
 
 
 def measure_report(repo, declaration_path, *arguments, env=None):

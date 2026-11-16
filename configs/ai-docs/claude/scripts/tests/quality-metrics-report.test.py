@@ -5,7 +5,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from quality_metrics_support import (
+    SCRIPTS_DIR,
+    verdict_entry_headings as entry_headings,
+    verdict_section as section,
+)
+
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 crap = importlib.import_module("quality_metrics.crap")
@@ -58,19 +65,6 @@ def measured(*records):
         "violations": [item for item in records if is_over_limit(item)],
         "gate_input_violations": [],
     }
-
-
-def section(verdict, title_prefix):
-    """The text of the `## <title_prefix>...` section, up to the next `## `."""
-    match = re.search(
-        rf"^## {re.escape(title_prefix)}.*?$(.*?)(?=^## |\Z)", verdict, re.M | re.S
-    )
-    assert match, f"no section starting with {title_prefix!r} in:\n{verdict}"
-    return match.group(0)
-
-
-def entry_headings(text):
-    return re.findall(r"^### \d+\. .*$", text, re.M)
 
 
 class TestExceptions:

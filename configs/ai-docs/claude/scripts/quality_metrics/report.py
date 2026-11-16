@@ -1,7 +1,8 @@
 """Builds the metrics verdict text from a measure-quality-metrics report.
 
-Order: deferred metrics and exceptions first, then the open
-violations, then the rest. An exception counts only with a split
+Order: deferred metrics, tooling asks and exceptions first, then the
+open violations, then the rest, with the coverage sources before the
+code design. An exception counts only with a split
 diff saved on disk and no rejection by the judge, so a claim made
 in prose alone, or one the judge rejected, stays an open violation.
 """
@@ -74,9 +75,11 @@ def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
             open_violations.append((violation, is_rejected))
     sections = [
         _deferred_section(report["measurements"], numbers),
+        _asks_section(report.get("asks", []), numbers),
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
         *_ranked_sections(report["measurements"], numbers),
+        _sources_section(report.get("sources", []), numbers),
         _design_section(report["measurements"], import_edges),
     ]
     if not in_git:
@@ -121,6 +124,29 @@ def _deferred_section(measurements, numbers):
     return _section(f"Deferred metrics ({len(entries)})", entries)
 
 
+def _asks_section(asks, numbers):
+    entries = [
+        _entry(next(numbers), f"{ask['tool']} ({ask['metric']}) - {ask['reason']}")
+        for ask in asks
+    ]
+    return _section(f"Tooling asks ({len(entries)})", entries)
+
+
+def _sources_section(sources, numbers):
+    entries = [_entry(next(numbers), _describe_source(item)) for item in sources]
+    return _section(f"Coverage sources ({len(entries)})", entries)
+
+
+def _describe_source(item):
+    source = item["source"]
+    text = f"{item['language']} - measured by {source['kind']} {source['tool']}"
+    if item["exit_class"] is not None:
+        text += f", exit class {item['exit_class']}"
+    if item["side_pr_candidate"] is not None:
+        text += f", side-PR candidate: {item['side_pr_candidate']}"
+    return text
+
+
 def _violations_section(violations, numbers):
     entries = [
         _entry(next(numbers), _describe(item) + (REJECTED_NOTE if is_rejected else ""))
@@ -137,18 +163,22 @@ def _ranked_sections(measurements, numbers):
     """
     records_by_title = {}
     for record in measurements:
-        if record["limit"] and record["limit"] > 0 and not hotspots.is_neutral(record):
+        if _is_rankable(record):
             records_by_title.setdefault(_metric_name(record), []).append(record)
     return [
-        _section(
-            f"Ranked: {title}",
-            [
-                _entry(next(numbers), _describe(record))
-                for record in sorted(records, key=hotspots.badness, reverse=True)
-            ],
-        )
+        _ranked_section(title, records, numbers)
         for title, records in sorted(records_by_title.items())
     ]
+
+
+def _ranked_section(title, records, numbers):
+    worst_first = sorted(records, key=hotspots.badness, reverse=True)
+    entries = [_entry(next(numbers), _describe(record)) for record in worst_first]
+    return _section(f"Ranked: {title}", entries)
+
+
+def _is_rankable(record):
+    return bool(record["limit"]) and record["limit"] > 0 and not hotspots.is_neutral(record)
 
 
 def _design_section(measurements, import_edges):
