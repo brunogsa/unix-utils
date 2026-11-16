@@ -79,6 +79,8 @@ Issue every independent call in one message - the reads that open the files, the
 
    - Hold the commit only when the JSON's `holds_commit` is true: fix the over-limit function-scope `violations` or claim an exception, then re-run once.
 
+   - Claim an exception only when splitting the function reads worse than leaving it whole.
+
    - Read pending tooling asks from the JSON's `asks` list, never from the exit code. Exit 1 with `holds_commit` false and no `asks` is a pessimistic or deferred record that holds nothing.
 
    - A claim needs the split version's diff saved to CWD through `~/.claude/scripts/write-atomically.py <path>`, with the diff on stdin. Restore the unsplit code afterward.
