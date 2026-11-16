@@ -471,16 +471,18 @@ class UnknownWrapperOption(Exception):
 READ_WRAPPERS = {"command": WrapperOptions(), "env": WrapperOptions()}
 
 # These run the word after their options, so a git alias run
-# through them is screened. Any option fails closed.
+# through them is screened. Only options whose arity bash,
+# macOS and GNU agree on are known; any other one fails closed.
 SCREENED_WRAPPERS = {
-    "command": WrapperOptions(),
-    "env": WrapperOptions(),
+    "command": WrapperOptions(flags=frozenset({"-p"})),
+    "env": WrapperOptions(flags=frozenset({"-i"}), valued=frozenset({"-u"})),
     "exec": WrapperOptions(),
-    "nice": WrapperOptions(),
+    "nice": WrapperOptions(valued=frozenset({"-n"})),
     "nohup": WrapperOptions(),
-    "sudo": WrapperOptions(),
-    "time": WrapperOptions(),
-    "xargs": WrapperOptions(),
+    "sudo": WrapperOptions(flags=frozenset({"-E", "-n"}), valued=frozenset({"-u"})),
+    "time": WrapperOptions(flags=frozenset({"-p"})),
+    "timeout": WrapperOptions(valued=frozenset({"-k", "-s"}), positionals=1),
+    "xargs": WrapperOptions(flags=frozenset({"-0", "-r"}), valued=frozenset({"-I", "-n"})),
 }
 
 
