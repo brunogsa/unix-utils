@@ -17,6 +17,8 @@ violation, never as clean.
 """
 
 import json
+import os
+import posixpath
 import re
 import tarfile
 import tempfile
@@ -69,6 +71,18 @@ LAYER_EDGE_LINE = re.compile(r"^- ([A-Za-z_][\w.]*) -> ([\w.]+) \(l\.\d+\)")
 # report means it failed; the cap is set to the tool's own
 # ceiling, 32768, as it rejects any larger value.
 GO_ARCH_LINT_MAX_WARNINGS = "32768"
+
+# These tools may be missing or fail, and their files must
+# not read as clean then, so a failure scores as a deferred
+# violation.
+DEFERRABLE_TOOLS = (GO_ARCH_LINT, IMPORT_LINTER)
+
+PYTHON_PACKAGE_MARKER = "__init__.py"
+SKIPPED_DIRECTORY_NAMES = ("node_modules",)
+
+
+class NoPythonPackageError(ToolError):
+    """The tree holds no directory with an `__init__.py`."""
 
 
 @dataclass(frozen=True)
@@ -134,7 +148,11 @@ class DependencyRun:
         head = self._find_in(tool, self.repo_dir)
         with tempfile.TemporaryDirectory() as base_dir:
             _extract_tree_at(self.repo_dir, self.base_ref, Path(base_dir))
-            base = self._find_in(tool, Path(base_dir))
+            try:
+                base = self._find_in(tool, Path(base_dir))
+            except NoPythonPackageError:
+                # The branch may add the repo's first package.
+                base = []
         base_keys = {problem["key"] for problem in base}
         return [
             {**problem, "is_introduced": problem["key"] not in base_keys}
@@ -156,9 +174,8 @@ def measure(target, metrics, dependency_run):
 
     An introduced problem is flagged. One the base ref already had
     is a hotspot: listed with no count past the limit, so it
-    never binds the change. Go's tool may be missing, and a Go file
-    must not read as clean then, so it is scored as a deferred
-    violation.
+    never binds the change. A Go or Python file whose tool failed
+    must not read as clean, so it is scored as a deferred violation.
     """
     tool = TOOL_BY_LANGUAGE.get(target.language)
     if METRIC not in metrics or tool is None:
@@ -168,7 +185,7 @@ def measure(target, metrics, dependency_run):
     try:
         problems = dependency_run.problems_by(tool)
     except ToolError as error:
-        if tool != GO_ARCH_LINT:
+        if tool not in DEFERRABLE_TOOLS:
             raise
         return [{
             **deferred_flagged_measurement(
@@ -305,14 +322,36 @@ def _layer_problem(rule, importer, imported):
     }
 
 
+def _python_package_roots(tree):
+    """Each top-most package at any depth: its name -> parent dir.
+
+    The parent is relative to the tree, `""` for the tree itself.
+    """
+    roots = {}
+    for directory, subdirectories, files in os.walk(tree):
+        subdirectories[:] = sorted(
+            name for name in subdirectories
+            if not name.startswith(".") and name not in SKIPPED_DIRECTORY_NAMES
+        )
+        package_dir = Path(directory)
+        if PYTHON_PACKAGE_MARKER in files and package_dir != tree:
+            subdirectories.clear()
+            parent = package_dir.parent.relative_to(tree).as_posix()
+            roots.setdefault(package_dir.name, "" if parent == "." else parent)
+    return roots
+
+
 def _find_with_import_linter(tree, layer_map):
-    roots = sorted(
-        entry.name for entry in tree.iterdir()
-        if (entry / "__init__.py").is_file()
-    )
-    if not roots:
-        return []
-    layers = _importable_layers(tree, roots, layer_map)
+    package_roots = _python_package_roots(tree)
+    if not package_roots:
+        raise NoPythonPackageError(
+            f"no directory with an {PYTHON_PACKAGE_MARKER} to check"
+        )
+    roots = sorted(package_roots)
+    layers = _importable_layers(tree, package_roots, layer_map)
+    import_path = os.pathsep.join(sorted(
+        {str(tree / parent) for parent in package_roots.values()}
+    ))
     with tempfile.TemporaryDirectory() as config_dir:
         config_path = Path(config_dir) / "importlinter.ini"
         config_path.write_text(_import_linter_config(roots, layers))
@@ -324,6 +363,7 @@ def _find_with_import_linter(tree, layer_map):
              "lint-imports", "--config", str(config_path),
              "--no-cache", "--no-logo"],
             cwd=tree,
+            env={**os.environ, "PYTHONPATH": import_path},
         )
 
     # Exit 1 also reports an unreadable config, so a run that
@@ -334,10 +374,10 @@ def _find_with_import_linter(tree, layer_map):
     )
     if not (has_known_exit and has_checked_contracts):
         raise ToolError(f"lint-imports failed: {(result.stdout + result.stderr).strip()}")
-    return _problems_from_import_linter(result.stdout, tree)
+    return _problems_from_import_linter(result.stdout, tree, package_roots)
 
 
-def _importable_layers(tree, roots, layer_map):
+def _importable_layers(tree, package_roots, layer_map):
     """Per layer, the Python modules its globs name; two layers or more.
 
     A layer glob that is not a plain package path, or whose package
@@ -349,29 +389,45 @@ def _importable_layers(tree, roots, layer_map):
     layers = []
     for layer in layer_map.layers:
         modules = [
-            module for module in map(_glob_to_module, layer.paths)
-            if module and _is_importable_package(tree, roots, module)
+            module for module in (
+                _glob_to_module(glob, package_roots) for glob in layer.paths
+            )
+            if module and _is_importable_package(tree, package_roots, module)
         ]
         if modules:
             layers.append((layer.name, modules))
     return layers if len(layers) >= 2 else []
 
 
-def _glob_to_module(glob):
+def _glob_to_module(glob, package_roots):
+    """The module a plain package glob names, else None.
+
+    The module is dotted from the package's parent dir, as
+    import-linter names it: `src/shop/sales/**` -> `shop.sales`.
+    """
     path = re.sub(r"(/\*\*|/\*|/)$", "", glob)
     if not path or "*" in path:
         return None
-    return path.replace("/", ".")
+    for name, parent in package_roots.items():
+        root_dir = posixpath.join(parent, name)
+        if path == root_dir or path.startswith(f"{root_dir}/"):
+            return posixpath.relpath(path, parent or ".").replace("/", ".")
+    return None
 
 
-def _is_importable_package(tree, roots, module):
+def _is_importable_package(tree, package_roots, module):
     parts = module.split(".")
-    if parts[0] not in roots:
-        return False
+    parent = package_roots[parts[0]]
     return all(
-        (tree.joinpath(*parts[:depth]) / "__init__.py").is_file()
+        (tree.joinpath(parent, *parts[:depth]) / PYTHON_PACKAGE_MARKER).is_file()
         for depth in range(1, len(parts) + 1)
     )
+
+
+def _module_dir(package_roots, module):
+    """The repo path of a dotted module: `shop.sales` -> `src/shop/sales`."""
+    parent = package_roots[module.split(".")[0]]
+    return posixpath.join(parent, module.replace(".", "/"))
 
 
 def _import_linter_config(roots, layers):
@@ -401,15 +457,15 @@ def _import_linter_config(roots, layers):
     return "\n".join(lines) + "\n"
 
 
-def _module_to_file(tree, module):
+def _module_to_file(tree, package_roots, module):
     """The repo path of a module: `a/b.py`, else `a/b/__init__.py`."""
-    path = module.replace(".", "/")
+    path = _module_dir(package_roots, module)
     if (tree / f"{path}.py").is_file():
         return f"{path}.py"
-    return f"{path}/__init__.py"
+    return f"{path}/{PYTHON_PACKAGE_MARKER}"
 
 
-def _problems_from_import_linter(output, tree):
+def _problems_from_import_linter(output, tree, package_roots):
     problems = []
     root = None
     layer_rule = None
@@ -429,14 +485,14 @@ def _problems_from_import_linter(output, tree):
             importer, imported = layer_edge.groups()
             problems.append(_layer_problem(
                 layer_rule,
-                _module_to_file(tree, importer),
-                _module_to_file(tree, imported),
+                _module_to_file(tree, package_roots, importer),
+                _module_to_file(tree, package_roots, imported),
             ))
             continue
         edge_match = CONTRACT_EDGE_LINE.match(line)
         if edge_match and root:
             importer, imported = edge_match.groups()
-            package_dir = root.replace(".", "/")
+            package_dir = _module_dir(package_roots, root)
             problems.append({
                 "key": (CYCLE_KIND, root, importer, imported),
                 "kind": CYCLE_KIND,

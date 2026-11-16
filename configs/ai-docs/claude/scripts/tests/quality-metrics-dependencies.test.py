@@ -75,6 +75,7 @@ def report_for_branch(tmp_path, declaration, base_files, branch_files, *argument
     repo = make_repo(tmp_path, base_files)
     base_sha = head_of(repo)
     for name, text in branch_files.items():
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
         (repo / name).write_text(text)
     commit_all(repo, "branch")
     declaration_path = tmp_path / "quality-metrics.yaml"
@@ -434,6 +435,79 @@ def test_flags_a_python_domain_to_infra_import_through_an_import_linter_layers_c
     assert layer_import["file"] == "domain/order.py"
     assert layer_import["other_file"] == "infra/db.py"
     assert layer_import["layer_map_source"] == "declared"
+
+
+def test_flags_an_import_cycle_in_a_package_kept_under_a_src_directory(tmp_path):
+    base_files = {
+        "src/shop/__init__.py": "",
+        "src/shop/orders/__init__.py": "",
+        "src/shop/orders/order.py": "ORDER_ID = 1\n",
+        "src/shop/billing/__init__.py": "",
+        "src/shop/billing/invoice.py": BILLING_READS_ORDERS,
+    }
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"src/shop/orders/order.py": ORDER_READS_BILLING},
+    )
+
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "cycle"
+    assert violations[0]["file"] == "src/shop/orders/order.py"
+
+
+def test_flags_a_python_layer_import_when_the_layer_packages_sit_under_a_src_directory(tmp_path):
+    base_files = {
+        "src/domain/__init__.py": "",
+        "src/domain/order.py": PYTHON_DOMAIN_WITHOUT_INFRA,
+        "src/infra/__init__.py": "",
+        "src/infra/db.py": PYTHON_INFRA_DB,
+    }
+    src_layers = DECLARED_LAYERS.replace("infra/**", "src/infra/**").replace(
+        "domain/**", "src/domain/**"
+    )
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"src/domain/order.py": PYTHON_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, src_layers),
+    )
+
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "layer"
+    assert violations[0]["file"] == "src/domain/order.py"
+    assert violations[0]["other_file"] == "src/infra/db.py"
+
+
+def test_scores_a_python_file_as_a_deferred_violation_when_the_tree_has_no_package(tmp_path):
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, {"tools/sync.py": "SYNC = 1\n"},
+        {"tools/sync.py": "SYNC = 2\n"},
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["metric"] == "dependency_direction"
+    assert deferred["file"] == "tools/sync.py"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
+def test_flags_a_cycle_in_the_first_package_a_branch_adds_to_a_tree_without_one(tmp_path):
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, {"tools/sync.py": "SYNC = 1\n"},
+        {
+            "shop/__init__.py": "",
+            "shop/orders.py": ORDER_READS_BILLING,
+            "shop/billing.py": BILLING_READS_ORDERS,
+        },
+    )
+
+    assert len(violations) == 2
+    assert {violation["kind"] for violation in violations} == {"cycle"}
+    assert {violation["file"] for violation in violations} == {
+        "shop/orders.py", "shop/billing.py"
+    }
 
 
 def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_on_itself_and_the_layers_after_it(tmp_path):
