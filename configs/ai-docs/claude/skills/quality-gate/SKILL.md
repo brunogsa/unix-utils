@@ -136,13 +136,11 @@ Verify without reading the file into main:
 
 Compose and print the whole list before applying anything. The two groups below enter on different terms.
 
-### 5.1. Every `test-sdd` finding goes in, without triage
+### 5.1. Every missing-planned-test finding goes in, without triage
 
-When §4 collected a non-empty `test-sdd` file, every finding enters the apply list - report-only and auto-solve alike.
+When §4 collected a non-empty `test-sdd` file, every finding `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>` prints enters the apply list - report-only and auto-solve alike; §7 reports the unplanned-tests finding it omits.
 
-One exception: take the findings to apply from `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>`, which omits the unplanned-tests finding; §7 reports that one.
-
-Another exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
+One exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
 
 It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`.
 
