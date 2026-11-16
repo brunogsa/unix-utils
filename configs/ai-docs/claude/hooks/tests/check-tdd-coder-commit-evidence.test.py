@@ -237,6 +237,53 @@ class TestCommitWithEvidenceMissingAGreenAfterTheLastRed:
         assert "=== GREEN" in reason
 
 
+class TestCallsLetThrough:
+    @pytest.mark.parametrize(
+        "evidence_text",
+        [
+            RED_ENTRY + GREEN_ENTRY,
+            RED_ENTRY + GREEN_ENTRY + "=== GREEN (after metrics refactor) Mon Nov 16 11:22:42 -03 2026 ===\n",
+            RED_ENTRY + GREEN_ENTRY + RED_ENTRY + GREEN_ENTRY,
+        ],
+        ids=["red-then-green", "a-second-green-after", "redispatch-red-then-green"],
+    )
+    def test_should_let_a_commit_through_when_a_green_entry_follows_the_latest_red(
+        self, tmp_path, evidence_text
+    ):
+        EVIDENCE.write_text(evidence_text, encoding="utf-8")
+
+        assert check_commit(tmp_path) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git status --short",
+            "git log --grep commit --oneline",
+            f"echo 'git commit ran' >> {EVIDENCE}",
+            f"cat >> {EVIDENCE} <<'EOF'\ngit commit -m x\nEOF",
+        ],
+        ids=["git-status", "git-log-grepping-commit", "quoted-text", "heredoc-body"],
+    )
+    def test_should_let_a_bash_call_through_when_it_runs_no_git_commit(self, tmp_path, command):
+        assert check_commit(tmp_path, command=command) is None
+
+    @pytest.mark.parametrize(
+        "agent_fields",
+        [
+            {"agent_type": "Explore"},
+            {"agent_type": "direct-coder"},
+            {"agent_type": OMITTED, "agent_id": OMITTED},
+        ],
+        ids=["nested-explore", "other-agent-type", "main-session"],
+    )
+    def test_should_let_a_commit_through_when_tdd_coder_is_not_the_caller(self, tmp_path, agent_fields):
+        assert check_commit(tmp_path, **agent_fields) is None
+
+    @pytest.mark.parametrize("stdin_text", ["", "not json", "[]"], ids=["empty", "not-json", "json-array"])
+    def test_should_fail_open_when_stdin_is_not_a_json_object(self, stdin_text):
+        assert deny_reason(run_hook(stdin_text)) is None
+
+
 def frontmatter_pretooluse_command():
     """The command wired under hooks: PreToolUse: in tdd-coder.md's frontmatter."""
     frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
