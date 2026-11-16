@@ -171,7 +171,8 @@ def quality_gate(arg):
     #      file, the moved source paths, the fallback if it happened, + any
     #      leg that failed to produce one), applied findings with SHAs,
     #      §5.2's not-addressable findings, /address-verdicts' skipped/failed
-    #      findings, and - on a report-only run - every refactor and
+    #      findings, the never-dispatched unplanned-tests finding for the
+    #      human to mark [Done], and - on a report-only run - every refactor and
     #      auto-review finding listed under a heading naming them as NEVER
     #      TRIAGED, closing with the two ways to work them: /address-verdicts,
     #      or a re-run as /quality-gate --auto-solve.
@@ -247,7 +248,7 @@ flowchart TD
     n13a --> n13b --> n13c --> n13d --> n13e --> n13f
   end
 
-  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the moved source paths, the fallback if it happened, + any<br/>leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the moved source paths, the fallback if it happened, + any<br/>leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
