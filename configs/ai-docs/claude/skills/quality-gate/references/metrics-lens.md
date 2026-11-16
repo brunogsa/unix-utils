@@ -5,11 +5,11 @@ The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. Yo
 You report only. Never edit a source file, the declaration `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
 quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there.
-- [Why] The installed `~/.claude/scripts/` path works from any repo, while a repo-relative path resolves only inside the config repo.
 
 ## 1. Run the script
 
 Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, over the range you were given, redirecting its JSON to the run directory:
+- [Why] The installed `~/.claude/scripts/` path works from any repo, while a repo-relative path resolves only inside the config repo.
 
 ```bash
 ~/.claude/scripts/measure-quality-metrics.py \
