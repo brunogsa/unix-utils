@@ -1929,6 +1929,36 @@ describe('lexing false positives', () => {
     });
   });
 
+  describe('a shell double-quoted string holding a command substitution', () => {
+    const block = ['', "# it's one", '# two', 'z=1'];
+
+    it('should not flag a spaced comment block after a nested substitution with quotes', () => {
+      const file = put(
+        'nested-subst.sh',
+        lines('a "$(r "x \'")"', "b $'y'", ...block),
+      );
+      assertAbsent(check(file).out, 'CODE-GAP');
+    });
+
+    it('should not flag it after a nested backtick substitution', () => {
+      const file = put(
+        'nested-backtick.sh',
+        lines('a "`r "x \'"`"', "b $'y'", ...block),
+      );
+      assertAbsent(check(file).out, 'CODE-GAP');
+    });
+
+    it('should still flag a comment block glued under code', () => {
+      const file = put('glued.sh', lines('a "$(r "x")"', '# one', '# two', 'z=1'));
+      assertContains(check(file).out, 'CODE-GAP 2');
+    });
+
+    it('should not crash on an unterminated substitution', () => {
+      const file = put('unterminated.sh', lines('a "$(r "x', '# one'));
+      assert.notEqual(check(file).status, 2);
+    });
+  });
+
   describe('an empty line inside a typescript block-comment body', () => {
     it('should reset the paragraph run in a typescript block comment', () => {
       const file = put(

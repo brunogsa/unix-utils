@@ -6,6 +6,50 @@
 
 const { skipQuoted, heredocQueue } = require('./lexing');
 
+// Reads a shell command body up to its closer -- `)` for
+// `$(...)`, a backtick for the old form -- skipping the
+// quotes and nested openers inside it. Input that never
+// closes runs to the end of the text, the old behaviour.
+function skipShellSubstitution(text, from, closer) {
+  const parenDelta = { '(': 1, ')': -1 };
+  let j = from;
+  let depth = 0;
+  while (j < text.length) {
+    const ch = text[j];
+    if (ch === closer && depth === 0) return j + 1;
+    if (closer === ')') depth += parenDelta[ch] || 0;
+    j = skipShellQuotedOrEscaped(text, j);
+  }
+  return text.length;
+}
+
+// Steps past one character, or past the whole quoted run or
+// escape pair that starts at `j`.
+function skipShellQuotedOrEscaped(text, j) {
+  if (text[j] === '\\') return j + 2;
+  if (text[j] === "'") return skipQuoted(text, j + 1, "'", false);
+  if (text[j] === '"') return skipShellDoubleQuoted(text, j + 1);
+  return j + 1;
+}
+
+// A shell double-quoted string ends at the next bare `"`,
+// but a `$(...)` or backtick inside it holds a command that
+// may carry quotes of its own.
+function skipShellDoubleQuoted(text, from) {
+  let j = from;
+  while (j < text.length) {
+    const ch = text[j];
+    if (ch === '\\') j += 2;
+    else if (ch === '"') return j + 1;
+    else if (ch === '$' && text[j + 1] === '(') {
+      j = skipShellSubstitution(text, j + 2, ')');
+    } else if (ch === '`') {
+      j = skipShellSubstitution(text, j + 1, '`');
+    } else j++;
+  }
+  return text.length;
+}
+
 // Shell needs a word boundary before `#`, or `$#` and
 // `${v#pat}` would blank out the rest of their line.
 function shellDialect() {
@@ -20,7 +64,7 @@ function shellDialect() {
       const ch = text[i];
       if (ch === '\\') return i + 2;
       if (ch === "'") return skipQuoted(text, i + 1, "'", false);
-      if (ch === '"') return skipQuoted(text, i + 1, '"', true);
+      if (ch === '"') return skipShellDoubleQuoted(text, i + 1);
       if (ch === '$' && text[i + 1] === "'") return skipQuoted(text, i + 2, "'", true);
 
       if (ch === '<' && text[i + 1] === '<') {
