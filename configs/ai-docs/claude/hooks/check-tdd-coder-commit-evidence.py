@@ -125,16 +125,11 @@ DASHED_COMMIT_BINARY = re.compile(r"git-commit|git-core|exec[-_]path", re.IGNORE
 CONFIG_PROGRAM_KEY = re.compile(
     r"core\.fsmonitor|core\.pager|pager\..+|diff\.external"
     r"|diff\..+\.(?:textconv|command)|filter\..+\.(?:smudge|clean|process)"
-    r"|gpg\.(?:.+\.)?program|merge\..+\.driver|interactive\.difffilter",
+    r"|gpg\.(?:.+\.)?program|merge\..+\.driver|interactive\.difffilter"
+    r"|include\.path|includeif\..+\.path",
     re.IGNORECASE,
 )
 SAMPLE_HOOK_SUFFIX = ".sample"
-
-# core.hooksPath is judged by the hooks it holds, which the
-# hooks dir scan reads. A relative, blank-padded or control-
-# character value may name a dir the scan never reads, so it
-# counts as a program.
-HOOKS_PATH_KEY = "core.hookspath"
 
 # The program check reads the payload's cwd, so a git call
 # after a directory change runs where it never looked.
@@ -191,7 +186,7 @@ SCREEN_GUIDANCE = (
     "a command, env, export, declare -x, set -a), "
     "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "
     "gitconfig or gitattributes path in any case, glob or splice, runs git in a repo whose git config "
-    "or hooks run a program, "
+    "or includes run a program or whose hooks are active or outside the default hooks dir, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
     "one, append the GREEN entry first"
@@ -274,15 +269,14 @@ def get_config_entries(cwd: str | None) -> list[tuple[str, str]] | None:
     return entries
 
 
-def has_control_character(value: str) -> bool:
-    return any(ord(character) < 32 or ord(character) == 127 for character in value)
-
-
-def is_program_entry(key: str, value: str) -> bool:
-    if key.lower() == HOOKS_PATH_KEY:
-        is_padded = value != value.strip()
-        return is_padded or has_control_character(value) or not os.path.isabs(value)
-    return CONFIG_PROGRAM_KEY.fullmatch(key) is not None
+def runs_hooks_elsewhere(cwd: str | None, hooks_dir: Path) -> bool:
+    # A call can plant hooks in a dir outside .git without
+    # naming .git, so only the default hooks dir is screened.
+    common = run_git(cwd, "rev-parse", "--git-common-dir")
+    if common is None or common.returncode != 0:
+        return True
+    default_dir = Path(cwd or Path.cwd()) / common.stdout.removesuffix("\n") / "hooks"
+    return hooks_dir.resolve() != default_dir.resolve()
 
 
 @lru_cache(maxsize=None)
@@ -294,14 +288,15 @@ def runs_configured_program(cwd: str | None) -> bool:
     hooks = run_git(cwd, "rev-parse", "--git-path", "hooks")
     if entries is None or hooks is None:
         return True
-    elif any(is_program_entry(key, value) for key, value in entries):
+    elif any(CONFIG_PROGRAM_KEY.fullmatch(key) for key, _ in entries):
         return True
     elif hooks.returncode != 0:
         return False
 
     # git ends the path with one newline; any other blank is
     # part of the path git runs hooks from.
-    return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.removesuffix("\n"))
+    hooks_dir = Path(cwd or Path.cwd()) / hooks.stdout.removesuffix("\n")
+    return runs_hooks_elsewhere(cwd, hooks_dir) or has_active_hook(hooks_dir)
 
 
 def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:

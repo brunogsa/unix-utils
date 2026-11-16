@@ -799,6 +799,39 @@ class TestEnvironmentWriteBeforeAnyProgram:
         assert check_commit(tmp_path, command=command, cwd=str(repo)) is None
 
 
+class TestIncludesAndHooksLocation:
+    @pytest.mark.parametrize("key", ["include.path", "includeIf.onbranch:feature.path"])
+    def test_should_deny_git_in_a_repo_whose_config_includes_another_file(self, tmp_path, key):
+        repo = git_repo(tmp_path)
+        included = tmp_path / "included.cfg"
+        included.write_text("[user]\n\tname = t\n", encoding="utf-8")
+        git(repo, "config", key, str(included))
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+    @pytest.mark.parametrize(
+        "value_of",
+        [
+            lambda repo: str(repo.parent / "empty-hooks"),
+            lambda repo: f"{repo}/.git/hooks ",
+            lambda repo: f"{repo}/.git/hooks\t",
+        ],
+        ids=["empty-absolute-dir", "trailing-space", "control-character"],
+    )
+    def test_should_deny_git_when_hooks_path_leaves_the_default_hooks_dir(self, tmp_path, value_of):
+        repo = git_repo(tmp_path)
+        (tmp_path / "empty-hooks").mkdir()
+        git(repo, "config", "core.hooksPath", value_of(repo))
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+    def test_should_let_git_through_when_a_relative_hooks_path_names_the_default_dir(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "core.hooksPath", ".git/hooks")
+
+        assert check_commit(tmp_path, command="git status --short", cwd=str(repo)) is None
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
