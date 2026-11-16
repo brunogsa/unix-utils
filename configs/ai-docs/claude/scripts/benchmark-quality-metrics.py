@@ -117,7 +117,7 @@ def run_measured(exit_code, stdout):
 
 
 def time_metric(metric, repo_root):
-    """Return (command, seconds, exit_code, stderr_tail, is_measured)."""
+    """One timed run: command, seconds, exit_code, stderr_tail, is_measured."""
     with tempfile.TemporaryDirectory() as directory:
         declaration_path = Path(directory) / "quality-metrics.yaml"
         declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(
@@ -131,19 +131,22 @@ def time_metric(metric, repo_root):
         started = time.perf_counter()
         completed = subprocess.run(command, cwd=repo_root, capture_output=True, text=True)
         seconds = time.perf_counter() - started
-    is_measured = run_measured(completed.returncode, completed.stdout)
-    return command, seconds, completed.returncode, completed.stderr.strip()[-400:], is_measured
+    return {
+        "command": command,
+        "seconds": seconds,
+        "exit_code": completed.returncode,
+        "stderr_tail": completed.stderr.strip()[-400:],
+        "is_measured": run_measured(completed.returncode, completed.stdout),
+    }
 
 
 def benchmark(repo_root):
     results = {}
     for metric in metrics_with_a_module():
-        command, seconds, exit_code, stderr_tail, is_measured = time_metric(metric, repo_root)
-        results[metric] = {
-            "command": command, "seconds": seconds, "exit_code": exit_code,
-            "stderr_tail": stderr_tail, "is_measured": is_measured,
-        }
-        print(f"{metric}: {seconds:.2f}s exit {exit_code}: {' '.join(command)}")
+        result = time_metric(metric, repo_root)
+        results[metric] = result
+        command = " ".join(result["command"])
+        print(f"{metric}: {result['seconds']:.2f}s exit {result['exit_code']}: {command}")
     return results
 
 
