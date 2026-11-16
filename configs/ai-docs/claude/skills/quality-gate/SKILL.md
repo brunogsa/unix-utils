@@ -139,7 +139,7 @@ Verify without reading the merged file into main:
 
 **Pass** → move (never delete) the `refactor` and `auto-review` files into `<RUN_DIR>`, so `/address-verdicts` can't apply one finding from both the merged file and its source. Record the moved paths for §7.
 
-**Fail** → move the failed merged file into `<RUN_DIR>`, and move every source file back into CWD as this run's output. Say so in §7.
+**Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Say so in §7.
 
 ## 5. Assemble the apply list
 
