@@ -134,13 +134,13 @@ Verify without reading the file into main:
 
 ## 5. Assemble the apply list
 
-Compose the whole list, and print it, before applying anything. The two groups below enter the list on different terms.
+Compose and print the whole list before applying anything. The two groups below enter on different terms.
 
 ### 5.1. Every `test-sdd` finding goes in, without triage
 
 When §4 collected a non-empty `test-sdd` file, every finding enters the apply list - report-only and auto-solve alike.
 
-One exception: take the findings to apply from `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>`, which omits the unplanned-tests finding; §7 reports that one for the human to mark `[Done]`.
+One exception: take the findings to apply from `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>`, which omits the unplanned-tests finding; §7 reports that one.
 
 Another exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
 
@@ -206,6 +206,8 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - **On a report-only run, every `refactor` and `auto-review` finding, under a heading naming them as never triaged.**
   - Nothing read them for addressability, so reporting them as "not addressable" would claim a judgment this run never made.
   - Close that section by naming both ways to work them: tag the chosen headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
+
+- The `test-sdd` `Unplanned tests added by the branch` finding, its tests listed, never dispatched, for the human to mark `[Done]`.
 
 - Findings `/address-verdicts` skipped, with the reason - an ambiguity or a missing test command under `--no-ask`.
 - Findings whose apply failed, with what it needs to retry.
