@@ -106,7 +106,8 @@ def declared_title(path, source_line):
 
 def list_added_tests(base):
     """Return (path, line at HEAD, title) for every test declaration
-    on a `+` line of the diff from base to HEAD."""
+    on a `+` line of the diff from the fork point to HEAD, except
+    a declaration the same file also removed (an edited signature)."""
     diff = run_git(
         "diff",
         "--no-color",
@@ -117,6 +118,7 @@ def list_added_tests(base):
         f"{base}...HEAD",
     )
     added = []
+    removed = set()
     path = None
     new_line = 0
     for diff_line in diff.splitlines():
@@ -132,13 +134,24 @@ def list_added_tests(base):
         if hunk:
             new_line = int(hunk.group(1))
             continue
-        if path is None or not diff_line.startswith("+"):
+        if path is None or diff_line.startswith("--- "):
+            continue
+        if diff_line.startswith("-"):
+            title = declared_title(path, diff_line[1:])
+            if title is not None:
+                removed.add((path, title))
+            continue
+        if not diff_line.startswith("+"):
             continue
         title = declared_title(path, diff_line[1:])
         if title is not None:
             added.append((path, new_line, title))
         new_line += 1
-    return added
+    return [
+        (added_path, line, title)
+        for added_path, line, title in added
+        if (added_path, title) not in removed
+    ]
 
 
 def read_gate(path, line):

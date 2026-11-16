@@ -347,3 +347,27 @@ describe("gate", () => {
         assert [(row["path"], row["line"]) for row in listed] == [
             ("my dir/parse.test.ts", 4)
         ]
+
+    def test_should_not_list_an_existing_test_whose_declaration_line_was_edited(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(
+            repo,
+            {
+                "tests/test_rows.py": "def test_should_reject_an_empty_row(self):\n"
+                "    pass\n"
+            },
+        )
+        _write(
+            repo,
+            "tests/test_rows.py",
+            "def test_should_reject_an_empty_row(self, tmp_path):\n"
+            "    pass\n",
+        )
+        _commit(repo, "test: give the row test a temp directory")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert listed == []
