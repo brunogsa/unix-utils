@@ -154,18 +154,26 @@ def list_added_tests(base):
     ]
 
 
-def read_gate(path, line):
-    """Return the Gate trailer of the commit that last wrote this
-    line at HEAD, or GATE_UNKNOWN when that commit carries none."""
-    blame = run_git(
-        "blame", "-L", f"{line},{line}", "--porcelain", "HEAD", "--", path
-    )
-    adding_commit = blame.split(None, 1)[0]
+def read_gate(path, title, base):
+    """Return the Gate trailer of the first branch commit that
+    introduced this title in this file, or GATE_UNKNOWN when that
+    commit carries none. A later edit of the line never counts."""
+    introducing_commits = run_git(
+        "log",
+        "--reverse",
+        "--format=%H",
+        f"-S{title}",
+        f"{base}..HEAD",
+        "--",
+        path,
+    ).split()
+    if not introducing_commits:
+        return GATE_UNKNOWN
     trailer = run_git(
         "log",
         "-1",
         "--format=%(trailers:key=Gate,valueonly,unfold)",
-        adding_commit,
+        introducing_commits[0],
     ).strip()
     return trailer or GATE_UNKNOWN
 
@@ -187,7 +195,7 @@ def main():
             "path": path,
             "line": line,
             "title": title,
-            "gate": read_gate(path, line),
+            "gate": read_gate(path, title, args.base),
         }
         for path, line, title in list_added_tests(args.base)
         if normalize_title(title) not in planned_titles

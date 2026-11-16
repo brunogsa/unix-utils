@@ -371,3 +371,28 @@ describe("gate", () => {
         listed = _listed(repo, _plan(tmp_path), base)
 
         assert listed == []
+
+    def test_should_name_the_gate_of_the_commit_that_added_a_test_not_a_later_edit(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/parse.test.ts",
+            'it("rejects an empty row", () => {});\n',
+        )
+        _commit(repo, "test: reject empty rows", GATE_TRAILER)
+        _write(
+            repo,
+            "tests/parse.test.ts",
+            'it("rejects an empty row", () => { run(); });\n',
+        )
+        _commit(repo, "test: run the parser", "Gate: metrics")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert [(row["title"], row["gate"]) for row in listed] == [
+            ("rejects an empty row", "changed-line coverage")
+        ]
