@@ -35,11 +35,19 @@ languages:
   # Dependency direction needs dependency-cruiser for js and ts
   # (ts also needs typescript below 7 beside it), and uv for
   # python's import-linter, and go-arch-lint for go.
+  #
+  # nesting_reader picks the lizard nesting column: nd, the
+  # default, ns, or min of both.
+  #
+  # ND misreads Python and braceless JS; NS misreads JS
+  # else-if chains.
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
+    nesting_reader: min
     metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
   ts:
     extensions: [.ts, .tsx]
+    nesting_reader: min
     metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
 
   # HTML and CSS have no functions: only size and code
@@ -59,6 +67,7 @@ languages:
     metrics: [size, code_duplication]
   python:
     extensions: [.py]
+    nesting_reader: ns
     metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
 
   # Bash declares size, counted in logical lines, crap, and code

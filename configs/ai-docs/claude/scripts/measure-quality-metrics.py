@@ -301,6 +301,7 @@ def _measure_file(setup, path, touched_lines, head_ref, directory):
     target = Target(
         source, language, touched_lines, repo_path=path,
         tool_policy=setup.coverage_run.policy,
+        nesting_reader=declaring.nesting_reader_for(setup.declaration, language),
     )
     found = _measure_target(
         setup.declaration, setup.mode, target,
@@ -424,7 +425,10 @@ def _resolved_since(declaration, mode, diff_range):
             return []
         return _measure_target(
             declaration, mode,
-            Target(copy_path, language, WHOLE_FILE, repo_path=original_path),
+            Target(
+                copy_path, language, WHOLE_FILE, repo_path=original_path,
+                nesting_reader=declaring.nesting_reader_for(declaration, language),
+            ),
         )
 
     def function_names_in(path):

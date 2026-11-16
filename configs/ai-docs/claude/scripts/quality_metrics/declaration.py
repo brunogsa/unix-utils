@@ -33,6 +33,7 @@ TEST_DIRECTORY_NAMES = ("tests", "test", "__tests__")
 PER_UNIT_MODE = "per-unit"
 BATCH_END_MODE = "batch-end"
 
+NESTING_READERS = ("nd", "ns", "min")
 APPLIES = "applies"
 NOT_APPLICABLE = "not applicable"
 
@@ -54,6 +55,10 @@ class Language:
     # jscpd's --similarity does not read this language, so
     # duplication is found from exact token clones only.
     is_token_only_duplication: bool = False
+
+    # Which lizard nesting column the language reads: "nd" (the
+    # default), "ns", or "min" of both.
+    nesting_reader: str = "nd"
 
 
 @dataclass(frozen=True)
@@ -211,5 +216,21 @@ def _build_languages(raw_languages, ignored_extensions):
             extensions=extensions,
             metrics=metrics,
             is_token_only_duplication=bool(entry.get("token_only_duplication")),
+            nesting_reader=_validated_nesting_reader(name, entry),
         )
     return languages
+
+
+def _validated_nesting_reader(name, entry):
+    reader = entry.get("nesting_reader", "nd")
+    if reader not in NESTING_READERS:
+        raise DeclarationError(
+            f"language entry '{name}' has nesting_reader '{reader}'; "
+            f"expected one of {', '.join(NESTING_READERS)}"
+        )
+    return reader
+
+
+def nesting_reader_for(declaration, language):
+    """The lizard nesting reading the language declares."""
+    return declaration.languages[language].nesting_reader

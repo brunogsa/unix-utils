@@ -53,6 +53,9 @@ class Target:
     touched_lines: Optional[Set[int]]
     repo_path: Optional[str] = None
 
+    # The lizard nesting column the language declares.
+    nesting_reader: str = "nd"
+
     # Times each global function tool; None runs it bare.
     tool_policy: Optional[object] = field(default=None, compare=False)
 

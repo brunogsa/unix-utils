@@ -37,11 +37,18 @@ DISPLAY_STEP = Decimal("0.01")
 
 BASH = "bash"
 
-# Columns of `lizard --csv -E nd -E cognitive`; an extension's
-# column follows the order the -E flags name them in.
+# Columns of `lizard --csv -E nd -E ns -E cognitive`; an
+# extension's column follows the order the -E flags name them
+# in.
 LIZARD_NLOC, LIZARD_COMPLEXITY, LIZARD_PARAMETERS = 0, 1, 3
-LIZARD_NAME, LIZARD_START, LIZARD_END, LIZARD_NESTING = 7, 9, 10, 11
-LIZARD_COGNITIVE = 12
+LIZARD_NAME, LIZARD_START, LIZARD_END = 7, 9, 10
+LIZARD_NESTING_DEPTH, LIZARD_NESTED_STRUCTURES = 11, 12
+LIZARD_COGNITIVE = 13
+
+# The declaration's nesting_reader values: ND is wrong for
+# Python and braceless JS, NS for JS else-if chains.
+READ_NESTED_STRUCTURES = "ns"
+READ_SMALLER_OF_BOTH = "min"
 
 # The node type shfmt `--to-json` gives a function definition.
 SHFMT_FUNCTION_NODE = "FuncDecl"
@@ -87,14 +94,16 @@ def _run_function_tool(policy, command, input_text=None):
         raise FunctionToolError(command[0], str(error)) from error
 
 
-def measure_functions(path, language, policy=None):
+def measure_functions(path, language, policy=None, nesting_reader="nd"):
     if language == BASH:
         return _measure_bash_functions(path, policy)
-    return _measure_functions_with_lizard(path, policy)
+    return _measure_functions_with_lizard(path, policy, nesting_reader)
 
 
 def touched_functions(target):
-    functions = measure_functions(target.path, target.language, target.tool_policy)
+    functions = measure_functions(
+        target.path, target.language, target.tool_policy, target.nesting_reader
+    )
     return [
         function for function in functions
         if target.touches(function.start, function.end)
@@ -169,9 +178,20 @@ def measurement(target, metric, value, limit, function=None):
     }
 
 
-def _measure_functions_with_lizard(path, policy):
-    output = _run_function_tool(policy, ["lizard", "--csv", "-E", "nd", "-E", "cognitive", str(path)]
-    )
+def _lizard_nesting(row, nesting_reader):
+    depth = int(row[LIZARD_NESTING_DEPTH])
+    structures = int(row[LIZARD_NESTED_STRUCTURES])
+    if nesting_reader == READ_NESTED_STRUCTURES:
+        return structures
+    if nesting_reader == READ_SMALLER_OF_BOTH:
+        return min(depth, structures)
+    return depth
+
+
+def _measure_functions_with_lizard(path, policy, nesting_reader):
+    output = _run_function_tool(policy, [
+        "lizard", "--csv", "-E", "nd", "-E", "ns", "-E", "cognitive", str(path),
+    ])
     return [
         FunctionMeasure(
             name=row[LIZARD_NAME],
@@ -179,7 +199,7 @@ def _measure_functions_with_lizard(path, policy):
             end=int(row[LIZARD_END]),
             nloc=int(row[LIZARD_NLOC]),
             complexity=int(row[LIZARD_COMPLEXITY]),
-            nesting=int(row[LIZARD_NESTING]),
+            nesting=_lizard_nesting(row, nesting_reader),
             parameters=int(row[LIZARD_PARAMETERS]),
             cognitive_complexity=int(row[LIZARD_COGNITIVE]),
         )
