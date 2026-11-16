@@ -98,6 +98,10 @@ exit 3
 FallThroughCase = namedtuple("FallThroughCase", "stub exit_class candidate attempts")
 
 HEADROOM_POLICY = TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True)
+
+# The stub exits at once, so this never fires; it only keeps a
+# slow bash start under load from reading as a timeout.
+GENEROUS_POLICY = TimeoutPolicy(timeout_seconds=60, headroom_is_go=lambda: True)
 FALL_THROUGH_CASES = [
     FallThroughCase(PYTEST_NO_REPORT_STUB, "no_coverage_data", "repo pytest-cov wrote no coverage data", 1),
     FallThroughCase(PYTEST_CRASH_STUB, "crash", "repo pytest-cov crashed", 1),
@@ -160,7 +164,7 @@ def test_should_measure_with_the_base_ref_coverage_config_when_the_branch_omits_
 def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_crashes_or_writes_no_coverage_data(
     tmp_path, monkeypatch, failure
 ):
-    measured = measure_cart_with_stub(tmp_path, monkeypatch, failure.stub, policy=HEADROOM_POLICY)
+    measured = measure_cart_with_stub(tmp_path, monkeypatch, failure.stub, policy=GENEROUS_POLICY)
 
     assert_fell_through_to_global(tmp_path, measured, {
         "metric": "coverage", "language": "python", "source": GLOBAL_COVERAGE_PY_SOURCE,
