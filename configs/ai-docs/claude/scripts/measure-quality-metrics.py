@@ -91,8 +91,8 @@ def main(arguments):
             declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
         measurements, unclaimed = _measure(
-            declaration, mode, touched_by_file, coverage_run, head_ref,
-            dependency_run,
+            declaration, mode, touched_by_file, coverage_run,
+            dependency_run, head_ref,
         )
         resolved = _resolved_since(declaration, mode, options.diff)
     except (declaring.DeclarationError, ToolError, GitError) as error:
@@ -161,8 +161,8 @@ def _dependency_base_ref(options):
     return options.base
 
 
-def _measure(declaration, mode, touched_by_file, coverage_run, head_ref=None,
-             dependency_run=None):
+def _measure(declaration, mode, touched_by_file, coverage_run, dependency_run,
+             head_ref=None):
     """Measure each file; with `head_ref`, measure its text at that ref."""
     measurements = []
     unclaimed = []
@@ -214,7 +214,8 @@ def _copy_at(ref, path, directory):
 def _measure_target(declaration, mode, target, coverage_run=None,
                     dependency_run=None):
     """Measure one target; with no `coverage_run`, skip CRAP,
-    coverage, duplication and dependency direction.
+    coverage and duplication, and with no `dependency_run`, skip
+    dependency direction.
 
     The base-side copy of a resolved function has no test run of its
     own, so scoring it against the working tree's coverage would be wrong.
@@ -234,7 +235,7 @@ def _measure_target(declaration, mode, target, coverage_run=None,
                 )
             continue
         if module_name == DEPENDENCIES_MODULE:
-            if coverage_run is not None and dependency_run is not None:
+            if dependency_run is not None:
                 measurements += dependencies.measure(
                     target, module_metrics, dependency_run
                 )
