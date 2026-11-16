@@ -126,7 +126,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] Builder/factory functions should only assemble data from explicit parameters. Business decisions (conditionals, calculations, transformations) belong at the use-case/caller level.
   - [Why] Business decisions buried in builders hide the rules; pulling them out keeps logic visible and builders reusable.
 
-- [Instruction] When a spec defines N cases, design a unified pipeline that naturally produces correct output for all of them.
+- [Instruction] Design one pipeline that produces correct output for all N spec cases, and redesign it for a new requirement instead of bolting on a branch.
   - [Why] A 1:1 case translation couples control flow to spec - a spec change forces code change; each branch hides a bug.
 
 - [Instruction] When you work around another system's broken guarantee, say in the code that your data covers only what passed through you - it is not the source of truth.
