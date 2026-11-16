@@ -53,6 +53,23 @@ echo "Tests:       2 failed, 10 passed, 12 total" >&2
 exit 1
 """
 
+# A jest that finds no tests exits 1 unless it is passed
+# --passWithNoTests (jestjs.io/docs/cli#--passwithnotests).
+JEST_NO_TESTS_STUB = """#!/bin/bash
+pass_with_no_tests=no
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+    --passWithNoTests) pass_with_no_tests=yes;;
+  esac
+done
+if [ "$pass_with_no_tests" = no ]; then
+  echo "No tests found, exiting with code 1" >&2
+  exit 1
+fi
+: > "$report_dir/lcov.info"
+"""
+
 # Lists the directory jest runs in, as the repo looks mid-run.
 JEST_LISTING_STUB = """#!/bin/bash
 ls -A "$PWD" > "$LISTING_LOG"
@@ -149,6 +166,20 @@ def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_bui
     assert [(record["metric"], record["value"], record["pessimistic"]) for record in records] == [
         ("coverage", 0, True)
     ]
+    assert global_calls == []
+
+
+def test_should_read_a_repo_jest_that_finds_no_tests_as_no_coverage_data_not_as_a_red_build(
+    tmp_path, monkeypatch
+):
+    coverage_run, records, global_calls = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_TESTS_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert source["exit_class"] == "passed"
+    assert source["side_pr_candidate"] is None
+    assert [(record["value"], record.get("pessimistic")) for record in records] == [(0, None)]
     assert global_calls == []
 
 

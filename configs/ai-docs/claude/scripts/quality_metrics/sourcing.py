@@ -152,7 +152,8 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
     with tempfile.TemporaryDirectory() as report_dir, _base_ref_config_flags(repo, base_ref) as config_flags:
         result = run_command(
             [
-                "jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
+                "jest", "--coverage", "--passWithNoTests",
+                "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
                 *config_flags,
             ],
             cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
