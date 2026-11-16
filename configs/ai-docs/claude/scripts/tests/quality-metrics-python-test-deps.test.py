@@ -140,3 +140,35 @@ def test_should_pass_one_extra_flag_per_declared_test_and_dev_extra_in_a_stable_
     assert declared_test_dependency_args(repo) == [
         "--extra", "test", "--extra", "dev",
     ]
+
+
+def test_should_add_no_extra_flag_when_the_optional_dependencies_hold_neither_a_test_nor_a_dev_extra(tmp_path):
+    from quality_metrics.python_test_deps import declared_test_dependency_args
+
+    repo = write_repo(tmp_path, {
+        "pyproject.toml": (
+            PROJECT_HEADER
+            + "[project.optional-dependencies]\n"
+            + 'docs = ["sphinx"]\n'
+        ),
+    })
+
+    assert declared_test_dependency_args(repo) == []
+
+
+def test_should_add_no_extra_flag_and_not_raise_when_the_pyproject_is_malformed(tmp_path):
+    from quality_metrics.python_test_deps import declared_test_dependency_args
+
+    repo = write_repo(tmp_path, {"pyproject.toml": "[project.optional-dependencies\ntest = [\n"})
+
+    assert declared_test_dependency_args(repo) == []
+
+
+def test_should_add_no_extra_flag_when_the_pyproject_has_a_test_extra_but_no_project_table(tmp_path):
+    from quality_metrics.python_test_deps import declared_test_dependency_args
+
+    repo = write_repo(tmp_path, {
+        "pyproject.toml": '[tool.other]\ntest = ["pytest-mock"]\n',
+    })
+
+    assert declared_test_dependency_args(repo) == []
