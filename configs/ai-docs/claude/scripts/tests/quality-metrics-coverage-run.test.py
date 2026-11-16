@@ -127,6 +127,10 @@ def test_should_classify_a_crash_from_the_tool_output_and_fall_through_to_the_gl
 
 
 HEADROOM_POLICY = TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True)
+
+# The stub exits at once, so this never fires; it only keeps a
+# slow bash start under load from reading as a timeout.
+GENEROUS_POLICY = TimeoutPolicy(timeout_seconds=60, headroom_is_go=lambda: True)
 GLOBAL_C8_SOURCE = {"kind": "global", "tool": "c8"}
 FALL_THROUGH_CASES = [
     FallThroughCase(JEST_NO_REPORT_STUB, "no_coverage_data", "repo jest wrote no coverage data", 1),
@@ -138,7 +142,7 @@ FALL_THROUGH_IDS = ["no-coverage-report-written"]
 def test_should_fall_through_to_the_global_tool_when_the_repo_tool_writes_no_coverage_data(
     tmp_path, monkeypatch, failure
 ):
-    measured = measure_js_with_jest_stub(tmp_path, monkeypatch, failure.stub, policy=HEADROOM_POLICY)
+    measured = measure_js_with_jest_stub(tmp_path, monkeypatch, failure.stub, policy=GENEROUS_POLICY)
 
     assert_fell_through_to_global(tmp_path, measured, {
         "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
