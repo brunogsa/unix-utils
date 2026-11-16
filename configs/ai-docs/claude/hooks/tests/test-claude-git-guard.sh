@@ -744,6 +744,15 @@ it_should_block_an_attribution_glued_onto_a_body_sentence() {
   esac
 }
 
+# Inside double quotes bash keeps \n as a backslash and an n, so
+# the attribution is part of the Gate trailer's value.
+it_should_block_an_attribution_after_a_literal_backslash_n() {
+  local dir
+  dir=$(make_repo main)
+  run_hook 'git commit --allow-empty -m "fix(git-guard): read trailers" -m "Gate: metrics\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir"
+  assert_eq "should block an attribution that follows a literal backslash-n" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -819,6 +828,7 @@ it_should_allow_a_variable_message_file_path_whose_file_carries_attribution
 it_should_block_a_variable_message_file_path_whose_file_lacks_attribution
 it_should_block_a_relative_message_file_after_a_directory_change
 it_should_block_an_attribution_glued_onto_a_body_sentence
+it_should_block_an_attribution_after_a_literal_backslash_n
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
