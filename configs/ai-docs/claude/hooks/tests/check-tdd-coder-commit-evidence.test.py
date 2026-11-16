@@ -458,6 +458,30 @@ class TestGitSubcommandAllowlist:
         possible_commit_reason(tmp_path, "sh release.sh")
 
 
+def get_git_exec_path():
+    result = subprocess.run(["git", "--exec-path"], check=True, capture_output=True, text=True, env=GIT_ENV)
+    return result.stdout.strip()
+
+
+class TestDashedGitCommitBinary:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"{get_git_exec_path()}/git-commit -m x -- a.py",
+            "git-commit-tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904 -m x",
+            "env \"$GIT_EXEC_PATH\"/git-c'o'mmit -m x",
+        ],
+        ids=["git-core-path", "commit-tree-on-path", "exec-path-variable"],
+    )
+    def test_should_deny_running_the_dashed_commit_binary(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+    def test_should_deny_running_a_script_whose_text_runs_the_dashed_commit_binary(self, tmp_path):
+        (tmp_path / "release.sh").write_text("#!/bin/sh\ngit-commit-tree HEAD^{tree} -m x\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "sh release.sh")
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

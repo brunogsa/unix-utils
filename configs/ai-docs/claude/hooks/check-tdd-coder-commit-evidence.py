@@ -78,6 +78,10 @@ GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
 NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?![\w./-])")
 GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)GIT_\w*=")
 
+# git-commit and git-commit-tree also run as dashed binaries
+# in git's exec path, so any name reaching for them counts.
+DASHED_COMMIT_BINARY = re.compile(r"git-commit|git-core|exec[-_]path", re.IGNORECASE)
+
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
 SHELL_PUNCTUATION = "();<>|&\n"
@@ -157,7 +161,8 @@ def runs_other_git_subcommand(text: str) -> bool:
 
 
 def names_commit(text: str) -> bool:
-    return COMMIT_WORD.search(text) is not None or runs_other_git_subcommand(text)
+    has_commit_name = COMMIT_WORD.search(text) or DASHED_COMMIT_BINARY.search(text)
+    return has_commit_name is not None or runs_other_git_subcommand(text)
 
 
 def is_separator(word: str) -> bool:
