@@ -26,9 +26,8 @@ METRIC_TITLES = {
     ("size", "file"): "File size",
 }
 
-
 PESSIMISTIC_NOTE = "pessimistic"
-REJECTED_NOTE =", exception rejected by the judge"
+REJECTED_NOTE = ", exception rejected by the judge"
 
 NO_CODE_MEASURED = "No code file was measured."
 
