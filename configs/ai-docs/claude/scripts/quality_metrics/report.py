@@ -1,8 +1,9 @@
 """Builds the metrics verdict text from a measure-quality-metrics report.
 
-Order: exceptions first, then the open violations, then the
-rest. An exception counts only with a split diff saved on disk,
-so a claim made in prose alone stays a violation.
+Order: deferred metrics and exceptions first, then the open
+violations, then the rest. An exception counts only with a split
+diff saved on disk, so a claim made in prose alone stays an
+open violation.
 """
 
 import itertools
@@ -50,8 +51,9 @@ def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
         if claim and Path(claim["diff_path"]).is_file():
             accepted.append((violation, claim))
         else:
-            open_violations.append(violation)
+            open_violations.append((violation, False))
     sections = [
+        _deferred_section(report["measurements"], numbers),
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
         *_ranked_sections(report["measurements"], numbers),
@@ -78,8 +80,30 @@ def _exceptions_section(accepted, numbers):
     return _section(f"Exceptions ({len(entries)})", entries)
 
 
+def _deferred_section(measurements, numbers):
+    """One entry per deferred metric, counting the records its tool could not measure."""
+    labels_by_title = {}
+    counts_by_title = {}
+    for record in measurements:
+        if record.get("pessimistic"):
+            title = _metric_name(record)
+            labels_by_title[title] = record["label"]
+            counts_by_title[title] = counts_by_title.get(title, 0) + 1
+    entries = [
+        _entry(
+            next(numbers),
+            f"{title} - {counts_by_title[title]} measurements ({labels_by_title[title]})",
+        )
+        for title in sorted(counts_by_title)
+    ]
+    return _section(f"Deferred metrics ({len(entries)})", entries)
+
+
 def _violations_section(violations, numbers):
-    entries = [_entry(next(numbers), _describe(item)) for item in violations]
+    entries = [
+        _entry(next(numbers), _describe(item))
+        for item, _ in violations
+    ]
     return _section(f"Open violations ({len(entries)})", entries)
 
 

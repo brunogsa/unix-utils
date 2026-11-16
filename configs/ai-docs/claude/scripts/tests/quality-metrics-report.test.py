@@ -100,6 +100,33 @@ class TestExceptions:
         assert "CRAP 11" in entry
 
 
+class TestDeferredMetrics:
+    def test_should_list_deferred_metrics_first_beside_the_exceptions_with_a_count(self):
+        label = "pessimistic, tooling deferred"
+        deferred = [
+            {
+                **function_record("src/report.py", name, "crap", CRAP_LIMIT, CRAP_LIMIT),
+                "pessimistic": True, "label": label,
+            }
+            for name in ("buildReport", "mergeRows")
+        ]
+
+        verdict = report.build_verdict(measured(*deferred))
+
+        deferred_section = section(verdict, "Deferred metrics")
+        assert "(1)" in deferred_section.splitlines()[0]
+        [entry] = entry_headings(deferred_section)
+        assert entry.startswith("### 1. [metrics]")
+        assert "CRAP" in entry
+        assert "2 measurements" in entry
+        assert label in entry
+        assert verdict.index("## Deferred metrics") < verdict.index("## Exceptions")
+        violations = section(verdict, "Open violations")
+        assert "(2)" in violations.splitlines()[0]
+        assert "buildReport" in violations
+        assert "mergeRows" in violations
+
+
 class TestRankedLists:
     def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):
         run = measured(
