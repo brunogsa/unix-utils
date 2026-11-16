@@ -52,11 +52,11 @@ Wave 6 lists each `resolved` entry on its own line, `resolved: <function> (<path
 
 ### Tool map
 
-The first check that needs the per-session tool map builds it, and the `code-reviewer` orchestrator running this wave does that itself, since every wave runs inside it and it can dispatch agents.
+The calling main session (`auto-review` or `pr-review`) builds the per-session tool map before it dispatches the pipeline, and the `code-reviewer` orchestrator never dispatches the inspector.
 
-Follow section 1 of [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md): dispatch the read-only inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
+The main session follows section 1 of [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md): it dispatches the read-only inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
 
-Raise tooling problems as that file's section 2 and [`coder-metrics-check.md`](../../implement/references/coder-metrics-check.md) describe.
+Any ask or commit duty from a tooling problem belongs to the main session, as that file's section 2 and [`coder-metrics-check.md`](../../implement/references/coder-metrics-check.md) describe.
 
 ## Mode scope
 
