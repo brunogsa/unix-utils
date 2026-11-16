@@ -13,7 +13,7 @@ from pathlib import Path
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
 from quality_metrics.failures import ToolTimedOutTwice
-from quality_metrics.gate_inputs import write_base_ref_configs
+from quality_metrics.gate_inputs import write_base_ref_configs, write_base_ref_coverage_config
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -170,19 +170,19 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
 def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
     """One coverage run of the repo's pytest: how it exited, and every file's line hits.
 
-    With a `base_ref`, coverage reads the `.coveragerc` that ref
-    committed, so a branch's own omits never shape the number.
-    Without a copy it reads the repo's own file, as pytest-cov does.
+    With a `base_ref`, coverage reads the config that ref committed
+    (`.coveragerc`, setup.cfg, tox.ini or pyproject.toml), or an empty
+    one when it committed none, so a branch's own omits never shape
+    the number. Without a `base_ref` it reads the repo's own file.
 
     A run that collected no tests reads as no hits. Otherwise the
     hits read valid on the same exit classes as the repo jest's.
     """
     with tempfile.TemporaryDirectory() as work_dir:
         report = Path(work_dir) / "lcov.info"
-        config_flags = [
-            f"--cov-config={copy}"
-            for copy in (write_base_ref_configs(repo, base_ref, work_dir, PYTEST_COV) if base_ref else [])
-        ]
+        config_flags = (
+            [f"--cov-config={write_base_ref_coverage_config(repo, base_ref, work_dir)}"] if base_ref else []
+        )
         result = run_command(
             [*PYTEST_COV_COMMAND, f"--cov-report=lcov:{report}", *config_flags],
             cwd=repo, timeout=timeout_seconds,

@@ -211,3 +211,42 @@ def test_should_read_0_percent_coverage_from_the_repo_pytest_cov_when_it_collect
     assert source["source"] == PYTEST_COV_SOURCE
     assert [(record["value"], record.get("pessimistic")) for record in records] == [(0, None)]
     assert global_calls == []
+
+
+# A repo whose test imports legacy.py, so coverage lists it
+# unless a config omits it. No coverage config by default.
+LEGACY_IMPORTED_REPO_FILES = {
+    "cart.py": CART_MODULE,
+    "legacy.py": LEGACY_MODULE,
+    "test_cart.py": (
+        "from cart import total\n"
+        "from legacy import archive\n"
+        "\n"
+        "\n"
+        "def test_total():\n"
+        "    assert total(10, 3) == 30\n"
+        "\n"
+        "\n"
+        "def test_archive():\n"
+        "    assert archive(7) == 7\n"
+    ),
+}
+LEGACY_HITS = {1: 1, 2: 1}
+OMIT_LEGACY_PYPROJECT = '[tool.coverage.run]\nomit = ["legacy.py"]\n'
+
+
+def hits_with_configs(tmp_path, base_configs, branch_configs):
+    """The repo pytest-cov hits when the base ref commits `base_configs`
+    and the working tree then adds `branch_configs`."""
+    repo = make_repo(tmp_path, {**LEGACY_IMPORTED_REPO_FILES, **base_configs})
+    for name, text in branch_configs.items():
+        (repo / name).write_text(text)
+    return sourcing.run_repo_pytest_cov(repo, base_ref="HEAD")["hits_by_file"]
+
+
+def test_should_keep_measuring_an_omitted_file_when_the_branch_adds_the_omit_to_its_pyproject_toml_and_the_base_ref_has_no_coverage_config(
+    tmp_path,
+):
+    hits = hits_with_configs(tmp_path, {}, {"pyproject.toml": OMIT_LEGACY_PYPROJECT})
+
+    assert hits["legacy.py"] == LEGACY_HITS

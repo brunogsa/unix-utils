@@ -161,21 +161,53 @@ def _repo_relative_name(repo_dir, path):
         return None
 
 
-def write_base_ref_configs(repo_dir, base_ref, directory, tool="jest"):
-    """Copy the repo's `tool` configs as `base_ref` committed them.
+def write_base_ref_configs(repo_dir, base_ref, directory):
+    """Copy the repo's jest configs as `base_ref` committed them.
 
-    A tool that reads its own config at run time is pointed at
-    the copy, so the branch's excludes never shape its numbers.
+    Jest reads its own config at run time and is pointed at the
+    copy, so the branch's excludes never shape its numbers.
     Returns the copies' paths, in detector-rule order.
     """
     copies = []
-    for name in _config_names(tool):
+    for name in _config_names("jest"):
         text = _text_at(repo_dir, base_ref, name)
         if text is not None:
             copy_path = Path(directory) / name
             copy_path.write_text(text)
             copies.append(copy_path)
     return copies
+
+
+# coverage.py reads the first of these that holds coverage
+# settings, in this order. A marker shows a file holds some.
+# https://coverage.readthedocs.io/en/latest/config.html
+COVERAGE_PY_CONFIG_MARKERS = {
+    ".coveragerc": "",
+    "setup.cfg": "[coverage:",
+    "tox.ini": "[coverage:",
+    "pyproject.toml": "[tool.coverage",
+}
+EMPTY_COVERAGE_CONFIG_NAME = ".coveragerc"
+
+
+def write_base_ref_coverage_config(repo_dir, base_ref, directory):
+    """Copy the coverage.py config `base_ref` committed; return its path.
+
+    The copy keeps its file name, so coverage.py parses it in the
+    right format. A ref with no coverage config gets an empty copy,
+    so no file of the branch's can shape the measured number.
+    """
+    for name, marker in COVERAGE_PY_CONFIG_MARKERS.items():
+        text = _text_at(repo_dir, base_ref, name)
+        if text is not None and marker in text:
+            return _write_copy(directory, name, text)
+    return _write_copy(directory, EMPTY_COVERAGE_CONFIG_NAME, "")
+
+
+def _write_copy(directory, name, text):
+    copy_path = Path(directory) / name
+    copy_path.write_text(text)
+    return copy_path
 
 
 def added_suppressions(repo_dir, base_ref, head_ref=None):
