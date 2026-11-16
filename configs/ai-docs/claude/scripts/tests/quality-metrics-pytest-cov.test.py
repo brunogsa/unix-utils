@@ -11,6 +11,7 @@ from quality_metrics_support import (
     coverage_records_of,
     coverage_run_for,
     install_global_collector,
+    install_repo_tool_that_always_times_out,
     install_stub_tool,
     make_repo,
 )
@@ -52,11 +53,6 @@ GLOBAL_COVERAGE_PY_SOURCE = {"kind": "global", "tool": "coverage.py"}
 PYTEST_COV_SOURCE = {"kind": "repo", "tool": "pytest-cov"}
 
 # The stubs below stand in for the `uv run ... pytest` command.
-PYTEST_HANG_STUB = """#!/bin/bash
-echo attempt >> "$ATTEMPT_LOG"
-exec sleep 5
-"""
-
 PYTEST_NO_REPORT_STUB = """#!/bin/bash
 echo attempt >> "$ATTEMPT_LOG"
 exit 0
@@ -103,11 +99,10 @@ FallThroughCase = namedtuple("FallThroughCase", "stub exit_class candidate attem
 
 HEADROOM_POLICY = TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True)
 FALL_THROUGH_CASES = [
-    FallThroughCase(PYTEST_HANG_STUB, "timeout", "repo pytest-cov timed out twice", 2),
     FallThroughCase(PYTEST_NO_REPORT_STUB, "no_coverage_data", "repo pytest-cov wrote no coverage data", 1),
     FallThroughCase(PYTEST_CRASH_STUB, "crash", "repo pytest-cov crashed", 1),
 ]
-FALL_THROUGH_IDS = ["timeout-on-both-attempts", "no-coverage-report-written", "internal-error"]
+FALL_THROUGH_IDS = ["no-coverage-report-written", "internal-error"]
 
 
 def cart_target(repo):
@@ -162,7 +157,7 @@ def test_should_measure_with_the_base_ref_coverage_config_when_the_branch_omits_
 
 
 @pytest.mark.parametrize("failure", FALL_THROUGH_CASES, ids=FALL_THROUGH_IDS)
-def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_out_twice_crashes_or_writes_no_coverage_data(
+def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_crashes_or_writes_no_coverage_data(
     tmp_path, monkeypatch, failure
 ):
     measured = measure_cart_with_stub(tmp_path, monkeypatch, failure.stub, policy=HEADROOM_POLICY)
@@ -171,6 +166,22 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_o
         "metric": "coverage", "language": "python", "source": GLOBAL_COVERAGE_PY_SOURCE,
         "exit_class": failure.exit_class, "side_pr_candidate": failure.candidate,
     }, failure.attempts)
+
+
+def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_out_twice(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, PYTEST_COV_REPO_FILES)
+    install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
+    global_calls = []
+    install_global_collector(monkeypatch, global_calls, GLOBAL_HITS)
+    coverage_run = coverage_run_for(repo, tmp_path, policy=HEADROOM_POLICY)
+    records = coverage_records_of(tmp_path, cart_target(repo), coverage_run)
+
+    assert_fell_through_to_global(tmp_path, (coverage_run, records, global_calls), {
+        "metric": "coverage", "language": "python", "source": GLOBAL_COVERAGE_PY_SOURCE,
+        "exit_class": "timeout", "side_pr_candidate": "repo pytest-cov timed out twice",
+    }, 2)
 
 
 def test_should_read_measurements_as_valid_when_the_repo_pytest_cov_misses_its_own_fail_under_threshold(

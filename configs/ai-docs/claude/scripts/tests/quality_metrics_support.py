@@ -75,6 +75,26 @@ def attempts_in(tmp_path):
     return len(attempt_log.read_text().splitlines()) if attempt_log.exists() else 0
 
 
+def install_repo_tool_that_always_times_out(tmp_path, monkeypatch):
+    """Make every repo coverage tool run end in a timeout.
+
+    The run raises the timeout itself, so the outcome never
+    depends on how long a stub takes to start under load. It
+    logs one line in the attempt log per tool run, as a stub
+    would. Git calls pass through to the real runner.
+    """
+    from quality_metrics import tools
+
+    def run_command(command, *args, timeout=None, **options):
+        if command[0] == "git":
+            return tools.run_command(command, *args, timeout=timeout, **options)
+        with (tmp_path / "attempts.log").open("a") as attempt_log:
+            attempt_log.write("attempt\n")
+        raise subprocess.TimeoutExpired(command, timeout)
+
+    monkeypatch.setattr("quality_metrics.sourcing.run_command", run_command)
+
+
 # What the stubbed global collector reports: 2 of 2 lines run.
 GLOBAL_COVERAGE_PERCENT = 100
 
