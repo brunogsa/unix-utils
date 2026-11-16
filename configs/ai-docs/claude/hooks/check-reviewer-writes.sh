@@ -266,7 +266,7 @@ if [ -n "$CMD" ]; then
     | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')
   TEE_ARGS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(^|[|;&[:space:]])tee[[:space:]]+[^|;&]*' \
-    | sed -E 's/^[|;&[:space:]]*tee[[:space:]]+//' | tr ' ' '\n' | grep -v '^-')
+    | sed -E 's/^[|;&[:space:]]*tee[[:space:]]+//' | tr ' \t' '\n\n' | grep -v '^-')
   # Each redirect target carries a `T:` prefix, so a redirect
   # with no target is denied, not skipped as a blank line.
   while IFS= read -r target; do

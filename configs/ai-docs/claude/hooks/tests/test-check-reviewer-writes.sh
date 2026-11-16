@@ -122,6 +122,21 @@ assert_eq "allows a Bash redirect into the /tmp run directory" \
 assert_eq "allows tee into the /tmp run directory" \
   "0" "$(run_bash 'git diff | tee /tmp/auto-review.abc123/d.txt')"
 
+# Bash splits tee's arguments on a tab as well as a space, so
+# a repo file glued to another word by a tab is still a target.
+tab_tee_writes=($'echo x | tee /tmp/x\tsrc/a.py'
+  $'echo x | tee -a\tsrc/a.py')
+allowed_tab_tee=""
+for c in "${tab_tee_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_tab_tee="$allowed_tab_tee [$(printf '%q' "$c")]"
+done
+assert_eq "blocks tee into a repo file separated from the word before it by a tab" \
+  "" "$allowed_tab_tee"
+
+assert_eq "allows tee into two /tmp files separated by a tab" \
+  "0" "$(run_bash $'echo x | tee /tmp/a\t/tmp/b')"
+
 assert_eq "allows a plain grep" \
   "0" "$(run_bash 'grep -rn foo src')"
 
