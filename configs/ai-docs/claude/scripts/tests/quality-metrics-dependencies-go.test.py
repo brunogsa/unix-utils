@@ -1,6 +1,8 @@
+import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -17,6 +19,13 @@ from quality_metrics_dependencies_support import (
     measure_branch,
     write_layers,
 )
+
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+from quality_metrics import go_arch_lint
+from quality_metrics.layer_map import Layer, LayerMap
+from quality_metrics.tools import ToolError
 
 DOMAIN_READS_INFRA_CHANGE = BranchChange(
     GO_BASE_FILES, {"domain/order.go": GO_DOMAIN_READING_INFRA}
@@ -102,3 +111,25 @@ def test_scores_a_go_file_as_a_deferred_violation_when_go_arch_lint_is_missing(t
     assert deferred["file"] == "domain/order.go"
     assert deferred["pessimistic"] is True
     assert "deferred" in deferred["label"]
+
+
+def stub_go_arch_lint_output(monkeypatch, stdout, stderr=""):
+    monkeypatch.setattr(
+        "quality_metrics.go_arch_lint.run_command",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0], 1, stdout=stdout, stderr=stderr
+        ),
+    )
+
+
+SHOP_LAYER_MAP = LayerMap(
+    source="declared",
+    layers=(Layer("infra", ("infra/**",)), Layer("domain", ("domain/**",))),
+)
+
+
+def test_raises_a_tool_error_naming_the_output_when_go_arch_lint_writes_no_json_report(tmp_path, monkeypatch):
+    stub_go_arch_lint_output(monkeypatch, "", "panic: cannot load module")
+
+    with pytest.raises(ToolError, match="wrote no report: panic: cannot load module"):
+        go_arch_lint.find_with_go_arch_lint(tmp_path, SHOP_LAYER_MAP)
