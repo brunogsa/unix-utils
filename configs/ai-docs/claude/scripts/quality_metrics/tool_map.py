@@ -7,11 +7,10 @@ working tree, so a branch cannot add a config and have it measured.
 import fcntl
 import importlib
 import json
-import os
-import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
+from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.tools import ToolError, run_tool
 
 TOOL_MAP_DIR = Path("/tmp")
@@ -119,9 +118,4 @@ class LazyToolMap:
 
 
 def _write_atomically(path, content):
-    # A temp file in the same directory, then a rename, so a
-    # reader never sees a half-written map.
-    descriptor, temp_name = tempfile.mkstemp(dir=path.parent, prefix=path.name)
-    with os.fdopen(descriptor, "w") as temp_file:
-        json.dump(content, temp_file)
-    os.replace(temp_name, path)
+    write_text_atomically(path, json.dumps(content), temp_prefix=path.name)

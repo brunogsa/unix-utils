@@ -8,11 +8,10 @@ in prose alone, or one the judge rejected, stays an open violation.
 
 import collections
 import itertools
-import os
-import tempfile
 from pathlib import Path
 
 from quality_metrics import hotspots
+from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.failures import DEFERRED_LABEL
 
 METRICS_TAG = "[metrics]"
@@ -49,14 +48,7 @@ def write_verdict(directory, timestamp, text, in_git=True):
     leaves only the temp file, whose name never matches `verdict_*`.
     """
     target = Path(directory) / verdict_filename(timestamp, in_git)
-    descriptor, temp_name = tempfile.mkstemp(dir=target.parent, prefix=".verdict-tmp-")
-    try:
-        with os.fdopen(descriptor, "w") as temp_file:
-            temp_file.write(text)
-        os.replace(temp_name, target)
-    except BaseException:
-        Path(temp_name).unlink(missing_ok=True)
-        raise
+    write_text_atomically(target, text, temp_prefix=".verdict-tmp-")
     return target
 
 

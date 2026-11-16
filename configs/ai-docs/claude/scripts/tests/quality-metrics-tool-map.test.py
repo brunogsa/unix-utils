@@ -1,7 +1,10 @@
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -126,6 +129,19 @@ def test_should_record_a_deferred_tool_in_the_current_batchs_deferred_list(tmp_p
     batch_entry = read_map(tmp_path)[f"{repo.resolve()}@{base_sha}"]
     assert batch_entry["deferred"] == ["jest"]
     assert tool_names(batch_entry) == ["jest"]
+
+
+def test_should_leave_no_temp_file_behind_when_the_map_write_fails_at_the_rename(tmp_path, monkeypatch):
+    def fail_rename(*_):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(os, "replace", fail_rename)
+
+    with pytest.raises(OSError, match="disk full"):
+        record_deferred_tool("/repo/under/test", "abc123", "jest", SESSION_ID, tmp_path)
+
+    leftovers = [item.name for item in tmp_path.iterdir() if not item.name.endswith(".lock")]
+    assert leftovers == []
 
 
 def test_should_still_detect_the_repos_tools_and_keep_the_deferral_when_a_tool_is_deferred_before_the_map_is_built(tmp_path):

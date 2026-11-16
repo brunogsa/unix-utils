@@ -422,10 +422,10 @@ import signal
 import sys
 
 sys.path.insert(0, sys.argv[1])
-from quality_metrics import report
+from quality_metrics import atomic_write, report
 
 # The temp file is fully written; the process dies before the rename.
-report.os.replace = lambda *_: os.kill(os.getpid(), signal.SIGKILL)
+atomic_write.os.replace =lambda *_: os.kill(os.getpid(), signal.SIGKILL)
 report.write_verdict(sys.argv[2], sys.argv[3], "new verdict body\\n")
 """
 
