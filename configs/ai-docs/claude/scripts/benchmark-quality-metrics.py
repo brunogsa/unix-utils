@@ -3,19 +3,37 @@
 #
 # Usage:
 #   benchmark-quality-metrics.py [--evidence FILE] [--dry-run]
+#                                [--declaration FILE]
 #
 # Run from the repo root on an idle machine. Each metric that
 # measure-quality-metrics.py has a module for is timed once,
 # alone, over a fixed sample of this repo's Python files.
 #
 # stdin: none.
-# stdout: one line per metric with its command and seconds.
-# exit: 0 declaration updated, 2 a metric could not be timed
-# or the declaration is unusable.
+# stdout: one line per metric with its command and seconds,
+# then the per_unit list chosen.
 #
-# The top-level per_unit list in quality-metrics.yaml is
-# rewritten with every metric timed at 8 seconds or less. A
-# metric whose run did not measure (exit 2) is left out.
+# exit: 0 when every metric measured; with --dry-run that is
+# still 0 and no declaration is written.
+#
+# exit 2 otherwise: a sample file is missing, a metric did
+# not measure, or the declaration is unusable.
+#
+# An unusable declaration (invalid YAML, or a rewrite that
+# would not validate) is left untouched.
+#
+# The top-level per_unit list in the declaration is rewritten
+# with every metric timed at PER_UNIT_LIMIT_SECONDS or less.
+#
+# A run that did not measure is left out of per_unit: the
+# measure script exited 2, its output was not JSON, or it
+# held only pessimistic results (a red build scored 0%).
+#
+# --declaration selects the file to rewrite; the default is
+# the quality-metrics.yaml shipped beside this script.
+#
+# --dry-run times and prints but writes no declaration.
+#
 # --evidence appends the commands and timings to FILE.
 
 import argparse
