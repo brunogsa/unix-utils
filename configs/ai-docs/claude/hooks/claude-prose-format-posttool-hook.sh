@@ -413,10 +413,10 @@ while start != -1:
 print(" ".join(str(n) for n in sorted(lines)))
 '
 
-# why: an untracked file has no git baseline, so without the
-# Edit's own lines every pre-existing violation in it gets
-# reported. get-changed-lines.sh applies the set to untracked
-# files only, so a tracked file keeps its git-diff scope.
+# why: an untracked or staged-new file has no git baseline, so
+# without the Edit's own lines every pre-existing violation in
+# it gets reported. get-changed-lines.sh applies the set to
+# such files only, so a file in HEAD keeps its git-diff scope.
 #
 # A new_string not found, a python3 failure, or a Write leaves
 # the set unset, which checks the whole untracked file.

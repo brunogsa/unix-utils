@@ -328,6 +328,23 @@ printf 'one\ntwo\nthree\n' > "$repo/mod.txt"
 out=$(cd "$repo" && DOC_STANDARDS_EDITED_LINES="1" "$SCRIPT" mod.txt)
 assert_eq "tracked file ignores the edited-line set and reports its added lines" "3" "$out"
 
+# --- Case 22: a staged file absent from HEAD has no baseline
+# either, so it honours the edited-line set like an untracked
+# one (HEAD holds another file, so this is not an unborn repo).
+repo=$(new_repo repo22)
+printf 'base\n' > "$repo/other.txt"
+git -C "$repo" add other.txt
+git -C "$repo" commit -q -m base
+printf 'one\ntwo\nthree\nfour\n' > "$repo/staged.md"
+git -C "$repo" add staged.md
+out=$(cd "$repo" && DOC_STANDARDS_EDITED_LINES="4 2" "$SCRIPT" staged.md)
+assert_eq "staged-new file with an edited-line set reports only those lines, ascending" "$(printf '2\n4')" "$out"
+
+# --- Case 23: a staged-new file with no edited-line set still
+# reports every line.
+out=$(cd "$repo" && "$SCRIPT" staged.md)
+assert_eq "staged-new file without an edited-line set reports every line" "$(printf '1\n2\n3\n4')" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]

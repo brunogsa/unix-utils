@@ -389,6 +389,21 @@ it_should_not_report_pre_existing_violations_in_an_untracked_file_after_a_clean_
   assert_eq "should print nothing for over-cap lines of an untracked file the Edit did not write" "" "$HOOK_OUT"
 }
 
+it_should_not_report_pre_existing_violations_in_a_staged_new_file_after_a_clean_edit() {
+  local dir
+  dir=$(new_repo_fixture)
+  # why: HEAD must exist, or the diff against it fails silently
+  # and the file reads clean for the wrong reason.
+  printf 'base\n' > "$dir/other.txt"
+  git -C "$dir" add other.txt
+  git -C "$dir" -c user.name=test -c user.email=test@example.com commit -q -m base
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" $'Old tail.\n\nA fresh short clean line.'
+  git -C "$dir" add notes.md
+  run_edit_hook "$dir/notes.md" "Old tail." $'Old tail.\n\nA fresh short clean line.' false
+  assert_eq "should exit 0 when an Edit to a staged-new file wrote only clean lines" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing for over-cap lines of a staged-new file the Edit did not write" "" "$HOOK_OUT"
+}
+
 it_should_report_only_the_over_cap_line_an_edit_wrote_to_an_untracked_file() {
   local dir delta_line
   dir=$(new_repo_fixture)
@@ -1080,6 +1095,7 @@ it_should_report_a_markdown_wall_of_text_outside_a_git_repo
 it_should_report_an_over_width_comment_outside_a_git_repo
 it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edit
 it_should_not_report_pre_existing_violations_in_an_untracked_file_after_a_clean_edit
+it_should_not_report_pre_existing_violations_in_a_staged_new_file_after_a_clean_edit
 it_should_report_only_the_over_cap_line_an_edit_wrote_to_an_untracked_file
 it_should_report_every_over_cap_line_a_replace_all_edit_wrote_to_an_untracked_file
 it_should_not_report_the_pre_existing_line_right_after_an_edit_that_ends_in_a_newline

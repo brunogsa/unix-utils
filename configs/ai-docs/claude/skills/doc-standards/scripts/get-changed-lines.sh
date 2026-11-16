@@ -8,8 +8,9 @@
 #   DOC_STANDARDS_EDITED_LINES="3 9" get-changed-lines.sh <file>
 #
 # DOC_STANDARDS_EDITED_LINES: space-separated line numbers
-# that replace "every line" for an untracked file only; a
-# tracked file ignores it.
+# that replace "every line" for a file with no baseline - an
+# untracked one, or a staged one absent from HEAD and not a
+# rename; a file present in HEAD ignores it.
 #
 # Output: one changed line number per line, ascending, unique,
 # to stdout.
@@ -34,10 +35,10 @@
 #   that differ from the rename source, so a pure rename
 #   reports nothing.
 #
-#   A file that is staged but never committed still differs
-#   from HEAD, so it falls into the second case. Its whole
-#   content comes back as changed - same result as the
-#   untracked case, with no separate branch needed.
+#   A file staged but never committed differs from HEAD, so
+#   its whole content comes back as changed, unless the
+#   caller's DOC_STANDARDS_EDITED_LINES names the lines, as
+#   for an untracked file.
 #
 # - During a merge (MERGE_HEAD present) -> only the lines new
 #   against HEAD and against every merged commit, so a line one
@@ -92,27 +93,35 @@ fi
 
 cd "$repo_root"
 
-untracked=$(git ls-files --others --exclude-standard -- "$rel_file" 2>/dev/null || true)
-if [ -n "$untracked" ]; then
-  # why: an untracked file has no baseline, so a caller that
-  # knows which lines it just wrote (the prose-format hook on
-  # an Edit) names them; else one Edit to a long untracked
-  # file reports every pre-existing violation in it.
-  #
-  # Anything but space-separated line numbers is ignored and
-  # every line is printed, so a bad value never hides a line.
-  edited_lines=${DOC_STANDARDS_EDITED_LINES:-}
+# print_edited_lines_if_set - prints the caller's edited-line
+# set and returns 0; returns 1 when it is unset or malformed.
+#
+# why: a file with no baseline has no diff to scope an Edit, so
+# a caller that knows which lines it just wrote (the
+# prose-format hook on an Edit) names them; else one Edit to a
+# long file reports every pre-existing violation in it.
+#
+# Anything but space-separated line numbers is ignored and
+# every line is printed, so a bad value never hides a line.
+print_edited_lines_if_set() {
+  local edited_lines=${DOC_STANDARDS_EDITED_LINES:-}
   case "$edited_lines" in
     *[0-9]*)
       case "$edited_lines" in
         *[!0-9\ ]*) ;;
         *)
           printf '%s\n' "$edited_lines" | tr -s ' ' '\n' | grep -v '^$' | sort -un
-          exit 0
+          return 0
           ;;
       esac
       ;;
   esac
+  return 1
+}
+
+untracked=$(git ls-files --others --exclude-standard -- "$rel_file" 2>/dev/null || true)
+if [ -n "$untracked" ]; then
+  print_edited_lines_if_set && exit 0
 
   # `./` prefix, not `--`, guards a dash-leading rel_file - BSD
   # awk (macOS) reads `--` itself as a filename, failing there.
@@ -145,6 +154,14 @@ rename_source() {
       esac
     done || true
 }
+
+# A staged file absent from HEAD and not a rename has no
+# baseline either, so it takes the edited-line set like an
+# untracked file. A rename keeps its diff against the source.
+if ! git cat-file -e "HEAD:$rel_file" 2>/dev/null &&
+  [ -z "$(rename_source HEAD)" ]; then
+  print_edited_lines_if_set && exit 0
+fi
 
 # print_added_lines - reads a -U0 diff on stdin and prints
 # each working-tree line number its hunks add, once.
