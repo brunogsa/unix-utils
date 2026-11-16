@@ -425,6 +425,29 @@ def test_should_keep_nothing_and_leave_both_branches_alone_on_a_rerun_after_the_
     assert git(repo, "rev-parse", FEATURE_BRANCH) == feature_head
 
 
+def test_should_exit_2_and_leave_the_repo_untouched_when_the_plan_has_no_pr_breakdown(
+    tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: rewrite parser", {"parser.py": 101}, "metrics"),
+    ])
+    feature_head = git(repo, "rev-parse", FEATURE_BRANCH)
+    plan = tmp_path / "plan_fixture.md"
+    plan_without_breakdown = "## Task Breakdown\n\nNothing to split.\n"
+    plan.write_text(plan_without_breakdown)
+    arguments = get_split_arguments(
+        repo, base, ["--plan", str(plan), "--feature-pr", "PR-2"]
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        split_forced_refactors.main(arguments)
+
+    assert exit_info.value.code == 2
+    assert git(repo, "rev-parse", FEATURE_BRANCH) == feature_head
+    assert git(repo, "branch", "--list", REFACTOR_BRANCH) == ""
+    assert plan.read_text() == plan_without_breakdown
+
+
 def test_should_report_the_same_conflict_again_on_a_rerun_after_a_cherry_pick_conflict(
     tmp_path, run_split,
 ):
