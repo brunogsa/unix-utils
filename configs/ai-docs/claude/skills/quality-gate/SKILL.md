@@ -91,7 +91,8 @@ Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
 - `agent(subAgent=code-reviewer, title=Metrics-lens review)` - follows [`references/metrics-lens.md`](references/metrics-lens.md), with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
-  - `<SESSION_ID>` is main's own, the last segment of its scratchpad path.
+  - The session id is the path segment just above `scratchpad` in the main session's scratchpad path; the coders' session id, the implement state file's `session_id` and `<SESSION_ID>` are this one value.
+
   - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** The one carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`, spawn-depth rule).
