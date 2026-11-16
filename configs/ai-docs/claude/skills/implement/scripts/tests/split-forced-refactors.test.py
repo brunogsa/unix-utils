@@ -37,16 +37,19 @@ def commit_files(repo, subject, line_counts, gate=None):
     git(repo, "commit", "-m", message)
 
 
-def build_feature_repo(tmp_path, commits):
+def build_feature_repo(tmp_path, commits, base_files=None):
     """A repo with a base commit, then `commits` on the feature branch.
 
     Each commit is (subject, {file name: line count}, gate trailer or None).
+    `base_files` ({file name: line count}) joins README.md in the base.
     Returns the repo path and the base commit's SHA.
     """
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "-b", "master")
-    commit_files(repo, "chore: base", {"README.md": 1})
+    for name in base_files or {}:
+        (repo / name).parent.mkdir(parents=True, exist_ok=True)
+    commit_files(repo, "chore: base", {"README.md": 1, **(base_files or {})})
     base = git(repo, "rev-parse", "HEAD")
     git(repo, "checkout", "-b", FEATURE_BRANCH)
     for subject, line_counts, gate in commits:
@@ -325,5 +328,31 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
     )
     assert plan.read_text() == PLAN_TEXT
 
+
+def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_rebase_conflict(
+    tmp_path,
+):
+    # The cherry-pick works: the refactor moves pkg/parser.py
+    # to core/ and adds loader.py. The rebase then replays the
+    # feature commit adding pkg/report.py into pkg/, a directory
+    # the refactor branch moved away: a file-location conflict.
+    repo, base = build_feature_repo(
+        tmp_path, [], base_files={"pkg/parser.py": 20}
+    )
+    commit_files(repo, "feat: add report", {"pkg/report.py": 3})
+    (repo / "core").mkdir()
+    git(repo, "mv", "pkg/parser.py", "core/parser.py")
+    commit_files(
+        repo, "refactor: move parser and add loader",
+        {"loader.py": 120}, "metrics",
+    )
+    original_head = git(repo, "rev-parse", "HEAD")
+
+    report, plan, finding = run_split_expecting_conflict(tmp_path, repo, base)
+
+    assert_conflict_kept_the_commits_in_the_feature_pr(
+        repo, report, finding, "rebase", original_head
+    )
+    assert plan.read_text() == PLAN_TEXT
 
 

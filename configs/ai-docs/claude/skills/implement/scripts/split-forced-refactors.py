@@ -207,8 +207,8 @@ def move_onto_refactor_branch(repo, base, shas, refactor_branch, feature_branch)
     conflicting_operation = None
     if not git_succeeds(repo, "cherry-pick", *shas):
         conflicting_operation = "cherry-pick"
-    else:
-        run_git(repo, "rebase", refactor_branch, feature_branch)
+    elif not git_succeeds(repo, "rebase", refactor_branch, feature_branch):
+        conflicting_operation = "rebase"
     if conflicting_operation is not None:
         run_git(repo, conflicting_operation, "--abort")
         run_git(repo, "checkout", original_branch)
