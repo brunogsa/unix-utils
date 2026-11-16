@@ -290,6 +290,8 @@ Cap the dispatch with a 1-hour `Monitor` timeout (`timeout_ms: 3600000` - the to
 
 On expiry, call `TaskStop` on the subagent - the dispatch resolves as a `timeout`, which §5.2 records and obeys like a `fail`.
 
+Before the first dispatch that needs it, load [`references/coder-metrics-check.md`](references/coder-metrics-check.md): coders cannot spawn the inspector, so you build the tool map and relay their `ask` records.
+
 The subagent runs the per-task lifecycle. Its invariant discipline lives in its own agent file: `tdd-coder.md` or `direct-coder.md`.
 
 The prompt pushes only the per-task data below.
