@@ -88,6 +88,11 @@ STOP_GRACE_SECONDS = 2
 
 EXIT_STATUS_BY_STOP_SIGNAL = {signal.SIGINT: 130, signal.SIGTERM: 143}
 
+# Without this flag, one uncollectable file aborts the whole
+# pytest run and no other python test runs. The collection
+# error still fails the entry, so it never reads as a pass.
+PYTEST_COMMAND = ["pytest", "--continue-on-collection-errors"]
+
 LAUNCH_PRIORITY = {"pytest": 0, "node": 1}
 LAUNCH_PRIORITY_DEFAULT = 2
 
@@ -393,7 +398,7 @@ def get_named_entries(paths):
         else:
             python_paths.append(path)
     if python_paths:
-        entries.append(("pytest", ["pytest", *python_paths]))
+        entries.append(("pytest", [*PYTEST_COMMAND, *python_paths]))
     return entries
 
 
@@ -417,7 +422,7 @@ def run_all_suites(log_dir, stop_request, named_paths):
     # suite from one bare `pytest` invocation, so it runs
     # as one more suite and its failures replay like a
     # bash suite's.
-    entries.append(("pytest", ["pytest"]))
+    entries.append(("pytest", PYTEST_COMMAND))
     return run_suite_entries(entries, log_dir, tally, stop_request)
 
 

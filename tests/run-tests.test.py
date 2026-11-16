@@ -127,14 +127,17 @@ class RunResult:
 
 GO_GATE = FakeTool(output=GO_LINE)
 PASSING_NODE = FakeTool(expected_args="--test *")
-PASSING_PYTEST = FakeTool()
+PYTEST_FLAG = "--continue-on-collection-errors"
+PASSING_PYTEST = FakeTool(expected_args=f"{PYTEST_FLAG}*")
 FAILING_NODE = FakeTool(
     exit_code=1,
     output="AssertionError: sandbox node regression fixture",
     expected_args="--test *",
 )
 FAILING_PYTEST = FakeTool(
-    exit_code=1, output="AssertionError: sandbox regression fixture"
+    exit_code=1,
+    output="AssertionError: sandbox regression fixture",
+    expected_args=f"{PYTEST_FLAG}*",
 )
 
 
@@ -625,6 +628,37 @@ class TestPytestStep:
         ):
             assert "pytest: command not found" in result.output
 
+    class TestOneUncollectableFile:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            real_pytest = shutil.which("pytest")
+            assert real_pytest, "real pytest is needed to collect files"
+            root = tmp_path_factory.mktemp("sandbox")
+            sandbox = build_sandbox(root, shared_stub, pytest_tool=None)
+            (sandbox / "bin" / "pytest").symlink_to(real_pytest)
+            (sandbox / "tests").mkdir()
+            (sandbox / "tests" / "test_broken.py").write_text(
+                "import module_that_does_not_exist\n"
+            )
+            (sandbox / "tests" / "test_good.py").write_text(
+                "def test_should_add_two_numbers():\n    assert 1 + 2 == 3\n"
+            )
+            return run_runner(
+                sandbox, args=["tests/test_broken.py", "tests/test_good.py"]
+            )
+
+        def test_should_still_run_the_passing_file_when_another_file_cannot_be_collected(
+            self, result
+        ):
+            assert "1 passed" in result.output
+
+        def test_should_report_the_pytest_step_as_fail_so_the_collection_error_never_reads_as_a_pass(
+            self, result
+        ):
+            assert result.status == 1
+            assert "FAIL  pytest" in result.output
+
     class TestEarlierBashSuiteFails:
         @pytest.fixture(scope="class")
         @classmethod
@@ -714,7 +748,7 @@ class TestPathArguments:
         @pytest.fixture(scope="class")
         @classmethod
         def result(cls, tmp_path_factory, shared_stub):
-            both_files = f"{FIRST_PYTHON_FILE} {SECOND_PYTHON_FILE}"
+            both_files = f"{PYTEST_FLAG} {FIRST_PYTHON_FILE} {SECOND_PYTHON_FILE}"
             root = tmp_path_factory.mktemp("sandbox")
             sandbox = build_sandbox(
                 root, shared_stub, pytest_tool=FakeTool(expected_args=both_files)
