@@ -20,6 +20,7 @@ import tempfile
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
+from typing import Optional
 
 from quality_metrics.dependency_cruiser import find_with_dependency_cruiser
 from quality_metrics.dependency_records import (
@@ -78,7 +79,7 @@ class RefRange:
     """
 
     base_ref: str
-    head_ref: str = None
+    head_ref: Optional[str] = None
 
 
 class DependencyRun:
