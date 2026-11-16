@@ -64,6 +64,14 @@ class TestRunMeasured:
         assert not benchmark.run_measured(2, "")
 
 
+class TestDeclaredForTiming:
+    def test_should_declare_coverage_beside_crap_so_the_test_run_is_timed(self):
+        benchmark = load_benchmark()
+
+        assert benchmark.metrics_declared_for("crap") == ["crap", "coverage"]
+        assert benchmark.metrics_declared_for("size") == ["size"]
+
+
 class TestPerUnitSelection:
     def test_should_keep_a_check_timed_at_exactly_8_0_seconds_in_per_unit(self):
         benchmark = load_benchmark()

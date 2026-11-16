@@ -48,13 +48,14 @@ SAMPLE_FILES = (
     "configs/ai-docs/claude/scripts/get-repo-preflight.py",
     "configs/ai-docs/claude/scripts/quality_metrics/size.py",
     "configs/ai-docs/claude/scripts/quality_metrics/crap.py",
+    "configs/ai-docs/claude/scripts/tests/quality-metrics-leg.test.py",
 )
 
 BENCHMARK_LANGUAGE_ENTRY = """\
 languages:
   python:
     extensions: [.py]
-    metrics: [{metric}]
+    metrics: [{metrics}]
 """
 
 PER_UNIT_LINE = re.compile(r"^per_unit:.*$", re.MULTILINE)
@@ -87,6 +88,13 @@ def metrics_with_a_module():
     return [metric for metric in declaring.METRIC_NAMES if metric in module.METRIC_MODULES]
 
 
+def metrics_declared_for(metric):
+    """CRAP runs the test suite only when coverage is declared too."""
+    if metric == "crap":
+        return ["crap", "coverage"]
+    return [metric]
+
+
 def run_measured(exit_code, stdout):
     """True when the run measured the metric for real.
 
@@ -106,7 +114,9 @@ def time_metric(metric, repo_root):
     """Return (command, seconds, exit_code, stderr_tail, is_measured)."""
     with tempfile.TemporaryDirectory() as directory:
         declaration_path = Path(directory) / "quality-metrics.yaml"
-        declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(metric=metric))
+        declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(
+            metrics=", ".join(metrics_declared_for(metric))
+        ))
         command = [
             sys.executable, str(MEASURE_SCRIPT), "--batch-end",
             "--declaration", str(declaration_path),
