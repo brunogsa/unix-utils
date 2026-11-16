@@ -63,6 +63,13 @@ if [[ "$BASENAME" == verdict_*.md || "$BASENAME" == verdict_*.html ]]; then
   exit 0
 fi
 
+# quality-gate's metrics lens saves its inferred layer map in
+# the working directory, where the verdict links to it.
+if [[ "$BASENAME" == layers_inferred_*.yaml ]]; then
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"this reviewer may persist its inferred layer map (%s)"}}\n' "$BASENAME"
+  exit 0
+fi
+
 # Also auto-approve scratch writes under /tmp (the pipeline's
 # wave-artifact dir, e.g. /tmp/auto-review.XXXXXX).
 #
@@ -76,5 +83,5 @@ fi
 
 # Any other write target is a repo-source/artifact mutation -
 # deny it outright.
-echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
+echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, layers_inferred_*.yaml, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2

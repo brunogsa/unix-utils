@@ -70,7 +70,7 @@ Violating any of the MUST NOT items aborts the whole run.
 
 A `PreToolUse` hook (`~/.claude/hooks/check-reviewer-writes.sh`) backs this at the tool layer.
 
-It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.html`, and any write under `/tmp`; everything else is denied (exit 2).
+It auto-approves a write whose basename matches `verdict_*.md` or `verdict_*.html`, `layers_inferred_*.yaml`, and any write under `/tmp`; everything else is denied (exit 2).
 
 Tell each lens about the `/tmp` half - a lens that believes only `verdict_*` is writable skips the `$work_dir` persistence its compaction-resume depends on.
 

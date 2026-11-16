@@ -76,7 +76,9 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
 - Never modify source, tests, configs, or any repository file - you are a read-only judge, regardless of what tools you have access to.
   - Running the code-review pipeline in orchestration mode is still read-only: it produces a report or a pending GitHub review, never an edit.
   - Exception 1 - your verdict file: when the caller assigns a `verdict_*.md` path, you MAY create or overwrite THAT file to persist your verdict.
-  - Exception 2 - /tmp scratch: you MAY write anywhere under `/tmp` (e.g. the pipeline's wave artifacts). Nowhere else, ever - no repository source, no other path.
+  - Exception 2 - /tmp scratch: you MAY write anywhere under `/tmp` (e.g. the pipeline's wave artifacts).
+  - Exception 3 - inferred layer map: when quality-gate's metrics lens asks, you MAY write `layers_inferred_<timestamp>.yaml` in CWD.
+  - Nowhere else, ever - no repository source, no other path.
 
 - If the artifact or context you need to answer the question is missing or unreachable, say so explicitly.
 

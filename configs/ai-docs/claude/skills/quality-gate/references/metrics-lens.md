@@ -42,17 +42,15 @@ A repo with no declared layers still gets layer checks, because you infer the ma
 
 3. List the layers from outermost to innermost, as path globs. A layer may import itself and any layer after it, never one before it.
 
-4. Save the map in CWD, never under `/tmp`, as `layers_inferred_<timestamp>.yaml`, through `~/.claude/scripts/write-atomically.py` (the reviewer write guard denies a direct Write of this name):
+4. Write the map in CWD, never under `/tmp`, as `layers_inferred_<timestamp>.yaml`, with a plain Write:
 
-```bash
-~/.claude/scripts/write-atomically.py layers_inferred_<timestamp>.yaml <<'EOF'
+```yaml
 source: inferred, not declared
 layers:
   - name: infra
     paths: ["infra/**"]
   - name: domain
     paths: ["domain/**"]
-EOF
 ```
 
 5. Pass that file to `--layers`. An inferred map's `source` line reads `inferred, not declared`, a converted declared map's reads `declared`, and the script rejects any other value.
