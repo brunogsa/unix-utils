@@ -274,7 +274,10 @@ def collect_python(repo_dir):
     with tempfile.TemporaryDirectory() as data_dir:
         data_file_outside_repo = Path(data_dir) / ".coverage"
         env = {**os.environ, "COVERAGE_FILE": str(data_file_outside_repo)}
-        if not repo_has_coverage_config(repo_dir):
+        if repo_has_coverage_config(repo_dir):
+            # An inherited rc file would override it.
+            env.pop("COVERAGE_RCFILE", None)
+        else:
             config_file = Path(data_dir) / "coveragerc"
             config_file.write_text(SUBPROCESS_COVERAGE_CONFIG)
             env["COVERAGE_RCFILE"] = str(config_file)

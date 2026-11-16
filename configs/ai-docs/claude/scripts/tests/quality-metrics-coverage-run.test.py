@@ -369,6 +369,23 @@ def test_should_honour_the_omit_in_a_repo_pyproject_coverage_section(tmp_path):
         collect_python(repo)
 
 
+def test_should_let_the_repo_coverage_config_win_over_an_inherited_coverage_rcfile(tmp_path, monkeypatch):
+    from quality_metrics.collection import NoFreshCoverageError, collect_python
+
+    inherited_rcfile = tmp_path / "outer-coveragerc"
+    inherited_rcfile.write_text("[run]\nparallel = True\n")
+    monkeypatch.setenv("COVERAGE_RCFILE", str(inherited_rcfile))
+    repo = write_repo(tmp_path, {
+        **SUBPROCESS_REPO_FILES,
+        "pyproject.toml": '[tool.coverage.run]\nomit = ["*"]\n',
+    })
+
+    # The repo omits everything, so an inherited rc file that
+    # replaced its config would record data instead.
+    with pytest.raises(NoFreshCoverageError):
+        collect_python(repo)
+
+
 def test_should_still_measure_a_subprocess_when_the_repo_pyproject_has_no_coverage_section(tmp_path):
     from quality_metrics.collection import collect_python
 
