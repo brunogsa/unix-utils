@@ -1,4 +1,5 @@
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,21 @@ for argument in "$@"; do
     --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
   esac
   if [ "$previous" = "--config" ]; then cp "$argument" "$CONFIG_COPY_LOG"; fi
+  previous="$argument"
+done
+: > "$report_dir/lcov.info"
+"""
+
+# Loads the config it was handed with node, as jest does, then
+# writes an empty lcov report where told.
+JEST_CONFIG_LOADING_STUB = """#!/bin/bash
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+  if [ "$previous" = "--config" ]; then
+    node -e 'require(process.argv[1])' "$argument" || exit 1
+  fi
   previous="$argument"
 done
 : > "$report_dir/lcov.info"
@@ -274,6 +290,25 @@ class TestHappyPath:
         assert Path(config_path).parent != repo
         assert f"--rootDir={repo}" in arguments
         assert config_copy_log.read_text() == JEST_CONFIG_WITHOUT_EXCLUDES
+
+    @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
+    def test_should_load_a_base_ref_config_that_requires_a_preset_from_the_repo_node_modules(
+        self, tmp_path, monkeypatch
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": 'module.exports = require("fakepreset");\n',
+            "src/report.ts": REPORT_SOURCE,
+        })
+        base = head_of(repo)
+        preset_dir = repo / "node_modules" / "fakepreset"
+        preset_dir.mkdir(parents=True)
+        (preset_dir / "index.js").write_text("module.exports = { collectCoverage: true };\n")
+        install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CONFIG_LOADING_STUB)
+        target = Target(repo / "src/report.ts", "typescript", None)
+
+        outcome = measure_coverage_with_repo_tool(target, repo, base_ref=base)
+
+        assert outcome["exit_class"] == "passed"
 
     def test_should_list_an_added_istanbul_ignore_comment_as_a_violation(self, tmp_path):
         repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})

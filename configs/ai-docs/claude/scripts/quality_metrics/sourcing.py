@@ -243,9 +243,10 @@ def _measure_coverage_under_timeout_policy(target, repo, policy, base_ref=None):
 def _base_ref_config_flags(repo, base_ref, config_dir):
     """jest's flags for the config as `base_ref` committed it.
 
-    The copy lives outside the repo, so `--rootDir` keeps jest
-    resolving paths against the repo. No flags when no ref is
-    given or the base ref holds no jest config.
+    The copy lives in a subdirectory of the repo, so a preset it
+    requires by package name resolves from the repo's node_modules.
+    `--rootDir` keeps jest resolving paths against the repo. No flags
+    when no ref is given or the base ref holds no jest config.
     """
     if base_ref is None:
         return []
@@ -265,7 +266,7 @@ def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref
     repo's own threshold: the harness judges the measured value against its
     own limit. Any other outcome raises RepoToolFailure naming its class.
     """
-    with tempfile.TemporaryDirectory() as report_dir, tempfile.TemporaryDirectory() as config_dir:
+    with tempfile.TemporaryDirectory() as report_dir, tempfile.TemporaryDirectory(dir=repo) as config_dir:
         result = run_command(
             [
                 "jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
