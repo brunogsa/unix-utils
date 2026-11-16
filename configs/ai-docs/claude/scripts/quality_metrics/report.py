@@ -83,6 +83,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _asks_section(report.get("asks", []), numbers),
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
+        _gate_inputs_section(report.get("gate_input_violations", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
         _design_section(report["measurements"]),
@@ -159,6 +160,14 @@ def _violations_section(violations, numbers):
         for item, is_rejected in violations
     ]
     return _section(f"Open violations ({len(entries)})", entries)
+
+
+def _gate_inputs_section(gate_input_violations, numbers):
+    entries = [
+        _entry(next(numbers), f"{item['kind']} in {item['file']} - {item['value']}")
+        for item in gate_input_violations
+    ]
+    return _section(f"Gate input violations ({len(entries)})", entries)
 
 
 def _ranked_sections(measurements, numbers):

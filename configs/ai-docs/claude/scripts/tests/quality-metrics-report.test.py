@@ -212,6 +212,33 @@ class TestDeferredMetrics:
         assert entry.count(DEFERRED_LABEL) == 1
 
 
+class TestGateInputViolations:
+    def test_should_list_each_gate_input_violation_in_its_own_section_after_the_open_violations(self):
+        run = {
+            **measured(crap_record("src/report.py", "buildReport", 11)),
+            "gate_input_violations": [
+                {"kind": "declaration_change", "file": "layers.yaml", "value": "excluded_paths"},
+                {"kind": "opt_out", "file": "layers.yaml", "value": "ts.size"},
+            ],
+        }
+
+        verdict = report.build_verdict(run)
+
+        gate_section = section(verdict, "Gate input violations")
+        assert "(2)" in gate_section.splitlines()[0]
+        first, second = entry_headings(gate_section)
+        assert "declaration_change" in first and "layers.yaml" in first
+        assert "excluded_paths" in first
+        assert "opt_out" in second and "layers.yaml" in second
+        assert "ts.size" in second
+        assert verdict.index("## Open violations") < verdict.index("## Gate input violations")
+
+    def test_should_show_0_gate_input_violations_when_the_report_has_none(self):
+        verdict = report.build_verdict(measured())
+
+        assert "(0)" in section(verdict, "Gate input violations").splitlines()[0]
+
+
 class TestRankedLists:
     def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):
         run = measured(
