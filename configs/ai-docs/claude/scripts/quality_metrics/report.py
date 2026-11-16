@@ -131,17 +131,23 @@ def _deferred_section(measurements, numbers):
     return _section(f"Deferred metrics ({len(entries)})", entries)
 
 
+def _counted_section(title, items, numbers, describe_item):
+    """A titled section with one numbered entry per item, the
+    title carrying the entry count."""
+    entries = [_entry(next(numbers), describe_item(item)) for item in items]
+    return _section(f"{title} ({len(entries)})", entries)
+
+
 def _asks_section(asks, numbers):
-    entries = [
-        _entry(next(numbers), f"{ask['tool']} ({ask['metric']}) - {ask['reason']}")
-        for ask in asks
-    ]
-    return _section(f"Tooling asks ({len(entries)})", entries)
+    return _counted_section("Tooling asks", asks, numbers, _describe_ask)
+
+
+def _describe_ask(ask):
+    return f"{ask['tool']} ({ask['metric']}) - {ask['reason']}"
 
 
 def _sources_section(sources, numbers):
-    entries = [_entry(next(numbers), _describe_source(item)) for item in sources]
-    return _section(f"Coverage sources ({len(entries)})", entries)
+    return _counted_section("Coverage sources", sources, numbers, _describe_source)
 
 
 def _describe_source(item):
@@ -155,19 +161,22 @@ def _describe_source(item):
 
 
 def _violations_section(violations, numbers):
-    entries = [
-        _entry(next(numbers), _describe(item) + (REJECTED_NOTE if is_rejected else ""))
-        for item, is_rejected in violations
-    ]
-    return _section(f"Open violations ({len(entries)})", entries)
+    return _counted_section("Open violations", violations, numbers, _describe_open)
+
+
+def _describe_open(violation_and_rejection):
+    item, is_rejected = violation_and_rejection
+    return _describe(item) + (REJECTED_NOTE if is_rejected else "")
 
 
 def _gate_inputs_section(gate_input_violations, numbers):
-    entries = [
-        _entry(next(numbers), f"{item['kind']} in {item['file']} - {item['value']}")
-        for item in gate_input_violations
-    ]
-    return _section(f"Gate input violations ({len(entries)})", entries)
+    return _counted_section(
+        "Gate input violations", gate_input_violations, numbers, _describe_gate_input
+    )
+
+
+def _describe_gate_input(item):
+    return f"{item['kind']} in {item['file']} - {item['value']}"
 
 
 def _ranked_sections(measurements, numbers):
