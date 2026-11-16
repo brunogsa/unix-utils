@@ -639,3 +639,14 @@ class TestListedFilesUnderPerUnit:
 
         assert violation_summary(report) == [("edited_deep", "nesting", 5, 3)]
         assert report["holds_commit"] is True
+
+    def test_should_measure_a_listed_file_with_no_diff_against_base_as_a_whole_file_under_per_unit_files(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE + go_function_nested("legacy_parse", 5)})
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure_report(repo, declaration_path, "--per-unit", "--files", "report.go")
+
+        assert violation_summary(report) == [("legacy_parse", "nesting", 5, 3)]
+        assert report["holds_commit"] is True
