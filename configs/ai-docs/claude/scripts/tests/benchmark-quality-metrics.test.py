@@ -6,9 +6,12 @@ Usage:
 """
 
 import importlib
-import importlib.util
+import importlib.machinery
 import sys
+import types
 from pathlib import Path
+
+import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -30,21 +33,22 @@ languages:
 
 
 def load_benchmark():
-    spec = importlib.util.spec_from_file_location("benchmark_quality_metrics", SCRIPT)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load {SCRIPT}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    """Run the script once; a wrong SCRIPT path names itself."""
+    loader = importlib.machinery.SourceFileLoader("benchmark_quality_metrics", str(SCRIPT))
+    module = types.ModuleType(loader.name)
+    module.__file__ = str(SCRIPT)
+    loader.exec_module(module)
     return module
 
 
 benchmark = load_benchmark()
 
 
-def write_declaration(tmp_path):
-    path = tmp_path / "quality-metrics.yaml"
-    path.write_text(DECLARATION_BODY)
-    return path
+@pytest.fixture
+def declaration_path(tmp_path):
+    """A fresh copy of DECLARATION_BODY on disk."""
+    (tmp_path / "quality-metrics.yaml").write_text(DECLARATION_BODY)
+    return tmp_path / "quality-metrics.yaml"
 
 
 class TestRunMeasured:
@@ -75,9 +79,8 @@ class TestDeclaredForTiming:
 
 class TestMainGuards:
     def test_should_leave_per_unit_unchanged_and_exit_2_when_a_sample_file_is_missing(
-        self, tmp_path, monkeypatch, capsys
+        self, declaration_path, monkeypatch, capsys
     ):
-        declaration_path = write_declaration(tmp_path)
         monkeypatch.setattr(benchmark, "SAMPLE_FILES", ("no/such/sample.py",))
 
         exit_code = benchmark.main(["--declaration", str(declaration_path)])
@@ -87,9 +90,8 @@ class TestMainGuards:
         assert "no/such/sample.py" in capsys.readouterr().err
 
     def test_should_exit_2_and_leave_the_file_untouched_when_a_block_style_per_unit_list_would_break_the_rewrite(
-        self, tmp_path, monkeypatch
+        self, declaration_path, monkeypatch
     ):
-        declaration_path = write_declaration(tmp_path)
         block_style = DECLARATION_BODY.replace("per_unit: []", "per_unit:\n  - size")
         declaration_path.write_text(block_style)
         monkeypatch.setattr(benchmark, "SAMPLE_FILES", ())
@@ -117,9 +119,8 @@ class TestPerUnitSelection:
         assert selected == ["size"]
 
     def test_should_place_a_check_from_the_declaration_alone_with_no_timing_at_run_time(
-        self, tmp_path
+        self, declaration_path
     ):
-        declaration_path = write_declaration(tmp_path)
         limit = benchmark.PER_UNIT_LIMIT_SECONDS
         benchmark.write_per_unit(
             declaration_path,
@@ -133,8 +134,7 @@ class TestPerUnitSelection:
 
         assert placed == ("size",)
 
-    def test_should_keep_the_declarations_comments_on_rewrite(self, tmp_path):
-        declaration_path = write_declaration(tmp_path)
+    def test_should_keep_the_declarations_comments_on_rewrite(self, declaration_path):
 
         benchmark.write_per_unit(declaration_path, ["size"])
 
