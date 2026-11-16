@@ -106,12 +106,17 @@ DASHED_COMMIT_BINARY = re.compile(r"git-commit|git-core|exec[-_]path", re.IGNORE
 # Each key names a program git runs by itself, even under a
 # listed subcommand, so a planted one can run commit.
 CONFIG_PROGRAM_KEY = re.compile(
-    r"core\.fsmonitor|core\.pager|pager\..+|core\.hookspath|diff\.external"
+    r"core\.fsmonitor|core\.pager|pager\..+|diff\.external"
     r"|diff\..+\.(?:textconv|command)|filter\..+\.(?:smudge|clean|process)"
-    r"|gpg\.(?:.+\.)?program|merge\..+\.driver",
+    r"|gpg\.(?:.+\.)?program|merge\..+\.driver|interactive\.difffilter",
     re.IGNORECASE,
 )
 SAMPLE_HOOK_SUFFIX = ".sample"
+
+# core.hooksPath is judged by the hooks it holds, which the
+# hooks dir scan reads; a relative one resolves from a root
+# the scan may not share, so it counts as a program.
+HOOKS_PATH_KEY = "core.hookspath"
 
 # The program check reads the payload's cwd, so a git call
 # after a directory change runs where it never looked.
@@ -220,18 +225,38 @@ def has_active_hook(hooks_dir: Path) -> bool:
     )
 
 
+def get_config_entries(cwd: str | None) -> list[tuple[str, str]] | None:
+    # -z splits a value from its key by a newline, so a value
+    # holding newlines cannot pass for another key.
+    listed = run_git(cwd, "config", "-z", "--get-regexp", ".")
+    if listed is None or listed.returncode not in (0, 1):
+        return None
+    entries = []
+    for entry in filter(None, listed.stdout.split("\0")):
+        key, _, value = entry.partition("\n")
+        entries.append((key, value))
+    return entries
+
+
+def is_program_entry(key: str, value: str) -> bool:
+    if key.lower() == HOOKS_PATH_KEY:
+        return not os.path.isabs(value)
+    return CONFIG_PROGRAM_KEY.fullmatch(key) is not None
+
+
 @lru_cache(maxsize=None)
 def runs_configured_program(cwd: str | None) -> bool:
     # git config and rev-parse run no configured program; an
     # unreadable answer counts as one, and a non-repo has no
     # hooks to run.
-    keys = run_git(cwd, "config", "--name-only", "--get-regexp", ".")
+    entries = get_config_entries(cwd)
     hooks = run_git(cwd, "rev-parse", "--git-path", "hooks")
-    if keys is None or hooks is None or keys.returncode not in (0, 1):
+    if entries is None or hooks is None:
         return True
-    has_program_key = any(CONFIG_PROGRAM_KEY.fullmatch(key) for key in keys.stdout.splitlines())
-    if has_program_key or hooks.returncode != 0:
-        return has_program_key
+    elif any(is_program_entry(key, value) for key, value in entries):
+        return True
+    elif hooks.returncode != 0:
+        return False
     return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.strip())
 
 

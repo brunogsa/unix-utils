@@ -632,6 +632,35 @@ class TestDirectoryChangeBeforeScripts:
         possible_commit_reason(tmp_path, command)
 
 
+class TestHooksPathAndProgramKeys:
+    def test_should_let_an_allowed_subcommand_through_when_hooks_path_holds_only_sample_hooks(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "core.hooksPath", str(repo / ".git" / "hooks"))
+
+        assert check_commit(tmp_path, command="git status --short", cwd=str(repo)) is None
+
+    def test_should_deny_an_allowed_subcommand_when_hooks_path_holds_an_active_hook(self, tmp_path):
+        repo = git_repo(tmp_path)
+        hooks = tmp_path / "planted-hooks"
+        hooks.mkdir()
+        hook = hooks / "post-index-change"
+        hook.write_text("#!/bin/sh\n./release.sh\n", encoding="utf-8")
+        hook.chmod(0o755)
+        git(repo, "config", "core.hooksPath", str(hooks))
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+    @pytest.mark.parametrize(
+        "key",
+        ["interactive.diffFilter", "gpg.program", "gpg.ssh.program", "merge.ours.driver"],
+    )
+    def test_should_deny_an_allowed_subcommand_when_the_repo_config_runs_a_program(self, tmp_path, key):
+        repo = git_repo(tmp_path)
+        git(repo, "config", key, "./release.sh")
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
