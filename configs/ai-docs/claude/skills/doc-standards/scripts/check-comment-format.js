@@ -1739,90 +1739,112 @@ function paragraphBreakIndex(violation, lines, lang, maxLines) {
 // just reported, so applying them bottom-to-top keeps the
 // still-queued numbers valid -- an insertion only ever shifts
 // lines after itself.
-function applyPass(pass, report, maxChars, maxLines) {
+const descending = (a, b) => b - a;
+const ascending = (a, b) => a - b;
+
+// Each repair edits report.lines in place and says whether it
+// changed anything.
+function insertBlankComment({ lines, lang, afterIndex, borrowFrom }) {
+  const parts = splitCommentLine(lines[borrowFrom], lang);
+  if (!parts) return false;
+  lines.splice(afterIndex, 0, renderCommentLine(parts.indent, parts.marker, ''));
+  return true;
+}
+
+function repairBulletSpacing({ report }) {
   const { lang, lines } = report;
-  const descending = (a, b) => b - a;
-  const ascending = (a, b) => a - b;
   let changed = false;
-
-  const insertBlankComment = (afterIndex, borrowFrom) => {
-    const parts = splitCommentLine(lines[borrowFrom], lang);
-    if (!parts) return;
-    lines.splice(afterIndex, 0, renderCommentLine(parts.indent, parts.marker, ''));
+  for (const line of report.bulletSpacing.map((v) => v.line).sort(descending)) {
+    const parts = splitCommentLine(lines[line - 1], lang);
+    if (!parts) continue;
+    lines[line - 1] = renderCommentLine(parts.indent, parts.marker, parts.prose.trimStart());
     changed = true;
-  };
-
-  if (pass === 'bulletSpacing') {
-    for (const line of report.bulletSpacing.map((v) => v.line).sort(descending)) {
-      const parts = splitCommentLine(lines[line - 1], lang);
-      if (!parts) continue;
-      lines[line - 1] = renderCommentLine(parts.indent, parts.marker, parts.prose.trimStart());
-      changed = true;
-    }
   }
+  return changed;
+}
 
-  if (pass === 'codeGaps') {
-    for (const line of report.codeGaps.map((v) => v.line).sort(descending)) {
-      lines.splice(line - 1, 0, '');
-      changed = true;
-    }
+function repairCodeGaps({ report }) {
+  const gapLines = report.codeGaps.map((v) => v.line).sort(descending);
+  for (const line of gapLines) report.lines.splice(line - 1, 0, '');
+  return gapLines.length > 0;
+}
+
+// A re-flow that reproduces its own input is not progress,
+// and counting it as one would keep convergence from ever
+// settling.
+function planUnitRepair({ unit, start, lines, maxChars }) {
+  const wrapped = wrapUnit(unit, maxChars);
+  if (!wrapped) return null;
+  const original = lines.slice(start, unit.end + 1);
+  if (wrapped.join('\n') === original.join('\n')) return null;
+  return { start, span: original.length, wrapped };
+}
+
+// A flow unit reaches forward across lines the checker never
+// flagged, so every unit is measured against the untouched
+// file first.
+function planWidthRepairs(report, maxChars) {
+  const { lang, lines } = report;
+  const repairs = [];
+  let absorbed = -1;
+  for (const line of report.widthViolations.map((v) => v.line).sort(ascending)) {
+    const start = line - 1;
+    if (start <= absorbed) continue;
+
+    const unit = flowUnit(lines, start, lang, report.fullCommentLines, lines.length);
+    if (!unit) continue;
+    absorbed = unit.end;
+    const repair = planUnitRepair({ unit, start, lines, maxChars });
+    if (repair) repairs.push(repair);
   }
+  return repairs;
+}
 
-  // A flow unit reaches forward across lines the checker never
-  // flagged, so every unit is measured against the untouched
-  // file first.
-  //
-  // Only then is it spliced in bottom-to-top, since read and
-  // write interleaved would let one repair reach into text an
-  // earlier one had already rewritten.
-  //
-  // A re-flow that reproduces its own input is not progress,
-  // and counting it as one would keep convergence from ever
-  // settling.
-  if (pass === 'width') {
-    const repairs = [];
-    let absorbed = -1;
-
-    for (const line of report.widthViolations.map((v) => v.line).sort(ascending)) {
-      const start = line - 1;
-      if (start <= absorbed) continue;
-
-      const unit = flowUnit(lines, start, lang, report.fullCommentLines, lines.length);
-      if (!unit) continue;
-      absorbed = unit.end;
-
-      const wrapped = wrapUnit(unit, maxChars);
-      if (!wrapped) continue;
-      const original = lines.slice(start, unit.end + 1);
-      if (wrapped.join('\n') === original.join('\n')) continue;
-
-      repairs.push({ start, span: original.length, wrapped });
-    }
-
-    for (const repair of repairs.reverse()) {
-      lines.splice(repair.start, repair.span, ...repair.wrapped);
-      changed = true;
-    }
+// Repairs splice in bottom-to-top, since read and write
+// interleaved would let one repair reach into text an earlier
+// one had already rewritten.
+function repairWidth({ report, maxChars }) {
+  const repairs = planWidthRepairs(report, maxChars);
+  for (const repair of repairs.reverse()) {
+    report.lines.splice(repair.start, repair.span, ...repair.wrapped);
   }
+  return repairs.length > 0;
+}
 
-  // The reported line is the bullet item's LAST line, so the
-  // blank belongs directly after it.
-  if (pass === 'bulletBlanks') {
-    for (const line of report.bulletBlanks.map((v) => v.line).sort(descending)) {
-      insertBlankComment(line, line - 1);
-    }
+// The reported line is the bullet item's LAST line, so the
+// blank belongs directly after it.
+function repairBulletBlanks({ report }) {
+  const { lang, lines } = report;
+  let changed = false;
+  for (const line of report.bulletBlanks.map((v) => v.line).sort(descending)) {
+    changed = insertBlankComment({ lines, lang, afterIndex: line, borrowFrom: line - 1 }) || changed;
   }
+  return changed;
+}
 
-  if (pass === 'paragraph') {
-    const ordered = [...report.paragraphViolations].sort((a, b) => b.startLine - a.startLine);
-    for (const violation of ordered) {
-      const at = paragraphBreakIndex(violation, lines, lang, maxLines);
-      if (at === null) continue;
-      insertBlankComment(at, at - 1);
-    }
+function repairParagraphs({ report, maxLines }) {
+  const { lang, lines } = report;
+  const ordered = [...report.paragraphViolations].sort((a, b) => b.startLine - a.startLine);
+  let changed = false;
+  for (const violation of ordered) {
+    const at = paragraphBreakIndex(violation, lines, lang, maxLines);
+    if (at === null) continue;
+    changed = insertBlankComment({ lines, lang, afterIndex: at, borrowFrom: at - 1 }) || changed;
   }
+  return changed;
+}
 
-  return changed ? lines.join('\n') : null;
+const PASS_REPAIRS = {
+  bulletSpacing: repairBulletSpacing,
+  codeGaps: repairCodeGaps,
+  width: repairWidth,
+  bulletBlanks: repairBulletBlanks,
+  paragraph: repairParagraphs,
+};
+
+function applyPass(pass, report, maxChars, maxLines) {
+  const changed = PASS_REPAIRS[pass]({ report, maxChars, maxLines });
+  return changed ? report.lines.join('\n') : null;
 }
 
 function fixFile(file, { maxChars, maxLines, langOverride, changedOnly }) {
