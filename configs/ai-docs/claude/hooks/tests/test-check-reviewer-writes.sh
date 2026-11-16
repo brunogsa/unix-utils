@@ -179,6 +179,24 @@ done
 assert_eq "blocks an in-place sed edit when a backslash sits inside its in-place flag" \
   "" "$allowed_escaped_flag"
 
+# Bash drops a backslash-newline outside single quotes before
+# it splits words, so `te\<newline>e` runs tee.
+joined_word_writes=($'echo x | te\\\ne src/a.py'
+  $'echo x | "te\\\ne" src/a.py' $'sed -\\\ni s/a/b/ src/a.py'
+  $'s\\\ned -i s/a/b/ src/a.py' $'echo x >\\\nsrc/a.py')
+allowed_joined_word=""
+for c in "${joined_word_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_joined_word="$allowed_joined_word [$(printf '%q' "$c")]"
+done
+assert_eq "blocks tee, sed -i or a redirect into a repo file when a backslash-newline splits the word" \
+  "" "$allowed_joined_word"
+
+# Inside single quotes a backslash-newline is literal text, so
+# the quote is still open at a line break.
+assert_eq "blocks a write whose single-quoted text holds a backslash before a line break" \
+  "2" "$(run_bash $'echo \'x\\\n\' > /tmp/y')"
+
 # A quoted backslash stays in the path, so this writes the
 # repo-relative `\/tmp/x`, never /tmp/x.
 assert_eq "blocks tee into a repo path that starts with a quoted backslash before /tmp" \

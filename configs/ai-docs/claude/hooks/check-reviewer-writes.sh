@@ -10,10 +10,13 @@
 #
 # Each is a read-only judge.
 #
-# Its write affordances are exactly two:
-#   1. persisting a verdict to a verdict file, and
+# Its write affordances are exactly three:
+#   1. persisting a verdict to a verdict file,
 #
-#   2. scratch under /tmp - the review pipeline (auto-review)
+#   2. persisting an inferred layer map to a
+#      layers_inferred_*.yaml file, and
+#
+#   3. scratch under /tmp - the review pipeline (auto-review)
 #      persists wave artifacts to a mktemp dir there; /tmp is
 #      never repo source.
 #
@@ -22,7 +25,7 @@
 #
 # When code-reviewer runs auto-review's local mode (its own
 # pin), Wave 2's findings JSON lands in that same mktemp dir
-# under the second affordance.
+# under the third affordance.
 #
 # An opus context running the whole pipeline still cannot reach
 # repo source even under a bypassPermissions parent.
@@ -181,6 +184,10 @@ UNREADABLE_MARKER=$'\003'
 #
 # A backslash is kept with the character it escapes.
 #
+# A backslash-newline outside single quotes is dropped, since
+# bash joins the two lines before it splits words, so
+# `te\<newline>e` runs tee.
+#
 # UNREADABLE_MARKER is added for a substitution inside double
 # quotes, a quote open at a line break, and a quote never
 # closed.
@@ -213,6 +220,8 @@ remove_quotes() {
         if (state == "single") {
           if (c == "\047") { state = ""; out = out name_break(i) }
           else out = out quoted(c, 1)
+        } else if (c == "\\" && substr(text, i + 1, 1) == "\n") {
+          i++
         } else if (c == "\\" && i < n) {
           i++
           out = out c quoted(substr(text, i, 1), 0)
