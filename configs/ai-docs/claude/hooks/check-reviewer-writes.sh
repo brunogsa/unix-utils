@@ -106,13 +106,24 @@ allowed_write_reason() {
 # interpreter (`python3 -c`) or `cp`/`mv` is not parsed - the
 # guard is best-effort, not a sandbox.
 #
-# Known gap: a target that starts with a shell variable
-# (`$work_dir/x`) cannot be resolved statically. It passes
-# with no output.
+# A target that starts with a shell variable cannot be
+# resolved statically. It passes only when the variable is one
+# of the review pipelines' mktemp scratch dirs; any other
+# variable may hold $HOME or the repo, so it is denied.
 #
-# The Bash branch never auto-approves, so that target falls
-# back to the normal permission flow, not to an allow.
+# Known gap: the allowlist trusts the name, so a command that
+# reassigns `work_dir=$PWD` first still passes.
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+
+# Variables the reviewer pipelines mint with mktemp under /tmp:
+#   work_dir - code-review-pipeline/references/
+#     wave1-context-prep.md and refactor/SKILL.md
+#   RUN_DIR - quality-gate/SKILL.md
+SCRATCH_DIR_VARS='work_dir|RUN_DIR'
+
+# `$NAME/` or `${NAME}/`, then a rest with no further
+# expansion, so `$work_dir2/x` and `${work_dir}x` fail.
+SCRATCH_VAR_TARGET_REGEX='^\$(\{('"$SCRATCH_DIR_VARS"')\}|('"$SCRATCH_DIR_VARS"'))/[^$`]*$'
 
 # Bash writes are narrower than Write/Edit: a verdict file is
 # written with the Write tool, and a Bash redirect into one
@@ -120,7 +131,9 @@ CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 bash_target_allowed() {
   local path="$1"
   [[ "$path" == /dev/null ]] && return 0
-  [[ "$path" != *..* && ( "$path" == /tmp/* || "$path" == /private/tmp/* ) ]]
+  [[ "$path" == *..* ]] && return 1
+  [[ "$path" =~ $SCRATCH_VAR_TARGET_REGEX ]] && return 0
+  [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]
 }
 
 # Matches a redirect operator or `tee` plus its flags, right
@@ -154,13 +167,10 @@ if [ -n "$CMD" ]; then
     | sed -E 's/^[|;&[:space:]]*tee[[:space:]]+//' | tr ' ' '\n' | grep -v '^-')
   # Each redirect target carries a `T:` prefix, so a redirect
   # with no target is denied, not skipped as a blank line.
-  # A target rooted at a shell variable cannot be resolved and
-  # is left to the normal permission flow (Known gap).
   while IFS= read -r target; do
     [ -z "$target" ] && continue
     target=${target#T:}
     target=${target//$SPACE_PLACEHOLDER/ }
-    [[ "$target" =~ ^\$[A-Za-z_{] ]] && continue
     bash_target_allowed "$target" && continue
     echo "Blocked: this reviewer's Bash may write only to /dev/null or scratch under /tmp (attempted: ${target:-<empty target>})" >&2
     exit 2
@@ -168,7 +178,6 @@ if [ -n "$CMD" ]; then
   while IFS= read -r target; do
     [ -z "$target" ] && continue
     target=${target//$SPACE_PLACEHOLDER/ }
-    [[ "$target" =~ ^\$[A-Za-z_{] ]] && continue
     bash_target_allowed "$target" && continue
     echo "Blocked: this reviewer's Bash may write only to /dev/null or scratch under /tmp (attempted: $target)" >&2
     exit 2

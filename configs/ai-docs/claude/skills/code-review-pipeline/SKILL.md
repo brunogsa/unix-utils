@@ -85,7 +85,7 @@ This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (
 
   - Wave 1 persists them so a mid-pipeline compaction can't lose which path (guide length, whether Wave 3 runs, inline or fan-out) a resumed run takes.
 
-  - Bump the attempt counter: `f="$work_dir/wave2-attempts.txt"; n=$(cat "$f" 2>/dev/null); echo $(( ${n:-0} + 1 )) > "$f"`.
+  - Bump the attempt counter: `n=$(cat "$work_dir/wave2-attempts.txt" 2>/dev/null); echo $(( ${n:-0} + 1 )) > "$work_dir/wave2-attempts.txt"`.
     - Every entry into Wave 2, first run or post-compaction resume, counts as one attempt.
 
   - List `$work_dir/wave2-lens-*.json`; the lenses with no file there are the remaining ones.

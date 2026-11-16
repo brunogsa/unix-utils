@@ -202,14 +202,61 @@ assert_eq "passes an unquoted variable redirect target with no output" \
 assert_eq "passes a braced variable redirect target with no output" \
   "0 no-output" "$(run_bash_output 'echo x > ${RUN_DIR}/x')"
 
-assert_eq "passes a bare quoted variable redirect target with no output" \
-  "0 no-output" "$(run_bash_output 'echo x > "$f"')"
+assert_eq "blocks a bare variable that is not a known mktemp scratch dir" \
+  "2" "$(run_bash 'echo x > "$f"')"
 
 assert_eq "blocks a literal repo source redirect target" \
   "2" "$(run_bash 'echo x > src/a.py')"
 
 assert_eq "blocks a literal append redirect into README.md" \
   "2" "$(run_bash 'echo x >> README.md')"
+
+# A variable the hook cannot prove is a /tmp scratch dir may
+# point anywhere, so only the pipelines' mktemp dirs pass.
+assert_eq "blocks a redirect into the home directory variable" \
+  "2" "$(run_bash 'echo x > $HOME/x')"
+
+assert_eq "blocks a braced working-directory variable redirect into source" \
+  "2" "$(run_bash 'echo x > ${PWD}/src/a.py')"
+
+assert_eq "blocks a quoted previous-directory variable redirect" \
+  "2" "$(run_bash 'echo x > "$OLDPWD/README.md"')"
+
+assert_eq "blocks tee into an unknown variable directory" \
+  "2" "$(run_bash 'echo x | tee $X/a')"
+
+assert_eq "blocks an ANSI-C quoted redirect target" \
+  "2" "$(run_bash "echo x > \$'foo'")"
+
+assert_eq "blocks a locale-quoted redirect target" \
+  "2" "$(run_bash 'echo x > $"foo"')"
+
+assert_eq "blocks a command substitution inside a scratch dir target" \
+  "2" "$(run_bash 'echo x > "$work_dir/`id`"')"
+
+assert_eq "blocks a redirect into a home-relative tilde path" \
+  "2" "$(run_bash 'echo x > ~/x')"
+
+assert_eq "allows tee into the quoted auto-review scratch dir" \
+  "0" "$(run_bash 'git diff | tee "$work_dir/d.txt"')"
+
+assert_eq "allows an append redirect into the braced quality-gate run dir" \
+  "0" "$(run_bash 'echo x >> "${RUN_DIR}/x.md"')"
+
+assert_eq "blocks a scratch dir target that hops out with a parent-directory step" \
+  "2" "$(run_bash 'echo x > $work_dir/../src/a.py')"
+
+assert_eq "blocks a variable whose name only starts with a scratch dir name" \
+  "2" "$(run_bash 'echo x > $work_dir2/x')"
+
+assert_eq "blocks a braced scratch dir name glued to more text" \
+  "2" "$(run_bash 'echo x > ${work_dir}x')"
+
+assert_eq "allows stderr discarded to /dev/null" \
+  "0" "$(run_bash 'echo x 2>/dev/null')"
+
+assert_eq "blocks a quoted /tmp target that hops out to /etc" \
+  "2" "$(run_bash 'echo x > "/tmp/a/../../etc/x"')"
 
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
