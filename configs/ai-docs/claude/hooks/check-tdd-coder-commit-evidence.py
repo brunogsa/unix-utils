@@ -91,9 +91,10 @@ NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCO
 
 # A read in another repo runs that repo's config, so only a
 # plain path - no quote, $ or ~ - is read and screened, and
-# its aliases or hooksPath count as programs there.
+# its aliases count as programs there. Its hooksPath is
+# judged like any repo's: only the default dir passes.
 READ_ONLY_DIR_CALL = re.compile(r"[ \t]+-C[ \t]+([\w.+/][\w.+/-]*)[ \t]+(?:status|diff|log)(?=[\s;&|()<>]|$)")
-DIR_CALL_PROGRAM_KEY = re.compile(r"core\.hookspath|alias\.(?:status|diff|log)", re.IGNORECASE)
+DIR_CALL_PROGRAM_KEY = re.compile(r"alias\.(?:status|diff|log)", re.IGNORECASE)
 
 # A name already exported hands any new value to every later
 # program, as GIT_* names do to git and IFS does to the
@@ -188,8 +189,8 @@ BINARY_PROBE_BYTES = 8192
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>` or `git -C <plain path> "
-    "<status|diff|log>` in a repo whose config runs no program, has no core.hooksPath and no such "
-    "alias, names a GIT_*, IFS or already "
+    "<status|diff|log>` in a repo whose config runs no program and has no such alias, "
+    "names a GIT_*, IFS or already "
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
     "a command, env, export, declare -x, set -a), "
     "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "

@@ -852,7 +852,7 @@ class TestReadOnlyGitInAnotherRepo:
         ("key", "value"),
         [
             ("core.fsmonitor", "./release.sh"),
-            ("core.hooksPath", ".git/hooks"),
+            ("core.hooksPath", "../elsewhere-hooks"),
             ("alias.status", "!./release.sh"),
             ("include.path", "/tmp/aliases.gitconfig"),
             ("diff.external", "./release.sh"),
@@ -864,6 +864,17 @@ class TestReadOnlyGitInAnotherRepo:
         git(repo, "config", key, value)
 
         possible_commit_reason(tmp_path, f"git -C {repo} status --short")
+
+    @pytest.mark.parametrize(
+        "value_of",
+        [lambda repo: f"{repo}/.git/hooks", lambda repo: ".git/hooks"],
+        ids=["absolute", "relative"],
+    )
+    def test_should_let_a_read_through_when_hooks_path_names_the_default_dir(self, tmp_path, value_of):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "core.hooksPath", value_of(repo))
+
+        assert check_commit(tmp_path, command=f"git -C {repo} status --short") is None
 
     @pytest.mark.parametrize(
         "command_for",
