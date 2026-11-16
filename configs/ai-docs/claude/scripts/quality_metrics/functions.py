@@ -28,13 +28,19 @@ from quality_metrics.tools import (
 NESTING_LIMIT = 3
 PARAMETER_LIMIT = 5
 
+# Sonar's rule S3776 uses 15 as its default limit, and so does
+# Biome's noExcessiveCognitiveComplexity.
+COGNITIVE_COMPLEXITY_LIMIT = 15
+
 DISPLAY_STEP = Decimal("0.01")
 
 BASH = "bash"
 
-# Columns of `lizard --csv -E nd`.
+# Columns of `lizard --csv -E nd -E cognitive`; an extension's
+# column follows the order the -E flags name them in.
 LIZARD_NLOC, LIZARD_COMPLEXITY, LIZARD_PARAMETERS = 0, 1, 3
 LIZARD_NAME, LIZARD_START, LIZARD_END, LIZARD_NESTING = 7, 9, 10, 11
+LIZARD_COGNITIVE = 12
 
 # The node type shfmt `--to-json` gives a function definition.
 SHFMT_FUNCTION_NODE = "FuncDecl"
@@ -51,6 +57,7 @@ class FunctionMeasure:
     complexity: int
     nesting: Optional[int]
     parameters: Optional[int]
+    cognitive_complexity: Optional[int] = None
 
 
 class FunctionToolError(ToolError):
@@ -90,8 +97,15 @@ def touched_functions(target):
 
 
 def measure(target, metrics):
-    """Measure the nesting and parameters of every touched function."""
-    limits = {"nesting": NESTING_LIMIT, "parameters": PARAMETER_LIMIT}
+    """Measure nesting, parameters and cognitive complexity.
+
+    Each touched function gets one record per requested metric.
+    """
+    limits = {
+        "nesting": NESTING_LIMIT,
+        "parameters": PARAMETER_LIMIT,
+        "cognitive_complexity": COGNITIVE_COMPLEXITY_LIMIT,
+    }
     results = []
     for function in touched_functions(target):
         for metric in metrics:
@@ -148,7 +162,8 @@ def measurement(target, metric, value, limit, function=None):
 
 
 def _measure_functions_with_lizard(path, policy):
-    output = _run_function_tool(policy, ["lizard", "--csv", "-E", "nd", str(path)])
+    output = _run_function_tool(policy, ["lizard", "--csv", "-E", "nd", "-E", "cognitive", str(path)]
+    )
     return [
         FunctionMeasure(
             name=row[LIZARD_NAME],
@@ -158,6 +173,7 @@ def _measure_functions_with_lizard(path, policy):
             complexity=int(row[LIZARD_COMPLEXITY]),
             nesting=int(row[LIZARD_NESTING]),
             parameters=int(row[LIZARD_PARAMETERS]),
+            cognitive_complexity=int(row[LIZARD_COGNITIVE]),
         )
         for row in csv.reader(io.StringIO(output))
     ]
@@ -181,6 +197,7 @@ def _measure_bash_functions(path, policy):
             complexity=int(row[SHELLMETRICS_COMPLEXITY]),
             nesting=None,
             parameters=None,
+            cognitive_complexity=None,
         ))
     return functions
 

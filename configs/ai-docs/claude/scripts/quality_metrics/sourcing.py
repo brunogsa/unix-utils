@@ -79,6 +79,7 @@ GLOBAL_TOOLS = {
     "complexity": {**dict.fromkeys(LIZARD_LANGUAGES, LIZARD), "bash": SHELLMETRICS},
     "nesting": dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
     "parameters": dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
+    "cognitive_complexity": dict.fromkeys(LIZARD_LANGUAGES, LIZARD),
     "coverage": {"python": COVERAGE_PY, "js": C8, "ts": C8, "go": GCOV2LCOV},
     "code_duplication": dict.fromkeys(ALL_LANGUAGES, JSCPD),
     "test_duplication": dict.fromkeys(ALL_LANGUAGES, JSCPD),

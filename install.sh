@@ -307,8 +307,9 @@ npm install -g ccburn
 
 # Python CLI tools (pipx)
 
-# lizard: touched-function metrics (not Bash)
-pipx install lizard
+# lizard: touched-function metrics (not Bash). The version
+# floor is the one this repo's cognitive-complexity run uses.
+pipx install 'lizard>=1.26.0'
 
 # shellmetrics: Bash function complexity. No releases
 # exist, so the script is pinned to one commit.

@@ -16,6 +16,7 @@ METRIC_NAMES = (
     "size",
     "nesting",
     "parameters",
+    "cognitive_complexity",
     "code_duplication",
     "test_duplication",
     "entangled_tests",

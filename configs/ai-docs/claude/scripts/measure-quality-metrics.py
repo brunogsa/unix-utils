@@ -86,6 +86,7 @@ METRIC_MODULES = {
     "size": "size",
     "nesting": "functions",
     "parameters": "functions",
+    "cognitive_complexity": "functions",
     "crap": COVERAGE_MODULE,
     "coverage": COVERAGE_MODULE,
     "code_duplication": DUPLICATION_MODULE,

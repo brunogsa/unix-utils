@@ -18,6 +18,7 @@ from quality_metrics.coverage import coverage_record
 from quality_metrics.crap import CRAP_LIMIT, crap_record
 from quality_metrics.declaration import NoLanguageEntryError, language_for_file
 from quality_metrics.functions import (
+    COGNITIVE_COMPLEXITY_LIMIT,
     NESTING_LIMIT,
     PARAMETER_LIMIT,
     is_over_limit,
@@ -32,6 +33,7 @@ FUNCTION_METRIC_LIMITS = {
     "size": FUNCTION_LINES_LIMIT,
     "nesting": NESTING_LIMIT,
     "parameters": PARAMETER_LIMIT,
+    "cognitive_complexity": COGNITIVE_COMPLEXITY_LIMIT,
     "crap": CRAP_LIMIT,
 }
 
