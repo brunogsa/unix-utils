@@ -71,7 +71,8 @@ Supplementary checklists for code review. Companion to `review-principles.md`.
 
 ## Type Design Checklist
 
-- Types that allow invalid states (prefer types that make illegal states unrepresentable)
+- Types that allow invalid states (prefer types that make illegal states unrepresentable, and settle the data shape before writing logic over it)
+- Domain terms named inconsistently, or missing from the repo's domain glossary (keep one, and add each new term to it)
 - Missing readonly/immutability on data that shouldn't change
 - Overly permissive types (string where union/enum fits)
 - Types without enforced invariants (e.g., non-empty arrays typed as regular arrays)
