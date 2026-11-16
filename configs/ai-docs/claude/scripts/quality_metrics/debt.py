@@ -24,7 +24,10 @@ UNLISTED_METRIC_MINUTES = 30
 # Minutes to remediate one violation of each metric the registry
 # defines. Sonar's rule pages give size (function: S138, file:
 # S104), parameters (S107), nesting (S134) and cognitive
-# complexity (S3776, its 5 minute offset); the rest are choices.
+# complexity (S3776, its 5 minute offset).
+#
+# The rest are choices; cognitive complexity adds 1 minute per
+# point over its limit on top of the offset.
 REMEDIATION_MINUTES = {
     "size": {"function": 20, "file": 60},
     "parameters": 20,
@@ -61,15 +64,26 @@ def measured_nloc(measurements):
 def debt_score(violations, nloc):
     """Minutes, measured lines, ratio and band; ratio and band
     are None when no line was measured."""
-    minutes = sum(_minutes_for(violation) for violation in violations)
+    minutes = sum(minutes_for(violation) for violation in violations)
     if nloc <= 0:
         return {"minutes": minutes, "nloc": nloc, "ratio": None, "band": None}
     ratio = minutes / (MINUTES_PER_LINE * nloc)
     return {"minutes": minutes, "nloc": nloc, "ratio": ratio, "band": band_for(ratio)}
 
 
-def _minutes_for(violation):
+def minutes_for(violation):
+    """Minutes to remediate one violation record."""
     minutes = REMEDIATION_MINUTES.get(violation["metric"], UNLISTED_METRIC_MINUTES)
     if isinstance(minutes, dict):
         return minutes[violation["scope"]]
+    if violation["metric"] == "cognitive_complexity":
+        return minutes + _points_over_limit(violation)
     return minutes
+
+
+def _points_over_limit(violation):
+    """Sonar's S3776 adds 1 minute per point over the limit; a
+    record with no value prices at the offset alone."""
+    if violation["value"] is None:
+        return 0
+    return max(violation["value"] - violation["limit"], 0)

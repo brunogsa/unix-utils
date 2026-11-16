@@ -53,6 +53,16 @@ class TestDebtScore:
             [crap_record("src/a.py", "build", 99)], 1
         )["minutes"]
 
+    def test_should_price_cognitive_complexity_at_5_minutes_plus_1_per_point_over_the_limit(self):
+        record = function_record("src/a.py", "build", "cognitive_complexity", 20, 15)
+
+        assert debt.debt_score([record], 1)["minutes"] == 10
+
+    def test_should_price_cognitive_complexity_at_the_offset_when_it_has_no_value(self):
+        record = function_record("src/a.py", "build", "cognitive_complexity", None, 15)
+
+        assert debt.debt_score([record], 1)["minutes"] == 5
+
     def test_should_price_every_metric_the_registry_defines(self):
         assert set(debt.REMEDIATION_MINUTES) == set(measuring.METRIC_MODULES)
 
