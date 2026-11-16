@@ -27,12 +27,11 @@ from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
     ask_unless_deferred,
-    deferred_crap_measurements,
-    deferred_measurement,
     holds_commit,
     machine_has_headroom,
     measure_language_entry_or_ask,
 )
+from quality_metrics.deferred import deferred_crap_measurements, deferred_measurement
 from quality_metrics.declaration import load_declaration
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT

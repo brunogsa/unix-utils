@@ -15,8 +15,8 @@ from quality_metrics_report_support import (
     coverage,
     crap_record,
     dependencies,
+    deferred_records,
     entry_headings,
-    failures,
     file_record,
     hotspots,
     measured,
@@ -145,7 +145,7 @@ class TestNoValueRecords:
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
         run = measured(
             crap_record("src/known.py", "branchy", 7),
-            failures.deferred_measurement(
+            deferred_records.deferred_measurement(
                 target("src/deferred.py"), "crap", CRAP_LIMIT, function
             ),
         )
@@ -159,7 +159,7 @@ class TestNoValueRecords:
         assert colors["src/deferred.py"] == "red"
 
     def test_should_build_the_verdict_for_a_file_with_no_language_entry_that_has_no_limit(self):
-        run = measured(failures.unmeasured_file_measurement("docs/notes.weird"))
+        run = measured(deferred_records.unmeasured_file_measurement("docs/notes.weird"))
 
         verdict = report.build_verdict(run)
 

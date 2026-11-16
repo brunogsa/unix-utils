@@ -7,7 +7,7 @@ from quality_metrics.collection import NO_COVERAGE_DATA
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import FULL_COVERAGE, crap_measurements, crap_record, crap_score
 from quality_metrics.declaration import is_coverage_opted_out
-from quality_metrics.failures import deferred_coverage_measurement, deferred_crap_measurements
+from quality_metrics.deferred import deferred_coverage_measurement, deferred_crap_measurements
 from quality_metrics.functions import touched_functions
 from quality_metrics.repo_paths import repo_relative
 

@@ -24,7 +24,8 @@ from quality_metrics_support import (
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 from quality_metrics import collection
-from quality_metrics.failures import DEFERRED_LABEL, TimeoutPolicy
+from quality_metrics.deferred import DEFERRED_LABEL
+from quality_metrics.failures import TimeoutPolicy
 
 SESSION_ID = "session-f3a9c1"
 

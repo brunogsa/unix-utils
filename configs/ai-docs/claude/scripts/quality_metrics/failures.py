@@ -16,20 +16,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from quality_metrics.coverage import coverage_record
-from quality_metrics.crap import CRAP_LIMIT, crap_record
+from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.declaration import NoLanguageEntryError, language_for_file
+from quality_metrics.deferred import (
+    deferred_coverage_measurement,
+    deferred_measurement,
+    unmeasured_file_measurement,
+)
 from quality_metrics.duplication import CODE_METRIC, SIMILARITY_LIMIT, TEST_METRIC
 from quality_metrics.functions import (
     COGNITIVE_COMPLEXITY_LIMIT,
     NESTING_LIMIT,
     PARAMETER_LIMIT,
     is_over_limit,
-    measurement,
 )
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tools import ToolError, run_command
-from quality_metrics.touched import Target
 
 # The limit each function-tool metric's deferred record carries.
 FUNCTION_METRIC_LIMITS = {
@@ -42,8 +44,6 @@ FUNCTION_METRIC_LIMITS = {
     TEST_METRIC: SIMILARITY_LIMIT,
 }
 
-DEFERRED_LABEL = "pessimistic, tooling deferred"
-NO_LANGUAGE_ENTRY_STATUS = "not measured: no language entry"
 TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
@@ -70,69 +70,6 @@ def machine_has_headroom():
     script says an unmeasurable gate is treated as NO-GO.
     """
     return run_command([str(HEADROOM_SCRIPT)]).returncode == 0
-
-
-def _as_deferred(record):
-    """`record` marked pessimistic and labelled as deferred."""
-    return {**record, "pessimistic": True, "label": DEFERRED_LABEL}
-
-
-def deferred_measurement(target, metric, limit, function=None):
-    """A record for a metric whose tool could not run and was
-    deferred.
-
-    It has no value, so it never reads as passing, and it
-    carries the `pessimistic` marker that keeps it from holding
-    a commit.
-    """
-    return _as_deferred(measurement(target, metric, None, limit, function))
-
-
-def deferred_flagged_measurement(target, metric, flagged_value, limit):
-    """A record read as flagged when its tool could not run,
-    labelled.
-
-    The worst case lists as a violation yet, being pessimistic,
-    never holds a commit, so a missing tool scores no better
-    than a failing check.
-    """
-    return _as_deferred(measurement(target, metric, flagged_value, limit))
-
-
-def deferred_crap_measurements(target, functions):
-    """One CRAP violation per touched function when complexity
-    is deferred.
-
-    Without a complexity there is no score, so each record
-    reads the lowest score that flags (CRAP_LIMIT): a worst
-    case that lists as a violation yet, being pessimistic,
-    never holds a commit.
-    """
-    return [_as_deferred(crap_record(target, function, CRAP_LIMIT)) for function in functions]
-
-
-def deferred_coverage_measurement(target):
-    """Coverage read as 0% for a deferred coverage tool,
-    labelled.
-
-    0% is the worst case, so CRAP stays pessimistic; the marker
-    keeps it from holding a commit.
-    """
-    return _as_deferred(coverage_record(target, 0))
-
-
-def unmeasured_file_measurement(file_path):
-    """A file-scoped record: no language entry, so nothing was
-    measured.
-
-    Deferred and valueless, it never reads as passing, and it
-    never holds a commit.
-    """
-    target = Target(Path(file_path), None, None)
-    return {
-        **deferred_measurement(target, "language_entry", None),
-        "status": NO_LANGUAGE_ENTRY_STATUS,
-    }
 
 
 def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None):

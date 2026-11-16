@@ -2,7 +2,7 @@
 records of one target file.
 """
 
-from quality_metrics.failures import deferred_flagged_measurement
+from quality_metrics.deferred import deferred_flagged_measurement
 from quality_metrics.functions import measurement
 
 METRIC = "dependency_direction"

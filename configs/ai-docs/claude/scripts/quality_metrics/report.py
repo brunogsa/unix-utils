@@ -15,7 +15,7 @@ from pathlib import Path
 
 from quality_metrics import hotspots
 from quality_metrics.atomic_write import write_text_atomically
-from quality_metrics.failures import DEFERRED_LABEL
+from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.functions import display_value
 
 METRICS_TAG = "[metrics]"

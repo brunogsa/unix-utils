@@ -8,8 +8,8 @@ from quality_metrics_report_support import (
     DEFERRED_LABEL,
     FunctionMeasure,
     crap_record,
+    deferred_records,
     entry_headings,
-    failures,
     file_record,
     measured,
     report,
@@ -140,7 +140,7 @@ class TestDeferredMetrics:
 
     def test_should_print_the_deferred_label_on_a_deferred_crap_violation_but_not_on_a_measured_one(self):
         function = FunctionMeasure("buildReport", 4, 30, 26, 12, None, None)
-        [deferred] = failures.deferred_crap_measurements(target("src/deferred.py"), [function])
+        [deferred] = deferred_records.deferred_crap_measurements(target("src/deferred.py"), [function])
         run = measured(crap_record("src/measured.py", "mergeRows", CRAP_LIMIT), deferred)
 
         verdict = report.build_verdict(run)
@@ -154,7 +154,9 @@ class TestDeferredMetrics:
     def test_should_print_the_deferred_label_once_on_a_valueless_deferred_violation(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
         run = measured(
-            failures.deferred_measurement(target("src/deferred.py"), "crap", CRAP_LIMIT, function)
+            deferred_records.deferred_measurement(
+                target("src/deferred.py"), "crap", CRAP_LIMIT, function
+            )
         )
 
         verdict = report.build_verdict(run)
