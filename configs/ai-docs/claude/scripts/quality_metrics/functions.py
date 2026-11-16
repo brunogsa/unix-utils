@@ -195,19 +195,39 @@ def _measure_functions_with_lizard(path, policy, nesting_reader):
     output = run_function_tool(policy, [
         "lizard", "--csv", "-E", "nd", "-E", "ns", "-E", "cognitive", str(path),
     ])
+    rows = list(csv.reader(io.StringIO(output)))
     return [
         FunctionMeasure(
             name=row[LIZARD_NAME],
             start=int(row[LIZARD_START]),
             end=int(row[LIZARD_END]),
-            nloc=int(row[LIZARD_NLOC]),
+            nloc=_nloc_with_nested(row, rows),
             complexity=int(row[LIZARD_COMPLEXITY]),
             nesting=_lizard_nesting(row, nesting_reader),
             parameters=int(row[LIZARD_PARAMETERS]),
             cognitive_complexity=int(row[LIZARD_COGNITIVE]),
         )
-        for row in csv.reader(io.StringIO(output))
+        for row in rows
     ]
+
+
+def _nloc_with_nested(row, rows):
+    """A function's NLOC plus that of every function nested
+    inside it.
+
+    Lizard leaves a nested def's lines out of the enclosing
+    function's NLOC, so moving lines into a closure would
+    shrink the enclosing function's measured size.
+    """
+    start, end = int(row[LIZARD_START]), int(row[LIZARD_END])
+    nested_nloc = sum(
+        int(other[LIZARD_NLOC])
+        for other in rows
+        if other is not row
+        and start <= int(other[LIZARD_START])
+        and int(other[LIZARD_END]) <= end
+    )
+    return int(row[LIZARD_NLOC]) + nested_nloc
 
 
 def _measure_bash_functions(path, policy):
