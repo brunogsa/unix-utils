@@ -36,10 +36,21 @@ def detect_tools(repo, base_sha, rules):
     ).splitlines())
     detected = []
     for rule in rules:
-        config = next((name for name in rule["configs"] if name in root_files), None)
+        config = _config_in_root(rule, root_files)
         if config is not None:
-            detected.append({"tool": rule["tool"], "metric": rule["metric"], "config": config})
+            detected.append(_detected_tool(rule, config))
     return detected
+
+
+def _config_in_root(rule, root_files):
+    return next((name for name in rule["configs"] if name in root_files), None)
+
+
+def _detected_tool(rule, config):
+    return {
+        "tool": rule["tool"], "metric": rule["metric"],
+        "config": config, "languages": rule["languages"],
+    }
 
 
 def tool_map_key(repo, base_sha):

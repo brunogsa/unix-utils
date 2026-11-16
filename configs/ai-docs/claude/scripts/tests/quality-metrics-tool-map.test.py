@@ -50,7 +50,22 @@ def test_should_list_a_jest_coverage_config_read_at_the_base_ref_as_the_repos_co
 
     entry = detect(repo, tmp_path, head_of(repo))
 
-    assert entry["tools"] == [{"tool": "jest", "metric": "coverage", "config": "jest.config.js"}]
+    assert entry["tools"] == [
+        {"tool": "jest", "metric": "coverage", "config": "jest.config.js", "languages": ["js", "ts"]}
+    ]
+
+
+def test_should_declare_the_languages_each_detector_rule_measures():
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
+
+    languages_by_tool_and_metric = {(rule["tool"], rule["metric"]): rule["languages"] for rule in rules}
+
+    assert languages_by_tool_and_metric[("pytest-cov", "coverage")] == ["python"]
+    assert languages_by_tool_and_metric[("import-linter", "dependency_direction")] == ["python"]
+    assert languages_by_tool_and_metric[("jscpd", "code_duplication")] == [
+        "js", "ts", "python", "go", "bash", "html", "css"
+    ]
+    assert all(languages for languages in languages_by_tool_and_metric.values())
 
 
 def test_should_leave_out_a_tool_whose_config_exists_only_on_the_branch_not_at_the_base_ref(tmp_path):

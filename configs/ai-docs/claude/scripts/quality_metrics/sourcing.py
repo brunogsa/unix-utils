@@ -329,11 +329,21 @@ def global_tool_for(metric, language):
     return tool
 
 
-def _repo_tool_for(metric, tool_map):
-    """The tool-map entry measuring `metric`, or None."""
+def _repo_tool_for(metric, tool_map, language):
+    """The tool-map entry measuring `metric` for `language`, or None.
+
+    An entry stored before entries carried `languages` has none,
+    so it matches no language and the global tool measures.
+    """
     if tool_map is None:
         return None
-    return next((tool for tool in tool_map.entry()["tools"] if tool["metric"] == metric), None)
+    return next(
+        (
+            tool for tool in tool_map.entry()["tools"]
+            if tool["metric"] == metric and language in tool.get("languages", ())
+        ),
+        None,
+    )
 
 
 def source_for(metric, tool_map, language):
@@ -344,14 +354,14 @@ def source_for(metric, tool_map, language):
     global one for `language` measures; none for that pair raises
     NoGlobalToolError.
     """
-    repo_tool = _repo_tool_for(metric, tool_map)
+    repo_tool = _repo_tool_for(metric, tool_map, language)
     if repo_tool is not None:
         return {
             "metric": metric,
             "source": {"kind": "repo", "tool": repo_tool["tool"]},
             "side_pr_candidate": None,
         }
-    gap = None if tool_map is None else f"no repo {metric.replace('_', ' ')} tool"
+    gap = None if tool_map is None else f"no repo {metric.replace('_', ' ')} tool for {language}"
     return {
         "metric": metric,
         "source": {"kind": "global", "tool": global_tool_for(metric, language)},

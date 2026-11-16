@@ -6,12 +6,16 @@
 # branch cannot swap in its own measuring tool.
 #
 # Adding a tool is one new entry: its name, the metric it
-# measures (a name from quality-metrics.yaml), and its config
-# file names.
+# measures (a name from quality-metrics.yaml), the languages it
+# measures it for, and its config file names.
+#
+# A repo tool measures only the languages listed: a Python
+# target in a repo with only jest still gets the global tool.
 
 tools:
   - tool: jest
     metric: coverage
+    languages: [js, ts]
     configs:
       - jest.config.js
       - jest.config.cjs
@@ -20,10 +24,12 @@ tools:
       - jest.config.json
   - tool: pytest-cov
     metric: coverage
+    languages: [python]
     configs:
       - .coveragerc
   - tool: eslint
     metric: complexity
+    languages: [js, ts]
     configs: &eslint_configs
       - eslint.config.js
       - eslint.config.cjs
@@ -36,18 +42,22 @@ tools:
       - .eslintrc.yml
   - tool: eslint
     metric: size
+    languages: [js, ts]
     configs: *eslint_configs
   - tool: jscpd
     metric: code_duplication
+    languages: [js, ts, python, go, bash, html, css]
     configs:
       - .jscpd.json
   - tool: dependency-cruiser
     metric: dependency_direction
+    languages: [js, ts]
     configs:
       - .dependency-cruiser.js
       - .dependency-cruiser.cjs
       - .dependency-cruiser.mjs
   - tool: import-linter
     metric: dependency_direction
+    languages: [python]
     configs:
       - .importlinter

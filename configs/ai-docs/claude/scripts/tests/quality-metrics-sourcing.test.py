@@ -122,7 +122,7 @@ def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_t
     assert coverage_source == {
         "metric": "coverage",
         "source": {"kind": "global", "tool": "coverage.py"},
-        "side_pr_candidate": "no repo coverage tool",
+        "side_pr_candidate": "no repo coverage tool for python",
     }
 
 
@@ -372,7 +372,7 @@ def test_should_measure_globally_and_list_a_side_pr_candidate_when_the_repo_has_
     outcome, global_calls, attempt_log = measure_with_unused_jest(tmp_path, monkeypatch, repo, target)
 
     assert outcome["source"] == {"kind": "global", "tool": "c8"}
-    assert outcome["side_pr_candidate"] == "no repo coverage tool"
+    assert outcome["side_pr_candidate"] == "no repo coverage tool for js"
     assert len(global_calls) == 1
     assert not attempt_log.exists()
 
