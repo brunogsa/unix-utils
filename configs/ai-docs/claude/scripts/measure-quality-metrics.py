@@ -120,7 +120,7 @@ def main(arguments):
         )
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
         measurements, unclaimed = _measure(setup, touched_by_file, head_ref)
-        resolved = _resolved_since(declaration, mode, options.diff)
+        resolved = _resolved_since(declaration, mode, options.diff, coverage_run.policy)
         gate_input_violations = _gate_input_violations(
             options, judged_against, head_ref
         )
@@ -414,7 +414,7 @@ def _measure_with_module_file(setup, target, module_name, module_metrics):
     return module.measure(target, module_metrics)
 
 
-def _resolved_since(declaration, mode, diff_range):
+def _resolved_since(declaration, mode, diff_range, policy=None):
     if not diff_range:
         return []
     base_ref, head_ref = _range_ends(diff_range)
@@ -428,6 +428,7 @@ def _resolved_since(declaration, mode, diff_range):
             Target(
                 copy_path, language, WHOLE_FILE, repo_path=original_path,
                 nesting_reader=declaring.nesting_reader_for(declaration, language),
+                tool_policy=policy,
             ),
         )
 
@@ -439,7 +440,7 @@ def _resolved_since(declaration, mode, diff_range):
             head_copy = _copy_at(head_ref, path, directory)
             return {
                 function.name
-                for function in measure_functions(head_copy, language)
+                for function in measure_functions(head_copy, language, policy)
             }
 
     # The three-dot range diffs from the merge base, so the

@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 
 from quality_metrics.declaration import is_excluded_path, is_test_file
-from quality_metrics.functions import measurement
+from quality_metrics.functions import measurement, run_function_tool
 from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import run_tool
 
@@ -79,7 +79,7 @@ def measure(target, metrics, declaration):
             target.language
         ].is_token_only_duplication
         clones = _scan_both_kinds(
-            Path(scan_dir), is_token_only, min_lines
+            Path(scan_dir), is_token_only, min_lines, target.tool_policy
         )
     return _flagged_records(target, metric, repo_path, names, clones)
 
@@ -122,10 +122,10 @@ def _peers_of(repo_path, is_test, extensions):
     ]
 
 
-def _scan_both_kinds(scan_dir, is_token_only, min_lines):
+def _scan_both_kinds(scan_dir, is_token_only, min_lines, policy):
     """Similar pairs of `min_lines` lines plus exact clones of
     as many."""
-    clones = _scan(scan_dir, is_token_only, min_lines - 1)
+    clones = _scan(scan_dir, is_token_only, min_lines - 1, policy)
     return [
         clone for clone in clones
         if "similarity" in clone
@@ -152,7 +152,7 @@ def _longest_identical_run(scan_dir, clone):
     return longest
 
 
-def _scan(scan_dir, is_token_only, min_lines):
+def _scan(scan_dir, is_token_only, min_lines, policy):
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
         if is_token_only else []
@@ -161,7 +161,7 @@ def _scan(scan_dir, is_token_only, min_lines):
         # jscpd reads .jscpd.json from its cwd, so it runs in
         # the empty report dir: the repo's own config must not
         # apply.
-        run_tool([
+        run_function_tool(policy, [
             "jscpd", f"--similarity={SIMILARITY_LIMIT}",
             "--min-lines", str(min_lines), *token_options,
             "--reporters", "json", "--output", report_dir,

@@ -14,13 +14,29 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR
+from quality_metrics_support import (
+    SCRIPTS_DIR,
+    commit_all,
+    load_measure_script,
+    make_repo,
+)
 
 sys.path.insert(0, str(SCRIPTS_DIR))
-from quality_metrics import size, tools
+from quality_metrics import declaration as declaring
+from quality_metrics import duplication, size, tools
 from quality_metrics.failures import TimeoutPolicy
 from quality_metrics.functions import FunctionToolError
 from quality_metrics.touched import Target
+
+PYTHON_DECLARATION = """\
+excluded_paths: []
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  python:
+    extensions: [.py]
+    metrics: [size, code_duplication]
+"""
 
 CART_PYTHON = (
     "def apply_discount(total, rate):\n"
@@ -70,5 +86,52 @@ def test_should_apply_the_timeout_policy_to_size_code_line_count_and_bash_file_l
 
     assert error.value.tool == tool
     assert ran == [tool, tool]
+
+
+def declaration_in(tmp_path):
+    path = tmp_path / "declaration.yaml"
+    path.write_text(PYTHON_DECLARATION)
+    return declaring.load_declaration(path)
+
+
+def test_should_apply_the_timeout_policy_to_the_duplication_tool_run_when_the_tool_hangs(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(
+        tmp_path, {"src/cart.py": CART_PYTHON, "src/peer.py": CART_PYTHON}
+    )
+    ran = hang_every_tool_but_git(monkeypatch)
+    monkeypatch.chdir(repo)
+    target = Target(
+        repo / "src/cart.py", "python", None,
+        repo_path="src/cart.py", tool_policy=immediate_policy(),
+    )
+
+    with pytest.raises(FunctionToolError) as error:
+        duplication.measure(
+            target, ["code_duplication"], declaration_in(tmp_path)
+        )
+
+    assert error.value.tool == "jscpd"
+    assert ran == ["jscpd", "jscpd"]
+
+
+def test_should_apply_the_timeout_policy_to_resolved_since_base_side_run_when_the_tool_hangs(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.py": CART_PYTHON})
+    (repo / "src/cart.py").unlink()
+    commit_all(repo, "remove cart")
+    ran = hang_every_tool_but_git(monkeypatch)
+    monkeypatch.chdir(repo)
+
+    with pytest.raises(FunctionToolError) as error:
+        load_measure_script()._resolved_since(
+            declaration_in(tmp_path), declaring.BATCH_END_MODE,
+            "HEAD~1...HEAD", immediate_policy(),
+        )
+
+    assert error.value.tool == "lizard"
+    assert ran == ["lizard", "lizard"]
 
 

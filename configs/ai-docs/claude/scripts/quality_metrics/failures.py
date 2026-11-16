@@ -19,6 +19,7 @@ from typing import Callable
 from quality_metrics.coverage import coverage_record
 from quality_metrics.crap import CRAP_LIMIT, crap_record
 from quality_metrics.declaration import NoLanguageEntryError, language_for_file
+from quality_metrics.duplication import CODE_METRIC, SIMILARITY_LIMIT, TEST_METRIC
 from quality_metrics.functions import (
     COGNITIVE_COMPLEXITY_LIMIT,
     NESTING_LIMIT,
@@ -37,6 +38,8 @@ FUNCTION_METRIC_LIMITS = {
     "parameters": PARAMETER_LIMIT,
     "cognitive_complexity": COGNITIVE_COMPLEXITY_LIMIT,
     "crap": CRAP_LIMIT,
+    CODE_METRIC: SIMILARITY_LIMIT,
+    TEST_METRIC: SIMILARITY_LIMIT,
 }
 
 DEFERRED_LABEL = "pessimistic, tooling deferred"
