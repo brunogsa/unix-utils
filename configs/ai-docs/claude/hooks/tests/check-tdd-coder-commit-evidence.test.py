@@ -451,6 +451,15 @@ class TestScriptFileScreen:
         possible_commit_reason(tmp_path, "bash release.sh", cwd=str(repo))
 
 
+class TestHookCrash:
+    def test_should_deny_a_commit_when_the_hook_crashes(self, tmp_path):
+        result = run_hook(json.dumps(payload(COMMIT, "/", cwd=str(tmp_path))))
+
+        reason = deny_reason(result)
+        assert reason is not None
+        assert "ValueError" in reason
+
+
 class TestRunLabelBinding:
     def test_should_take_the_run_label_from_its_file_writes_not_from_a_bash_call_naming_another(self, tmp_path):
         OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")

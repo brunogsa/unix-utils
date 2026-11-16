@@ -484,13 +484,22 @@ def get_tdd_coder_command(payload: dict | None) -> str | None:
     return command if isinstance(command, str) else None
 
 
+def get_screened_problem(payload: dict, command: str) -> str | None:
+    # A crash would exit non-zero, which reads as no decision
+    # and lets the call run, so any failure here denies it.
+    try:
+        return get_commit_problem(payload, command)
+    except Exception as error:
+        return f"this hook failed ({type(error).__name__}: {error}), so the call is treated as a commit"
+
+
 def main() -> int:
     payload = read_payload()
     command = get_tdd_coder_command(payload)
     if command is None:
         return 0
 
-    problem = get_commit_problem(payload, command)
+    problem = get_screened_problem(payload, command)
     if problem is not None:
         print_deny(problem)
     return 0
