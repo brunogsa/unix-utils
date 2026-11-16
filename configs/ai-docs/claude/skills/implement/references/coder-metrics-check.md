@@ -12,7 +12,7 @@ Push `session-id: <your own session id>` into the Optional block of every coder 
 
 - [Why] The map is keyed by the orchestrator's id and a coder has another, so without it the coder's run falls back to global tools.
 
-The orchestrator's id is the last path segment of its scratchpad directory.
+The session id is the path segment just above `scratchpad` in the main session's scratchpad path; the coders' session id, the implement state file's `session_id` and `<SESSION_ID>` are this one value.
 
 Read the map once per run, never per task. Follow that file for double-checking the inspector's report and for detector edits.
 
@@ -32,6 +32,6 @@ A deferred metric reads pessimistic and holds no commit, so `defer` re-dispatche
 
 ## 3. Claimed exceptions
 
-A coder that claims an exception names the file, function, metric, saved split diff path, and split value under its report's Exceptions claimed field.
+A coder that claims an exception names the file, function, metric, saved split diff path, and split value under its report's Exceptions claimed field and in its commit body.
 
 The saved diff sits in CWD. Hand each claim to the batch-end metrics leg in `/quality-gate`'s prompt, which rules on it per [`metrics-lens.md`](../../quality-gate/references/metrics-lens.md) section 3.
