@@ -324,6 +324,12 @@ npm install -g ccburn
 # floor is the one this repo's cognitive-complexity run uses.
 pipx install 'lizard>=1.26.0'
 
+# import-linter: Python dependency direction. The line patterns
+# of the dependency check read its output, so a release that
+# rewords it is adopted by bumping this pin. The check lives in
+# configs/ai-docs/claude/scripts/quality_metrics/
+pipx install import-linter==2.16
+
 # shellmetrics: Bash function complexity. No releases
 # exist, so the script is pinned to one commit.
 mkdir -p ~/.local/bin

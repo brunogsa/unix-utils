@@ -58,10 +58,6 @@ LAYER_MAP_SOURCES = (DECLARED_SOURCE, INFERRED_SOURCE)
 FLAGGED_COUNT = 1
 LIMIT_COUNT = 0
 
-# The line patterns below read its output, so a release that
-# rewords it is adopted by bumping this pin, never unseen.
-IMPORT_LINTER_VERSION = "2.16"
-
 IMPORT_LINTER_EXIT_KEPT, IMPORT_LINTER_EXIT_BROKEN = 0, 1
 IMPORT_LINTER_CONTRACTS_SUMMARY = "Contracts:"
 CONTRACT_ROOT_LINE = re.compile(r"^No cycles are allowed in (\S+)\.$")
@@ -228,19 +224,8 @@ class DependencyRun:
         with self._head_tree() as tree:
             return _python_package_roots(tree)
 
-    @contextmanager
     def _head_tree(self):
-        """With a head ref, its tree, not the working tree.
-
-        An uncommitted edit to any file must not change what
-        the range is judged on.
-        """
-        if not self.head_ref:
-            yield self.repo_dir
-            return
-        with tempfile.TemporaryDirectory() as head_dir:
-            _extract_tree_at(self.repo_dir, self.head_ref, Path(head_dir))
-            yield Path(head_dir)
+        return head_tree(self.repo_dir, self.head_ref)
 
     def _find_in_head(self, tool):
         with self._head_tree() as tree:
@@ -365,6 +350,21 @@ def _covers(paths, repo_path):
         repo_path == path or (path.endswith("/") and repo_path.startswith(path))
         for path in paths
     )
+
+
+@contextmanager
+def head_tree(repo_dir, head_ref):
+    """With a head ref, its tree, not the working tree.
+
+    An uncommitted edit to any file must not change what
+    the range is judged on.
+    """
+    if not head_ref:
+        yield Path(repo_dir)
+        return
+    with tempfile.TemporaryDirectory() as head_dir:
+        _extract_tree_at(repo_dir, head_ref, Path(head_dir))
+        yield Path(head_dir)
 
 
 def _extract_tree_at(repo_dir, ref, destination):
@@ -500,6 +500,21 @@ def _python_package_roots(tree):
     return roots
 
 
+def _link_packages_into_import_dir(parent_dir, tree, package_roots):
+    """A directory under `parent_dir` linking each package of
+    the tree.
+
+    pipx's lint-imports runs `python -E`, which ignores
+    PYTHONPATH. It does put its working directory on the import
+    path, so that directory is the one holding the packages.
+    """
+    import_dir = Path(parent_dir) / "import-path"
+    import_dir.mkdir()
+    for name, parent in package_roots.items():
+        (import_dir / name).symlink_to(tree / parent / name)
+    return import_dir
+
+
 def _find_with_import_linter(tree, layer_map):
     package_roots = _python_package_roots(tree)
     if not package_roots:
@@ -508,22 +523,17 @@ def _find_with_import_linter(tree, layer_map):
         )
     roots = sorted(package_roots)
     layers = _importable_layers(tree, package_roots, layer_map)
-    import_path = os.pathsep.join(sorted(
-        {str(tree / parent) for parent in package_roots.values()}
-    ))
     with tempfile.TemporaryDirectory() as config_dir:
         config_path = Path(config_dir) / "importlinter.ini"
         config_path.write_text(_import_linter_config(roots, layers))
 
-        # --no-project: uv must not sync the repo's own project.
+        import_dir = _link_packages_into_import_dir(config_dir, tree, package_roots)
+
         # --no-cache: lint-imports must not write into the tree.
         result = run_command(
-            ["uv", "run", "--no-project",
-             "--with", f"{IMPORT_LINTER}=={IMPORT_LINTER_VERSION}", "--",
-             "lint-imports", "--config", str(config_path),
+            ["lint-imports", "--config", str(config_path),
              "--no-cache", "--no-logo"],
-            cwd=tree,
-            env={**os.environ, "PYTHONPATH": import_path},
+            cwd=import_dir,
         )
 
     # Exit 1 also reports an unreadable config, so a run that

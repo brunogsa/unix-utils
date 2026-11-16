@@ -7,6 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -352,12 +353,12 @@ exec "{real_tool}" "$@"
 
 
 def env_capturing_configs(tmp_path, capture_dir):
-    """Env where dependency-cruiser, uv and go-arch-lint save
-    their configs."""
+    """Env where dependency-cruiser, lint-imports and
+    go-arch-lint save their configs."""
     stubbed_env = env_with_go_arch_lint_stub(tmp_path, capture_dir / "unused-copy")
     wrapper_dir = tmp_path / "capture-bin"
     wrapper_dir.mkdir()
-    for name in ("depcruise", "uv", "go-arch-lint"):
+    for name in ("depcruise", "lint-imports", "go-arch-lint"):
         real_tool = shutil.which(name, path=stubbed_env["PATH"])
         wrapper = wrapper_dir / name
         wrapper.write_text(CONFIG_CAPTURE_WRAPPER.format(
@@ -393,6 +394,13 @@ def test_translates_one_layer_map_into_dependency_cruiser_import_linter_and_go_a
         env=env_capturing_configs(tmp_path, capture_dir),
     )
 
+    assert_dependency_cruiser_config_layers(capture_dir)
+    assert_import_linter_config_layers(capture_dir)
+    assert_go_arch_lint_config_layers(capture_dir)
+    assert_configs_sit_in_the_system_temp_directory(capture_dir, tmp_path)
+
+
+def assert_dependency_cruiser_config_layers(capture_dir):
     depcruise = json.loads((capture_dir / "depcruise.config").read_text())
     rules = {rule["name"]: rule for rule in depcruise["forbidden"]}
     assert set(rules) == {"no-circular", "layer-domain"}
@@ -402,12 +410,16 @@ def test_translates_one_layer_map_into_dependency_cruiser_import_linter_and_go_a
     assert re.search(domain_rule["to"]["path"], "infra/db.js")
     assert not re.search(domain_rule["to"]["path"], "domain/order.js")
 
+
+def assert_import_linter_config_layers(capture_dir):
     import_linter = configparser.ConfigParser()
-    import_linter.read_string((capture_dir / "uv.config").read_text())
+    import_linter.read_string((capture_dir / "lint-imports.config").read_text())
     layers_contract = import_linter["importlinter:contract:layers"]
     assert layers_contract["type"] == "layers"
     assert layers_contract["layers"].split() == ["infra", "domain"]
 
+
+def assert_go_arch_lint_config_layers(capture_dir):
     go_arch_lint = yaml.safe_load((capture_dir / "go-arch-lint.config").read_text())
     assert list(go_arch_lint["components"]) == ["infra", "domain"]
     assert go_arch_lint["deps"] == {
@@ -415,8 +427,10 @@ def test_translates_one_layer_map_into_dependency_cruiser_import_linter_and_go_a
         "domain": {"mayDependOn": ["domain"]},
     }
 
+
+def assert_configs_sit_in_the_system_temp_directory(capture_dir, tmp_path):
     system_temp = Path(tempfile.gettempdir()).resolve()
-    for name in ("depcruise", "uv", "go-arch-lint"):
+    for name in ("depcruise", "lint-imports", "go-arch-lint"):
         config_path = Path((capture_dir / f"{name}.path").read_text().strip()).resolve()
         assert config_path.is_relative_to(system_temp)
         assert not config_path.is_relative_to(tmp_path.resolve())
@@ -555,9 +569,9 @@ def test_flags_a_cycle_in_the_first_package_a_branch_adds_to_a_tree_without_one(
     }
 
 
-# Stands in for uv: it records its arguments, then reports
-# one contract kept, as a run with nothing to flag does.
-UV_STUB_RECORDING_ARGUMENTS = """#!/bin/sh
+# Stands in for lint-imports: it records its arguments, then
+# reports one contract kept, as a run with nothing to flag does.
+LINT_IMPORTS_STUB_RECORDING_ARGUMENTS = """#!/bin/sh
 echo "$@" > "{capture_path}"
 echo "Contracts: 1 kept, 0 broken."
 exit 0
@@ -565,7 +579,7 @@ exit 0
 
 # A broken-contract exit whose report no line pattern reads, as
 # a reworded release of import-linter would print.
-UV_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT = """#!/bin/sh
+LINT_IMPORTS_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT = """#!/bin/sh
 echo "Contracts: 0 kept, 1 broken."
 echo "Contract failed: cycles-shop. shop.orders and shop.billing import each other."
 exit 1
@@ -573,7 +587,7 @@ exit 1
 
 # An import-linter run that checked no contract: no summary
 # line, as when it cannot read its config.
-UV_STUB_PRINTING_NO_CONTRACT_SUMMARY = """#!/bin/sh
+LINT_IMPORTS_STUB_PRINTING_NO_CONTRACT_SUMMARY = """#!/bin/sh
 echo "Could not read configuration."
 exit 0
 """
@@ -587,50 +601,66 @@ PYTHON_CYCLE_BASE_FILES = {
 }
 
 
-def env_with_uv_stub(tmp_path, script):
-    stub_dir = tmp_path / "uv-stub-bin"
+# A uv that fails the run: import-linter measured through it
+# would defer, so a real measurement proves uv was never called.
+UV_STUB_FAILING = """#!/bin/sh
+echo "uv must not run import-linter" >&2
+exit 99
+"""
+
+
+def env_with_lint_imports_stub(tmp_path, script):
+    stub_dir = tmp_path / "lint-imports-stub-bin"
     stub_dir.mkdir()
-    stub = stub_dir / "uv"
+    stub = stub_dir / "lint-imports"
     stub.write_text(script)
     stub.chmod(0o755)
+    failing_uv = stub_dir / "uv"
+    failing_uv.write_text(UV_STUB_FAILING)
+    failing_uv.chmod(0o755)
     return {**GIT_ENV, "PATH": f"{stub_dir}{os.pathsep}{GIT_ENV['PATH']}"}
 
 
-def test_runs_import_linter_pinned_to_one_exact_version(tmp_path):
-    capture_path = tmp_path / "uv.arguments"
+def env_without_lint_imports():
+    kept_dirs = [
+        directory for directory in GIT_ENV["PATH"].split(os.pathsep)
+        if not (Path(directory) / "lint-imports").exists()
+    ]
+    return {**GIT_ENV, "PATH": os.pathsep.join(kept_dirs)}
 
-    measure_branch(
+
+def test_runs_lint_imports_directly_without_going_through_uv(tmp_path):
+    capture_path = tmp_path / "lint-imports.arguments"
+
+    violations = measure_branch(
         tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
         {"shop/orders/order.py": ORDER_READS_BILLING},
-        env=env_with_uv_stub(
-            tmp_path, UV_STUB_RECORDING_ARGUMENTS.format(capture_path=capture_path)
+        env=env_with_lint_imports_stub(
+            tmp_path,
+            LINT_IMPORTS_STUB_RECORDING_ARGUMENTS.format(capture_path=capture_path),
         ),
     )
 
-    assert re.search(
-        r"--with import-linter==\d+\.\d+(\.\d+)? ", capture_path.read_text()
+    assert violations == []
+    assert "--no-cache" in capture_path.read_text()
+
+
+@pytest.mark.parametrize("lint_imports_stub", [
+    None,
+    LINT_IMPORTS_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT,
+    LINT_IMPORTS_STUB_PRINTING_NO_CONTRACT_SUMMARY,
+], ids=["not installed", "unread broken-contract format", "no contract checked"])
+def test_scores_a_python_file_as_a_deferred_violation_when_lint_imports_cannot_check_its_contracts(
+    tmp_path, lint_imports_stub
+):
+    env = (
+        env_without_lint_imports() if lint_imports_stub is None
+        else env_with_lint_imports_stub(tmp_path, lint_imports_stub)
     )
 
-
-def test_scores_a_python_file_as_a_deferred_violation_when_import_linter_breaks_a_contract_in_a_format_no_line_pattern_reads(tmp_path):
     violations = measure_branch(
         tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
-        {"shop/orders/order.py": ORDER_READS_BILLING},
-        env=env_with_uv_stub(tmp_path, UV_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT),
-    )
-
-    assert len(violations) == 1
-    deferred = violations[0]
-    assert deferred["file"] == "shop/orders/order.py"
-    assert deferred["pessimistic"] is True
-    assert "deferred" in deferred["label"]
-
-
-def test_scores_a_python_file_as_a_deferred_violation_when_import_linter_checks_no_contract(tmp_path):
-    violations = measure_branch(
-        tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
-        {"shop/orders/order.py": ORDER_READS_BILLING},
-        env=env_with_uv_stub(tmp_path, UV_STUB_PRINTING_NO_CONTRACT_SUMMARY),
+        {"shop/orders/order.py": ORDER_READS_BILLING}, env=env,
     )
 
     assert len(violations) == 1
