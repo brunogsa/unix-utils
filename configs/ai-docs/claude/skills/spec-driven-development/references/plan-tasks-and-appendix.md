@@ -141,7 +141,7 @@ PR slicing (set by the user on 2026-11-06; replaces the earlier "prefer independ
 - [Instruction] Make a PR depend only on PRs whose code it calls; never chain PRs in sequence for ordering alone.
   - [Why] In the `sf-account-hierarchy` plan, a PDP answer gating PR-2 blocked every PR stacked after it; regrouping cut the longest dependency chain from 8 to 4.
 
-- [Instruction] Put refactors over 5 files or 100 changed lines in total (insertions plus deletions) in their own PR, ahead of the behavior PR; the rest stay isolated commits inside it.
+- [Instruction] If a PR's refactors total over 5 files or 100 lines (insertions plus deletions), give them their own PR ahead of the behavior PR; else they stay isolated commits there.
   - [Why] A refactor over 100 lines, a quarter of a ~400-line review, buries the behavior change; 5 files is a guess aimed at wide moves and renames, retuned from reports.
 
   - [Example] SmartBear's Cisco study: 200-400 lines per review, about 400 at most (https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/).
