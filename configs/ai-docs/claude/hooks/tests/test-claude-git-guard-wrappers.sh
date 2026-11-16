@@ -84,6 +84,13 @@ it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_comma
 
 # An unknown option may take the next word as its value, so
 # the command word cannot be told; the guard fails closed.
+# The shell may split -n$X into more words, as -n1 git commit,
+# so the word after it is not surely the command xargs runs.
+it_should_block_an_xargs_whose_glued_option_value_the_shell_may_split() {
+  run_hook 'git log -3 | xargs -n$X git status'
+  assert_eq "should block an xargs whose glued option value the shell may split" "2" "$HOOK_EXIT"
+}
+
 it_should_block_a_wrapper_whose_options_it_cannot_read() {
   run_hook 'sudo -Z git status'
   assert_eq "should block a wrapper whose options it cannot read" "2" "$HOOK_EXIT"
@@ -197,6 +204,7 @@ it_should_allow_a_wrapper_running_no_git_alias() {
 it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_command
+it_should_block_an_xargs_whose_glued_option_value_the_shell_may_split
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
