@@ -1,16 +1,17 @@
 """pytest suite for check-tdd-coder-report-files.py.
 
 The hook takes the report from the SubagentStop payload's
-last_assistant_message, or from the agent's own JSONL transcript when that
-field is absent, and checks the /tmp files it names. Every case writes real
-run files under /tmp with a label unique to this test run, writes any
-transcript under tmp_path in the record shapes a real subagent transcript
-holds, feeds a realistic payload, and removes the files afterwards. Nothing
-inside the hook is stubbed.
+last_assistant_message, or from the agent's own JSONL
+transcript when that field is absent, and checks the /tmp
+files it names. Every case writes real run files under /tmp
+with a label unique to this test run, writes any transcript
+under tmp_path in the record shapes a real subagent
+transcript holds, feeds a realistic payload, and removes the
+files afterwards. Nothing inside the hook is stubbed.
 
-The last class reads tdd-coder.md itself, so a rename of the hook file or a
-rewording of the agent's path templates fails a test here instead of
-silently disabling the gate.
+The last class reads tdd-coder.md itself, so a rename of the
+hook file or a rewording of the agent's path templates fails
+a test here instead of silently disabling the gate.
 """
 
 import json
@@ -35,7 +36,8 @@ PATH_TEMPLATE_PATTERN = re.compile(r"/tmp/tdd-coder_(?:substeps|evidences)_<run-
 
 @pytest.fixture
 def run_files():
-    """Write both run files with real content; remove them afterwards."""
+    """Write both run files with real content; remove them
+    afterwards."""
     CHECKLIST.write_text("- [x] Unit 1: RED / CODE / GREEN\n", encoding="utf-8")
     EVIDENCE.write_text("=== GREEN ===\npytest exit 0\n", encoding="utf-8")
     yield
@@ -44,7 +46,8 @@ def run_files():
 
 
 def report(*paths):
-    """A tdd-coder final report ending with its Evidence and Checklist lines."""
+    """A tdd-coder final report ending with its Evidence and
+    Checklist lines."""
     lines = [
         "**Status**: done",
         "**Commits**: 1a2b3c4d feat(hooks): block a tdd-coder stop missing its run files",
@@ -64,8 +67,9 @@ def payload(
     agent_transcript_path=OMITTED,
     transcript_path=OMITTED,
 ):
-    """A SubagentStop payload; a field passed as OMITTED is left out, the
-    way Claude Code 2.1.290 leaves out last_assistant_message."""
+    """A SubagentStop payload; a field passed as OMITTED is
+    left out, the way Claude Code 2.1.290 leaves out
+    last_assistant_message."""
     fields = {
         "session_id": "23c8cc27-309f-45ef-8092-971beda32766",
         "cwd": "/Users/brunoagostini/unix-utils",
@@ -105,7 +109,8 @@ def text_record(text):
 
 
 def bash_call_record():
-    """An assistant record calling a tool other than SubagentHandback."""
+    """An assistant record calling a tool other than
+    SubagentHandback."""
     return {
         "type": "assistant",
         "message": {
@@ -138,18 +143,21 @@ def tool_result_record():
 
 
 def prompt_snapshot_record():
-    """The attachment record Claude Code writes around a handback."""
+    """The attachment record Claude Code writes around a
+    handback."""
     return {"type": "attachment", "attachment": {"type": "prompt_snapshot", "systemPrompt": ["## Objective"]}}
 
 
 def date_attachment_record():
-    """An attachment record of the kind that can follow a text reply."""
+    """An attachment record of the kind that can follow a text
+    reply."""
     return {"type": "attachment", "attachment": {"type": "date", "date": "2026-10-06"}}
 
 
 def write_transcript(path, records, trailing_newline=True):
-    """Write JSONL the way Claude Code does: raw UTF-8, one record per line.
-    A bytes item is written as-is, to plant a broken line."""
+    """Write JSONL the way Claude Code does: raw UTF-8, one
+    record per line. A bytes item is written as-is, to plant
+    a broken line."""
     lines = [r if isinstance(r, bytes) else json.dumps(r, ensure_ascii=False).encode("utf-8") for r in records]
     path.write_bytes(b"\n".join(lines) + (b"\n" if trailing_newline else b""))
     return str(path)
@@ -168,7 +176,8 @@ def assert_let_through(result):
 
 
 def assert_could_not_read_block(result):
-    """Assert the hook blocked with its could-not-read reason."""
+    """Assert the hook blocked with its could-not-read
+    reason."""
     reason = block_reason(result)
     assert "could not read" in reason
     assert "unchecked" in reason
@@ -177,8 +186,8 @@ def assert_could_not_read_block(result):
 
 
 def run_hook(stdin_text):
-    """Run the hook through the interpreter, never a direct exec, so macOS
-    XProtect never scans it on first run."""
+    """Run the hook through the interpreter, never a direct
+    exec, so macOS XProtect never scans it on first run."""
     return subprocess.run(
         [sys.executable, str(HOOK)],
         input=stdin_text,
@@ -390,7 +399,8 @@ class TestReportFromTheAgentTranscript:
 
 
 def transcript_without_report(tmp_path):
-    """A transcript with a prompt and a Bash call but no handback and no text."""
+    """A transcript with a prompt and a Bash call but no
+    handback and no text."""
     return write_transcript(
         tmp_path / "agent-no-report.jsonl", [prompt_record(), bash_call_record(), tool_result_record()]
     )
@@ -467,7 +477,8 @@ class TestStopsLetThroughUnchecked:
 
 
 def frontmatter_stop_command():
-    """The command wired under hooks: Stop: in tdd-coder.md's frontmatter."""
+    """The command wired under hooks: Stop: in tdd-coder.md's
+    frontmatter."""
     frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
     match = re.search(r"^  Stop:\n(?:^ {4,}.*\n)*?^ +command: \"(.+)\"$", frontmatter, re.MULTILINE)
     assert match, "tdd-coder.md frontmatter wires no hooks: Stop: command"
@@ -475,7 +486,8 @@ def frontmatter_stop_command():
 
 
 def run_stop_command(home, stdin_text):
-    """Run the frontmatter Stop command the way Claude Code does, via a shell."""
+    """Run the frontmatter Stop command the way Claude Code
+    does, via a shell."""
     return subprocess.run(
         ["bash", "-c", frontmatter_stop_command()],
         input=stdin_text,

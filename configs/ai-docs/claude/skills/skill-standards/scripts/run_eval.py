@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Run trigger evaluation for a skill description.
 
-Tests whether a skill's description causes Claude to trigger (read the skill)
-for a set of queries. Outputs results as JSON.
+Tests whether a skill's description causes Claude to trigger
+(read the skill) for a set of queries. Outputs results as
+JSON.
 """
 
 import argparse
@@ -22,17 +23,20 @@ from scripts.utils import parse_skill_md
 
 
 def resolve_sandbox_auth() -> str | None:
-    """Resolve authentication for the isolated sandbox config dirs.
+    """Resolve authentication for the isolated sandbox config
+    dirs.
 
-    With CLAUDE_CONFIG_DIR set, claude reads credentials from a
-    .credentials.json INSIDE that dir - never from the default store
-    (macOS Keychain / ~/.claude/.credentials.json) - so a fresh sandbox
-    is "Not logged in" unless a credential is materialized into it.
+    With CLAUDE_CONFIG_DIR set, claude reads credentials from
+    a .credentials.json INSIDE that dir - never from the
+    default store (macOS Keychain /
+    ~/.claude/.credentials.json) - so a fresh sandbox is "Not
+    logged in" unless a credential is materialized into it.
 
-    Returns the subscription OAuth credential JSON to write into each
-    sandbox, or None when ANTHROPIC_API_KEY is set (the subprocess env
-    inherits it, no credential file needed). Exits with a clear error
-    when neither auth source exists.
+    Returns the subscription OAuth credential JSON to write
+    into each sandbox, or None when ANTHROPIC_API_KEY is set
+    (the subprocess env inherits it, no credential file
+    needed). Exits with a clear error when neither auth
+    source exists.
     """
     if os.environ.get("ANTHROPIC_API_KEY"):
         return None
@@ -71,21 +75,25 @@ def run_single_query(
     model: str | None = None,
     credentials: str | None = None,
 ) -> bool:
-    """Run a single query and return whether the skill was triggered.
+    """Run a single query and return whether the skill was
+    triggered.
 
-    Runs `claude -p` in an isolated sandbox: a fresh CLAUDE_CONFIG_DIR
-    (no user skills, CLAUDE.md, or plugins) and a temp project dir whose
-    .claude/commands/ holds only the injected command file, so it is the
-    single skill in Claude's available_skills list.
+    Runs `claude -p` in an isolated sandbox: a fresh
+    CLAUDE_CONFIG_DIR (no user skills, CLAUDE.md, or plugins)
+    and a temp project dir whose .claude/commands/ holds only
+    the injected command file, so it is the single skill in
+    Claude's available_skills list.
 
-    Isolation is what makes the measurement discriminative: a dense user
-    environment (dozens of co-visible skill descriptions) suppresses
-    proactive skill triggering to near zero for EVERY description, so an
-    eval run there measures the environment, not the description.
+    Isolation is what makes the measurement discriminative: a
+    dense user environment (dozens of co-visible skill
+    descriptions) suppresses proactive skill triggering to
+    near zero for EVERY description, so an eval run there
+    measures the environment, not the description.
 
-    Uses --include-partial-messages to detect triggering early from
-    stream events (content_block_start) rather than waiting for the
-    full assistant message, which only arrives after tool execution.
+    Uses --include-partial-messages to detect triggering
+    early from stream events (content_block_start) rather
+    than waiting for the full assistant message, which only
+    arrives after tool execution.
     """
     unique_id = uuid.uuid4().hex[:8]
     clean_name = f"{skill_name}-skill-{unique_id}"

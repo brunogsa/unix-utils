@@ -1,9 +1,10 @@
-"""Measures function length and file length in non-blank, non-comment lines.
+"""Measures function length and file length in non-blank,
+non-comment lines.
 
-Code files count lines the way lizard counts NLOC; Bash counts logical
-lines, as shellmetrics reads them. HTML and CSS have no function syntax,
-so only their file length is measured, with a plain count that drops
-blank lines and comment text.
+Code files count lines the way lizard counts NLOC; Bash counts
+logical lines, as shellmetrics reads them. HTML and CSS have no
+function syntax, so only their file length is measured, with a
+plain count that drops blank lines and comment text.
 """
 
 import re

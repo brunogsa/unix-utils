@@ -1,4 +1,5 @@
-"""Shared utilities for calendar parsers (parse_ics.py and parse_gcal_mcp.py)."""
+"""Shared utilities for calendar parsers (parse_ics.py and
+parse_gcal_mcp.py)."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -10,11 +11,12 @@ BRT = timezone(timedelta(hours=-3))
 def resolve_overlaps(events):
     """Resolve overlapping non-OO events using creation time.
 
-    The most recently created event takes priority - the user stopped the
-    older activity to attend the newer one. The overlap duration is
-    decremented from the older event.
+    The most recently created event takes priority - the user
+    stopped the older activity to attend the newer one. The
+    overlap duration is decremented from the older event.
 
-    Falls back to "later-starting event wins" when _created is unavailable.
+    Falls back to "later-starting event wins" when _created is
+    unavailable.
     """
     for i, ev_a in enumerate(events):
         if ev_a["summary"].startswith("[OO]"):
@@ -53,7 +55,8 @@ def resolve_overlaps(events):
 
 
 def append_event(events, seen, occ_dt, summary, duration_min, created_iso):
-    """Add an event to the list if not already seen (dedup by summary + datetime)."""
+    """Add an event to the list if not already seen (dedup by
+    summary + datetime)."""
     key = (summary, occ_dt.isoformat())
     if key in seen:
         return

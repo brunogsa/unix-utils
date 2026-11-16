@@ -84,11 +84,13 @@ SESSION_FIELDS = ("title", "cost", "duration_hours", "compactions",
 
 
 def trim_marginal_skills(skills):
-    """Marginal rows kept whole, with each half summed to cost and sessions.
+    """Marginal rows kept whole, with each half summed to cost
+    and sessions.
 
-    A per-skill average divides one by the other, so the dedicated/mixed split
-    only has to survive at the row level, where the day panel still shows it -
-    and where the reader can see how much of the total was estimated.
+    A per-skill average divides one by the other, so the
+    dedicated/mixed split only has to survive at the row
+    level, where the day panel still shows it - and where the
+    reader can see how much of the total was estimated.
     """
     out = {}
     for name, row in skills.items():
@@ -103,7 +105,9 @@ def trim_marginal_skills(skills):
 
 
 def trim_skills(skills):
-    """Each by_skill row and each of its halves, reduced to what the page renders."""
+    """Each by_skill row and each of its halves, reduced to
+    what the page renders.
+    """
     out = {}
     for name, row in skills.items():
         halves = {cls: {k: half[k] for k in SKILL_FIELDS if k in half}
@@ -114,7 +118,9 @@ def trim_skills(skills):
 
 
 def trim_sessions(sessions):
-    """The top few sessions, reduced to the fields the page renders."""
+    """The top few sessions, reduced to the fields the page
+    renders.
+    """
     out = []
     for session in sessions[:TOP_SESSIONS]:
         row = {k: session[k] for k in SESSION_FIELDS if k in session}
@@ -129,11 +135,13 @@ def trim_sessions(sessions):
 
 
 def load_ledger(since_day, until_day):
-    """Config commits per day, or an empty map when the ledger can't run.
+    """Config commits per day, or an empty map when the ledger
+    can't run.
 
-    Imported rather than shelled out to: the filename has a dash, so it is not a
-    valid module name for a plain import, and a subprocess would re-pay Python
-    startup for data this process is about to serialize anyway.
+    Imported rather than shelled out to: the filename has a
+    dash, so it is not a valid module name for a plain
+    import, and a subprocess would re-pay Python startup for
+    data this process is about to serialize anyway.
     """
     path = os.path.join(SCRIPTS_DIR, "config-change-ledger.py")
     spec = importlib.util.spec_from_file_location("config_change_ledger", path)
@@ -157,15 +165,20 @@ def load_ledger(since_day, until_day):
 
 
 def load_delivered(ordered):
-    """The whole committed delivered-work ledger: per-day counts and per-PR rows.
+    """The whole committed delivered-work ledger: per-day
+    counts and per-PR rows.
 
-    Read from a committed file rather than rebuilt live like the config ledger,
-    because this one cannot be re-derived later: its commit half needs the work
-    repos still cloned on this machine and its PR half needs the network. The
-    config ledger reads this repo's own history, which travels with the checkout.
+    Read from a committed file rather than rebuilt live like
+    the config ledger, because this one cannot be re-derived
+    later: its commit half needs the work repos still cloned
+    on this machine and its PR half needs the network.
 
-    That makes staleness the failure mode, so an uncovered range warns instead of
-    quietly rendering zeros that would read as days which shipped nothing.
+    The config ledger reads this repo's own history, which
+    travels with the checkout.
+
+    That makes staleness the failure mode, so an uncovered
+    range warns instead of quietly rendering zeros that would
+    read as days which shipped nothing.
     """
     path = os.path.join(SCRIPTS_DIR, "delivered-work-ledger.py")
     spec = importlib.util.spec_from_file_location("delivered_work_ledger", path)

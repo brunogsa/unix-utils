@@ -70,7 +70,8 @@ MAKEFILE_TARGET_PATTERN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9_.\-/]*):(?!=)")
 
 
 def run_git(args: list[str], cwd: Path) -> str | None:
-    """Return the git command's stdout, or None when it fails."""
+    """Return the git command's stdout, or None when it
+    fails."""
     result = subprocess.run(
         ["git", *args], cwd=cwd, capture_output=True, text=True
     )
@@ -98,7 +99,8 @@ def find_repo_root(cwd: Path) -> Path | None:
 
 
 def get_branch_name(cwd: Path) -> str:
-    """Return the checked-out branch, or a detached-HEAD note."""
+    """Return the checked-out branch, or a detached-HEAD
+    note."""
     branch = (run_git(["branch", "--show-current"], cwd) or "").strip()
     return branch or "(detached)"
 
@@ -125,7 +127,8 @@ def resolve_base_ref(cwd: Path, requested_base: str | None) -> str | None:
 
 
 def describe_base_ref(cwd: Path, base_ref: str | None) -> str:
-    """Return the base ref with its commit, or why it's unusable."""
+    """Return the base ref with its commit, or why it's
+    unusable."""
     if base_ref is None:
         return "(unresolved)"
     sha = run_git(["rev-parse", "--verify", "--short", base_ref], cwd)
@@ -149,7 +152,8 @@ def count_untracked(status_lines: list[str]) -> int:
 def get_commits(
     cwd: Path, base_ref: str | None, log_count: int
 ) -> tuple[str, list[str]]:
-    """Return the log's range label and its "<sha> <subject>" lines.
+    """Return the log's range label and its "<sha> <subject>"
+    lines.
 
     A branch sitting level with its base yields an empty range,
     which reads as "no history" when the history is simply all
@@ -205,7 +209,8 @@ def extract_fenced_test_commands(path: Path) -> list[str]:
 
 
 def get_package_manager(root: Path) -> str:
-    """Return the package manager the repo's lockfile implies."""
+    """Return the package manager the repo's lockfile
+    implies."""
     for lockfile, manager in PACKAGE_MANAGER_BY_LOCKFILE.items():
         if (root / lockfile).exists():
             return manager
@@ -213,7 +218,8 @@ def get_package_manager(root: Path) -> str:
 
 
 def extract_package_json_commands(root: Path) -> list[tuple[str, str]]:
-    """Return the package scripts whose name mentions testing."""
+    """Return the package scripts whose name mentions
+    testing."""
     manifest = read_text_capped(root / "package.json")
     if not manifest:
         return []
@@ -254,7 +260,8 @@ def extract_makefile_test_commands(root: Path) -> list[tuple[str, str]]:
 
 
 def gather_declared_test_commands(root: Path) -> list[tuple[str, str]]:
-    """Return every (declaring file, command) pair in the repo."""
+    """Return every (declaring file, command) pair in the
+    repo."""
     declared: list[tuple[str, str]] = []
 
     for name in MARKDOWN_DECLARERS:

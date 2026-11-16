@@ -1,8 +1,10 @@
-"""Loads and validates the per-language quality-metrics declaration.
+"""Loads and validates the per-language quality-metrics
+declaration.
 
-The declaration (quality-metrics.yaml) is the one place that says which
-metrics apply to which language. A bad entry fails the load, before any
-measuring starts, and names the entry.
+The declaration (quality-metrics.yaml) is the one place that
+says which metrics apply to which language.
+A bad entry fails the load, before any measuring starts, and
+names the entry.
 """
 
 import importlib
@@ -36,7 +38,8 @@ NOT_APPLICABLE = "not applicable"
 
 
 class DeclarationError(ValueError):
-    """The declaration, or the library that reads it, is unusable."""
+    """The declaration, or the library that reads it, is
+    unusable."""
 
 
 class NoLanguageEntryError(DeclarationError):
@@ -71,15 +74,18 @@ def load_declaration(path):
 
 
 def is_excluded_path(declaration, file_path):
-    """True when the path starts with a declared excluded prefix."""
+    """True when the path starts with a declared excluded
+    prefix."""
     return any(str(file_path).startswith(prefix) for prefix in declaration.excluded_paths)
 
 
 def language_for_file(declaration, file_path):
-    """Return the language name, or None for an ignored or excluded file.
+    """Return the language name, or None for an ignored or
+    excluded file.
 
-    Raises NoLanguageEntryError for a code file no language entry claims,
-    so the caller can run its fix-now-or-defer ask.
+    Raises NoLanguageEntryError for a code file no language
+    entry claims, so the caller can run its fix-now-or-defer
+    ask.
     """
     normalized_path = str(file_path)
     if is_excluded_path(declaration, normalized_path):
@@ -94,7 +100,8 @@ def language_for_file(declaration, file_path):
 
 
 def metric_status(declaration, language, metric):
-    """Return APPLIES, or NOT_APPLICABLE for a metric the language opts out of."""
+    """Return APPLIES, or NOT_APPLICABLE for a metric the
+    language opts out of."""
     if metric not in METRIC_NAMES:
         raise DeclarationError(f"unknown metric '{metric}'")
     if metric in declaration.languages[language].metrics:
@@ -117,7 +124,8 @@ def metrics_to_run(declaration, language, mode):
 
 
 def is_test_file(file_path):
-    """A file is a test when its name or a parent directory says so.
+    """A file is a test when its name or a parent directory says
+    so.
 
     Names: sum.test.ts, sum.spec.ts, test_sum.py, sum_test.go.
     Directories: tests/, test/, __tests__/.
@@ -134,10 +142,11 @@ def is_test_file(file_path):
 
 
 def metrics_for_file(declaration, file_path):
-    """Return the metrics that bind this file, () for an ignored one.
+    """Return the metrics that bind this file, () for an ignored
+    one.
 
-    A test file keeps its language's metrics except the ones that
-    only make sense for production code.
+    A test file keeps its language's metrics except the ones
+    that only make sense for production code.
     """
     language = language_for_file(declaration, file_path)
     if language is None:

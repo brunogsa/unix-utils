@@ -46,9 +46,10 @@ class ExtractError(Exception):
 
 
 def load_catalog_text(binary_path):
-    """The decoded text window starting right after CATALOG_MARKER,
-    read via mmap so a 200+ MB native binary never has to load
-    into process memory just to find a few KB of JS."""
+    """The decoded text window starting right after
+    CATALOG_MARKER, read via mmap so a 200+ MB native binary
+    never has to load into process memory just to find a few KB
+    of JS."""
     with open(binary_path, "rb") as handle:
         with mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ) as mapped:
             marker_index = mapped.find(CATALOG_MARKER)
@@ -61,9 +62,9 @@ def load_catalog_text(binary_path):
 
 
 def find_matching_bracket(text, open_index):
-    """The index of the `}`/`]` closing text[open_index], skipping
-    over quoted strings (with escapes) so a bracket character
-    inside a string never mismatches the count."""
+    """The index of the `}`/`]` closing text[open_index],
+    skipping over quoted strings (with escapes) so a bracket
+    character inside a string never mismatches the count."""
     open_char = text[open_index]
     depth = 0
     in_string = None
@@ -107,7 +108,8 @@ def parse_flat_rate_object(body):
 
 
 def parse_pricing_tiers(text):
-    """`{tier_name:{...flat rate object...}, ...}` -> {tier_name: rates}."""
+    """`{tier_name:{...flat rate object...}, ...}` ->
+    {tier_name: rates}."""
     if not text or text[0] != "{":
         raise ExtractError("pricing_tiers value does not start with '{'")
     tiers_end = find_matching_bracket(text, 0)
@@ -138,9 +140,10 @@ def parse_pricing_tiers(text):
 
 
 def skip_value(text, start, boundary):
-    """The index right after the value token starting at `start` -
-    a quoted string, a nested `{...}`/`[...]`, or a bare scalar
-    (number, `true`/`false`/`!0`/`!1`/`null`, unquoted word)."""
+    """The index right after the value token starting at
+    `start` - a quoted string, a nested `{...}`/`[...]`, or a
+    bare scalar (number, `true`/`false`/`!0`/`!1`/`null`,
+    unquoted word)."""
     char = text[start]
     if char in "\"'":
         i = start + 1
@@ -161,10 +164,11 @@ def skip_value(text, start, boundary):
 
 
 def parse_model_entry(text, entry_start, entry_end):
-    """The top-level `id` and raw `pricing` token of one `models[]`
-    object - nested keys (provider_ids, capabilities, ...) are
-    skipped wholesale via skip_value, so a nested `id:"..."`
-    inside one of them is never read as the model's own id."""
+    """The top-level `id` and raw `pricing` token of one
+    `models[]` object - nested keys (provider_ids, capabilities,
+    ...) are skipped wholesale via skip_value, so a nested
+    `id:"..."` inside one of them is never read as the model's
+    own id."""
     entry = {}
     i = entry_start + 1
     while i < entry_end:
@@ -193,8 +197,9 @@ def parse_model_entry(text, entry_start, entry_end):
 
 
 def iter_array_objects(text, array_start, array_end):
-    """(start, end) index pairs for each `{...}` element directly
-    inside the array bracketed by array_start/array_end."""
+    """(start, end) index pairs for each `{...}` element
+    directly inside the array bracketed by
+    array_start/array_end."""
     i = array_start + 1
     while i < array_end:
         char = text[i]
@@ -210,8 +215,8 @@ def iter_array_objects(text, array_start, array_end):
 
 
 def resolve_model_rates(entry, tiers):
-    """The model's rates in $/MTok, from either a tier-name string
-    or an inline rate object."""
+    """The model's rates in $/MTok, from either a tier-name
+    string or an inline rate object."""
     model_id = entry.get("id")
     pricing_raw = entry.get("pricing_raw", "").strip()
     if pricing_raw.startswith('"'):

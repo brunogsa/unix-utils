@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Parse .ics calendar export and output events as JSON for a given date range.
+"""Parse .ics calendar export and output events as JSON for a
+given date range.
 
 Usage:
   parse_ics.py <ics_path> <start_date> <end_date>
@@ -7,7 +8,8 @@ Usage:
 
 Examples:
   parse_ics.py /tmp/brag-cal/calendar.ics 2026-03-15 2026-03-22
-  # Outputs JSON array of {start, summary, duration_min} sorted by start time
+  # Outputs JSON array of {start, summary, duration_min}
+  # sorted by start time
 """
 
 import json
@@ -27,10 +29,12 @@ def unfold(block):
 
 
 def parse_dt_with_tz(raw_line):
-    """Parse iCal DTSTART/DTEND line, normalizing to local time (America/Sao_Paulo).
+    """Parse iCal DTSTART/DTEND line, normalizing to local time
+    (America/Sao_Paulo).
 
     Handles:
-      - DTSTART;TZID=America/Sao_Paulo:20260316T140000 → already local
+      - DTSTART;TZID=America/Sao_Paulo:20260316T140000 →
+        already local
       - DTSTART:20260316T180000Z → UTC, convert to BRT
       - DTSTART:20260316 → date-only, no conversion
     """
@@ -49,19 +53,24 @@ def parse_dt_with_tz(raw_line):
 
 
 def get_field(unfolded, field):
-    """Extract a field value from an unfolded iCal VEVENT block."""
+    """Extract a field value from an unfolded iCal VEVENT
+    block.
+    """
     m = re.search(rf"^{field}[^:]*:(.*?)$", unfolded, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 
 def get_raw_line(unfolded, field):
-    """Extract the full raw line for a field (including params like TZID)."""
+    """Extract the full raw line for a field (including params
+    like TZID).
+    """
     m = re.search(rf"^({field}[^:]*:.*?)$", unfolded, re.MULTILINE)
     return m.group(1).strip() if m else None
 
 
 def extract_owner_email(ics_path):
-    """Derive owner email from the .ics filename (Google Calendar exports use email as filename)."""
+    """Derive owner email from the .ics filename
+    (Google Calendar exports use email as filename)."""
     basename = re.sub(r"\.ics$", "", ics_path.rsplit("/", 1)[-1])
     if "@" in basename:
         return basename
@@ -71,8 +80,10 @@ def extract_owner_email(ics_path):
 def is_owner_attending(unfolded_ev, owner_email):
     """Check if the owner is attending the event.
 
-    Only includes events where the owner explicitly accepted (PARTSTAT=ACCEPTED).
-    Returns True for personal events (no ATTENDEE line for owner).
+    Only includes events where the owner explicitly accepted
+    (PARTSTAT=ACCEPTED).
+    Returns True for personal events (no ATTENDEE line for
+    owner).
     """
     if not owner_email:
         return True
@@ -87,7 +98,9 @@ def is_owner_attending(unfolded_ev, owner_email):
 
 
 def detect_event_prefix(unfolded):
-    """Detect Google Calendar special event types (OOO, Focus Time)."""
+    """Detect Google Calendar special event types (OOO, Focus
+    Time).
+    """
     display = get_field(unfolded, "X-GOOGLE-CALENDAR-CONTENT-DISPLAY")
     if display == "outOfOffice":
         return "[OO] "
@@ -97,7 +110,9 @@ def detect_event_prefix(unfolded):
 
 
 def collect_exdates(unfolded):
-    """Collect all EXDATE datetimes from an unfolded VEVENT block."""
+    """Collect all EXDATE datetimes from an unfolded VEVENT
+    block.
+    """
     exdates = set()
     for m in re.finditer(r"^EXDATE[^:]*:(.+)$", unfolded, re.MULTILINE):
         for val in m.group(1).split(","):
@@ -108,11 +123,13 @@ def collect_exdates(unfolded):
 
 
 def collect_recurrence_overrides(events_raw):
-    """Collect (UID, datetime) pairs for events that override a recurring occurrence.
+    """Collect (UID, datetime) pairs for events that override a
+    recurring occurrence.
 
-    When a single occurrence of a recurring event is edited, Google Calendar
-    keeps the original series VEVENT and adds a new VEVENT with the same UID
-    plus a RECURRENCE-ID. The override supersedes the original for that date.
+    When a single occurrence of a recurring event is edited,
+    Google Calendar keeps the original series VEVENT and adds
+    a new VEVENT with the same UID plus a RECURRENCE-ID. The
+    override supersedes the original for that date.
     """
     overrides = set()
     for ev in events_raw:
@@ -128,9 +145,11 @@ def collect_recurrence_overrides(events_raw):
 
 
 def expand_rrule(dtstart, rrule_str, start_range, end_range):
-    """Expand an RRULE to generate occurrence datetimes within [start_range, end_range).
+    """Expand an RRULE to generate occurrence datetimes within
+    [start_range, end_range).
 
-    Supports FREQ=WEEKLY and FREQ=DAILY with INTERVAL, BYDAY, UNTIL, and COUNT.
+    Supports FREQ=WEEKLY and FREQ=DAILY with INTERVAL, BYDAY,
+    UNTIL, and COUNT.
     """
     parts = dict(p.split("=", 1) for p in rrule_str.split(";") if "=" in p)
     freq = parts.get("FREQ")

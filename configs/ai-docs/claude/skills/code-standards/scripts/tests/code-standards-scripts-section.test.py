@@ -1,13 +1,14 @@
-"""Prove the `## Scripts` section of code-standards/SKILL.md states the
-five rules every later script-overhaul task is judged against, and that
-it dropped the old contradictory Bash-or-Node language rule.
+"""Prove the `## Scripts` section of code-standards/SKILL.md
+states the five rules every later script-overhaul task is judged
+against, and that it dropped the old contradictory Bash-or-Node
+language rule.
 
-This is a doc-content contract test, not a behavior test: the "system
-under test" is prose in a markdown file, so assertions read that prose
-directly rather than exercising a function.
+This is a doc-content contract test, not a behavior test: the
+"system under test" is prose in a markdown file, so assertions
+read that prose directly rather than exercising a function.
 
 Usage:
-  pytest configs/ai-docs/claude/skills/code-standards/scripts/tests/code-standards-scripts-section.test.py
+  ./run-tests.py <this file>
 """
 
 import re
@@ -34,8 +35,9 @@ OLD_CONTRADICTORY_RULE = "Bash for linear/glue, Node.js for structured data"
 
 def _read_scripts_section():
     """Return the `## Scripts` section's raw text, from its own
-    heading up to (not including) the next top-level `## ` heading,
-    or end of file if `## Scripts` is the last section."""
+    heading up to (not including) the next top-level `## `
+    heading, or end of file if `## Scripts` is the last
+    section."""
     text = SKILL_MD.read_text()
     match = re.search(r"^## Scripts$", text, re.MULTILINE)
     if match is None:
@@ -120,9 +122,9 @@ def _classify_header_comment_lines(comment_lines):
 
 
 def _extract_first_fenced_block(section_text):
-    """Return the content lines of the first fenced code block in
-    the section (the usage-header example), excluding the fence
-    markers themselves."""
+    """Return the content lines of the first fenced code block
+    in the section (the usage-header example), excluding the
+    fence markers themselves."""
     match = re.search(r"```[a-zA-Z0-9]*\n(.*?)```", section_text, re.DOTALL)
     if match is None:
         raise AssertionError(

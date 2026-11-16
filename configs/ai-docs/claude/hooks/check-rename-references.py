@@ -104,9 +104,10 @@ PERMISSION_ENTRY_RE = re.compile(r"^(Edit|Write|Read)\((.+)\)$")
 
 
 def is_excluded(path: Path) -> bool:
-    """Return True when path falls under a standing exclusion (the one
-    named stale worktree checkout, node_modules, or .git), so callers
-    skip it entirely -- never scanned as a source, never counted."""
+    """Return True when path falls under a standing exclusion
+    (the one named stale worktree checkout, node_modules, or
+    .git), so callers skip it entirely -- never scanned as a
+    source, never counted."""
     parts = path.parts
     if "node_modules" in parts or ".git" in parts:
         return True
@@ -124,11 +125,11 @@ def default_repos():
 
 
 def default_foreign_home(native_home: str) -> str | None:
-    """Return the OTHER personal machine's home prefix, so a reference
-    written for the platform this run is NOT on still resolves. A
-    machine whose home matches neither known personal machine (CI, a
-    third machine) gets no substitution -- there is nothing to pair it
-    with."""
+    """Return the OTHER personal machine's home prefix, so a
+    reference written for the platform this run is NOT on
+    still resolves. A machine whose home matches neither
+    known personal machine (CI, a third machine) gets no
+    substitution -- there is nothing to pair it with."""
     if native_home == MAC_HOME:
         return LINUX_HOME
     if native_home == LINUX_HOME:
@@ -149,11 +150,12 @@ def find_install_scripts(repo_root: Path):
 
 
 def build_basename_index(repos):
-    """Map every in-scope script's basename to its resolved path, one
-    pass over both repos. A bare-basename token is looked up here and
-    ONLY here -- a full or repo-relative token never falls back to
-    this index, which is what keeps a dangling full path reported even
-    when a same-named file still exists somewhere else in the repo."""
+    """Map every in-scope script's basename to its resolved
+    path, one pass over both repos. A bare-basename token is
+    looked up here and ONLY here -- a full or repo-relative
+    token never falls back to this index, which is what keeps
+    a dangling full path reported even when a same-named file
+    still exists somewhere else in the repo."""
     index = {}
     for repo_root in repos:
         for path in repo_root.rglob("*"):
@@ -184,10 +186,11 @@ def in_scope(path: Path, repos) -> bool:
 
 def resolve_token(token: str, source_file: Path, repos, basename_index,
                    native_home: str, foreign_home: str | None):
-    """Return (report_key, exists) for a dangling/defective token, or
-    None when the token is a pass (resolves in scope) or is not this
-    checker's concern at all (resolves outside every covered repo,
-    AC-29 -- reported as nothing, not even a pass line)."""
+    """Return (report_key, exists) for a dangling/defective
+    token, or None when the token is a pass (resolves in
+    scope) or is not this checker's concern at all (resolves
+    outside every covered repo, AC-29 -- reported as nothing,
+    not even a pass line)."""
     token = substitute_home(token, native_home, foreign_home)
 
     if token.startswith("$HOME"):
@@ -239,12 +242,14 @@ def scan_source(source_file: Path, severity: str, repos, basename_index,
 
 
 def scan_permission_globs(settings_path: Path, findings):
-    """AC-43: an Edit/Write/Read permissions.allow entry whose glob is a
-    filesystem-absolute path needs a DOUBLE leading slash to be read as
-    absolute rather than project-root-relative (this repo's CLAUDE.md,
-    'Permission-glob caveat'). Scoped strictly to permissions.allow --
-    Bash(...) entries are command patterns, not path globs, and a
-    single leading slash there is legitimate."""
+    """AC-43: an Edit/Write/Read permissions.allow entry whose
+    glob is a filesystem-absolute path needs a DOUBLE leading
+    slash to be read as absolute rather than
+    project-root-relative (this repo's CLAUDE.md,
+    'Permission-glob caveat'). Scoped strictly to
+    permissions.allow -- Bash(...) entries are command
+    patterns, not path globs, and a single leading slash
+    there is legitimate."""
     try:
         data = json.loads(settings_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -290,8 +295,9 @@ def run_scan(repos, settings_path: Path, native_home: str, foreign_home: str | N
 
 
 def print_findings(findings) -> bool:
-    """Print one line per finding, sorted for deterministic output.
-    Returns whether any FAIL-severity finding was printed."""
+    """Print one line per finding, sorted for deterministic
+    output. Returns whether any FAIL-severity finding was
+    printed."""
     any_failed = False
     for key in sorted(findings):
         finding = findings[key]

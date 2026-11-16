@@ -1,4 +1,5 @@
-"""Finds the import cycles and layer imports a change introduces.
+"""Finds the import cycles and layer imports a change
+introduces.
 
 - Each language's tool runs over the head tree and the base
   ref's tree: dependency-cruiser for JS/TS, import-linter for
@@ -99,7 +100,9 @@ class Layer:
 
 @dataclass(frozen=True)
 class LayerMap:
-    """Layers from the outermost to the innermost, and where they came from."""
+    """Layers from the outermost to the innermost, and where
+    they came from.
+    """
 
     source: str
     layers: tuple
@@ -132,7 +135,9 @@ def load_layer_map(path):
 
 
 class DependencyRun:
-    """Finds the head's problems once per tool, however many files ask."""
+    """Finds the head's problems once per tool, however many
+    files ask.
+    """
 
     def __init__(self, repo_dir, base_ref, excluded_paths, layer_map=None,
                  head_ref=None):
@@ -144,10 +149,11 @@ class DependencyRun:
         self._problems_by_tool = {}
 
     def problems_by(self, tool):
-        """The head's problems, each marked `is_introduced` or old.
+        """The head's problems, each marked `is_introduced` or
+        old.
 
-        A tool that failed raises the same ToolError on every ask
-        without running again.
+        A tool that failed raises the same ToolError on every
+        ask without running again.
         """
         if tool not in self._problems_by_tool:
             try:
@@ -175,7 +181,8 @@ class DependencyRun:
         ]
 
     def require_checkable(self, tool, repo_path):
-        """Raise ToolError for a Python file outside every package.
+        """Raise ToolError for a Python file outside every
+    package.
 
         import-linter sees only packages, so such a file would
         read as clean without having been checked.
@@ -223,10 +230,11 @@ class DependencyRun:
 def measure(target, metrics, dependency_run):
     """One record per problem the target is part of.
 
-    An introduced problem is flagged. One the base ref already had
-    is a hotspot: listed with no count past the limit, so it
-    never binds the change. A Go or Python file whose tool failed
-    must not read as clean, so it is scored as a deferred violation.
+    An introduced problem is flagged. One the base ref already
+    had is a hotspot: listed with no count past the limit, so
+    it never binds the change. A Go or Python file whose tool
+    failed must not read as clean, so it is scored as a
+    deferred violation.
     """
     tool = TOOL_BY_LANGUAGE.get(target.language)
     if METRIC not in metrics or tool is None:
@@ -290,7 +298,9 @@ def _deferred_tool_failure(target, repo_path, detail, layer_map_source):
 
 
 def _covers(paths, repo_path):
-    """A path ending in `/` is a directory; any other is one file."""
+    """A path ending in `/` is a directory; any other is one
+    file.
+    """
     return any(
         repo_path == path or (path.endswith("/") and repo_path.startswith(path))
         for path in paths
@@ -342,7 +352,9 @@ def _dependency_cruiser_config(excluded_paths, layer_map):
 
 
 def _layer_rules(layer_map):
-    """One rule per layer: it may not import any layer before it."""
+    """One rule per layer: it may not import any layer before
+    it.
+    """
     if layer_map is None:
         return []
     layers = layer_map.layers
@@ -408,9 +420,11 @@ def _cycle_problem(key, detail, paths):
 
 
 def _python_package_roots(tree):
-    """Each top-most package at any depth: its name -> parent dir.
+    """Each top-most package at any depth: its name -> parent
+    dir.
 
-    The parent is relative to the tree, `""` for the tree itself.
+    The parent is relative to the tree, `""` for the tree
+    itself.
     """
     roots = {}
     for directory, subdirectories, files in os.walk(tree):
@@ -472,11 +486,13 @@ def _find_with_import_linter(tree, layer_map):
 
 
 def _importable_layers(tree, package_roots, layer_map):
-    """Per layer, the Python modules its globs name; two layers or more.
+    """Per layer, the Python modules its globs name; two layers
+    or more.
 
-    A layer glob that is not a plain package path, or whose package
-    is missing, is left out: import-linter fails on an unknown
-    package, and one layer alone has nothing to compare against.
+    A layer glob that is not a plain package path, or whose
+    package is missing, is left out: import-linter fails on an
+    unknown package, and one layer alone has nothing to
+    compare against.
     """
     if layer_map is None:
         return []
@@ -519,7 +535,9 @@ def _is_importable_package(tree, package_roots, module):
 
 
 def _module_dir(package_roots, module):
-    """The repo path of a dotted module: `shop.sales` -> `src/shop/sales`."""
+    """The repo path of a dotted module: `shop.sales` ->
+    `src/shop/sales`.
+    """
     parent = package_roots[module.split(".")[0]]
     return posixpath.join(parent, module.replace(".", "/"))
 
@@ -552,7 +570,9 @@ def _import_linter_config(roots, layers):
 
 
 def _module_to_file(tree, package_roots, module):
-    """The repo path of a module: `a/b.py`, else `a/b/__init__.py`."""
+    """The repo path of a module: `a/b.py`, else
+    `a/b/__init__.py`.
+    """
     path = _module_dir(package_roots, module)
     if (tree / f"{path}.py").is_file():
         return f"{path}.py"
@@ -639,7 +659,9 @@ def _find_with_go_arch_lint(tree, layer_map):
 
 
 def _go_arch_lint_config(layer_map):
-    """Each layer may depend on itself and the layers after it."""
+    """Each layer may depend on itself and the layers after
+    it.
+    """
     layers = layer_map.layers
     return {
         "version": 3,

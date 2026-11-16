@@ -76,11 +76,12 @@ usage_report = _load_usage_report()
 
 
 def resolve_session(sid):
-    """(main_path, subagent_paths) for sid, or exit(1) naming every searched
-    project directory - delegates entirely to find_session_transcripts() /
-    project_directories() / exit_session_not_found() so sid resolution AND its
-    failure message never drift from claude-usage-report.py's own --session
-    behavior."""
+    """(main_path, subagent_paths) for sid, or exit(1) naming
+    every searched project directory - delegates entirely to
+    find_session_transcripts() / project_directories() /
+    exit_session_not_found() so sid resolution AND its failure
+    message never drift from claude-usage-report.py's own
+    --session behavior."""
     main_path, subagent_paths = usage_report.find_session_transcripts(sid)
     if main_path is None:
         usage_report.exit_session_not_found(sid)
@@ -92,26 +93,36 @@ def _iso_from_epoch(epoch):
 
 
 def _extract_raw_events(path, source_label):
-    """One streaming pass over `path` via iter_records() - never re-reads the
-    file and never holds more than the small subset of fields each record
-    kind needs, so a multi-thousand-record transcript stays cheap even though
+    """One streaming pass over `path` via iter_records() -
+    never re-reads the file and never holds more than the small
+    subset of fields each record kind needs, so a
+    multi-thousand-record transcript stays cheap even though
     every line gets looked at once.
 
-    Returns (events, activity_epochs, away_summary_epochs, commits,
-    first_epoch, last_epoch): `events` is a list of (epoch, kind, payload)
-    tuples for turn_duration/tool_use/tool_result/human_message records, NOT
-    yet sorted (the caller sorts once, so pairing tool_use with tool_result
-    is correct regardless of on-disk record order - AC #5). `activity_epochs`
-    is the sorted list of moments the assistant was producing something (an
-    assistant record, or a tool_result coming back), which is what tells a
-    computed turn when the assistant stopped rather than when the human next
-    spoke. `away_summary_epochs` is the sorted list of moments Claude Code
-    recorded a system/away_summary record - written when it detects the
-    human stepped away, so its timestamp is itself evidence the assistant
-    had already stopped by then, tighter evidence than activity_epochs alone
-    when the assistant's next event lands long after the human returns.
-    first_epoch/last_epoch span every record in the file that carries a
-    parseable timestamp, whether or not it produced an event.
+    Returns (events, activity_epochs, away_summary_epochs,
+    commits, first_epoch, last_epoch): `events` is a list of
+    (epoch, kind, payload) tuples for
+    turn_duration/tool_use/tool_result/human_message records,
+    NOT yet sorted (the caller sorts once, so pairing tool_use
+    with tool_result is correct regardless of on-disk record
+    order - AC #5).
+
+    `activity_epochs` is the sorted list of moments the
+    assistant was producing something (an assistant record, or
+    a tool_result coming back), which is what tells a computed
+    turn when the assistant stopped rather than when the human
+    next spoke.
+
+    `away_summary_epochs` is the sorted list of moments Claude
+    Code recorded a system/away_summary record - written when
+    it detects the human stepped away, so its timestamp is
+    itself evidence the assistant had already stopped by then,
+    tighter evidence than activity_epochs alone when the
+    assistant's next event lands long after the human returns.
+
+    first_epoch/last_epoch span every record in the file that
+    carries a parseable timestamp, whether or not it produced
+    an event.
     """
     events = []
     activity_epochs = []
@@ -168,10 +179,11 @@ def _extract_raw_events(path, source_label):
 
 
 def _pair_tool_spans(events):
-    """Sorted events -> [(start_epoch, end_epoch, kind)] for each matched
-    tool_use/tool_result pair, kind in {"tool-exec", "agent-occupied"}. Reads
-    the already-timestamp-sorted list, so a tool_result that lands earlier in
-    file order than its tool_use still pairs correctly."""
+    """Sorted events -> [(start_epoch, end_epoch, kind)] for
+    each matched tool_use/tool_result pair, kind in
+    {"tool-exec", "agent-occupied"}. Reads the already-
+    timestamp-sorted list, so a tool_result that lands earlier
+    in file order than its tool_use still pairs correctly."""
     open_calls = {}
     spans = []
     for epoch, kind, payload in events:
@@ -188,9 +200,10 @@ def _pair_tool_spans(events):
 
 
 def _merge_intervals(intervals):
-    """Union of possibly-overlapping (start, end) pairs into the fewest
-    non-overlapping spans, so a bucket never double-counts time two parallel
-    calls of the SAME kind both occupied."""
+    """Union of possibly-overlapping (start, end) pairs into the
+    fewest non-overlapping spans, so a bucket never
+    double-counts time two parallel calls of the SAME kind both
+    occupied."""
     merged = []
     for start, end in sorted(intervals):
         if merged and start <= merged[-1][1]:
@@ -201,8 +214,10 @@ def _merge_intervals(intervals):
 
 
 def _subtract_intervals(base, remove):
-    """base minus every overlapping part of remove. Both arguments must
-    already be merged (non-overlapping within themselves)."""
+    """base minus every overlapping part of remove.
+
+    Both arguments must already be merged (non-overlapping
+    within themselves)."""
     result = []
     remove = sorted(remove)
     for start, end in base:
@@ -225,14 +240,18 @@ def _interval_seconds(intervals):
 
 
 def _window_bounds(first_epoch, last_epoch, *interval_lists):
-    """(window_start, window_end) covering first_epoch, last_epoch, and
-    every interval's own start/end, or (None, None) when nothing is
-    timestamped at all. A turn_duration record's measured duration can
-    reach earlier than the transcript's first record (its own end minus a
-    long duration) - that is evidence the session began before its first
-    record, not a reason to clamp the measured span. Widening the window
-    here is what keeps wall_clock_seconds >= every bucket it is later
-    divided into, so the percentages can still reconcile to 100 (AC 1)."""
+    """(window_start, window_end) covering first_epoch,
+    last_epoch, and every interval's own start/end, or
+    (None, None) when nothing is timestamped at all.
+
+    A turn_duration record's measured duration can reach
+    earlier than the transcript's first record (its own end
+    minus a long duration) - that is evidence the session began
+    before its first record, not a reason to clamp the measured
+    span. Widening the window here is what keeps
+    wall_clock_seconds >= every bucket it is later divided
+    into, so the percentages can still reconcile to 100
+    (AC 1)."""
     points = [epoch for epoch in (first_epoch, last_epoch) if epoch is not None]
     for intervals in interval_lists:
         for start, end in intervals:
@@ -244,10 +263,11 @@ def _window_bounds(first_epoch, last_epoch, *interval_lists):
 
 
 def _last_activity_in_window(activity_epochs, window_start, window_end):
-    """The latest sorted activity epoch inside [window_start, window_end], or
-    window_start when the assistant produced nothing in that window at all -
-    so an unanswered message yields a zero-length span rather than one
-    reaching to whatever record happens to close the window."""
+    """The latest sorted activity epoch inside [window_start,
+    window_end], or window_start when the assistant produced
+    nothing in that window at all - so an unanswered message
+    yields a zero-length span rather than one reaching to
+    whatever record happens to close the window."""
     index = bisect.bisect_right(activity_epochs, window_end) - 1
     if index < 0 or activity_epochs[index] < window_start:
         return window_start
@@ -255,12 +275,16 @@ def _last_activity_in_window(activity_epochs, window_start, window_end):
 
 
 def _first_away_summary_in_window(away_summary_epochs, window_start, window_end):
-    """The earliest sorted away_summary epoch inside [window_start,
-    window_end], or None when no away_summary record falls there. Written
-    when Claude Code detects the human stepped away, so its own timestamp is
-    evidence the assistant had already stopped by then - narrower evidence
-    than _last_activity_in_window alone when the assistant's next recorded
-    event doesn't land until the human returns, possibly hours later."""
+    """The earliest sorted away_summary epoch inside
+    [window_start, window_end], or None when no away_summary
+    record falls there.
+
+    Written when Claude Code detects the human stepped away, so
+    its own timestamp is evidence the assistant had already
+    stopped by then - narrower evidence than
+    _last_activity_in_window alone when the assistant's next
+    recorded event doesn't land until the human returns,
+    possibly hours later."""
     index = bisect.bisect_left(away_summary_epochs, window_start)
     if index < len(away_summary_epochs) and away_summary_epochs[index] <= window_end:
         return away_summary_epochs[index]
@@ -268,42 +292,54 @@ def _first_away_summary_in_window(away_summary_epochs, window_start, window_end)
 
 
 def _has_interior_activity(activity_epochs, span_start, span_end):
-    """Whether any activity epoch falls strictly inside (span_start,
-    span_end), excluding both endpoints. A computed span's span_end is
-    itself DEFINED by its closing activity epoch (from
-    _last_activity_in_window) or by an away_summary marker - that endpoint is
-    evidence the turn ended there, never evidence of what happened while it
-    ran. A span with no epoch strictly between its own bounds carries only a
-    completion marker: the transcript has no record of when the underlying
-    API call actually began, so its duration is an estimate, not a
-    measurement (Scout #33). Only the FIRST activity epoch after span_start
-    needs checking - since activity_epochs is sorted, if that one already
-    lands on or past span_end, nothing smaller could be interior either."""
+    """Whether any activity epoch falls strictly inside
+    (span_start, span_end), excluding both endpoints.
+
+    A computed span's span_end is itself DEFINED by its closing
+    activity epoch (from _last_activity_in_window) or by an
+    away_summary marker - that endpoint is evidence the turn
+    ended there, never evidence of what happened while it ran.
+    A span with no epoch strictly between its own bounds
+    carries only a completion marker: the transcript has no
+    record of when the underlying API call actually began, so
+    its duration is an estimate, not a measurement (Scout #33).
+
+    Only the FIRST activity epoch after span_start needs
+    checking - since activity_epochs is sorted, if that one
+    already lands on or past span_end, nothing smaller could be
+    interior either."""
     index = bisect.bisect_right(activity_epochs, span_start)
     return index < len(activity_epochs) and activity_epochs[index] < span_end
 
 
 def _build_turns(human_epochs, turn_duration_events, last_epoch,
                   activity_epochs, away_summary_epochs):
-    """One entry per human turn, each carrying the engaged span used for the
-    main-API bucket. When an in-window turn_duration record exists it is
-    authoritative (measure="turn_duration"); otherwise the span runs from the
-    human message to the assistant's last event inside that turn's window
-    (measure="computed"), per the plan's "fall back to a computed span, and
-    say which measure produced it" requirement.
+    """One entry per human turn, each carrying the engaged span
+    used for the main-API bucket.
 
-    A computed span must end where the assistant stopped producing events, NOT
-    at the window's end: the window closes at the NEXT human message (or the
-    transcript's last record), so a human who steps away overnight would
-    otherwise charge every hour of that absence to main-API time.
+    When an in-window turn_duration record exists it is
+    authoritative (measure="turn_duration"); otherwise the span
+    runs from the human message to the assistant's last event
+    inside that turn's window (measure="computed"), per the
+    plan's "fall back to a computed span, and say which measure
+    produced it" requirement.
 
-    An away_summary record inside that window narrows the span further still:
-    it fires when the human is detected as away, so a turn holding only ONE
-    assistant record - generated when the human comes back and resumes, not
-    while it was produced - would otherwise still bill the whole absence to
-    main-API even after the last-activity clamp above. This narrowing never
-    applies to the turn_duration branch, whose recorded duration stays
-    authoritative regardless of what else the window contains."""
+    A computed span must end where the assistant stopped
+    producing events, NOT at the window's end: the window
+    closes at the NEXT human message (or the transcript's last
+    record), so a human who steps away overnight would
+    otherwise charge every hour of that absence to main-API
+    time.
+
+    An away_summary record inside that window narrows the span
+    further still: it fires when the human is detected as away,
+    so a turn holding only ONE assistant record - generated
+    when the human comes back and resumes, not while it was
+    produced - would otherwise still bill the whole absence to
+    main-API even after the last-activity clamp above. This
+    narrowing never applies to the turn_duration branch, whose
+    recorded duration stays authoritative regardless of what
+    else the window contains."""
     human_epochs = sorted(human_epochs)
     turn_duration_events = sorted(turn_duration_events)
     turns = []
@@ -333,14 +369,16 @@ def _build_turns(human_epochs, turn_duration_events, last_epoch,
 
 
 def _percentages_summing_to_100(seconds_by_bucket, total_seconds):
-    """Round each bucket's share of total_seconds to a whole percent so the
-    buckets sum to exactly 100 (the largest-remainder method) whenever
-    total_seconds is nonzero.
+    """Round each bucket's share of total_seconds to a whole
+    percent so the buckets sum to exactly 100 (the
+    largest-remainder method) whenever total_seconds is
+    nonzero.
 
-    A zero-duration or single-record session has no span to take a share
-    of at all, so a percentage of it is undefined rather than "100 split
-    some way" - this deliberately returns all-zero (summing to 0, not 100)
-    for that one case instead of dividing by zero."""
+    A zero-duration or single-record session has no span to
+    take a share of at all, so a percentage of it is undefined
+    rather than "100 split some way" - this deliberately
+    returns all-zero (summing to 0, not 100) for that one case
+    instead of dividing by zero."""
     if not total_seconds:
         return {name: 0.0 for name in seconds_by_bucket}
     raw = {name: (seconds / total_seconds) * 100 for name, seconds in seconds_by_bucket.items()}
@@ -355,24 +393,28 @@ def _percentages_summing_to_100(seconds_by_bucket, total_seconds):
 def _subagent_run_label(subagent_path):
     """{"agent_type", "model"} for one subagent run.
 
-    agent_type always comes from <subagent>.meta.json's "agentType" when the
-    sidecar is present and readable; "unknown" when the sidecar is missing,
-    unreadable, or omits the key - nothing else in the transcript names the
+    agent_type always comes from <subagent>.meta.json's
+    "agentType" when the sidecar is present and readable;
+    "unknown" when the sidecar is missing, unreadable, or omits
+    the key - nothing else in the transcript names the
     dispatched subagent_type, so it is never guessed.
 
-    model comes from the sidecar's "model" field ONLY when that field is
-    present and non-empty. The fallback fires whenever model is absent or
-    empty, independent of whether the sidecar itself loaded - sidecars
-    exist for every run on a real session but carry "model" for only 12 of
-    39, so gating the fallback on "sidecar missing" (the prior behavior)
-    left the other 27 stuck on "unknown" even though the transcript names
-    the real model. The fallback model is the LAST "model" carried by the
-    subagent transcript's own assistant records (present on every priced
-    response even without the sidecar; the LAST one, because a mid-run
-    model switch means the run finished on that model), normalized via
-    _normalize_model_alias() to the sidecar's own short-alias family so the
-    model column never mixes raw ids with aliases. "unknown" only when no
-    assistant record in the transcript carries a model at all."""
+    model comes from the sidecar's "model" field ONLY when that
+    field is present and non-empty. The fallback fires whenever
+    model is absent or empty, independent of whether the
+    sidecar itself loaded - sidecars exist for every run on a
+    real session but carry "model" for only 12 of 39, so gating
+    the fallback on "sidecar missing" (the prior behavior) left
+    the other 27 stuck on "unknown" even though the transcript
+    names the real model. The fallback model is the LAST
+    "model" carried by the subagent transcript's own assistant
+    records (present on every priced response even without the
+    sidecar; the LAST one, because a mid-run model switch means
+    the run finished on that model), normalized via
+    _normalize_model_alias() to the sidecar's own short-alias
+    family so the model column never mixes raw ids with
+    aliases. "unknown" only when no assistant record in the
+    transcript carries a model at all."""
     agent_type = "unknown"
     model = None
     meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
@@ -390,13 +432,15 @@ def _subagent_run_label(subagent_path):
 
 
 def _normalize_model_alias(model):
-    """model normalized to the .meta.json sidecar's own short-alias family
-    ("opus"/"sonnet"/"haiku"), matched by prefix against the full model ids
-    Claude Code's transcripts carry (e.g. "claude-sonnet-5",
-    "claude-opus-4-7") - the form _last_transcript_model() returns. An id
-    whose prefix isn't recognized (a future model family) is returned
-    unchanged rather than guessing a tier; "unknown" (no model found at
-    all) passes through unchanged for the same reason."""
+    """model normalized to the .meta.json sidecar's own
+    short-alias family ("opus"/"sonnet"/"haiku"), matched by
+    prefix against the full model ids Claude Code's transcripts
+    carry (e.g. "claude-sonnet-5", "claude-opus-4-7") - the
+    form _last_transcript_model() returns. An id whose prefix
+    isn't recognized (a future model family) is returned
+    unchanged rather than guessing a tier; "unknown" (no model
+    found at all) passes through unchanged for the same
+    reason."""
     if model.startswith("claude-opus-"):
         return "opus"
     if model.startswith("claude-sonnet-"):
@@ -407,9 +451,10 @@ def _normalize_model_alias(model):
 
 
 def _last_transcript_model(subagent_path):
-    """The `model` on the LAST assistant record that carries one, scanning
-    subagent_path's own transcript; "unknown" when none do - the fallback
-    source for _subagent_run_label() when the .meta.json sidecar's "model"
+    """The `model` on the LAST assistant record that carries
+    one, scanning subagent_path's own transcript; "unknown"
+    when none do - the fallback source for
+    _subagent_run_label() when the .meta.json sidecar's "model"
     field is absent or empty."""
     model = "unknown"
     for record in usage_report.iter_records(subagent_path):
@@ -420,9 +465,10 @@ def _last_transcript_model(subagent_path):
 
 
 def list_tasks(sid):
-    """The session's tasks from ~/.claude/tasks/<sid>/*.json, ordered by file
-    mtime, or a "no tasks tracked" note when the directory is empty or
-    absent - never raising either way."""
+    """The session's tasks from ~/.claude/tasks/<sid>/*.json,
+    ordered by file mtime, or a "no tasks tracked" note when
+    the directory is empty or absent - never raising either
+    way."""
     tasks_dir = os.path.join(TASKS_ROOT, sid)
     if not os.path.isdir(tasks_dir):
         return {"note": "no tasks tracked", "tasks": []}
@@ -448,9 +494,10 @@ def list_tasks(sid):
 
 
 def _attach_turn_index(commits, turns):
-    """Main-sourced commits get the index of the turn whose engaged span
-    contains them - "attributed to ... the turn ... that ran it" (AC #3).
-    Subagent-sourced commits are already attributed by their `source` label."""
+    """Main-sourced commits get the index of the turn whose
+    engaged span contains them - "attributed to ... the turn
+    ... that ran it" (AC #3). Subagent-sourced commits are
+    already attributed by their `source` label."""
     for commit in commits:
         if commit["source"] != "main":
             continue
@@ -462,9 +509,10 @@ def _attach_turn_index(commits, turns):
 
 
 def _build_timeline_entries(turns, tool_spans, commits):
-    """The chronological feed of turn/tool_call/commit entries the script is
-    named for - sorted by timestamp regardless of which section of the
-    payload (turns/buckets/commits) each entry also feeds."""
+    """The chronological feed of turn/tool_call/commit entries
+    the script is named for - sorted by timestamp regardless of
+    which section of the payload (turns/buckets/commits) each
+    entry also feeds."""
     entries = []
     for turn in turns:
         entries.append({

@@ -1,13 +1,15 @@
 """Blackbox CLI tests for check-pr-page-fit.py.
 
-Every fixture is a PR body each test writes to tmp_path, small enough
-that the expected rendered-line count is checkable by eye.
+Every fixture is a PR body each test writes to tmp_path,
+small enough that the expected rendered-line count is
+checkable by eye.
 
-The per-section assertions read the breakdown the script prints under
-every verdict, so they hold whether the body passes or not.
+The per-section assertions read the breakdown the script
+prints under every verdict, so they hold whether the body
+passes or not.
 
 Usage:
-  python3 -m pytest configs/ai-docs/claude/skills/create-pr/scripts/tests/check-pr-page-fit.test.py
+  ./run-tests.py <this file>
 """
 
 import subprocess
@@ -34,8 +36,8 @@ def _run(*args):
 
 
 def _section_lines(stdout, name):
-    """The rendered-line count the breakdown reports for one section,
-    or None when the section is absent from it."""
+    """The rendered-line count the breakdown reports for one
+    section, or None when the section is absent from it."""
     lines = stdout.splitlines()
     for row in lines[lines.index(BREAKDOWN_HEADER) + 1 :]:
         count, _, title = row.strip().partition("  ")
@@ -45,8 +47,8 @@ def _section_lines(stdout, name):
 
 
 def _text_lines(prefix, count):
-    """Distinct prose lines, so a fixture's hidden bulk is large enough
-    that charging it would show."""
+    """Distinct prose lines, so a fixture's hidden bulk is
+    large enough that charging it would show."""
     return "\n".join(f"{prefix} line {k} of text" for k in range(1, count + 1))
 
 

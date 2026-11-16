@@ -108,11 +108,13 @@ def write_stdout_bytes(data):
 
 @dataclass
 class StopRequest:
-    """The first INT or TERM the runner received; every wait loop checks it.
+    """The first INT or TERM the runner received; every wait
+    loop checks it.
 
-    The handler only records and never raises. A raising handler can fire
-    inside Popen after the fork and lose the child, and a second signal
-    could abort the stop sequence itself.
+    The handler only records and never raises. A raising
+    handler can fire inside Popen after the fork and lose the
+    child, and a second signal could abort the stop sequence
+    itself.
     """
 
     signum: signal.Signals | None = None
@@ -135,7 +137,8 @@ class StopRequest:
 
 
 def wait_for_exit(processes, seconds):
-    """Poll until every process has exited or seconds pass; return those still running."""
+    """Poll until every process has exited or seconds pass;
+    return those still running."""
     deadline = time.monotonic() + seconds
     running = [process for process in processes if process.poll() is None]
     while running and time.monotonic() < deadline:
@@ -145,7 +148,8 @@ def wait_for_exit(processes, seconds):
 
 
 def stop_processes(processes, stop_signal):
-    """Stop the runner's own child processes, escalating to SIGKILL; reap every one."""
+    """Stop the runner's own child processes, escalating to
+    SIGKILL; reap every one."""
 
     # Ctrl-C already reached them through the terminal's
     # process group; a TERM sent to the runner alone did not.
@@ -157,11 +161,13 @@ def stop_processes(processes, stop_signal):
 
 
 def run_headroom_gate(headroom_gate, stop_request):
-    """Return (exit status, stdout bytes) of the gate; stderr passes through.
+    """Return (exit status, stdout bytes) of the gate; stderr
+    passes through.
 
-    stdin comes from /dev/null for the same reason every suite's does: the
-    caller's stdin may never close, so a gate that reads it would hang the
-    run before any suite starts.
+    stdin comes from /dev/null for the same reason every
+    suite's does: the caller's stdin may never close, so a
+    gate that reads it would hang the run before any suite
+    starts.
     """
     if not os.access(headroom_gate, os.X_OK):
         return GATE_UNAVAILABLE_STATUS, b""
@@ -205,9 +211,9 @@ def refuse_to_run(headroom_gate, gate_stdout):
 
 @dataclass
 class Tally:
-    """Shared by every leg, so all report through the same counters, PASS/FAIL
-    line, and failure-replay list rather than near-identical bookkeeping
-    blocks drifting apart."""
+    """Shared by every leg, so all report through the same
+    counters, PASS/FAIL line, and failure-replay list rather
+    than near-identical bookkeeping blocks drifting apart."""
 
     pass_count: int = 0
     failures: list = field(default_factory=list)
@@ -228,17 +234,21 @@ class Entry:
 
 
 def launch_into_log(command, log_file):
-    """Start command with stdin from /dev/null, output to log_file.
+    """Start command with stdin from /dev/null, output to
+    log_file.
 
-    Return the started process, or None when the launch itself failed, with
-    the reason written to the log.
+    Return the started process, or None when the launch
+    itself failed, with the reason written to the log.
 
-    The caller's stdin may never close (a Claude Bash tool socket), so any
-    stray stdin read inside a suite would hang this run indefinitely.
-    A missing executable fails loudly in the log instead of reading as a
-    pass: skipping it would reopen the gap this fold-in closes.
-    The child holds its own copy of the log, so the parent's copy closes
-    on return and open descriptors never pile up across entries.
+    The caller's stdin may never close (a Claude Bash tool
+    socket), so any stray stdin read inside a suite would
+    hang this run indefinitely.
+    A missing executable fails loudly in the log instead of
+    reading as a pass: skipping it would reopen the gap this
+    fold-in closes.
+    The child holds its own copy of the log, so the parent's
+    copy closes on return and open descriptors never pile up
+    across entries.
     """
     with open(log_file, "wb") as log:
         if shutil.which(command[0]) is None:
@@ -283,12 +293,15 @@ def kill_and_reap(processes):
 
 
 def run_entries(entries, tally, stop_request):
-    """Run entries MAX_CONCURRENT_SUITES at a time; report them in list order.
+    """Run entries MAX_CONCURRENT_SUITES at a time; report
+    them in list order.
 
-    The main thread is the only launcher, and it waits by polling rather than
-    blocking in worker threads: Python runs signal handlers only in the main
-    thread, so a worker freed by a suite that Ctrl-C killed could launch the
-    next suite before the handler ran. Polling here leaves no such window.
+    The main thread is the only launcher, and it waits by
+    polling rather than blocking in worker threads: Python
+    runs signal handlers only in the main thread, so a worker
+    freed by a suite that Ctrl-C killed could launch the next
+    suite before the handler ran. Polling here leaves no such
+    window.
     """
     pending = deque(get_launch_order(entries))
     running = {}
@@ -351,7 +364,8 @@ def get_unusable_path_reason(path):
 
 
 def report_unusable_paths(given_paths, relative_paths, repo_root):
-    """Print each unusable path to stderr; return whether any was."""
+    """Print each unusable path to stderr; return whether any
+    was."""
     found_unusable = False
     for given, relative in zip(given_paths, relative_paths):
         reason = get_unusable_path_reason(os.path.join(repo_root, relative))
@@ -366,8 +380,9 @@ def is_bash_suite_path(path):
 
 
 def get_named_entries(paths):
-    """Return one (suite, command) pair per named bash or node file, then
-    one pytest pair over every named python file."""
+    """Return one (suite, command) pair per named bash or node
+    file, then one pytest pair over every named python
+    file."""
     entries = []
     python_paths = []
     for path in paths:

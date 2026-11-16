@@ -1,8 +1,9 @@
 """Blackbox CLI tests for check-comment-format-regressions.py.
 
-Fixtures: each test builds a throwaway git repo under tmp_path, so
-enumeration runs against real git state instead of a mock. One test
-reads this repo's own state instead, to run the gate for real.
+Fixtures: each test builds a throwaway git repo under tmp_path,
+so enumeration runs against real git state instead of a mock.
+One test reads this repo's own state instead, to run the gate
+for real.
 
 Usage:
   pytest configs/ai-docs/claude/scripts/tests/\
@@ -48,8 +49,9 @@ def _git(repo, *args):
 
 
 def _make_repo(tmp_path):
-    """Return a fresh git repo with one committed clean shell script,
-    so a test only has to add whatever file its own case is about."""
+    """Return a fresh git repo with one committed clean shell
+    script, so a test only has to add whatever file its own case
+    is about."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -88,10 +90,10 @@ def test_violation_in_a_file_fails_the_gate(tmp_path):
 
 
 def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
-    """A brand-new file is where a regression most often arrives, and
-    it is untracked right up to the commit that ships it - so leaving
-    untracked files out of enumeration would blind the gate exactly
-    when it matters most."""
+    """A brand-new file is where a regression most often
+    arrives, and it is untracked right up to the commit that
+    ships it - so leaving untracked files out of enumeration
+    would blind the gate exactly when it matters most."""
     repo = _make_repo(tmp_path)
     (repo / "arrival.sh").write_text(
         f"#!/usr/bin/env bash\n{OVERWIDE_COMMENT}", encoding="utf-8"
@@ -103,9 +105,9 @@ def test_untracked_new_file_is_scanned_by_the_gate(tmp_path):
 
 
 def test_untracked_yml_file_is_scanned_by_the_gate(tmp_path):
-    """The checker lexes yaml, so the gate must find a .yml file too;
-    a glob list frozen at the original four extensions never hands
-    it one."""
+    """The checker lexes yaml, so the gate must find a .yml file
+    too; a glob list frozen at the original four extensions
+    never hands it one."""
     repo = _make_repo(tmp_path)
     (repo / "arrival.yml").write_text(
         f"{OVERWIDE_COMMENT}key: value\n", encoding="utf-8"
@@ -131,9 +133,9 @@ def _load_script():
 def test_unlistable_checker_extensions_abort_instead_of_scanning_nothing(
     tmp_path, monkeypatch, capsys, checker_body
 ):
-    """An empty extension list would make git ls-files match no file
-    and the gate pass over an empty corpus, which is the silent pass
-    this gate exists to prevent."""
+    """An empty extension list would make git ls-files match no
+    file and the gate pass over an empty corpus, which is the
+    silent pass this gate exists to prevent."""
     fake = tmp_path / "fake-checker.js"
     fake.write_text(f"{checker_body}\n", encoding="utf-8")
     module = _load_script()
@@ -147,10 +149,11 @@ def test_unlistable_checker_extensions_abort_instead_of_scanning_nothing(
 
 
 def test_tracked_file_deleted_from_the_worktree_is_skipped(tmp_path):
-    """git still lists a deleted-but-not-yet-committed file as tracked,
-    and handing that path to the checker makes it exit 2 - an
-    environment error dressed up as a violation. Mid-deletion is a
-    normal working-tree state, so it must stay green."""
+    """git still lists a deleted-but-not-yet-committed file as
+    tracked, and handing that path to the checker makes it
+    exit 2 - an environment error dressed up as a violation.
+    Mid-deletion is a normal working-tree state, so it must
+    stay green."""
     repo = _make_repo(tmp_path)
     (repo / "clean.sh").unlink()
     result = _run(repo)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Aggregate individual run results into benchmark summary statistics.
+Aggregate individual run results into benchmark summary
+statistics.
 
 Reads grading.json files from run directories and produces:
 - run_summary with mean, stddev, min, max for each metric
@@ -10,7 +11,8 @@ Usage:
     python aggregate_benchmark.py <benchmark_dir>
 
 Example:
-    python aggregate_benchmark.py benchmarks/2026-01-15T10-30-00/
+    python aggregate_benchmark.py \
+        benchmarks/2026-01-15T10-30-00/
 
 The script supports two directory layouts:
 
@@ -68,8 +70,9 @@ def load_run_results(benchmark_dir: Path) -> dict:
     """
     Load all run results from a benchmark directory.
 
-    Returns dict keyed by config name (e.g. "with_skill"/"without_skill",
-    or "new_skill"/"old_skill"), each containing a list of run results.
+    Returns dict keyed by config name (e.g.
+    "with_skill"/"without_skill", or "new_skill"/"old_skill"),
+    each containing a list of run results.
     """
 
     # Support both layouts: eval dirs directly under
@@ -184,7 +187,8 @@ def aggregate_results(results: dict) -> dict:
     """
     Aggregate run results into summary statistics.
 
-    Returns run_summary with stats for each configuration and delta.
+    Returns run_summary with stats for each configuration and
+    delta.
     """
     run_summary = {}
     configs = list(results.keys())
@@ -287,7 +291,8 @@ def generate_benchmark(benchmark_dir: Path, skill_name: str = "", skill_path: st
 
 
 def generate_markdown(benchmark: dict) -> str:
-    """Generate human-readable benchmark.md from benchmark data."""
+    """Generate human-readable benchmark.md from benchmark
+    data."""
     metadata = benchmark["metadata"]
     run_summary = benchmark["run_summary"]
 

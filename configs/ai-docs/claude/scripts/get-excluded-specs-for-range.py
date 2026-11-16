@@ -79,8 +79,8 @@ def get_repo_root():
 
 
 def get_changed_module_paths(repo_root, git_range):
-    """Return the changed files as extension-less module paths, with
-    a trailing `/index` dropped, so `@orders/create-x` and
+    """Return the changed files as extension-less module paths,
+    with a trailing `/index` dropped, so `@orders/create-x` and
     `./create-x/index.ts` both match `create-x/index.ts`."""
     result = run_git(repo_root, "diff", "--name-only", git_range, "--")
     if result.returncode != 0:
@@ -97,12 +97,13 @@ def get_module_path(path):
 
 
 def get_nearest_tsconfig_paths(repo_root, spec_path, cache):
-    """Return (base_dir, paths) from the nearest tsconfig.json above
-    the spec that declares compilerOptions.paths, or None.
+    """Return (base_dir, paths) from the nearest tsconfig.json
+    above the spec that declares compilerOptions.paths, or None.
 
-    A tsconfig that still fails to parse after comments and trailing
-    commas are stripped is skipped with a stderr warning, so its
-    aliases go unresolved and the specs using them go unlisted."""
+    A tsconfig that still fails to parse after comments and
+    trailing commas are stripped is skipped with a stderr
+    warning, so its aliases go unresolved and the specs using
+    them go unlisted."""
     directory = posixpath.dirname(spec_path)
     while True:
         if directory not in cache:
@@ -133,8 +134,9 @@ def read_tsconfig_paths(repo_root, directory):
 
 
 def get_plain_json(tsconfig_text):
-    """Return tsconfig text with the comments and trailing commas
-    tsc accepts removed, leaving string literals untouched."""
+    """Return tsconfig text with the comments and trailing
+    commas tsc accepts removed, leaving string literals
+    untouched."""
     without_comments = JSONC_COMMENT_OR_STRING_PATTERN.sub(
         lambda match: match.group(0) if match.group(0).startswith('"') else "",
         tsconfig_text,
@@ -190,8 +192,8 @@ def get_tracked_source_paths(repo_root):
 
 
 def get_importers_by_module_path(repo_root, source_paths):
-    """Return the reverse import graph: module path -> the source
-    files importing it. Built once per run."""
+    """Return the reverse import graph: module path -> the
+    source files importing it. Built once per run."""
     tsconfig_cache = {}
     importers = {}
     for source_path in source_paths:
@@ -201,8 +203,9 @@ def get_importers_by_module_path(repo_root, source_paths):
 
 
 def get_files_reaching_changed_modules(changed_module_paths, importers_by_module_path):
-    """Walk the reverse graph breadth-first up to MAX_IMPORT_HOPS;
-    the visited set also ends an import cycle."""
+    """Walk the reverse graph breadth-first up to
+    MAX_IMPORT_HOPS; the visited set also ends an import
+    cycle."""
     reaching_files = set()
     frontier = set(changed_module_paths)
     for _ in range(MAX_IMPORT_HOPS):

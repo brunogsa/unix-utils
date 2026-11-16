@@ -1,12 +1,15 @@
-"""Runs a repo's tests under a coverage tool and reads the lcov report.
+"""Runs a repo's tests under a coverage tool and reads the lcov
+report.
 
-Every language writes `coverage/lcov.info` under the repo, as c8 does
-by default. Each collector falls back to a global tool: uv with
-coverage for Python, c8 for JavaScript and TypeScript, gcov2lcov for Go.
+Every language writes `coverage/lcov.info` under the repo, as c8
+does by default. Each collector falls back to a global tool: uv
+with coverage for Python, c8 for JavaScript and TypeScript,
+gcov2lcov for Go.
 
 A run that reads as no coverage data (no tests, no report, or a
-report older than the run) scores 0%. A run whose tests fail is a red
-build: it scores 0% too, marked pessimistic.
+report older than the run) scores 0%.
+A run whose tests fail is a red build: it scores 0% too, marked
+pessimistic.
 """
 
 import json
@@ -73,7 +76,8 @@ DEFERRED_COVERAGE = CoverageResult(hits_by_file={}, has_failed_tests=False, is_d
 
 
 class NoFreshCoverageError(ToolError):
-    """A passing coverage run left no report newer than the run."""
+    """A passing coverage run left no report newer than the
+    run."""
 
 
 @dataclass(frozen=True)
@@ -88,17 +92,20 @@ class _Measured:
 
 @dataclass(eq=False)
 class CoverageRun:
-    """Measures each language's coverage at most once per measuring run.
+    """Measures each language's coverage at most once per
+    measuring run.
 
-    The repo's own jest or pytest-cov runs first, once, for every
-    language it measures; any other language, or a repo tool that
-    crashed, timed out or wrote no coverage data, runs the global
-    collector. A failing global
-    collector asks (or defers on the spot in a session that cannot ask)
-    and reads as deferred coverage. Failing tests are a red build.
+    The repo's own jest or pytest-cov runs first, once, for
+    every language it measures; any other language, or a repo
+    tool that crashed, timed out or wrote no coverage data, runs
+    the global collector.
 
-    `sources` gets one entry per language measured, naming the tool
-    and the repo gap; `asks` gets one entry per ask raised.
+    A failing global collector asks (or defers on the spot in a
+    session that cannot ask) and reads as deferred coverage.
+    Failing tests are a red build.
+
+    `sources` gets one entry per language measured, naming the
+    tool and the repo gap; `asks` gets one entry per ask raised.
     """
 
     repo_dir: Path
@@ -260,7 +267,8 @@ def _prepare_lcov_file(repo_dir):
 
 
 def read_fresh_lcov(repo_dir, run_started):
-    """Hits from the lcov file, or no data when it predates the run."""
+    """Hits from the lcov file, or no data when it predates the
+    run."""
     lcov_file = repo_dir / LCOV_PATH
     if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
         raise NoFreshCoverageError(f"the passing coverage run wrote no coverage data under {repo_dir}")
@@ -272,7 +280,8 @@ def read_fresh_lcov(repo_dir, run_started):
 
 
 def _normalized_hits(repo_dir, hits_by_file, module_prefix):
-    """Hits keyed by repo-relative name, with any go module prefix dropped."""
+    """Hits keyed by repo-relative name, with any go module
+    prefix dropped."""
     return {
         _without_prefix(name, module_prefix): hits
         for name, hits in repo_relative_hits(repo_dir, hits_by_file).items()

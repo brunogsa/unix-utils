@@ -1,31 +1,39 @@
 #!/usr/bin/env python3
-"""check-plan-id-leaks.py - flag plan acceptance-criterion (`AC-<n>`) and
-plan-task (`T<n>`) IDs that a branch adds to committed files.
+"""check-plan-id-leaks.py - flag plan acceptance-criterion
+(`AC-<n>`) and plan-task (`T<n>`) IDs that a branch adds to
+committed files.
 
-A plan is never committed, so an ID copied out of it is undecodable in
-code. The token rule mirrors the plan annotation grammar
-`// AC-<n>... T<n>...` that check-ac-references.py in
-spec-driven-development/scripts/ exempts inside plan code fences:
-  - `AC-<n>` (word-bounded) is flagged anywhere on an added line, unless
-    that line also cites a `.md` path committed at HEAD - the shape a
-    repo uses to keep a design-doc ID decodable.
-  - `T<n>` (word-bounded) is flagged only on a line that also holds an
-    `AC-<n>`, or inside a code comment (`//`, `# `, `/*`, `*`), since a
-    bare `T1` in code is a numbered type parameter, not a plan task.
+A plan is never committed, so an ID copied out of it is
+undecodable in code. The token rule mirrors the plan
+annotation grammar `// AC-<n>... T<n>...` that
+check-ac-references.py in spec-driven-development/scripts/
+exempts inside plan code fences:
+  - `AC-<n>` (word-bounded) is flagged anywhere on an added
+    line, unless that line also cites a `.md` path committed
+    at HEAD - the shape a repo uses to keep a design-doc ID
+    decodable.
+  - `T<n>` (word-bounded) is flagged only on a line that also
+    holds an `AC-<n>`, or inside a code comment (`//`, `# `,
+    `/*`, `*`), since a bare `T1` in code is a numbered type
+    parameter, not a plan task.
 
 Usage:
   check-plan-id-leaks.py [--base <ref>] [--exclude <glob>]...
 
-  --base     ref to diff from as `<ref>...HEAD`; default: the repo's base
-             branch from ~/.claude/scripts/resolve-base-ref.sh, preferring
+  --base     ref to diff from as `<ref>...HEAD`; default: the
+             repo's base branch from
+             ~/.claude/scripts/resolve-base-ref.sh, preferring
              `origin/<name>` over the local `<name>`
-  --exclude  extra fnmatch glob of paths to skip, repeatable; spec_*.md,
-             plan_*.md and docs/designs/** are always skipped
+  --exclude  extra fnmatch glob of paths to skip, repeatable;
+             spec_*.md, plan_*.md and docs/designs/** are
+             always skipped
 
-stdout: one `<path>:<line>: <token> - <line text>` per flagged token
-stderr: a diagnostic on a usage error, a bad base ref or a git failure
-exit: 0 no leak; 1 at least one leak; 2 usage error, not a git repo,
-      base ref unresolvable, or git diff failed
+stdout: one `<path>:<line>: <token> - <line text>` per flagged
+        token
+stderr: a diagnostic on a usage error, a bad base ref or a git
+        failure
+exit: 0 no leak; 1 at least one leak; 2 usage error, not a git
+      repo, base ref unresolvable, or git diff failed
 """
 
 import argparse
@@ -71,8 +79,8 @@ def is_commit(ref):
 
 
 def find_default_base():
-    """`origin/<base>` when fetched, else the local `<base>`; None when
-    the repo names no base branch."""
+    """`origin/<base>` when fetched, else the local `<base>`;
+    None when the repo names no base branch."""
     result = subprocess.run(["bash", str(RESOLVE_BASE_REF)], capture_output=True, text=True)
     branch = result.stdout.strip()
     if result.returncode != 0 or not branch:

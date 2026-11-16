@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Behavior suite for get-repo-preflight.py, exercised at the CLI boundary.
+"""Behavior suite for get-repo-preflight.py, exercised at the
+CLI boundary.
 
-Every case builds a real git repo under tmp_path and runs the script as a
-subprocess, so what is pinned is the report a caller actually reads rather
-than the internals that happen to produce it.
+Every case builds a real git repo under tmp_path and runs the
+script as a subprocess, so what is pinned is the report a caller
+actually reads rather than the internals that happen to produce
+it.
 """
 import importlib.util
 import json
@@ -27,8 +29,9 @@ ISOLATED_GIT_ENV = {
 
 
 def load_preflight_module():
-    """Import the script by path so the suite can assert against its own
-    caps instead of restating them as literals that drift."""
+    """Import the script by path so the suite can assert against
+    its own caps instead of restating them as literals that
+    drift."""
     spec = importlib.util.spec_from_file_location("get_repo_preflight", SCRIPT_PATH)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {SCRIPT_PATH}")
@@ -63,8 +66,9 @@ def get_report(cwd, *args):
 
 
 def get_section(report, name):
-    """Return the non-blank lines under the `[name]` header, whose own
-    line may carry a suffix (the log section names its range there)."""
+    """Return the non-blank lines under the `[name]` header,
+    whose own line may carry a suffix (the log section names its
+    range there)."""
     collected = []
     is_inside = False
     for line in report.splitlines():
@@ -82,7 +86,8 @@ def get_log_subjects(report):
 
 @pytest.fixture
 def repo(tmp_path):
-    """A git repo on branch `main` carrying a single seed commit."""
+    """A git repo on branch `main` carrying a single seed
+    commit."""
     run_git(tmp_path, "init", "-b", "main")
     run_git(tmp_path, "config", "user.email", "suite@example.test")
     run_git(tmp_path, "config", "user.name", "Preflight Suite")

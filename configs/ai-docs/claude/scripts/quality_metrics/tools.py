@@ -1,4 +1,5 @@
-"""Runs the external measuring tools and reads shellmetrics output."""
+"""Runs the external measuring tools and reads shellmetrics
+output."""
 
 import csv
 import io
@@ -16,9 +17,11 @@ class ToolError(RuntimeError):
 
 
 def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
-    """Run a command and return its result whatever its exit code.
+    """Run a command and return its result whatever its exit
+    code.
 
-    Raises subprocess.TimeoutExpired once `timeout` seconds pass.
+    Raises subprocess.TimeoutExpired once `timeout` seconds
+    pass.
     """
     try:
         return subprocess.run(
@@ -30,7 +33,8 @@ def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
 
 
 def run_tool(command, input_text=None, cwd=None, timeout=None):
-    """Run a command and return its stdout; raises ToolError on a non-zero exit."""
+    """Run a command and return its stdout; raises ToolError on
+    a non-zero exit."""
     result = run_command(command, input_text, cwd=cwd, timeout=timeout)
     if result.returncode != 0:
         raise ToolError(f"{' '.join(command)} failed: {result.stderr.strip()}")
@@ -38,11 +42,13 @@ def run_tool(command, input_text=None, cwd=None, timeout=None):
 
 
 def shellmetrics_rows(path, run=run_tool):
-    """shellmetrics' rows for a file; `run(command)` returns a command's stdout."""
+    """shellmetrics' rows for a file; `run(command)` returns a
+    command's stdout."""
     output = run(["shellmetrics", "--csv", str(path)])
     return list(csv.reader(io.StringIO(output)))[1:]
 
 
 def bash_file_lloc(path):
-    """A Bash file's logical lines: its functions' plus the top-level script's."""
+    """A Bash file's logical lines: its functions' plus the
+    top-level script's."""
     return sum(int(row[SHELLMETRICS_LLOC]) for row in shellmetrics_rows(path))

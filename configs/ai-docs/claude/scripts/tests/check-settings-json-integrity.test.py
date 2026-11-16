@@ -1,20 +1,24 @@
-"""Prove check-settings-json-integrity.py catches a detached settings.json symlink.
+"""Prove check-settings-json-integrity.py catches a detached
+settings.json symlink.
 
-configs/ai-docs/claude/settings.json is symlinked to ~/.claude/settings.json by
-install.sh. Claude Code's /config command and the update-config skill write
-settings.json through temp+rename, which replaces that symlink with a regular
-file and silently detaches it from the repo (see the repo CLAUDE.md's
-"settings.json caveat"). This script is the deterministic check for that one
-failure mode.
+configs/ai-docs/claude/settings.json is symlinked to
+~/.claude/settings.json by install.sh.
+Claude Code's /config command and the update-config skill write
+settings.json through temp+rename, which replaces that symlink
+with a regular file and silently detaches it from the repo
+(see the repo CLAUDE.md's "settings.json caveat").
+This script is the deterministic check for that one failure
+mode.
 
-Every test drives the script against a temp fixture directory via
---settings-path/--source-path, never the real ~/.claude/settings.json - that
-is a live user file whose symlink status is exactly what this script exists
-to detect, so a test reading it would be non-deterministic depending on
+Every test drives the script against a temp fixture directory
+via --settings-path/--source-path, never the real
+~/.claude/settings.json - that is a live user file whose
+symlink status is exactly what this script exists to detect,
+so a test reading it would be non-deterministic depending on
 whichever machine and session runs it.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/check-settings-json-integrity.test.py
+  ./run-tests.py <this file>
 """
 
 import subprocess

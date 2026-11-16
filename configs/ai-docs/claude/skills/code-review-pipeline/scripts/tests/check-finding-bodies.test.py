@@ -1,11 +1,11 @@
 """Blackbox CLI tests for check-finding-bodies.py.
 
-Every case writes its own verdict .md under tmp_path and reads the
-script's stdout/stderr/exit code back, so nothing depends on any file
-outside tmp_path or the script itself.
+Every case writes its own verdict .md under tmp_path and
+reads the script's stdout/stderr/exit code back, so nothing
+depends on any file outside tmp_path or the script itself.
 
 Usage:
-  pytest configs/ai-docs/claude/skills/code-review-pipeline/scripts/tests/check-finding-bodies.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -54,7 +54,8 @@ def _body(
     suggestion_text: str = SUGGESTION_TEXT,
     tradeoff_text: str = TRADEOFF_TEXT,
 ) -> str:
-    """Build a finding body; a None label or text drops that part."""
+    """Build a finding body; a None label or text drops that
+    part."""
     parts = [
         before_tag,
         f"**[{tag}]**",
@@ -104,7 +105,8 @@ def _assert_passes(result):
 
 
 def _padded_body(length, tag):
-    """A well-formed body whose stripped text is exactly `length` chars."""
+    """A well-formed body whose stripped text is exactly
+    `length` chars."""
     base = _body(tag=tag, summary="")
     filler = ("The rate unit is wrong. " * 60)[: length - len(base)]
     return _body(tag=tag, summary=filler)

@@ -1,8 +1,8 @@
-"""Tests for benchmark-quality-metrics.py: which metrics the benchmark
-puts in the declaration's per_unit list.
+"""Tests for benchmark-quality-metrics.py: which metrics the
+benchmark puts in the declaration's per_unit list.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/benchmark-quality-metrics.test.py
+  ./run-tests.py <this file>
 """
 
 import importlib

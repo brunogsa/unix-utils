@@ -94,7 +94,8 @@ PER_UNIT_LINE = re.compile(r"^per_unit:.*$", re.MULTILINE)
 
 
 def select_per_unit(timings):
-    """Metrics timed at the limit or faster, in declaration order."""
+    """Metrics timed at the limit or faster, in declaration
+    order."""
     return [
         metric
         for metric in declaring.METRIC_NAMES
@@ -103,7 +104,8 @@ def select_per_unit(timings):
 
 
 def write_per_unit(declaration_path, metrics):
-    """Replace the per_unit line, keeping the file's comments."""
+    """Replace the per_unit line, keeping the file's
+    comments."""
     path = Path(declaration_path)
     text = path.read_text()
     if not PER_UNIT_LINE.search(text):
@@ -117,12 +119,14 @@ def write_per_unit(declaration_path, metrics):
 
 
 def metrics_with_a_module():
-    """The metrics the measure script can run, in declaration order."""
+    """The metrics the measure script can run, in declaration
+    order."""
     return [metric for metric in declaring.METRIC_NAMES if metric in measuring.METRIC_MODULES]
 
 
 def metrics_declared_for(metric):
-    """CRAP runs the test suite only when coverage is declared too."""
+    """CRAP runs the test suite only when coverage is declared
+    too."""
     if metric == "crap":
         return ["crap", "coverage"]
     return [metric]
@@ -131,8 +135,9 @@ def metrics_declared_for(metric):
 def run_measured(exit_code, stdout):
     """True when the run measured the metric for real.
 
-    Exit 2 did not measure. A report holding a pessimistic result
-    (a red build scored 0%) timed a failure path, not the check.
+    Exit 2 did not measure.
+    A report holding a pessimistic result (a red build scored
+    0%) timed a failure path, not the check.
     """
     if exit_code == measuring.EXIT_UNMEASURED:
         return False
@@ -144,7 +149,8 @@ def run_measured(exit_code, stdout):
 
 
 def time_metric(metric, repo_root):
-    """One timed run: command, seconds, exit_code, stderr_tail, is_measured."""
+    """One timed run: command, seconds, exit_code, stderr_tail,
+    is_measured."""
     with tempfile.TemporaryDirectory() as directory:
         declaration_path = Path(directory) / "quality-metrics.yaml"
         declaration_path.write_text(BENCHMARK_LANGUAGE_ENTRY.format(
@@ -191,7 +197,8 @@ def evidence_section(results, per_unit):
 
 
 def measured_seconds(results):
-    """Seconds per metric, leaving out a run that did not measure."""
+    """Seconds per metric, leaving out a run that did not
+    measure."""
     return {
         metric: result["seconds"]
         for metric, result in results.items()
@@ -205,7 +212,8 @@ def append_text(path, text):
 
 
 def has_every_sample_file():
-    """True when every sample file exists; the missing ones are printed."""
+    """True when every sample file exists; the missing ones are
+    printed."""
     missing = [name for name in SAMPLE_FILES if not (REPO_ROOT / name).is_file()]
     if missing:
         print(f"sample files missing under {REPO_ROOT}: {missing}", file=sys.stderr)
@@ -213,7 +221,8 @@ def has_every_sample_file():
 
 
 def is_written(declaration_path, per_unit):
-    """True when per_unit was written; a rejected rewrite is printed."""
+    """True when per_unit was written; a rejected rewrite is
+    printed."""
     try:
         write_per_unit(declaration_path, per_unit)
     except declaring.DeclarationError as error:
@@ -223,7 +232,8 @@ def is_written(declaration_path, per_unit):
 
 
 def is_recorded(options, results, per_unit):
-    """Append the evidence and write per_unit; False when the write is rejected."""
+    """Append the evidence and write per_unit; False when the
+    write is rejected."""
     if options.evidence:
         append_text(options.evidence, evidence_section(results, per_unit))
     return options.dry_run or is_written(options.declaration, per_unit)

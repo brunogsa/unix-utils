@@ -1,4 +1,5 @@
-"""Chooses which tool measures a metric: the repo's own, or the global one.
+"""Chooses which tool measures a metric: the repo's own, or the
+global one.
 
 A repo's own tool wins. With none, the global tool measures it
 and the gap is a side-PR candidate.
@@ -91,7 +92,8 @@ GLOBAL_TOOLS = {
 
 
 class RepoToolFailure(ToolError):
-    """A repo tool gave no measurement; `exit_class` says why."""
+    """A repo tool gave no measurement; `exit_class` says
+    why."""
 
     def __init__(self, exit_class, detail):
         super().__init__(f"{exit_class}: {detail}")
@@ -108,8 +110,8 @@ class NoGlobalToolError(ToolError):
 def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
     """The lazy tool map of the repo around `working_directory`.
 
-    `base_ref` is required: a default of the branch head would let
-    a tool configured only on the branch into the map.
+    `base_ref` is required: a default of the branch head would
+    let a tool configured only on the branch into the map.
     Returns None outside a git repo.
     Nothing is detected or written until a metric asks the map
     for its entry.
@@ -126,11 +128,11 @@ def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
 def _base_ref_config_flags(repo, base_ref):
     """jest's flags for the config as `base_ref` committed it.
 
-    The copy lives in a subdirectory of the repo, so a preset it
-    requires by package name resolves from the repo's node_modules.
-    `--rootDir` keeps jest resolving paths against the repo. No flags,
-    and no directory made, when no ref is given or the base ref holds
-    no jest config.
+    The copy lives in a subdirectory of the repo, so a preset
+    it requires by package name resolves from the repo's
+    node_modules. `--rootDir` keeps jest resolving paths
+    against the repo. No flags, and no directory made, when no
+    ref is given or the base ref holds no jest config.
     """
     if base_ref is None:
         yield []
@@ -141,14 +143,17 @@ def _base_ref_config_flags(repo, base_ref):
 
 
 def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
-    """One coverage run of the repo's jest: how it exited, and every file's line hits.
+    """One coverage run of the repo's jest: how it exited, and
+    every file's line hits.
 
-    With a `base_ref`, jest reads the config that ref committed,
-    so a branch's own coverage excludes never shape the number.
+    With a `base_ref`, jest reads the config that ref
+    committed, so a branch's own coverage excludes never shape
+    the number.
 
-    The hits read valid when jest passed or exited non-zero on the
-    repo's own threshold: the harness judges the measured value against its
-    own limit. Any other outcome raises RepoToolFailure naming its class.
+    The hits read valid when jest passed or exited non-zero on
+    the repo's own threshold: the harness judges the measured
+    value against its own limit. Any other outcome raises
+    RepoToolFailure naming its class.
     """
     with tempfile.TemporaryDirectory() as report_dir, _base_ref_config_flags(repo, base_ref) as config_flags:
         result = run_command(
@@ -169,15 +174,18 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
 
 
 def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
-    """One coverage run of the repo's pytest: how it exited, and every file's line hits.
+    """One coverage run of the repo's pytest: how it exited,
+    and every file's line hits.
 
-    With a `base_ref`, coverage reads the config that ref committed
-    (`.coveragerc`, setup.cfg, tox.ini or pyproject.toml), or an empty
-    one when it committed none, so a branch's own omits never shape
-    the number. Without a `base_ref` it reads the repo's own file.
+    With a `base_ref`, coverage reads the config that ref
+    committed (`.coveragerc`, setup.cfg, tox.ini or
+    pyproject.toml), or an empty one when it committed none,
+    so a branch's own omits never shape the number. Without a
+    `base_ref` it reads the repo's own file.
 
-    A run that collected no tests reads as no hits. Otherwise the
-    hits read valid on the same exit classes as the repo jest's.
+    A run that collected no tests reads as no hits. Otherwise
+    the hits read valid on the same exit classes as the repo
+    jest's.
     """
     with tempfile.TemporaryDirectory() as work_dir:
         report = Path(work_dir) / "lcov.info"
@@ -203,10 +211,12 @@ REPO_COVERAGE_RUNNERS = {JEST: run_repo_jest, PYTEST_COV: run_repo_pytest_cov}
 
 
 def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None):
-    """The repo `tool`'s coverage run, bounded by `policy`'s timeout.
+    """The repo `tool`'s coverage run, bounded by `policy`'s
+    timeout.
 
-    Raises RepoToolFailure naming how the tool failed: a timeout on
-    both attempts is TIMEOUT, any other tool error is CRASH.
+    Raises RepoToolFailure naming how the tool failed: a
+    timeout on both attempts is TIMEOUT, any other tool error
+    is CRASH.
     """
     run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
     try:
@@ -220,10 +230,12 @@ def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None):
 
 
 def classify_exit(result):
-    """Name a repo tool's exit from its output; the exit code alone says too little.
+    """Name a repo tool's exit from its output; the exit code
+    alone says too little.
 
-    The first matching pattern wins, so failed tests rank above a
-    threshold miss: a coverage figure from failing tests is not valid.
+    The first matching pattern wins, so failed tests rank
+    above a threshold miss: a coverage figure from failing
+    tests is not valid.
     """
     if result.returncode == 0:
         return PASSED
@@ -235,13 +247,15 @@ def classify_exit(result):
 
 
 def _repo_tool_env(repo):
-    """The environment with the repo's local tool binaries first on PATH."""
+    """The environment with the repo's local tool binaries
+    first on PATH."""
     local_bin = Path(repo) / "node_modules" / ".bin"
     return {**os.environ, "PATH": f"{local_bin}{os.pathsep}{os.environ['PATH']}"}
 
 
 def global_tool_for(metric, language):
-    """The global tool measuring `metric` for `language`, or NoGlobalToolError."""
+    """The global tool measuring `metric` for `language`, or
+    NoGlobalToolError."""
     tool = GLOBAL_TOOLS.get(metric, {}).get(language)
     if tool is None:
         raise NoGlobalToolError(metric, language)
@@ -249,7 +263,8 @@ def global_tool_for(metric, language):
 
 
 def _repo_tool_for(metric, tool_map, language):
-    """The tool-map entry measuring `metric` for `language`, or None.
+    """The tool-map entry measuring `metric` for `language`, or
+    None.
 
     An entry stored before entries carried `languages` has none,
     so it matches no language and the global tool measures.
@@ -266,12 +281,13 @@ def _repo_tool_for(metric, tool_map, language):
 
 
 def source_for(metric, tool_map, language):
-    """Which tool measures `metric`, and the side-PR candidate if the repo lacks one.
+    """Which tool measures `metric`, and the side-PR candidate
+    if the repo lacks one.
 
-    `tool_map` is None outside a git repo, where no repo tool can
-    be missing, so there is no candidate. With no repo tool, the
-    global one for `language` measures; none for that pair raises
-    NoGlobalToolError.
+    `tool_map` is None outside a git repo, where no repo tool
+    can be missing, so there is no candidate. With no repo
+    tool, the global one for `language` measures; none for that
+    pair raises NoGlobalToolError.
     """
     repo_tool = _repo_tool_for(metric, tool_map, language)
     if repo_tool is not None:

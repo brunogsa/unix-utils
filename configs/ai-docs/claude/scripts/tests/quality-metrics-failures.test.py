@@ -47,7 +47,8 @@ INTERACTIVE_SESSION = {"CLAUDE_CODE_ENTRYPOINT": "cli"}
 
 
 def timing_out_then(outcomes, timeouts_seen):
-    """A tool attempt: raises a timeout for each None, else returns the outcome."""
+    """A tool attempt: raises a timeout for each None, else
+    returns the outcome."""
     remaining = list(outcomes)
 
     def attempt(timeout_seconds):
@@ -61,14 +62,16 @@ def timing_out_then(outcomes, timeouts_seen):
 
 
 def repo_with_crashing_jest(tmp_path, monkeypatch):
-    """A repo whose jest dies on an internal error, and its one JS target."""
+    """A repo whose jest dies on an internal error, and its one
+    JS target."""
     repo = make_repo(tmp_path, {"jest.config.js": "module.exports = {};\n", "src/cart.js": "// covered\n"})
     install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
     return repo, Target(repo / "src/cart.js", "js", None, repo_path="src/cart.js")
 
 
 def lazy_tool_map_with_detectors(repo, map_dir):
-    """The repo's tool map under the real detector rules, so a jest config lists jest."""
+    """The repo's tool map under the real detector rules, so a
+    jest config lists jest."""
     return LazyToolMap(repo, head_of(repo), load_detector_rules(DETECTOR_RULES_PATH), SESSION_ID, map_dir)
 
 

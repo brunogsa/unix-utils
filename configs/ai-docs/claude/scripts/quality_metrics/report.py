@@ -1,10 +1,12 @@
-"""Builds the metrics verdict text from a measure-quality-metrics report.
+"""Builds the metrics verdict text from a
+measure-quality-metrics report.
 
-Order: deferred metrics, tooling asks and exceptions first, then the
-open violations, then the rest, with the coverage sources before the
-code design. An exception counts only with a split
-diff saved on disk and no rejection by the judge, so a claim made
-in prose alone, or one the judge rejected, stays an open violation.
+Order: deferred metrics, tooling asks and exceptions first, then
+the open violations, then the rest, with the coverage sources
+before the code design.
+An exception counts only with a split diff saved on disk and no
+rejection by the judge, so a claim made in prose alone, or one
+the judge rejected, stays an open violation.
 """
 
 import collections
@@ -36,7 +38,8 @@ NO_GIT_SKIPPED = (
 
 
 def verdict_filename(timestamp, in_git=True):
-    """The verdict's file name; a run outside git is named so a reader sees it."""
+    """The verdict's file name; a run outside git is named so a
+    reader sees it."""
     if in_git:
         return f"verdict_metrics_{timestamp}.md"
     return f"verdict_quality-gate_no-git_{timestamp}.md"
@@ -45,9 +48,10 @@ def verdict_filename(timestamp, in_git=True):
 def write_verdict(directory, timestamp, text, in_git=True):
     """Write the verdict into `directory` and return its path.
 
-    The text goes to a hidden temp file in the same directory, then a
-    rename, so a reader sees no verdict or the whole one. A killed run
-    leaves only the temp file, whose name never matches `verdict_*`.
+    The text goes to a hidden temp file in the same directory,
+    then a rename, so a reader sees no verdict or the whole one.
+    A killed run leaves only the temp file, whose name never
+    matches `verdict_*`.
     """
     target = Path(directory) / verdict_filename(timestamp, in_git)
     write_text_atomically(target, text, temp_prefix=".verdict-tmp-")
@@ -58,9 +62,10 @@ def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
     """Verdict markdown.
 
     `exceptions` are claims with a saved split diff path, marked
-    `rejected` once the judge ruled the split does not read worse;
-    `import_edges` are (importer, imported) file pairs;
-    `in_git` is False when no git repo encloses the working directory.
+    `rejected` once the judge ruled the split does not read
+    worse; `import_edges` are (importer, imported) file pairs;
+    `in_git` is False when no git repo encloses the working
+    directory.
     """
     numbers = itertools.count(1)
     claims_by_key = {_key(claim): claim for claim in exceptions}
@@ -104,7 +109,8 @@ def _exceptions_section(accepted, numbers):
 
 
 def _deferred_section(measurements, numbers):
-    """One entry per deferred metric, counting the records its tool could not measure.
+    """One entry per deferred metric, counting the records its
+    tool could not measure.
 
     A failed test run is pessimistic too but carries no deferral
     label: it is a red build, not deferred tooling.

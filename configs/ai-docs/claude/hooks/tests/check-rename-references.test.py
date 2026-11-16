@@ -1,15 +1,17 @@
 """Blackbox CLI tests for check-rename-references.py.
 
-Every repo, settings.json, and script referenced by a test is a fixture
-built under tmp_path and passed explicitly via --repo/--settings/
---native-home/--foreign-home -- no test relies on this machine's real
-unix-utils or oh-my-zsh checkout (the one exception, the 2-second-budget
-corner test, says so explicitly). --settings defaults to a nonexistent
-path in every test that isn't itself testing settings.json content, so
-a test never accidentally reads this repo's real settings.json.
+Every repo, settings.json, and script referenced by a test is
+a fixture built under tmp_path and passed explicitly via
+--repo/--settings/--native-home/--foreign-home -- no test
+relies on this machine's real unix-utils or oh-my-zsh checkout
+(the one exception, the 2-second-budget corner test, says so
+explicitly).
+--settings defaults to a nonexistent path in every test that
+isn't itself testing settings.json content, so a test never
+accidentally reads this repo's real settings.json.
 
 Usage:
-  pytest configs/ai-docs/claude/hooks/tests/check-rename-references.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -37,7 +39,8 @@ def _write(path, content="# fixture script, body not read by the checker\n"):
 
 def _no_settings(tmp_path):
     """A --settings path that never exists, so tests not about
-    settings.json content get a clean, empty scan of that source."""
+    settings.json content get a clean, empty scan of that
+    source."""
     return str(tmp_path / "no-settings.json")
 
 

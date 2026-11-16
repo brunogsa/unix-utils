@@ -1,82 +1,124 @@
 #!/usr/bin/env python3
-"""subagent-model-guard - PreToolUse hard-deny gate for Agent tool model pins
+"""subagent-model-guard - PreToolUse hard-deny gate for Agent
+tool model pins
 
 Usage (Claude Code PreToolUse hook, matcher "Agent"):
-  Reads the tool-call JSON from stdin, decides allow/deny for the dispatched
-  subagent, and prints a deny decision to stdout when it fires. Exits 0 in
-  every case (Claude Code's PreToolUse "deny" is expressed via JSON on stdout,
-  not via exit code -- see the printf calls below).
+  Reads the tool-call JSON from stdin, decides allow/deny for
+  the dispatched subagent, and prints a deny decision to
+  stdout when it fires. Exits 0 in every case (Claude Code's
+  PreToolUse "deny" is expressed via JSON on stdout, not via
+  exit code -- see the printf calls below).
 
 Policy:
-  Every agent-frontmatter file under ~/.claude/agents/*.md is the single
-  source of truth for pins -- this hook carries no allowlist of its own, so
-  it can never drift out of sync with the frontmatter.
+  Every agent-frontmatter file under ~/.claude/agents/*.md is
+  the single source of truth for pins -- this hook carries no
+  allowlist of its own, so it can never drift out of sync with
+  the frontmatter.
 
-  - PINNED subagent_type (frontmatter has `model:`): the dispatched
-    tool_input.model must be absent or match the pin (aliases sonnet/opus/
-    haiku/fable match any full model ID of that family, e.g. claude-sonnet-5).
-    A present-but-mismatched model is denied -- the frontmatter outranks any
-    skill or reference instructing a caller to override the pin, so such a
-    doc is a conflict to surface rather than grounds to allow the dispatch.
-    Only `model` is gated; `effort` is reported in the deny reason for
-    context but never enforced, so overriding a pinned effort is legal.
+  - PINNED subagent_type (frontmatter has `model:`): the
+    dispatched tool_input.model must be absent or match the
+    pin (aliases sonnet/opus/haiku/fable match any full model
+    ID of that family, e.g. claude-sonnet-5).
+    A present-but-mismatched model is denied -- the
+    frontmatter outranks any skill or reference instructing a
+    caller to override the pin, so such a doc is a conflict to
+    surface rather than grounds to allow the dispatch.
+    Only `model` is gated; `effort` is reported in the deny
+    reason for context but never enforced, so overriding a
+    pinned effort is legal.
   - PINNED WITH DECLARED OVERRIDES (frontmatter also has
-    `allowedModelOverrides:`): the pin still binds when the caller names no
-    model, but a model matching any listed family is allowed too. This is how
-    an agent whose default tier fits most dispatches opts into a second tier
-    for the minority that need it, without the escape hatch leaking to every
-    other pinned agent. Declaring it in frontmatter keeps this hook free of an
-    allowlist of its own -- the agent file stays the single source of truth.
-  - UNPINNED subagent_type (no matching agent file, or a file without
-    `model:`): tool_input.model must be present -- an omitted model on an
-    unpinned type silently inherits the session's (possibly expensive) model,
-    so it is denied. Any explicit model is accepted; the invoker decides --
-    unless the file declares `deniedModels:` (see below), which still binds.
-  - UNPINNED WITH DECLARED DENIALS (frontmatter has `deniedModels:` but no
-    `model:`): the type stays otherwise unpinned -- any named model not on
-    the list is accepted -- but a model matching a listed family is denied.
-    This is how a type whose whole point is inheriting the caller's model
-    (general-purpose) can still rule out specific expensive/lower-precision
-    tiers without becoming pinned to a single one. Same reasoning as
-    `allowedModelOverrides:`: declaring it in frontmatter keeps this hook
-    free of an allowlist of its own.
-  - A DISPATCH WITH NO `subagent_type` AT ALL resolves to `general-purpose`,
-    mirroring the Agent tool's own documented default ("omitting it starts a
-    fresh agent -- general-purpose by default"). It is not a fail-open case:
-    treating it as unresolvable let a caller dodge every check below --
-    including `general-purpose`'s own `deniedModels:` -- just by leaving the
-    field out, which defeats the ban rather than being neutral to it.
-  - THE `fork` TYPE is exempt from all of the above. A conversation fork has
-    no agent file to pin and always runs the main session's model, so the
-    unpinned branch's rationale -- that an omitted model silently inherits
-    the session tier -- never applied to it: inheriting IS a fork's contract.
-    Denying it merely forced callers to name a model the harness then ignored.
-    This is a narrow exception for one literal type, not a loosened threshold,
-    so every other unpinned type still has to name its tier.
+    `allowedModelOverrides:`): the pin still binds when the
+    caller names no model, but a model matching any listed
+    family is allowed too. This is how an agent whose default
+    tier fits most dispatches opts into a second tier for the
+    minority that need it, without the escape hatch leaking to
+    every other pinned agent. Declaring it in frontmatter
+    keeps this hook free of an allowlist of its own -- the
+    agent file stays the single source of truth.
+  - UNPINNED subagent_type (no matching agent file, or a file
+    without `model:`): tool_input.model must be present -- an
+    omitted model on an unpinned type silently inherits the
+    session's (possibly expensive) model, so it is denied.
+    Any explicit model is accepted; the invoker decides --
+    unless the file declares `deniedModels:` (see below),
+    which still binds.
+  - UNPINNED WITH DECLARED DENIALS (frontmatter has
+    `deniedModels:` but no `model:`): the type stays otherwise
+    unpinned -- any named model not on the list is accepted --
+    but a model matching a listed family is denied.
+    This is how a type whose whole point is inheriting the
+    caller's model (general-purpose) can still rule out
+    specific expensive/lower-precision tiers without becoming
+    pinned to a single one. Same reasoning as
+    `allowedModelOverrides:`: declaring it in frontmatter
+    keeps this hook free of an allowlist of its own.
+  - A DISPATCH WITH NO `subagent_type` AT ALL resolves to
+    `general-purpose`, mirroring the Agent tool's own
+    documented default ("omitting it starts a fresh agent --
+    general-purpose by default"). It is not a fail-open case:
+    treating it as unresolvable let a caller dodge every check
+    below -- including `general-purpose`'s own `deniedModels:`
+    -- just by leaving the field out, which defeats the ban
+    rather than being neutral to it.
+  - THE `fork` TYPE is exempt from all of the above. A
+    conversation fork has no agent file to pin and always runs
+    the main session's model, so the unpinned branch's
+    rationale -- that an omitted model silently inherits the
+    session tier -- never applied to it: inheriting IS a
+    fork's contract.
+    Denying it merely forced callers to name a model the
+    harness then ignored.
+    This is a narrow exception for one literal type, not a
+    loosened threshold, so every other unpinned type still has
+    to name its tier.
 
-  Fail-open on anything unexpected (malformed stdin, unreadable agents dir,
-  unreadable agent file): exit 0 with no output, so a hook bug never bricks
-  every subagent dispatch. A pinned type with a present-but-unparseable
-  tool_input.model is NOT an "unexpected error" -- it is a normal mismatch,
-  so it still denies (see PINNED case above).
+  Fail-open on anything unexpected (malformed stdin,
+  unreadable agents dir, unreadable agent file): exit 0 with
+  no output, so a hook bug never bricks every subagent
+  dispatch. A pinned type with a present-but-unparseable
+  tool_input.model is NOT an "unexpected error" -- it is a
+  normal mismatch, so it still denies (see PINNED case above).
 
 Examples:
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"code-reviewer"}}' \
-    | subagent-model-guard.py                          # allowed (omitted model, pinned)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"code-reviewer","model":"haiku"}}' \
-    | subagent-model-guard.py                          # denied (wrong model for the pin)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"tdd-coder","model":"opus"}}' \
-    | subagent-model-guard.py                          # allowed (declared override tier)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose"}}' \
-    | subagent-model-guard.py                          # denied (unpinned, no model named)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"opus"}}' \
-    | subagent-model-guard.py                          # allowed (opus is not on general-purpose's deniedModels)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"general-purpose","model":"sonnet"}}' \
-    | subagent-model-guard.py                          # allowed (sonnet is not denied)
+  # allowed (omitted model, pinned)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"code-reviewer"}}' \
+    | subagent-model-guard.py
+
+  # denied (wrong model for the pin)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"code-reviewer","model":"haiku"}}' \
+    | subagent-model-guard.py
+
+  # allowed (declared override tier)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"tdd-coder","model":"opus"}}' \
+    | subagent-model-guard.py
+
+  # denied (unpinned, no model named)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"general-purpose"}}' \
+    | subagent-model-guard.py
+
+  # allowed (opus is not on general-purpose's deniedModels)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"general-purpose","model":"opus"}}' \
+    | subagent-model-guard.py
+
+  # allowed (sonnet is not denied)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"general-purpose","model":"sonnet"}}' \
+    | subagent-model-guard.py
+
+  # allowed (no subagent_type resolves to general-purpose,
+  # which allows opus)
   echo '{"tool_name":"Agent","tool_input":{"model":"opus"}}' \
-    | subagent-model-guard.py                          # allowed (no subagent_type resolves to general-purpose, which allows opus)
-  echo '{"tool_name":"Agent","tool_input":{"subagent_type":"fork"}}' \
-    | subagent-model-guard.py                          # allowed (a fork takes the session's model)
+    | subagent-model-guard.py
+
+  # allowed (a fork takes the session's model)
+  echo '{"tool_name":"Agent","tool_input":'\
+  '{"subagent_type":"fork"}}' \
+    | subagent-model-guard.py
 """
 
 import json
@@ -92,12 +134,14 @@ FRONTMATTER_KEYS = ("name", "model", "effort", "allowedModelOverrides", "deniedM
 
 
 def normalize_model(value):
-    """Collapse a model alias or full model ID to its family alias.
+    """Collapse a model alias or full model ID to its family
+    alias.
 
-    claude-sonnet-5, claude-3-5-sonnet-20241022, and "sonnet" all normalize
-    to "sonnet" so a pin survives model-ID version bumps. A value with no
-    recognized family name is returned lowercased and unchanged, so it still
-    compares (and correctly fails to match) against a real pin.
+    claude-sonnet-5, claude-3-5-sonnet-20241022, and "sonnet"
+    all normalize to "sonnet" so a pin survives model-ID
+    version bumps. A value with no recognized family name is
+    returned lowercased and unchanged, so it still compares
+    (and correctly fails to match) against a real pin.
     """
     if value is None:
         return None
@@ -109,13 +153,16 @@ def normalize_model(value):
 
 
 def parse_model_list(value):
-    """Normalize an `allowedModelOverrides:`/`deniedModels:` value into family aliases.
+    """Normalize an `allowedModelOverrides:`/`deniedModels:`
+    value into family aliases.
 
-    Accepts both spellings the frontmatter can carry -- a comma-separated
-    scalar (`opus` / `opus, fable`) and YAML's inline flow list
-    (`[opus, fable]`) -- because the agent file is hand-edited and neither
-    form is wrong there. An absent or empty key yields an empty tuple, which
-    is what keeps every agent that never declares either key unaffected.
+    Accepts both spellings the frontmatter can carry -- a
+    comma-separated scalar (`opus` / `opus, fable`) and YAML's
+    inline flow list (`[opus, fable]`) -- because the agent
+    file is hand-edited and neither form is wrong there.
+    An absent or empty key yields an empty tuple, which is
+    what keeps every agent that never declares either key
+    unaffected.
     """
     if not value:
         return ()
@@ -125,11 +172,13 @@ def parse_model_list(value):
 
 
 def parse_agent_frontmatter(path):
-    """Naively extract the flat name:/model:/effort: keys between the --- delimiters.
+    """Naively extract the flat name:/model:/effort: keys
+    between the --- delimiters.
 
-    Only zero-indented `key: value` lines count, so nested block keys (e.g. a
-    hooks: sub-block's `command: ...`) can never be mistaken for a top-level
-    pin -- they're indented and this parser only matches line-start keys.
+    Only zero-indented `key: value` lines count, so nested
+    block keys (e.g. a hooks: sub-block's `command: ...`) can
+    never be mistaken for a top-level pin -- they're indented
+    and this parser only matches line-start keys.
     """
     lines = path.read_text().splitlines()
     if not lines or lines[0].strip() != "---":
@@ -148,11 +197,13 @@ def parse_agent_frontmatter(path):
 
 
 def load_agent_pins():
-    """Map every known subagent_type spelling to its {model, effort} pin (if any).
+    """Map every known subagent_type spelling to its
+    {model, effort} pin (if any).
 
-    Each agent file is indexed under both its frontmatter `name:` and its
-    filename stem, so a dispatch can resolve either way. A subagent_type with
-    no entry here is UNPINNED by definition -- there is no local agent file
+    Each agent file is indexed under both its frontmatter
+    `name:` and its filename stem, so a dispatch can resolve
+    either way. A subagent_type with no entry here is
+    UNPINNED by definition -- there is no local agent file
     governing it.
     """
     pins = {}

@@ -107,7 +107,9 @@ IDLE_CAP_SECONDS = 30 * 60
 
 
 def git(path, *args):
-    """Run git in `path`, returning stdout or "" when the command fails."""
+    """Run git in `path`, returning stdout or "" when the
+    command fails.
+    """
     try:
         out = subprocess.run(["git", "-C", path, *args],
                              capture_output=True, text=True, check=True)
@@ -117,10 +119,12 @@ def git(path, *args):
 
 
 def find_repos(root=HOME):
-    """Every git checkout under `root` that is neither personal-env nor vendored.
+    """Every git checkout under `root` that is neither
+    personal-env nor vendored.
 
-    Discovery rather than a configured list: the user asked for "ALL repos I have
-    worked on this machine", and a hardcoded list silently misses the next clone.
+    Discovery rather than a configured list: the user asked
+    for "ALL repos I have worked on this machine", and a
+    hardcoded list silently misses the next clone.
     """
     found = []
     for current, subdirs, _ in os.walk(root):
@@ -142,7 +146,9 @@ def find_repos(root=HOME):
 
 
 def default_branch(path):
-    """The repo's default branch ref, or "" when it has no remote to name one."""
+    """The repo's default branch ref, or "" when it has no
+    remote to name one.
+    """
     ref = git(path, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
     if ref:
         return ref
@@ -153,11 +159,13 @@ def default_branch(path):
 
 
 def last_fetch_day(path):
-    """The day this repo last heard from its remote, or "" if it never did.
+    """The day this repo last heard from its remote, or "" if
+    it never did.
 
-    FETCH_HEAD's mtime rather than a git query: git records no timestamp for the
-    last fetch, and the reflog on the remote-tracking ref only moves when the
-    fetch actually advanced it, so a quiet repo would read as never-fetched.
+    FETCH_HEAD's mtime rather than a git query: git records
+    no timestamp for the last fetch, and the reflog on the
+    remote-tracking ref only moves when the fetch actually
+    advanced it, so a quiet repo would read as never-fetched.
     """
     marker = os.path.join(path, ".git", "FETCH_HEAD")
     try:
@@ -168,17 +176,21 @@ def last_fetch_day(path):
 
 
 def shipped_commits(path, branch, since_day, until_day):
-    """This author's non-merge commits on `branch`, as (day, subject) pairs.
+    """This author's non-merge commits on `branch`, as
+    (day, subject) pairs.
 
-    Merge commits are excluded because a merge authors no work - counting it
-    would credit the act of landing a branch as a second unit of delivery on top
-    of the commits it brings.
+    Merge commits are excluded because a merge authors no
+    work - counting it would credit the act of landing a
+    branch as a second unit of delivery on top of the
+    commits it brings.
 
-    The window is applied here rather than by `git log --since/--until`, which
-    filter on COMMITTER date while this ledger attributes by AUTHOR date. A
-    rebased or cherry-picked commit carries those two dates weeks apart, so
-    handing the window to git would file it under a day git never selected it
-    for. Walking the full history instead costs ~0.1s on a 4,600-commit repo.
+    The window is applied here rather than by
+    `git log --since/--until`, which filter on COMMITTER date
+    while this ledger attributes by AUTHOR date. A rebased or
+    cherry-picked commit carries those two dates weeks apart,
+    so handing the window to git would file it under a day
+    git never selected it for. Walking the full history
+    instead costs ~0.1s on a 4,600-commit repo.
     """
     authors = [f"--author={who}" for who in AUTHOR_PATTERNS]
     fmt = FIELD_SEP.join(["%ad", "%s"])
@@ -195,14 +207,17 @@ def shipped_commits(path, branch, since_day, until_day):
 
 
 def merged_pull_requests(since_day, until_day):
-    """Merged PRs authored by this user, as (day, repo, title) triples.
+    """Merged PRs authored by this user, as (day, repo, title)
+    triples.
 
-    `gh search prs` exposes no mergedAt field, so this reads closedAt - for a PR
-    whose state is merged the two are the same instant.
+    `gh search prs` exposes no mergedAt field, so this reads
+    closedAt - for a PR whose state is merged the two are the
+    same instant.
 
-    Returns (rows, warning): a missing or unauthenticated gh yields no rows and a
-    warning rather than an exception, so the commit half of the ledger still
-    builds on a machine without the CLI.
+    Returns (rows, warning): a missing or unauthenticated gh
+    yields no rows and a warning rather than an exception, so
+    the commit half of the ledger still builds on a machine
+    without the CLI.
     """
     cmd = ["gh", "search", "prs", "--author=@me", "--merged",
            f"--merged-at={since_day}..{until_day}", "--limit", "200",
@@ -229,12 +244,14 @@ def merged_pull_requests(since_day, until_day):
 
 
 def pull_request_branches(repos, since_day, until_day):
-    """Merged PRs with their head branch, as dicts, plus a warning string.
+    """Merged PRs with their head branch, as dicts, plus a
+    warning string.
 
-    A second gh call rather than a field on merged_pull_requests()' search:
-    `gh search prs` exposes no headRefName at all, so the head branch has to be
-    read per repo. The search still decides WHICH repos are asked, so a repo
-    with no merged PR in the window is never queried.
+    A second gh call rather than a field on
+    merged_pull_requests()' search: `gh search prs` exposes no
+    headRefName at all, so the head branch has to be read per
+    repo. The search still decides WHICH repos are asked, so a
+    repo with no merged PR in the window is never queried.
     """
     rows = []
     failures = []
@@ -268,7 +285,9 @@ def pull_request_branches(repos, since_day, until_day):
 
 
 def parse_epoch(stamp):
-    """An ISO-8601 timestamp as a UTC epoch, or None when it will not parse."""
+    """An ISO-8601 timestamp as a UTC epoch, or None when it
+    will not parse.
+    """
     try:
         parsed = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
     except (AttributeError, ValueError):
@@ -277,21 +296,24 @@ def parse_epoch(stamp):
 
 
 def branch_activity(branches, root=TRANSCRIPTS_ROOT):
-    """Record timestamps per branch name, over every transcript on this machine.
+    """Record timestamps per branch name, over every
+    transcript on this machine.
 
-    Keyed on the branch name ALONE, and deliberately so. Each ticket is worked
-    in its own checkout (`integrator-3280`, not `arco2-integrator`) which is
-    deleted once the PR merges, so neither the directory name nor its git
-    remote can name the repo by the time this runs. The branch name is the only
-    join key that outlives the work.
+    Keyed on the branch name ALONE, and deliberately so. Each
+    ticket is worked in its own checkout (`integrator-3280`,
+    not `arco2-integrator`) which is deleted once the PR
+    merges, so neither the directory name nor its git remote
+    can name the repo by the time this runs. The branch name
+    is the only join key that outlives the work.
 
-    That narrowness is also the tooling filter: `master` in this config repo is
-    nobody's pull-request head ref, so only branches that actually shipped a PR
-    can match, and no cwd check is needed to keep tooling time out.
+    That narrowness is also the tooling filter: `master` in
+    this config repo is nobody's pull-request head ref, so
+    only branches that actually shipped a PR can match, and no
+    cwd check is needed to keep tooling time out.
 
-    Personal-environment records are still dropped, for the one case the join
-    key cannot resolve: the same branch name used in both a work repo and this
-    one.
+    Personal-environment records are still dropped, for the
+    one case the join key cannot resolve: the same branch name
+    used in both a work repo and this one.
     """
     wanted = set(branches)
     epochs = defaultdict(list)
@@ -328,19 +350,24 @@ def branch_activity(branches, root=TRANSCRIPTS_ROOT):
 
 
 def is_personal_env(cwd):
-    """Whether a working directory sits inside the five tooling repos."""
+    """Whether a working directory sits inside the five
+    tooling repos.
+    """
     return any(part in PERSONAL_ENV for part in cwd.split("/"))
 
 
 def active_seconds(epochs, cap=IDLE_CAP_SECONDS):
-    """Summed gaps between consecutive records, dropping gaps over the cap.
+    """Summed gaps between consecutive records, dropping gaps
+    over the cap.
 
-    Summed gaps rather than last-minus-first, because a branch is worked in
-    several sittings across days: its span would count the nights between them.
+    Summed gaps rather than last-minus-first, because a
+    branch is worked in several sittings across days: its span
+    would count the nights between them.
 
-    The cap is what makes the sum mean attention rather than elapsed time. It
-    barely moves the total - the same series reads 51.6h at a 5-minute cap and
-    67.8h at 60 minutes - so the metric is not an artifact of where it is set.
+    The cap is what makes the sum mean attention rather than
+    elapsed time. It barely moves the total - the same series
+    reads 51.6h at a 5-minute cap and 67.8h at 60 minutes - so
+    the metric is not an artifact of where it is set.
     """
     ordered = sorted(epochs)
     total = 0.0
@@ -352,15 +379,17 @@ def active_seconds(epochs, cap=IDLE_CAP_SECONDS):
 
 
 def attribute_work_time(prs, activity):
-    """Per-PR work and lead time, plus the branches that could not be joined.
+    """Per-PR work and lead time, plus the branches that could
+    not be joined.
 
-    A branch that shipped two PRs has its time SPLIT between them rather than
-    counted once per PR: the pooled `work hours / merged PR` divides by every
-    merged PR, so crediting one branch's hours twice would inflate the KPI by
-    exactly the amount of the double-count.
+    A branch that shipped two PRs has its time SPLIT between
+    them rather than counted once per PR: the pooled
+    `work hours / merged PR` divides by every merged PR, so
+    crediting one branch's hours twice would inflate the KPI
+    by exactly the amount of the double-count.
 
-    Lead time is not split, because elapsed calendar time is not additive -
-    both PRs really did wait that long.
+    Lead time is not split, because elapsed calendar time is
+    not additive - both PRs really did wait that long.
     """
     sharers = Counter(pr["branch"] for pr in prs)
 
@@ -412,7 +441,9 @@ def attribute_work_time(prs, activity):
 
 
 def build(since_day, until_day, root=HOME):
-    """The whole ledger: per-day counts, the repos behind them, and caveats."""
+    """The whole ledger: per-day counts, the repos behind
+    them, and caveats.
+    """
     commits_by_day = Counter()
     prs_by_day = Counter()
     per_repo = {}
@@ -518,11 +549,13 @@ def snapshot_days():
 
 
 def load(path=LEDGER_PATH):
-    """The whole committed ledger, or {} when it has not been built yet.
+    """The whole committed ledger, or {} when it has not been
+    built yet.
 
-    Returns the full payload rather than just `days` so a caller can check the
-    declared window: a run of days that shipped nothing is real data, and
-    inferring coverage from the last delivered day would call it staleness.
+    Returns the full payload rather than just `days` so a
+    caller can check the declared window: a run of days that
+    shipped nothing is real data, and inferring coverage from
+    the last delivered day would call it staleness.
     """
     try:
         with open(path) as fh:

@@ -64,7 +64,8 @@ FIELD_SEP = "\x1f"
 
 
 def repo_root():
-    """The unix-utils checkout holding this skill, or None when it is not a repo."""
+    """The unix-utils checkout holding this skill, or None when
+    it is not a repo."""
     try:
         out = subprocess.run(
             ["git", "-C", SKILL_DIR, "rev-parse", "--show-toplevel"],
@@ -77,9 +78,10 @@ def repo_root():
 def classify(path):
     """A changed file -> the config surface it belongs to.
 
-    Surfaces are what an audit reasons about ("did a skill change or did the
-    model pin change?"), so collapsing file paths into them keeps a day with 40
-    commits readable without dropping which levers actually moved.
+    Surfaces are what an audit reasons about ("did a skill
+    change or did the model pin change?"), so collapsing file
+    paths into them keeps a day with 40 commits readable without
+    dropping which levers actually moved.
     """
     rest = path[len(CONFIG_PATH) + 1:] if path.startswith(CONFIG_PATH + "/") else path
     parts = rest.split("/")
@@ -92,11 +94,13 @@ def classify(path):
 
 
 def read_commits(root, since_day, until_day):
-    """Commits touching the config tree in [since_day, until_day], newest first.
+    """Commits touching the config tree in [since_day,
+    until_day], newest first.
 
-    Both bounds are committer-date, matching git's own --since/--until filter -
-    %ad (author date) can differ, and mixing the two makes the printed dates
-    disagree with the range that selected them.
+    Both bounds are committer-date, matching git's own
+    --since/--until filter - %ad (author date) can differ, and
+    mixing the two makes the printed dates disagree with the
+    range that selected them.
     """
     fmt = RECORD_SEP + FIELD_SEP.join(["%cd", "%h", "%s"])
     try:

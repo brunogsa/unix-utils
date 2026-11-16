@@ -1,11 +1,12 @@
 """Blackbox CLI tests for fetch-issue-context.py.
 
-Every fixture is a fake `linear` executable and a fake Jira helper
-script written under tmp_path, with HOME and PATH pointed at them, so
-no case touches a real tracker or the user's real skills tree.
+Every fixture is a fake `linear` executable and a fake Jira
+helper script written under tmp_path, with HOME and PATH
+pointed at them, so no case touches a real tracker or the
+user's real skills tree.
 
 Usage:
-  pytest configs/ai-docs/claude/skills/code-review-pipeline/scripts/tests/fetch-issue-context.test.py
+  ./run-tests.py <this file>
 """
 
 import os
@@ -27,15 +28,21 @@ UNKNOWN_KEY = "NOPE-1"
 def _make_linear(
     tmp_path, sleep_seconds=0, fail_after_output=False, spawn_marker_child=False, slow_first_start=False,
 ):
-    """Fake `linear` on a PATH dir: prints LINEAR_BLOCK for LINEAR_KEY,
-    exits 1 otherwise, and appends its argv to argv.log.
+    """Fake `linear` on a PATH dir: prints LINEAR_BLOCK for
+    LINEAR_KEY, exits 1 otherwise, and appends its argv to
+    argv.log.
 
-    fail_after_output makes the hit path print LINEAR_BLOCK and then exit 1.
-    spawn_marker_child makes it start a background child that sleeps 30 s and
-    only then writes tmp_path/child-finished.marker, records its pid in tmp_path/child.pid, then waits on it.
+    fail_after_output makes the hit path print LINEAR_BLOCK and
+    then exit 1.
+    spawn_marker_child makes it start a background child that
+    sleeps 30 s and only then writes
+    tmp_path/child-finished.marker, records its pid in
+    tmp_path/child.pid, then waits on it.
 
-    slow_first_start makes only its first invocation stall 1.5 s before anything else, the way a
-    loaded machine delays a fresh process, so a 1 s timeout kills it before it can spawn the child."""
+    slow_first_start makes only its first invocation stall 1.5 s
+    before anything else, the way a loaded machine delays a
+    fresh process, so a 1 s timeout kills it before it can spawn
+    the child."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "linear"
@@ -68,7 +75,8 @@ def _make_linear(
 
 
 def _make_jira_helper(tmp_path):
-    """Fake Jira helper under tmp_path/home, records each call in jira-called.log."""
+    """Fake Jira helper under tmp_path/home, records each call
+    in jira-called.log."""
     helper = tmp_path / "home/.claude/skills/jira-cli/scripts/fetch-jira-review-context.sh"
     helper.parent.mkdir(parents=True, exist_ok=True)
     helper.write_text(
@@ -93,8 +101,9 @@ def _env(
     spawn_marker_child=False,
     slow_first_start=False,
 ):
-    """Environment with HOME at the fixture tree and PATH holding the fake
-    linear first (or, when absent, only the system dirs bash needs)."""
+    """Environment with HOME at the fixture tree and PATH
+    holding the fake linear first (or, when absent, only the
+    system dirs bash needs)."""
     env = dict(os.environ)
     env["HOME"] = str(tmp_path / "home")
     if with_linear:

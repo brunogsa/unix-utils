@@ -59,7 +59,8 @@ def target(file):
 
 
 def measured(*records):
-    """A measure report: every record, and the over-limit ones as violations."""
+    """A measure report: every record, and the over-limit ones
+    as violations."""
     return {
         "measurements": list(records),
         "violations": [item for item in records if is_over_limit(item)],
@@ -238,7 +239,8 @@ IMPORT_EDGES = [
 
 
 def nodes_by_file(view):
-    """Each node's file path and color, read back from the Mermaid text."""
+    """Each node's file path and color, read back from the
+    Mermaid text."""
     return {
         label.split("<br/>")[0]: color for _, label, color in NODE_LINE.findall(view)
     }

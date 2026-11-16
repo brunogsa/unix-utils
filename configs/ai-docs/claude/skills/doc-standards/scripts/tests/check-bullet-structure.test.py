@@ -1,17 +1,23 @@
-"""Tests for check-bullet-structure.py - the report-only list-structure checker.
+"""Tests for check-bullet-structure.py - the report-only
+list-structure checker.
 
-Three rules, each asserted as exact `(line, detail)` rows rather than a count:
+Three rules, each asserted as exact `(line, detail)` rows rather
+than a count:
 
-  dangling-colon  a list item ending in ":" whose next list item sits at the
-                  same or a shallower indent, so the colon introduces nothing.
-  dangling-dash   a list item ending in an em dash or " --" whose next list
-                  item, at the same or a shallower indent, continues the
-                  sentence in lowercase.
-  staircase       a chain of 3+ list items, each the single child of the one
-                  above, reported once at the chain's head with its span.
+  dangling-colon  a list item ending in ":" whose next list item
+                  sits at the same or a shallower indent, so the
+                  colon introduces nothing.
+  dangling-dash   a list item ending in an em dash or " --"
+                  whose next list item, at the same or a
+                  shallower indent, continues the sentence in
+                  lowercase.
+  staircase       a chain of 3+ list items, each the single
+                  child of the one above, reported once at the
+                  chain's head with its span.
 
-Every fixture is hand-built. The Portuguese ones reproduce the shapes observed
-in a real ADR run, rewritten here so an edit to that ADR never moves them.
+Every fixture is hand-built. The Portuguese ones reproduce the
+shapes observed in a real ADR run, rewritten here so an edit to
+that ADR never moves them.
 """
 
 import subprocess
@@ -22,11 +28,12 @@ SCRIPT = Path(__file__).resolve().parent.parent / "check-bullet-structure.py"
 
 
 def run(tmp_path, content, name="doc.md"):
-    """Write one fixture and run the checker over it as a subprocess.
+    """Write one fixture and run the checker over it as a
+    subprocess.
 
-    The exit code and the output rows are the contract the PostToolUse hook
-    and the markdown-standards-fixer agent consume, and only a subprocess
-    exercises both.
+    The exit code and the output rows are the contract the
+    PostToolUse hook and the markdown-standards-fixer agent
+    consume, and only a subprocess exercises both.
     """
     path = tmp_path / name
     path.write_text(content, encoding="utf-8")
@@ -38,10 +45,12 @@ def run(tmp_path, content, name="doc.md"):
 
 
 def hits(result):
-    """The `<line>:<detail>` rows as [(int, str)], dropping the `==` header.
+    """The `<line>:<detail>` rows as [(int, str)], dropping
+    the `==` header.
 
-    Asserts the checker actually ran first (exit 0 or 1): a crash prints no
-    rows, which would otherwise pass every "is not reported" test.
+    Asserts the checker actually ran first (exit 0 or 1): a
+    crash prints no rows, which would otherwise pass every "is
+    not reported" test.
     """
     assert result.returncode in (0, 1), result.stderr
     rows = []
@@ -60,8 +69,9 @@ def git(repo, *args):
 def new_repo(tmp_path, base_content):
     """A scratch repo with `doc.md` committed as `base_content`.
 
-    resolve() matters on macOS: get-changed-lines.sh compares paths against
-    `git rev-parse --show-toplevel`, which is always physical (/private/var).
+    resolve() matters on macOS: get-changed-lines.sh compares
+    paths against `git rev-parse --show-toplevel`, which is
+    always physical (/private/var).
     """
     repo = (tmp_path / "repo").resolve()
     repo.mkdir()

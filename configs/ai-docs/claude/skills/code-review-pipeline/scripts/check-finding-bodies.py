@@ -81,8 +81,8 @@ INTERNAL_RULE_SOURCE = re.compile(
 
 
 class Finding:
-    """One numbered finding; `lines` holds (text, is_fenced) pairs,
-    with fence delimiter lines counted as fenced."""
+    """One numbered finding; `lines` holds (text, is_fenced)
+    pairs, with fence delimiter lines counted as fenced."""
 
     def __init__(self, number, heading_tokens, path):
         self.number = number
@@ -105,8 +105,9 @@ def _build_parser():
 
 
 def parse_findings(text):
-    """Split a verdict into findings, ignoring headings inside code
-    fences. Also return the line numbers of numbered findings filed
+    """Split a verdict into findings, ignoring headings inside
+    code fences.
+    Also return the line numbers of numbered findings filed
     under a heading level other than ###."""
     findings = []
     misplaced_heading_lines = []
@@ -219,8 +220,9 @@ def _check_budget(prose, tag):
 
 
 def _check_citations(prose, path):
-    """Flag each distinct internal rule source the prose names, unless
-    the finding is about that very file (its path contains the name)."""
+    """Flag each distinct internal rule source the prose names,
+    unless the finding is about that very file (its path
+    contains the name)."""
     path_lower = path.lower()
     cited = {}
     for line in prose:
@@ -246,7 +248,8 @@ def _split_body(body_lines):
 
 
 def check_finding(finding):
-    """Return every layout, budget and citation violation of one finding."""
+    """Return every layout, budget and citation violation of one
+    finding."""
     body, prose, tag_body_index, tag = _split_body(_reviewer_lines(finding))
     return (
         _check_tag_position(body, tag_body_index, tag)
@@ -258,8 +261,8 @@ def check_finding(finding):
 
 
 def _fence_body_text(text):
-    """Pair each line of a standalone body with whether it sits in
-    a code block, fence delimiter lines counted as fenced."""
+    """Pair each line of a standalone body with whether it sits
+    in a code block, fence delimiter lines counted as fenced."""
     pairs = []
     is_in_fence = False
     for line in text.splitlines():
@@ -271,8 +274,9 @@ def _fence_body_text(text):
 
 
 def check_json_body(text, path):
-    """Return every violation of one JSON finding body; the heading
-    checks are skipped because a JSON finding has no heading."""
+    """Return every violation of one JSON finding body; the
+    heading checks are skipped because a JSON finding has no
+    heading."""
     body, prose, tag_body_index, tag = _split_body(_fence_body_text(text))
     return (
         _check_tag_position(body, tag_body_index, tag)
@@ -300,8 +304,8 @@ def _read_all(paths):
 
 
 def _load_json_findings(json_path):
-    """Return the findings array, exiting 2 when the file cannot be
-    read or any element lacks a string body or path."""
+    """Return the findings array, exiting 2 when the file cannot
+    be read or any element lacks a string body or path."""
     text = _read_all([json_path])[json_path]
     try:
         findings = json.loads(text)

@@ -1,13 +1,15 @@
 """Prove every runnable script this repo ships under
-`configs/ai-docs/claude/scripts/` arrives executable on a fresh clone.
+`configs/ai-docs/claude/scripts/` arrives executable on a
+fresh clone.
 
-The mode git records is the contract, not the mode this working copy
-happens to have: `~/.claude/scripts` is a directory symlink into that
-source directory, so agents invoke each script by path. One recorded as
-100644 is a permission-denied every caller silently routes around.
+The mode git records is the contract, not the mode this
+working copy happens to have: `~/.claude/scripts` is a
+directory symlink into that source directory, so agents
+invoke each script by path. One recorded as 100644 is a
+permission-denied every caller silently routes around.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/scripts-executable-bit.test.py
+  ./run-tests.py <this file>
 """
 import subprocess
 import unittest
@@ -30,12 +32,13 @@ EXCLUDED_SKILL_DIRS = {"synced", ".trash"}
 
 
 def _shebang_carrying_script_names():
-    """Return the names of the files git tracks directly in the scripts
-    directory whose first line is a shebang.
+    """Return the names of the files git tracks directly in the
+    scripts directory whose first line is a shebang.
 
-    The shebang is what marks a file as meant to be run, which keeps the
-    data files that live beside the scripts (the two baseline .txt) out
-    of a rule that has nothing to say about them."""
+    The shebang is what marks a file as meant to be run, which
+    keeps the data files that live beside the scripts (the two
+    baseline .txt) out of a rule that has nothing to say about
+    them."""
     listed = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "ls-files", "--", str(SCRIPTS_DIR.relative_to(REPO_ROOT))],
         capture_output=True,
@@ -56,14 +59,16 @@ def _shebang_carrying_script_names():
 
 
 def _shebang_carrying_skill_script_paths():
-    """Return the repo-relative paths of the files git tracks directly in
-    a skill's `scripts/` directory (`skills/<skill>/scripts/<file>`)
-    whose first line is a shebang.
+    """Return the repo-relative paths of the files git tracks
+    directly in a skill's `scripts/` directory
+    (`skills/<skill>/scripts/<file>`) whose first line is a
+    shebang.
 
-    Only direct children count: `scripts/tests/` and deeper helper
-    directories hold test files and sourced libraries that are never
-    invoked by path. `synced/` is vendored and `.trash/` is discarded,
-    so neither is a skill this repo ships."""
+    Only direct children count: `scripts/tests/` and deeper
+    helper directories hold test files and sourced libraries
+    that are never invoked by path. `synced/` is vendored and
+    `.trash/` is discarded, so neither is a skill this repo
+    ships."""
     listed = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "ls-files", "--", str(SKILLS_DIR.relative_to(REPO_ROOT))],
         capture_output=True,
@@ -88,9 +93,9 @@ def _shebang_carrying_skill_script_paths():
 
 
 def _starts_with_shebang(path):
-    """The shebang is what marks a file as meant to be run, which keeps
-    data files and imported modules out of a rule that has nothing to
-    say about them."""
+    """The shebang is what marks a file as meant to be run,
+    which keeps data files and imported modules out of a rule
+    that has nothing to say about them."""
     with path.open(encoding="utf-8", errors="replace") as handle:
         return handle.read(len(SHEBANG)) == SHEBANG
 

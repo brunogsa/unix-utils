@@ -205,10 +205,12 @@ def git_succeeds(repo, *args):
 def move_onto_refactor_branch(
     *, repo, base, shas, refactor_branch, feature_branch
 ):
-    """Return None once moved, else the operation that conflicted.
+    """Return None once moved, else the operation that
+    conflicted.
 
-    A conflict is aborted and the repo goes back to the branch and
-    commit it started on, with no refactor branch left behind.
+    A conflict is aborted and the repo goes back to the branch
+    and commit it started on, with no refactor branch left
+    behind.
     """
     original_branch = run_git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     run_git(repo, "checkout", "-b", refactor_branch, base)

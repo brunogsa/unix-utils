@@ -4,12 +4,13 @@ Fixtures: none on disk except what each test writes to tmp_path.
 Directory shapes mirror three real harnesses in this repo
 (test-global-config-invariants.sh, test-check-bullet-gap-fix.sh,
 test-check-missing-why.sh) closely enough to reproduce the exact
-resolution puzzle each one poses, but every file the tests write and
-read lives under tmp_path - never against the live repo tree, which
-concurrent sibling tasks are actively editing.
+resolution puzzle each one poses, but every file the tests
+write and read lives under tmp_path - never against the live
+repo tree, which concurrent sibling tasks are actively
+editing.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/check-shell-harness-orphans.test.py
+  ./run-tests.py <this file>
 """
 
 import json

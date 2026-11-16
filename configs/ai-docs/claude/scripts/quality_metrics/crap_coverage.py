@@ -16,8 +16,8 @@ def measure(target, metrics, declaration, coverage_run):
     """CRAP and coverage records of the declared `metrics`.
 
     `target.repo_path` names the real file, in any form
-    `repo_relative` accepts: lcov names files repo-relative, while
-    `target.path` can be a temporary copy.
+    `repo_relative` accepts: lcov names files repo-relative,
+    while `target.path` can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
     if result.is_deferred:
@@ -39,10 +39,11 @@ def measure(target, metrics, declaration, coverage_run):
 
 
 def _deferred_records(target, metrics):
-    """Pessimistic records for a coverage tool that was deferred.
+    """Pessimistic records for a coverage tool that was
+    deferred.
 
-    An ask is always paired with these, so a deferred tool never
-    leaves a metric with no record.
+    An ask is always paired with these, so a deferred tool
+    never leaves a metric with no record.
     """
     records = []
     if "crap" in metrics:

@@ -1,41 +1,44 @@
 #!/usr/bin/env python3
-"""check-ac-task-consistency.py - assert every Test Design row's cited
-ACs are declared by the tasks that row cites, and that every task is
-paired with exactly one Task Details entry.
+"""check-ac-task-consistency.py - assert every Test Design row's
+cited ACs are declared by the tasks that row cites, and that
+every task is paired with exactly one Task Details entry.
 
-A plan's `## Test Design` annotates each it() row with the ACs it proves
-and the tasks that write it (`// AC-17 T14`). Each task under
-`## Task Breakdown` gets a `### N.` heading with no AC field of its own;
-its `**Testable Acceptance criteria**` field lives instead in the
-`## Task Details` appendix, in a `<details><summary>Task N - ...`
-entry. Nothing else joins the three, so a row can cite an AC its task's
-entry never claims, or a task can be missing its entry entirely (or vice
-versa). check-ac-coverage.sh does not cover this: in annotated form it
-runs completeness against the spec only, and never reads the task-side
-field at all.
+A plan's `## Test Design` annotates each it() row with the ACs
+it proves and the tasks that write it (`// AC-17 T14`). Each
+task under `## Task Breakdown` gets a `### N.` heading with no
+AC field of its own; its `**Testable Acceptance criteria**`
+field lives instead in the `## Task Details` appendix, in a
+`<details><summary>Task N - ...` entry. Nothing else joins the
+three, so a row can cite an AC its task's entry never claims,
+or a task can be missing its entry entirely (or vice versa).
+check-ac-coverage.sh does not cover this: in annotated form it
+runs completeness against the spec only, and never reads the
+task-side field at all.
 
-This checker runs only at authoring time, from to-plan self-review
-against a freshly written plan - never against an old in-flight plan
-the way /implement's parsers do - so it reads the Task Details appendix
-only; a task's old-location body-side AC field (if any survives from
-before the doc reshape) is not read.
+This checker runs only at authoring time, from to-plan
+self-review against a freshly written plan - never against an
+old in-flight plan the way /implement's parsers do - so it
+reads the Task Details appendix only; a task's old-location
+body-side AC field (if any survives from before the doc
+reshape) is not read.
 
 Every section scan is fence-aware: a `### N.` heading or a
-`<summary>Task N` line shown as sample markup inside a ``` or ~~~
-fenced block is never mistaken for a real one.
+`<summary>Task N` line shown as sample markup inside a ``` or
+~~~ fenced block is never mistaken for a real one.
 
 Usage:
   check-ac-task-consistency.py <plan-path>
 
-stdout: one `OK: ...` line on a consistent plan, naming what was checked
-stderr: one `line <n>: T<k> lacks AC-<m>` per citation mismatch, one
-        `Task <n> has no Task Details entry` or `Task Details entry for
-        Task <n> names no existing task` per pairing mismatch, or a
-        diagnostic
-exit: 0 consistent, or a Test Design reading "N/A - <reason>" over
-      paired tasks; 1 at least one mismatch; 2 usage error, or a
-      section that is absent or holds neither it() rows nor the N/A
-      escape
+stdout: one `OK: ...` line on a consistent plan, naming what
+        was checked
+stderr: one `line <n>: T<k> lacks AC-<m>` per citation
+        mismatch, one `Task <n> has no Task Details entry` or
+        `Task Details entry for Task <n> names no existing
+        task` per pairing mismatch, or a diagnostic
+exit: 0 consistent, or a Test Design reading "N/A - <reason>"
+      over paired tasks; 1 at least one mismatch; 2 usage
+      error, or a section that is absent or holds neither
+      it() rows nor the N/A escape
 """
 
 import importlib.util
@@ -107,16 +110,18 @@ def exit_with_usage_error(message):
 
 
 def find_design_row_lines(lines):
-    """The 1-based plan line number of every Test Design it() row.
+    """The 1-based plan line number of every Test Design it()
+    row.
 
-    extract-design-tests.sh emits exactly one row per such line and has
-    no line-number mode, so this walk mirrors the four rules its awk
-    shares: the `## ` section bounds (fence-guarded so a fenced sample
-    heading never ends the section early), the describe() skip, and the
-    it() / it.each() match. An it.each() whose title wraps onto the
-    next line is that title line's row, since the annotation sits there.
-    The caller zips the two by position and refuses to guess when the
-    counts disagree."""
+    extract-design-tests.sh emits exactly one row per such line
+    and has no line-number mode, so this walk mirrors the four
+    rules its awk shares: the `## ` section bounds
+    (fence-guarded so a fenced sample heading never ends the
+    section early), the describe() skip, and the it() /
+    it.each() match. An it.each() whose title wraps onto the
+    next line is that title line's row, since the annotation
+    sits there. The caller zips the two by position and
+    refuses to guess when the counts disagree."""
     row_lines = []
     in_design = False
     in_fence = False
@@ -152,14 +157,15 @@ def find_design_row_lines(lines):
 
 
 def read_task_headings(lines):
-    """The set of `### <n>.` task numbers declared under `## Task
-    Breakdown`.
+    """The set of `### <n>.` task numbers declared under
+    `## Task Breakdown`.
 
-    Scoped to the Task Breakdown section: a `### <n>.` heading elsewhere
-    in the plan (e.g. under `## Technical Decisions`) belongs to another
-    section's numbering. A `### <n>.` heading shown as sample markup
-    inside a fenced block is skipped entirely, the same way a fenced
-    real heading never opens a phantom task."""
+    Scoped to the Task Breakdown section: a `### <n>.` heading
+    elsewhere in the plan (e.g. under `## Technical Decisions`)
+    belongs to another section's numbering. A `### <n>.`
+    heading shown as sample markup inside a fenced block is
+    skipped entirely, the same way a fenced real heading never
+    opens a phantom task."""
     headings = set()
     in_tasks = False
     in_fence = False
@@ -186,21 +192,24 @@ def read_task_headings(lines):
 
 
 def read_task_details(lines):
-    """Map each `<summary>Task <n>` entry under `## Task Details` to the
-    AC tokens its `**Testable Acceptance criteria**` field lists.
+    """Map each `<summary>Task <n>` entry under `## Task
+    Details` to the AC tokens its
+    `**Testable Acceptance criteria**` field lists.
 
-    Returns the set of task numbers with a Task Details entry, and the
-    subset of those mapped to their declared ACs. An entry missing from
-    the second dict has no criteria field at all, which is a different
-    defect from a field that names no AC token.
+    Returns the set of task numbers with a Task Details entry,
+    and the subset of those mapped to their declared ACs. An
+    entry missing from the second dict has no criteria field at
+    all, which is a different defect from a field that names no
+    AC token.
 
-    The field's tokens sit on the bullet lines below the field marker,
-    not on the marker's own line, so this reads every line up to the
-    next blank line as part of the field, and counts only the IDs that
-    open a bullet (see AC_DECLARATION). A `<summary>Task N` line
-    shown as sample markup inside a fenced block is skipped entirely,
-    the same way a fenced real entry never registers as a phantom
-    Task Details entry."""
+    The field's tokens sit on the bullet lines below the field
+    marker, not on the marker's own line, so this reads every
+    line up to the next blank line as part of the field, and
+    counts only the IDs that open a bullet (see AC_DECLARATION).
+    A `<summary>Task N` line shown as sample markup inside a
+    fenced block is skipped entirely, the same way a fenced
+    real entry never registers as a phantom Task Details
+    entry."""
     entries = set()
     declared = {}
     in_details = False
@@ -249,7 +258,8 @@ def read_task_details(lines):
 
 
 def find_pairing_mismatches(headings, detail_entries):
-    """Every task/entry that has no counterpart on the other side."""
+    """Every task/entry that has no counterpart on the other
+    side."""
     mismatches = []
 
     for task in sorted(headings - detail_entries):
@@ -263,9 +273,9 @@ def find_pairing_mismatches(headings, detail_entries):
 
 
 def read_annotation_rows(plan):
-    """The `<title>\tcrumb\t<ACs>\t<tasks>` rows of the plan's Test
-    Design, delegated to the single-source annotation parser, or None
-    when it finds no it() row at all."""
+    """The `<title>\tcrumb\t<ACs>\t<tasks>` rows of the plan's
+    Test Design, delegated to the single-source annotation
+    parser, or None when it finds no it() row at all."""
     result = subprocess.run(
         [str(EXTRACT_DESIGN_TESTS), "--annotations", str(plan)],
         capture_output=True,
@@ -277,9 +287,9 @@ def read_annotation_rows(plan):
 
 
 def reads_test_design_na(plan):
-    """Whether the plan's Test Design body is the "N/A - <reason>"
-    escape, sliced by the same plan-section.sh call
-    check-test-distribution.sh makes."""
+    """Whether the plan's Test Design body is the
+    "N/A - <reason>" escape, sliced by the same
+    plan-section.sh call check-test-distribution.sh makes."""
     result = subprocess.run(
         [
             str(PLAN_SECTION),
@@ -294,8 +304,9 @@ def reads_test_design_na(plan):
 
 
 def find_citation_mismatches(rows, row_lines, headings, declared):
-    """Every cited (task, AC) pair the task's Task Details entry does
-    not declare, plus the count of pairs actually checked."""
+    """Every cited (task, AC) pair the task's Task Details
+    entry does not declare, plus the count of pairs actually
+    checked."""
     mismatches = []
     checked = 0
 

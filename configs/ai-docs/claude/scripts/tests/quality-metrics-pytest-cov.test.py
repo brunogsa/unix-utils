@@ -123,7 +123,8 @@ def install_stub_pytest_cov(tmp_path, monkeypatch, stub):
 
 
 def measure_cart_with_stub(tmp_path, monkeypatch, stub, **options):
-    """The coverage run, its records and the global collector's calls for cart.py."""
+    """The coverage run, its records and the global collector's
+    calls for cart.py."""
     repo = make_repo(tmp_path, PYTEST_COV_REPO_FILES)
     install_stub_pytest_cov(tmp_path, monkeypatch, stub)
     global_calls = []
@@ -240,8 +241,9 @@ BASE_OMIT_CASES = [("pyproject.toml", OMIT_LEGACY_PYPROJECT), *INI_OMIT_CASES]
 
 
 def hits_with_configs(tmp_path, base_configs, branch_configs):
-    """The repo pytest-cov hits when the base ref commits `base_configs`
-    and the working tree then adds `branch_configs`."""
+    """The repo pytest-cov hits when the base ref commits
+    `base_configs` and the working tree then adds
+    `branch_configs`."""
     repo = make_repo(tmp_path, {**LEGACY_IMPORTED_REPO_FILES, **base_configs})
     for name, text in branch_configs.items():
         (repo / name).write_text(text)

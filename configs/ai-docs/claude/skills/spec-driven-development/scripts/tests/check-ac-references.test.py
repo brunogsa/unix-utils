@@ -1,12 +1,12 @@
 """Blackbox CLI tests for check-ac-references.py.
 
-Fixtures: none on disk except what each test writes to tmp_path, so no
-suite run can be steered, or broken, by a planning document its author
-is still editing.
+Fixtures: none on disk except what each test writes to tmp_path,
+so no suite run can be steered, or broken, by a planning
+document its author is still editing.
 
-Each passing fixture holds one anchor shape the planning docs join on,
-and each failing fixture holds one prose citation of an acceptance
-criterion by its ID, the shape SKILL.md bans.
+Each passing fixture holds one anchor shape the planning docs
+join on, and each failing fixture holds one prose citation of an
+acceptance criterion by its ID, the shape SKILL.md bans.
 
 Usage:
   pytest scripts/tests/check-ac-references.test.py

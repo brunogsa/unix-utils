@@ -148,15 +148,16 @@ def get_target_language(text: str) -> str:
 
 
 def classify_file(path: Path, tree_root: Path | None = None) -> dict:
-    """Classify a single script and return its verdict + target
-    language as one JSON-ready dict. Excluded and stays-sh scripts
-    get no target language - neither is ever converted, so the
-    question is moot for both, the same way it already is for
-    excluded scripts.
+    """Classify a single script and return its verdict +
+    target language as one JSON-ready dict. Excluded and
+    stays-sh scripts get no target language - neither is ever
+    converted, so the question is moot for both, the same way
+    it already is for excluded scripts.
 
-    `tree_root` is only set in tree-sweep mode, to tag the result
-    with which root it came from; a single-file classification has
-    no root to report and genuinely omits it."""
+    `tree_root` is only set in tree-sweep mode, to tag the
+    result with which root it came from; a single-file
+    classification has no root to report and genuinely omits
+    it."""
     result: dict[str, str | None] = {"path": str(path)}
     if tree_root is not None:
         result["tree_root"] = str(tree_root)

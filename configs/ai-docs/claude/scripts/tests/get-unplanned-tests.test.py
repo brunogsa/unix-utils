@@ -1,12 +1,13 @@
 """Blackbox CLI tests for get-unplanned-tests.py.
 
-Fixtures: each test builds a throwaway git repo under tmp_path with a
-base commit, then a branch commit that adds test declarations, and a
-plan whose `## Test Design` section names the planned titles. Nothing
-reads or writes the live repo.
+Fixtures: each test builds a throwaway git repo under
+tmp_path with a base commit, then a branch commit that adds
+test declarations, and a plan whose `## Test Design` section
+names the planned titles. Nothing reads or writes the live
+repo.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/get-unplanned-tests.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -81,9 +82,9 @@ def _commit(repo, subject, trailer=None):
 
 
 def _init_repo(tmp_path, base_files=None):
-    """Create tmp_path/"repo", commit a baseline (the plan outside the
-    repo stays untracked) and return (repo, base SHA the branch
-    diffs against)."""
+    """Create tmp_path/"repo", commit a baseline (the plan
+    outside the repo stays untracked) and return (repo, base
+    SHA the branch diffs against)."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q")

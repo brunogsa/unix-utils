@@ -1,10 +1,11 @@
 """Blackbox CLI tests for get-test-sdd-dispatch-list.py.
 
-Fixtures: each test writes a throwaway verdict_test-sdd_*.md under
-tmp_path and runs the script on it. Nothing reads the live repo.
+Fixtures: each test writes a throwaway verdict_test-sdd_*.md
+under tmp_path and runs the script on it. Nothing reads the
+live repo.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/get-test-sdd-dispatch-list.test.py
+  ./run-tests.py <this file>
 """
 
 import subprocess

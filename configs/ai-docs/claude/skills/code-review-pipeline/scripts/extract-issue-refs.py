@@ -83,9 +83,10 @@ def _find_matches(text):
 
 
 def extract_refs(text):
-    """Return [(tracker, key)], one per key, with a URL's tracker
-    winning over a bare mention. Tracker-certain refs come before
-    unknown ones; each group keeps first-appearance order."""
+    """Return [(tracker, key)], one per key, with a URL's
+    tracker winning over a bare mention. Tracker-certain refs
+    come before unknown ones; each group keeps first-appearance
+    order."""
     trackers_by_key = {}
     for _, key, tracker in _find_matches(text):
         known = trackers_by_key.get(key)

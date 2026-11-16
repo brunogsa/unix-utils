@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Skill Packager - Creates a distributable .skill file of a skill folder
+Skill Packager - Creates a distributable .skill file of a skill
+folder
 
 Usage:
-    python utils/package_skill.py <path/to/skill-folder> [output-directory]
+    python utils/package_skill.py <path/to/skill-folder>
+        [output-directory]
 
 Example:
     python utils/package_skill.py skills/public/my-skill
@@ -49,7 +51,8 @@ def package_skill(skill_path, output_dir=None):
 
     Args:
         skill_path: Path to the skill folder
-        output_dir: Optional output directory for the .skill file (defaults to current directory)
+        output_dir: Optional output directory for the .skill
+            file (defaults to current directory)
 
     Returns:
         Path to the created .skill file, or None if error

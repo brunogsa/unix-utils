@@ -1,27 +1,34 @@
 #!/usr/bin/env python3
-"""check-bullet-structure.py - flag list items whose nesting misleads the reader.
+"""check-bullet-structure.py - flag list items whose nesting
+misleads the reader.
 
 Rules:
-  dangling-colon  a list item ending in ":" whose next list item sits at the
-                  same or a shallower indent, so the colon introduces nothing.
-  dangling-dash   a list item ending in an em dash or " --" whose next list
-                  item, at the same or a shallower indent, continues the
-                  sentence in lowercase - one sentence split across bullets.
-  staircase       3+ list items chained as single children, each one level
-                  deeper than the last - sibling sentences pushed down a level.
+  dangling-colon  a list item ending in ":" whose next list
+                  item sits at the same or a shallower indent,
+                  so the colon introduces nothing.
+  dangling-dash   a list item ending in an em dash or " --"
+                  whose next list item, at the same or a
+                  shallower indent, continues the sentence in
+                  lowercase - one sentence split across
+                  bullets.
+  staircase       3+ list items chained as single children,
+                  each one level deeper than the last -
+                  sibling sentences pushed down a level.
 
 Output (mirrors check-bullet-gap.py):
-  == <filename>                 header, per file with hits
-  <line>:dangling-colon         the colon-ended item
-  <line>:dangling-dash          the dash-ended item
-  <line>:staircase:<A>-<B>      the chain's head, and its first-last line span
+  == <filename>             header, per file with hits
+  <line>:dangling-colon     the colon-ended item
+  <line>:dangling-dash      the dash-ended item
+  <line>:staircase:<A>-<B>  the chain's head, and its
+                            first-last line span
 
-Report-only, no --fix: nesting the items after a colon versus ending it with a
-period, or flattening a chain versus keeping one level, is an authorial call.
+Report-only, no --fix: nesting the items after a colon versus
+ending it with a period, or flattening a chain versus keeping
+one level, is an authorial call.
 
---changed-only keeps a hit when ANY line it spans changed vs HEAD, per
-get-changed-lines.sh - the colon or dash line or the item after it, any
-chain level.
+--changed-only keeps a hit when ANY line it spans changed vs
+HEAD, per get-changed-lines.sh - the colon or dash line or the
+item after it, any chain level.
 
 Usage:
   check-bullet-structure.py [--changed-only] <file> [<file>...]
@@ -29,9 +36,10 @@ Usage:
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, get-changed-lines.sh failed, check-bullet-gap.py
-     could not be loaded (one stderr line names it and the directory),
-     or an input file is unreadable or not valid UTF-8
+  2  usage error, get-changed-lines.sh failed,
+     check-bullet-gap.py could not be loaded (one stderr line
+     names it and the directory), or an input file is
+     unreadable or not valid UTF-8
 """
 
 import importlib.util
@@ -110,12 +118,14 @@ def indent_width(line):
 
 
 def build_list_items(lines, kinds):
-    """Every list item outside code and frontmatter, linked to its parent.
+    """Every list item outside code and frontmatter, linked to
+    its parent.
 
-    Blank lines never break a parent/child link. A non-list line closes
-    every open item at or deeper than its own indent, so a deeper
-    continuation paragraph or fence keeps its item open, while a heading
-    or paragraph at the margin ends the list.
+    Blank lines never break a parent/child link. A non-list
+    line closes every open item at or deeper than its own
+    indent, so a deeper continuation paragraph or fence keeps
+    its item open, while a heading or paragraph at the margin
+    ends the list.
     """
     items = []
     open_items = []
@@ -145,10 +155,11 @@ def build_list_items(lines, kinds):
 def get_item_ending_text(line):
     """The item's own line as its ending should be judged.
 
-    Each inline code span becomes one opaque word, so punctuation inside
-    it never counts, and a "Label: <code span>" item ends in the span.
-    A closing bold marker after the punctuation hides nothing, and neither
-    does one trailing emoji shortcode."""
+    Each inline code span becomes one opaque word, so
+    punctuation inside it never counts, and a "Label: <code
+    span>" item ends in the span. A closing bold marker after
+    the punctuation hides nothing, and neither does one
+    trailing emoji shortcode."""
     text = INLINE_CODE.sub(CODE_SPAN_STAND_IN, line)
     text = TRAILING_EMPHASIS.sub("", text)
     return TRAILING_EMOJI_SHORTCODE.sub("", text)
@@ -163,9 +174,9 @@ def ends_with_sentence_dash(line):
 
 
 def starts_in_lowercase(line):
-    """True when the item's text, right after its list marker, opens with
-    a lowercase letter - a bold, backtick, bracket or digit opener never
-    counts."""
+    """True when the item's text, right after its list marker,
+    opens with a lowercase letter - a bold, backtick, bracket
+    or digit opener never counts."""
     text = line[bullet_gap.BULLET.match(line).end():].lstrip()
     return text[:1].islower()
 
@@ -178,8 +189,9 @@ def next_non_blank_index(lines, start):
 
 
 def find_next_item_outside(lines, kinds, item):
-    """Index of the next non-blank line when it is a list item at the same
-    or a shallower indent than `item` - so not nested under it - else None."""
+    """Index of the next non-blank line when it is a list item
+    at the same or a shallower indent than `item` - so not
+    nested under it - else None."""
     j = next_non_blank_index(lines, item.line_no)
     if j is None or kinds[j] != "text":
         return None
@@ -202,9 +214,10 @@ def find_dangling_colons(lines, kinds, items):
 
 
 def find_dangling_dashes(lines, kinds, items):
-    """Dash-ended items whose sentence runs on into the next item outside
-    them. A nested continuation is left alone: fix-density.py splits an
-    over-cap bullet at a dash into a parent and a nested child by design."""
+    """Dash-ended items whose sentence runs on into the next
+    item outside them. A nested continuation is left alone:
+    fix-density.py splits an over-cap bullet at a dash into a
+    parent and a nested child by design."""
     hits = []
     for item in items:
         if not ends_with_sentence_dash(lines[item.line_no - 1]):
@@ -221,8 +234,9 @@ def has_single_child(item):
 
 
 def find_staircases(items):
-    """One hit per chain, at its head: the topmost item whose single child
-    also has a single child. Its parent, when it has one, has siblings."""
+    """One hit per chain, at its head: the topmost item whose
+    single child also has a single child. Its parent, when it
+    has one, has siblings."""
     hits = []
     for item in items:
         starts_chain = has_single_child(item) and has_single_child(item.children[0])
@@ -240,7 +254,8 @@ def find_staircases(items):
 
 
 def find_hits(lines):
-    """(line, detail, scope_lines) per violation, in line order."""
+    """(line, detail, scope_lines) per violation, in line
+    order."""
     kinds = bullet_gap.classify_lines(lines)
     items = build_list_items(lines, kinds)
     hits = (

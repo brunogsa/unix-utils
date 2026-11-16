@@ -25,12 +25,15 @@ CHECKER = CLAUDE_DIR / "skills/doc-standards/scripts/check-comment-format.js"
 
 
 def list_source_globs():
-    """Return a `*<ext>` glob for every extension the checker gates,
-    read from its --list-extensions so the set has one source.
+    """Return a `*<ext>` glob for every extension the checker
+    gates, read from its --list-extensions so the set has one
+    source.
 
-    A failed or empty listing aborts with exit 2. Carrying on would
-    hand git ls-files no globs, so the gate would scan nothing and
-    pass, which is the silent pass this gate exists to prevent."""
+    A failed or empty listing aborts with exit 2.
+
+    Carrying on would hand git ls-files no globs, so the gate
+    would scan nothing and pass, which is the silent pass this
+    gate exists to prevent."""
     completed = subprocess.run(
         ["node", str(CHECKER), "--list-extensions"],
         capture_output=True,
@@ -48,13 +51,15 @@ def list_source_globs():
 
 
 def enumerate_sources(repo_root):
-    """Return every tracked and untracked-but-not-ignored source file,
-    repo-root-relative. Untracked files count because a brand-new file
-    is untracked right up to the commit that ships it, which is
-    precisely when the gate has to see it.
+    """Return every tracked and untracked-but-not-ignored source
+    file, repo-root-relative.
 
-    -z keeps paths with spaces or unicode intact, which git's default
-    output would quote and corrupt."""
+    Untracked files count because a brand-new file is untracked
+    right up to the commit that ships it, which is precisely
+    when the gate has to see it.
+
+    -z keeps paths with spaces or unicode intact, which git's
+    default output would quote and corrupt."""
     completed = subprocess.run(
         [
             "git",

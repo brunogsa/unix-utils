@@ -1,8 +1,10 @@
-"""Prove dash-guard denies net-new em/en dashes and lets everything else through.
+"""Prove dash-guard denies net-new em/en dashes and lets
+everything else through.
 
-Each test drives the real hooks/dash-guard.py as a subprocess with a
-PreToolUse JSON payload on stdin, the way Claude Code does. The dash
-characters are written as escapes so this file never trips the guard itself.
+Each test drives the real hooks/dash-guard.py as a subprocess
+with a PreToolUse JSON payload on stdin, the way Claude Code
+does. The dash characters are written as escapes so this file
+never trips the guard itself.
 """
 
 import json
@@ -32,7 +34,8 @@ def run_hook(payload=None, raw=None):
 
 
 def decision(result):
-    """Return the parsed deny object, or None when the hook stayed silent."""
+    """Return the parsed deny object, or None when the hook
+    stayed silent."""
     assert result.returncode == 0, result.stderr
     if not result.stdout.strip():
         return None

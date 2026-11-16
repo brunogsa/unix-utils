@@ -69,7 +69,8 @@ def _build_parser():
 
 
 def _parse_references(text):
-    """Return [(tracker, key)] or raise ValueError on a bad line."""
+    """Return [(tracker, key)] or raise ValueError on a bad
+    line."""
     references = []
     for line in text.splitlines():
         if not line.strip():
@@ -86,8 +87,8 @@ def _parse_references(text):
 def _run_fetcher(command, timeout_seconds):
     """Return (stdout, did_time_out). stdout is None on a miss.
 
-    The fetcher gets its own process group so a timeout kills its
-    children too; otherwise one would hold the pipe open.
+    The fetcher gets its own process group so a timeout kills
+    its children too; otherwise one would hold the pipe open.
     """
     process = subprocess.Popen(
         command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
@@ -105,7 +106,8 @@ def _run_fetcher(command, timeout_seconds):
 
 
 def _skip_reason(tracker):
-    """Return why a tracker cannot be queried, or None if it can."""
+    """Return why a tracker cannot be queried, or None if it
+    can."""
     if tracker == TRACKER_JIRA and not os.environ.get("JIRA_URL"):
         return SKIP_JIRA_UNSET
     if tracker == TRACKER_LINEAR and shutil.which("linear") is None:

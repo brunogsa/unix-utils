@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Behavior suite for extract-claude-model-rates.py, exercised at the
-CLI boundary against synthetic fixture catalogs.
+"""Behavior suite for extract-claude-model-rates.py, exercised
+at the CLI boundary against synthetic fixture catalogs.
 
 Every case writes a tiny minified-JS-shaped catalog snippet to
-tmp_path and runs the script as a subprocess, so what is pinned is
-the stdout/exit contract a caller actually reads.
+tmp_path and runs the script as a subprocess, so what is pinned
+is the stdout/exit contract a caller actually reads.
 """
 import json
 import os
@@ -30,8 +30,9 @@ def run_extractor(binary_path):
 
 def write_catalog(tmp_path, body_after_marker, filename="claude-fixture.bin"):
     """A fixture file whose bytes are MARKER followed by
-    `body_after_marker`, wrapped in unrelated bytes on both sides the
-    way a real multi-megabyte binary surrounds its own catalog."""
+    `body_after_marker`, wrapped in unrelated bytes on both
+    sides the way a real multi-megabyte binary surrounds its own
+    catalog."""
     catalog_path = tmp_path / filename
     catalog_path.write_bytes(b"//! junk before the marker\n" + MARKER + body_after_marker + b"\n//! trailing junk")
     return catalog_path
@@ -123,9 +124,10 @@ def test_it_should_fail_with_no_stdout_when_a_model_names_an_unknown_tier(tmp_pa
 
 
 def resolve_installed_claude_binary():
-    """The realpath of the installed `claude` binary this dev machine
-    runs, or None when no such binary can be found - mirrors
-    statusline-tier.sh's own claude_binary_path fallback order."""
+    """The realpath of the installed `claude` binary this dev
+    machine runs, or None when no such binary can be found -
+    mirrors statusline-tier.sh's own claude_binary_path fallback
+    order."""
     candidate = shutil.which("claude")
     if not candidate:
         fallback = Path.home() / ".local" / "bin" / "claude"

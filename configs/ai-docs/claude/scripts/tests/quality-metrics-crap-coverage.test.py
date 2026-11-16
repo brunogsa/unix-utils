@@ -141,7 +141,8 @@ def python_target(touched_lines, repo_path=None):
 
 
 def covered_then_uncovered(covered_count, uncovered_count):
-    """Hits for lines 1..N: the first covered_count run, the rest never."""
+    """Hits for lines 1..N: the first covered_count run, the
+    rest never."""
     return {
         line: 1 if line <= covered_count else 0
         for line in range(1, covered_count + uncovered_count + 1)
@@ -511,13 +512,15 @@ class TestDeclaredNpmTest:
 
 
 def put_fake_tools_on_path(tmp_path, monkeypatch, tool_bodies):
-    """Put POSIX sh stand-ins for external tools first on PATH."""
+    """Put POSIX sh stand-ins for external tools first on
+    PATH."""
     for name, body in tool_bodies.items():
         install_stub_tool(tmp_path, monkeypatch, name, f"#!/bin/sh\n{body}\n")
 
 
 def write_lcov_shell(hits_by_line):
-    """Shell lines that write an lcov report to coverage/lcov.info."""
+    """Shell lines that write an lcov report to
+    coverage/lcov.info."""
     report = lcov_report(SOURCE_FILE, hits_by_line)
     return (
         "mkdir -p coverage\n"

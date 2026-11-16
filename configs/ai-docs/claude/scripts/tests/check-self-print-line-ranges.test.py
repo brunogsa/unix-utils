@@ -1,7 +1,7 @@
 """Blackbox CLI tests for check-self-print-line-ranges.py.
 
-Fixtures: each test builds a throwaway git repo under tmp_path, so
-enumeration runs against real git state instead of a mock.
+Fixtures: each test builds a throwaway git repo under tmp_path,
+so enumeration runs against real git state instead of a mock.
 
 Usage:
   pytest configs/ai-docs/claude/scripts/tests/\
@@ -40,8 +40,9 @@ def _git(repo, *args):
 
 
 def _make_repo(tmp_path):
-    """Return a fresh git repo holding one committed clean script
-    under configs/, so a test only has to add its own case's file."""
+    """Return a fresh git repo holding one committed clean
+    script under configs/, so a test only has to add its own
+    case's file."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -61,8 +62,8 @@ def _commit(repo, relpath, content):
 
 
 def _script_with_usage_line(usage_line):
-    """Return a bash script whose usage() sits on line 5, so a hit
-    reports as <path>:5."""
+    """Return a bash script whose usage() sits on line 5, so a
+    hit reports as <path>:5."""
     return f"{SHEBANG}{HEADER}usage() {{ {usage_line}; }}\n"
 
 
@@ -165,9 +166,9 @@ class TestLeavesOtherPrintersAlone:
     def test_awk_program_reading_its_record_as_dollar_zero_is_not_flagged(
         self, tmp_path
     ):
-        """Inside an awk program $0 is the current record, not the
-        script's own path, so a line cap over another file stays
-        clean even though the program text mentions $0."""
+        """Inside an awk program $0 is the current record, not
+        the script's own path, so a line cap over another file
+        stays clean even though the program text mentions $0."""
         repo = _make_repo(tmp_path)
         _commit(
             repo,
@@ -213,9 +214,9 @@ SKILLS_DIR = REPO_ROOT / "configs" / "ai-docs" / "claude" / "skills"
 
 
 def _last_header_line(script_path):
-    """Return the last line of the comment block right under the
-    shebang, with its leading "# " stripped - the line a truncated
-    --help drops first."""
+    """Return the last line of the comment block right under
+    the shebang, with its leading "# " stripped - the line a
+    truncated --help drops first."""
     lines = script_path.read_text(encoding="utf-8").splitlines()
     last = None
     for line in lines[1:]:

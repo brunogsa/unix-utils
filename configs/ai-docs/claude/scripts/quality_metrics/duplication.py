@@ -1,11 +1,13 @@
 """Measures duplicated code and duplicated tests with jscpd.
 
-jscpd's --similarity pairs functions by structure: names and literals
-are normalized away, so two functions differing only in them score
-1.0. It leaves test files out by name, so every file is staged under
-a neutral name before the scan. Source files are compared with source
-files and test files with test files, which keeps the two findings
-apart. A touched file is compared with the repo's files of its kind,
+jscpd's --similarity pairs functions by structure: names and
+literals are normalized away, so two functions differing only in
+them score 1.0.
+It leaves test files out by name, so every file is staged under
+a neutral name before the scan.
+Source files are compared with source files and test files with
+test files, which keeps the two findings apart.
+A touched file is compared with the repo's files of its kind,
 committed or not, and a pair is flagged when it overlaps a
 touched line.
 """
@@ -57,7 +59,8 @@ REPORT_NAME = "jscpd-report.json"
 
 
 def measure(target, metrics, declaration):
-    """One flagged record per duplicated pair touching the target."""
+    """One flagged record per duplicated pair touching the
+    target."""
     repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
     suffix = Path(repo_path).suffix
     is_test = is_test_file(repo_path)
@@ -76,7 +79,8 @@ def measure(target, metrics, declaration):
 
 
 def _stage_corpus(target, repo_path, suffix, peers, scan_dir):
-    """Copy the target and its peers into `scan_dir`; map staged to real names.
+    """Copy the target and its peers into `scan_dir`; map staged
+    to real names.
 
     Each file keeps its own extension, so jscpd reads it as the
     language that extension belongs to.
@@ -91,7 +95,8 @@ def _stage_corpus(target, repo_path, suffix, peers, scan_dir):
 
 
 def _scannable_peers(repo_path, is_test, extensions, declaration):
-    """Peers of the target that the declaration does not exclude."""
+    """Peers of the target that the declaration does not
+    exclude."""
     return [
         peer for peer in _peers_of(repo_path, is_test, extensions)
         if not is_excluded_path(declaration, peer)
@@ -99,7 +104,8 @@ def _scannable_peers(repo_path, is_test, extensions, declaration):
 
 
 def _peers_of(repo_path, is_test, extensions):
-    """Repo files, committed or not, in the target's language and kind."""
+    """Repo files, committed or not, in the target's language
+    and kind."""
     listed = run_tool(
         ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"]
     ).split("\0")
@@ -111,7 +117,8 @@ def _peers_of(repo_path, is_test, extensions):
 
 
 def _scan_both_kinds(scan_dir, suffix, min_lines):
-    """Similar pairs of `min_lines` lines plus exact clones of as many."""
+    """Similar pairs of `min_lines` lines plus exact clones of
+    as many."""
     clones = _scan(scan_dir, suffix, min_lines - 1)
     return [
         clone for clone in clones
@@ -121,7 +128,8 @@ def _scan_both_kinds(scan_dir, suffix, min_lines):
 
 
 def _longest_identical_run(scan_dir, clone):
-    """Most consecutive identical lines the two sides of a clone share."""
+    """Most consecutive identical lines the two sides of a clone
+    share."""
     first, second = clone["firstFile"], clone["secondFile"]
     first_lines = (scan_dir / Path(first["name"]).name).read_text().splitlines()
     second_lines = (scan_dir / Path(second["name"]).name).read_text().splitlines()
@@ -187,7 +195,8 @@ def _touched_sides(target, clone):
 
 
 def _sides(clone):
-    """Each (target-file side, other side) pair the clone offers.
+    """Each (target-file side, other side) pair the clone
+    offers.
 
     A clone inside the target file offers both orders, so the
     caller can keep the side that sits on a touched line.

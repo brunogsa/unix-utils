@@ -7,46 +7,54 @@ Usage:
   check-pr-task-projection.py <plan-file>
 
 check-tasks-dag.sh validates the Task Breakdown's own graph.
-check-pr-dag.sh validates the PR Breakdown's own graph. Neither
-validates the PROJECTION of one onto the other, so a plan can pass
-both individually while still being wrong: a task in an early PR can
-depend on a task that lives in a later PR the early PR never lists
-as a dependency. /implement's dispatch rule then treats that missing
-id as "belongs to an earlier PR, already satisfied" and silently
+check-pr-dag.sh validates the PR Breakdown's own graph.
+Neither validates the PROJECTION of one onto the other, so a
+plan can pass both individually while still being wrong: a
+task in an early PR can depend on a task that lives in a
+later PR the early PR never lists as a dependency.
+/implement's dispatch rule then treats that missing id as
+"belongs to an earlier PR, already satisfied" and silently
 dispatches the task before its real prerequisite has run.
 
-Extracts "## Task Breakdown" and "## PR Breakdown" via plan-section.sh
-(never a per-line regex - PR Breakdown entries wrap across physical
-lines, and a line-oriented read silently drops the wrapped clause).
-A "### N. [Clarify] ..." task settles a question only an outside
-party can answer. A "### N. [Gate] ..." task is a no-code check
-(a Stage proof, a read-only query, a prod check) a PR names under
-its **Gates**:. Neither makes a commit. A "### N. [Direct] ..."
-task commits straight to a branch, outside any PR. So all three
-sit outside the PR partition, and a dependency on any of them is
-satisfied outside the PR graph. A plan-status marker may precede
-the tag ("### N. [Done][Direct] ...").
+Extracts "## Task Breakdown" and "## PR Breakdown" via
+plan-section.sh (never a per-line regex - PR Breakdown
+entries wrap across physical lines, and a line-oriented
+read silently drops the wrapped clause).
+A "### N. [Clarify] ..." task settles a question only an
+outside party can answer. A "### N. [Gate] ..." task is a
+no-code check (a Stage proof, a read-only query, a prod
+check) a PR names under its **Gates**:. Neither makes a
+commit. A "### N. [Direct] ..." task commits straight to a
+branch, outside any PR. So all three sit outside the PR
+partition, and a dependency on any of them is satisfied
+outside the PR graph. A plan-status marker may precede the
+tag ("### N. [Done][Direct] ...").
 
 Detects, each with its own diagnostic:
-  - a task id claimed by no PR (a [Clarify], [Gate] or [Direct]
-    task is exempt);
+  - a task id claimed by no PR (a [Clarify], [Gate] or
+    [Direct] task is exempt);
   - a task id claimed by more than one PR;
-  - a PR entry naming a task id the Task Breakdown does not define;
+  - a PR entry naming a task id the Task Breakdown does not
+    define;
   - a PR entry naming a [Clarify], [Gate] or [Direct] task;
-  - a task whose dependency lives in a PR that is neither the same
-    PR nor a transitive ancestor of it in the PR graph (the
-    cross-level violation - subsumes both a cross-level cycle and
-    the silent early-PR-assumption defect above). A dependency on a
-    [Clarify], [Gate] or [Direct] task is never one.
+  - a task whose dependency lives in a PR that is neither
+    the same PR nor a transitive ancestor of it in the PR
+    graph (the cross-level violation - subsumes both a
+    cross-level cycle and the silent early-PR-assumption
+    defect above). A dependency on a [Clarify], [Gate] or
+    [Direct] task is never one.
 
 Exit codes:
-  0 - PR Breakdown is absent, reads "Single PR.", or every task's
-      dependency projection onto the PR partition is consistent.
-  1 - one of the five defects above was found, a task's "Depends
-      on" field is written in none of the canonical shapes, or the
-      Task Breakdown has no task entries (diagnostics on stderr).
-  2 - usage error (wrong arg count, plan file missing, or a breakdown
-      section carries real entries that could not be parsed).
+  0 - PR Breakdown is absent, reads "Single PR.", or every
+      task's dependency projection onto the PR partition is
+      consistent.
+  1 - one of the five defects above was found, a task's
+      "Depends on" field is written in none of the canonical
+      shapes, or the Task Breakdown has no task entries
+      (diagnostics on stderr).
+  2 - usage error (wrong arg count, plan file missing, or a
+      breakdown section carries real entries that could not
+      be parsed).
 """
 import re
 import subprocess
@@ -95,8 +103,9 @@ NO_CODE_TAG_REASONS = {
 
 
 def extract_section(plan_file: Path, heading_pattern: str) -> str:
-    """Return one "##"-depth section's body via the shared extractor,
-    so trailing "---" divider trimming stays in one place."""
+    """Return one "##"-depth section's body via the shared
+    extractor, so trailing "---" divider trimming stays in
+    one place."""
     try:
         result = subprocess.run(
             [str(PLAN_SECTION), str(plan_file), "##", heading_pattern],
@@ -111,8 +120,8 @@ def extract_section(plan_file: Path, heading_pattern: str) -> str:
 
 
 def parse_pr_entries(section: str):
-    """Return (pr_tasks, pr_deps): PR-id -> claimed task ids, and
-    PR-id -> the PR ids it depends on."""
+    """Return (pr_tasks, pr_deps): PR-id -> claimed task ids,
+    and PR-id -> the PR ids it depends on."""
     split_re = (
         PR_HEADING_SPLIT_RE
         if PR_HEADING_SPLIT_RE.search(section)
@@ -134,9 +143,10 @@ def parse_pr_entries(section: str):
 
 def parse_task_entries(plan_file: Path) -> dict[str, list[str]]:
     """Return task id -> the task ids it depends on, read via
-    parse-task-dependencies.sh, the one **Depends on** parser. Any
-    failure there ends this script with the parser's own exit code
-    and diagnostic: 1 for a plan defect, 2 for a usage error."""
+    parse-task-dependencies.sh, the one **Depends on**
+    parser. Any failure there ends this script with the
+    parser's own exit code and diagnostic: 1 for a plan
+    defect, 2 for a usage error."""
     result = subprocess.run(
         [str(PARSE_TASK_DEPENDENCIES), str(plan_file)],
         capture_output=True,
@@ -155,9 +165,10 @@ def parse_task_entries(plan_file: Path) -> dict[str, list[str]]:
 
 
 def get_ancestor_prs(pid: str, pr_deps: dict[str, list[str]]) -> set[str]:
-    """Return every PR reachable by following "Depends on" edges from
-    pid, cycle-safe via the visited set (a genuine PR-graph cycle is
-    check-pr-dag.sh's own diagnostic, not this script's)."""
+    """Return every PR reachable by following "Depends on"
+    edges from pid, cycle-safe via the visited set (a genuine
+    PR-graph cycle is check-pr-dag.sh's own diagnostic, not
+    this script's)."""
     seen: set[str] = set()
     stack = list(pr_deps.get(pid, []))
     while stack:
@@ -178,12 +189,13 @@ def parse_no_code_task_tags(plan_file: Path) -> dict[str, str]:
 
 
 def find_projection_problems(task_deps, pr_tasks, pr_deps, no_code_tags) -> list[str]:
-    """Return one diagnostic string per defect found, in a fixed
-    category order (unowned, no-code-in-PR/duplicate/undefined,
-    cross-level) with ids sorted numerically within each category
-    for deterministic output. A [Clarify], [Gate] or [Direct]
-    task is never unowned, and a dependency on one is satisfied
-    outside the PR graph."""
+    """Return one diagnostic string per defect found, in a
+    fixed category order (unowned,
+    no-code-in-PR/duplicate/undefined, cross-level) with ids
+    sorted numerically within each category for deterministic
+    output. A [Clarify], [Gate] or [Direct] task is never
+    unowned, and a dependency on one is satisfied outside the
+    PR graph."""
     problems: list[str] = []
 
     owning_prs: dict[str, list[str]] = {}

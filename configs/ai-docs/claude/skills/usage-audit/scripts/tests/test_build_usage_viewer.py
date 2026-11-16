@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Smoke tests for build-usage-viewer.py's trim_sessions() and load_days().
+"""Smoke tests for build-usage-viewer.py's trim_sessions() and
+load_days().
 
-Fixtures: none on disk for trim_sessions() - inputs are small literal dicts
-small enough to verify by eye against SESSION_FIELDS/DAY_FIELDS. load_days()
-tests write 2-3 tiny snapshot JSON files into a
-tempfile.TemporaryDirectory() and point the module's SNAPSHOTS_DIR at it via
-mock.patch.object; this file never reads the committed
-usage-history/snapshots/.
+Fixtures: none on disk for trim_sessions() - inputs are small
+literal dicts small enough to verify by eye against
+SESSION_FIELDS/DAY_FIELDS.
+
+load_days() tests write 2-3 tiny snapshot JSON files into a
+tempfile.TemporaryDirectory() and point the module's
+SNAPSHOTS_DIR at it via mock.patch.object; this file never
+reads the committed usage-history/snapshots/.
 
 Usage:
   python3 scripts/tests/test_build_usage_viewer.py
@@ -24,7 +27,8 @@ SCRIPTS = Path(__file__).parent.parent
 
 
 def _load_module(filename, module_name):
-    """Import a dash-named script (not a valid module name) by file path."""
+    """Import a dash-named script (not a valid module name) by
+    file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
 
     # spec_from_file_location returns None for a path no
@@ -41,8 +45,9 @@ cur = _load_module("build-usage-viewer.py", "build_usage_viewer")
 
 
 class TestTrimSessions(unittest.TestCase):
-    """trim_sessions() reduces the top sessions list to only the fields the
-    viewer page renders, keeping the inlined HTML payload small."""
+    """trim_sessions() reduces the top sessions list to only the
+    fields the viewer page renders, keeping the inlined HTML
+    payload small."""
 
     def test_keeps_only_the_fields_the_viewer_page_renders(self):
         session = {
@@ -83,8 +88,9 @@ class TestTrimSessions(unittest.TestCase):
 
 
 class TestTrimSkills(unittest.TestCase):
-    """trim_skills() and trim_marginal_skills() reduce the two per-skill maps
-    to what the page's per-skill table and trend chart actually divide."""
+    """trim_skills() and trim_marginal_skills() reduce the two
+    per-skill maps to what the page's per-skill table and trend
+    chart actually divide."""
 
     BY_SKILL_ROW = {
         "commit-standards": {
@@ -147,8 +153,9 @@ class TestTrimSkills(unittest.TestCase):
 
 
 class TestLoadDays(unittest.TestCase):
-    """load_days() reads every usage-history/snapshots/*.json, trims each to
-    the fields the viewer renders, and skips what it cannot use."""
+    """load_days() reads every usage-history/snapshots/*.json,
+    trims each to the fields the viewer renders, and skips what
+    it cannot use."""
 
     def test_reads_every_snapshot_file_keyed_by_its_own_day_field(self):
         with tempfile.TemporaryDirectory() as tmp:

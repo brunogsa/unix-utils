@@ -1,10 +1,11 @@
 """Blackbox CLI tests for extract-issue-refs.py.
 
-Every case feeds free text on stdin and reads stdout/exit code back,
-so nothing depends on any file outside tmp_path or the script itself.
+Every case feeds free text on stdin and reads stdout/exit code
+back, so nothing depends on any file outside tmp_path or the
+script itself.
 
 Usage:
-  pytest configs/ai-docs/claude/skills/code-review-pipeline/scripts/tests/extract-issue-refs.test.py
+  ./run-tests.py <this file>
 """
 
 import subprocess

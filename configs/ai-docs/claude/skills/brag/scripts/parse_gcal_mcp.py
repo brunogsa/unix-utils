@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Parse Google Calendar MCP JSON and output events as JSON for a given date range.
+"""Parse Google Calendar MCP JSON and output events as JSON for
+a given date range.
 
 Usage:
   parse_gcal_mcp.py <mcp_json_path> <start_date> <end_date>
   parse_gcal_mcp.py /tmp/gcal.json 2026-04-13 2026-04-18
 
-Output: JSON array of {start, day, summary, duration_min} sorted by start time.
+Output: JSON array of {start, day, summary, duration_min} sorted
+by start time.
 End date is exclusive.
 """
 
@@ -18,7 +20,8 @@ from shared import BRT, append_event, resolve_overlaps
 
 
 def to_brt(dt_str):
-    """Parse ISO 8601 datetime string and return naive BRT datetime."""
+    """Parse ISO 8601 datetime string and return naive BRT
+    datetime."""
     dt = datetime.fromisoformat(dt_str)
     if dt.tzinfo is not None:
         dt = dt.astimezone(BRT).replace(tzinfo=None)
@@ -26,7 +29,8 @@ def to_brt(dt_str):
 
 
 def get_self_response(attendees):
-    """Return the self attendee's responseStatus, or None if no attendees list."""
+    """Return the self attendee's responseStatus, or None if no
+    attendees list."""
     for a in attendees:
         if a.get("self"):
             return a.get("responseStatus")

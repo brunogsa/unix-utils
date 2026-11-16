@@ -60,7 +60,8 @@ sys.exit(writer.main())
 
 
 def write_killed_before_rename(target, text):
-    """Run the write-atomically CLI on `text`, killed just before its rename."""
+    """Run the write-atomically CLI on `text`, killed just
+    before its rename."""
     return subprocess.run(
         [sys.executable, "-c", KILL_BEFORE_RENAME, str(SCRIPTS_DIR), str(WRITE_SCRIPT), str(target)],
         input=text, capture_output=True, text=True,

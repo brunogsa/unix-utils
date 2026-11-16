@@ -68,14 +68,15 @@ def _escape(value):
 
 
 def _format_duration_hours(seconds):
-    """Render a duration for a human reader, never a bare seconds count
-    once it crosses a minute -- gap 4: the old renderer printed every
-    duration in raw seconds, which is unreadable for a multi-hour session.
+    """Render a duration for a human reader, never a bare
+    seconds count once it crosses a minute -- gap 4: the old
+    renderer printed every duration in raw seconds, which is
+    unreadable for a multi-hour session.
 
     >= 3600s -> "12h 47m" (hours + minutes, no seconds)
     >= 60s   -> "42m"     (minutes only, no seconds)
-    else     -> "38s"     (bare seconds; sub-minute durations have nothing
-                            coarser worth showing)
+    else     -> "38s"     (bare seconds; sub-minute durations
+                            have nothing coarser worth showing)
     """
     total_seconds = int(seconds)
     if total_seconds >= 3600:
@@ -89,22 +90,24 @@ def _format_duration_hours(seconds):
 
 
 def _render_stacked_bar_svg(segments, width=600, height=28):
-    """One horizontal stacked bar as inline SVG, plus a matching legend
-    list -- reused by the time-bucket partition and the money
-    main-vs-subagent split, both spec'd as "one horizontal stacked bar,
-    each segment labelled".
+    """One horizontal stacked bar as inline SVG, plus a matching
+    legend list -- reused by the time-bucket partition and the
+    money main-vs-subagent split, both spec'd as "one horizontal
+    stacked bar, each segment labelled".
 
-    `segments` is a list of {"label", "fraction", "color", "detail"}: a
-    segment's on-screen width is its `fraction` normalized against the
-    total of all fractions (never against the sum of a caller's raw
-    seconds/dollars), so a caller can pass an already-reconciled pct
-    verbatim without this helper re-deriving anything from it. `detail`
-    is the caller's own fully-formatted text (e.g. "20m (33.0%)") for
-    the legend row -- this helper only escapes and lays it out.
+    `segments` is a list of {"label", "fraction", "color",
+    "detail"}: a segment's on-screen width is its `fraction`
+    normalized against the total of all fractions (never against
+    the sum of a caller's raw seconds/dollars), so a caller can
+    pass an already-reconciled pct verbatim without this helper
+    re-deriving anything from it. `detail` is the caller's own
+    fully-formatted text (e.g. "20m (33.0%)") for the legend row
+    -- this helper only escapes and lays it out.
 
     No xmlns attribute: optional for inline SVG under HTML5, and
-    "http://www.w3.org/2000/svg" would trip the no-http(s):// guard that
-    keeps this page free of any external-resource reference.
+    "http://www.w3.org/2000/svg" would trip the no-http(s)://
+    guard that keeps this page free of any external-resource
+    reference.
     """
     total_fraction = sum(seg["fraction"] for seg in segments) or 1
     x = 0.0
@@ -131,9 +134,10 @@ def _render_stacked_bar_svg(segments, width=600, height=28):
 
 
 def _render_bar_row(label, fraction_pct, detail):
-    """One labelled horizontal bar whose fill width is `fraction_pct`
-    (already normalized 0-100 by the caller) -- the building block for
-    the agent-hours-vs-wall-clock-occupied pair and any other
+    """One labelled horizontal bar whose fill width is
+    `fraction_pct` (already normalized 0-100 by the caller) --
+    the building block for the
+    agent-hours-vs-wall-clock-occupied pair and any other
     side-by-side bar comparison."""
     return (
         f'<div class="bar-row">'
@@ -145,10 +149,11 @@ def _render_bar_row(label, fraction_pct, detail):
 
 
 def _render_agent_hours_vs_wall_clock(agent_hours_seconds, wall_clock_occupied_seconds):
-    """The classic parallelism ratio: how much agent work ran (summed
-    across concurrent subagents) vs. how long the wall clock was actually
-    occupied by that work. Two short bars side by side, scaled to
-    whichever of the two is larger, so the ratio is visually legible."""
+    """The classic parallelism ratio: how much agent work ran
+    (summed across concurrent subagents) vs. how long the wall
+    clock was actually occupied by that work. Two short bars
+    side by side, scaled to whichever of the two is larger, so
+    the ratio is visually legible."""
     max_seconds = max(agent_hours_seconds, wall_clock_occupied_seconds) or 1
     return (
         '<div class="bar-pair">\n'
@@ -187,10 +192,11 @@ _TIME_BUCKET_COLORS = {
 
 
 def _render_ranked(ranked):
-    """Sorted by value descending, top TOP_N_RANKED rows, plus a "plus N
-    more, not shown" line when items were dropped -- the renderer's own
-    sort decides what counts as "top", never trusting the digest's
-    on-disk order (a shard's ranked[] is not guaranteed pre-sorted)."""
+    """Sorted by value descending, top TOP_N_RANKED rows, plus a
+    "plus N more, not shown" line when items were dropped -- the
+    renderer's own sort decides what counts as "top", never
+    trusting the digest's on-disk order (a shard's ranked[] is
+    not guaranteed pre-sorted)."""
     ordered = sorted(ranked, key=lambda item: item.get("value", 0), reverse=True)
     shown = ordered[:TOP_N_RANKED]
     dropped = len(ordered) - len(shown)
@@ -204,14 +210,16 @@ def _render_ranked(ranked):
 
 
 def _render_section(digest, extra_html=""):
-    """One narrative section. `extra_html` (a deterministic data panel --
-    e.g. the Money or Time data viz) is injected right after the `<h2>` and
-    before the headline/ranked/findings, in both the complete and
-    incomplete branches: the spec merges "one section per topic, data panel
-    first, shard narrative underneath" rather than the old renderer's
-    double-render (a bare data section AND a separate narrative section for
-    the same topic), and a failed/incomplete shard is no reason to also
-    hide the deterministic data that render independently of it."""
+    """One narrative section. `extra_html` (a deterministic data
+    panel -- e.g. the Money or Time data viz) is injected right
+    after the `<h2>` and before the headline/ranked/findings, in
+    both the complete and incomplete branches: the spec merges
+    "one section per topic, data panel first, shard narrative
+    underneath" rather than the old renderer's double-render (a
+    bare data section AND a separate narrative section for the
+    same topic), and a failed/incomplete shard is no reason to
+    also hide the deterministic data that render independently
+    of it."""
     section = digest["section"]
     title = SECTION_TITLES.get(section, section)
     incomplete = digest.get("incomplete")
@@ -243,13 +251,14 @@ def _validate_required_sections(sections_by_id):
 
 
 def _render_narrative(cost, timeline, narrative):
-    """Compose the narrative sections in the spec's fixed page order --
-    Money and Time each get their deterministic data panel merged in via
-    `extra_html`; Work done, Status and next steps, and Recommendations are
-    narrative-only. Validation (every REQUIRED_SECTIONS name present) is
-    split from composition (explicit per-topic calls in page order) so a
-    missing section still raises regardless of where it would have landed
-    on the page."""
+    """Compose the narrative sections in the spec's fixed page
+    order -- Money and Time each get their deterministic data
+    panel merged in via `extra_html`; Work done, Status and next
+    steps, and Recommendations are narrative-only. Validation
+    (every REQUIRED_SECTIONS name present) is split from
+    composition (explicit per-topic calls in page order) so a
+    missing section still raises regardless of where it would
+    have landed on the page."""
     sections_by_id = {digest["section"]: digest for digest in narrative.get("sections", [])}
     _validate_required_sections(sections_by_id)
     return "".join([
@@ -271,12 +280,13 @@ def _kpi_tile(label, value):
 
 
 def _render_highlights(cost, timeline):
-    """Gap 7's Highlights strip: a deterministic KPI card grid computed
-    straight from cost.json/timeline.json, never LLM prose. Every tile is
-    independently gated on its own source key(s) -- `_cost_fixture()` in
-    the test file carries only total/main_cost/subagent_cost, and this
-    function must render sanely (skip the tile, never print a literal
-    "None") for every key it omits."""
+    """Gap 7's Highlights strip: a deterministic KPI card grid
+    computed straight from cost.json/timeline.json, never LLM
+    prose. Every tile is independently gated on its own source
+    key(s) -- `_cost_fixture()` in the test file carries only
+    total/main_cost/subagent_cost, and this function must render
+    sanely (skip the tile, never print a literal "None") for
+    every key it omits."""
     tiles = []
 
     total = cost.get("total")
@@ -348,11 +358,12 @@ def _render_highlights(cost, timeline):
 
 
 def _render_money_main_vs_subagent(cost):
-    """Gap 3: main-vs-subagent spend as one horizontal stacked bar, each
-    segment labelled with its dollar amount and its percent of the
-    combined main+subagent spend (not of cost.json's `total`, which may
-    include cost not attributed to either -- combined is the only
-    denominator these two numbers are guaranteed to sum to)."""
+    """Gap 3: main-vs-subagent spend as one horizontal stacked
+    bar, each segment labelled with its dollar amount and its
+    percent of the combined main+subagent spend (not of
+    cost.json's `total`, which may include cost not attributed
+    to either -- combined is the only denominator these two
+    numbers are guaranteed to sum to)."""
     main_cost = cost.get("main_cost")
     subagent_cost = cost.get("subagent_cost")
     if main_cost is None or subagent_cost is None:
@@ -370,17 +381,18 @@ def _render_money_main_vs_subagent(cost):
 
 
 def _render_model_distribution(cost):
-    """Gap 2: model distribution was invisible. Horizontal bar rows, one per
-    model, each labelled with the model's exact name, its dollar amount, and
-    its percent of the distribution's own total (not cost.json's `total`,
-    for the same reason _render_money_main_vs_subagent uses `combined`: the
-    distribution's own entries are the only values these percentages are
-    guaranteed to sum to).
+    """Gap 2: model distribution was invisible. Horizontal bar
+    rows, one per model, each labelled with the model's exact
+    name, its dollar amount, and its percent of the
+    distribution's own total (not cost.json's `total`, for the
+    same reason _render_money_main_vs_subagent uses `combined`:
+    the distribution's own entries are the only values these
+    percentages are guaranteed to sum to).
 
-    Prefers `by_model` (exact model names, e.g. "claude-opus-5") since that
-    is the more specific figure the spec asks for; falls back to `by_family`
-    (e.g. "opus") only when `by_model` is absent, rather than rendering
-    nothing."""
+    Prefers `by_model` (exact model names, e.g. "claude-opus-5")
+    since that is the more specific figure the spec asks for;
+    falls back to `by_family` (e.g. "opus") only when `by_model`
+    is absent, rather than rendering nothing."""
     distribution = cost.get("by_model") or cost.get("by_family")
     if not distribution:
         return ""
@@ -393,11 +405,12 @@ def _render_model_distribution(cost):
 
 
 def _humanize_token_count(count):
-    """A token count in the tens of millions is unreadable as a raw digit
-    string -- render it as "58.29M" (two decimals, trailing zero kept) once
-    it crosses a million; below that a human can still read the raw count
-    at a glance, so only comma-group it rather than inventing a K suffix
-    the spec never asked for."""
+    """A token count in the tens of millions is unreadable as a
+    raw digit string -- render it as "58.29M" (two decimals,
+    trailing zero kept) once it crosses a million; below that a
+    human can still read the raw count at a glance, so only
+    comma-group it rather than inventing a K suffix the spec
+    never asked for."""
     if count >= 1_000_000:
         return f"{count / 1_000_000:.2f}M"
     return f"{count:,}"
@@ -414,11 +427,12 @@ _TOKEN_BREAKDOWN_LABELS = {
 
 def _render_token_breakdown(cost):
     """Gap 1: a bar row per token type, over
-    tokens.{input, output, cache_read, cache_write_5m, cache_write_1h}.
-    `cache_read` routinely dwarfs every other count, so each bar is scaled
-    to the MAX token value present (never the sum) -- scaling to the sum
-    would shrink every other row to an invisible sliver, per the spec:
-    "scale each bar to the max token value, not the sum, or every other row
+    tokens.{input, output, cache_read, cache_write_5m,
+    cache_write_1h}. `cache_read` routinely dwarfs every other
+    count, so each bar is scaled to the MAX token value present
+    (never the sum) -- scaling to the sum would shrink every
+    other row to an invisible sliver, per the spec: "scale each
+    bar to the max token value, not the sum, or every other row
     collapses to invisible"."""
     tokens = cost.get("tokens")
     if not tokens:
@@ -440,12 +454,13 @@ def _render_token_breakdown(cost):
 
 
 def _render_thinking_share(cost):
-    """Honesty constraint: the usage API never splits thinking tokens out
-    of output tokens -- thinking is billed inside tokens.output. This
-    renders only the truthful proxy cost.json carries
-    (`thinking_block_share`, a share of assistant *blocks*, not tokens),
-    with an explicit note so the reader cannot mistake it for a token
-    count. Never fabricates a thinking-token count."""
+    """Honesty constraint: the usage API never splits thinking
+    tokens out of output tokens -- thinking is billed inside
+    tokens.output. This renders only the truthful proxy
+    cost.json carries (`thinking_block_share`, a share of
+    assistant *blocks*, not tokens), with an explicit note so
+    the reader cannot mistake it for a token count. Never
+    fabricates a thinking-token count."""
     share = cost.get("thinking_block_share")
     if share is None:
         return ""
@@ -464,11 +479,12 @@ def _render_thinking_share(cost):
 
 
 def _render_subagent_types(cost):
-    """Bar rows from `by_subagent_type`, sorted descending by cost (never
-    trusting on-disk order), top TOP_N_RANKED + a "plus N more, not shown"
-    line for the rest -- the same top-N-ranked convention `_render_ranked`
-    already uses (D9), reused here since by_subagent_type can carry more
-    entries than fit on a card grid."""
+    """Bar rows from `by_subagent_type`, sorted descending by
+    cost (never trusting on-disk order), top TOP_N_RANKED + a
+    "plus N more, not shown" line for the rest -- the same
+    top-N-ranked convention `_render_ranked` already uses (D9),
+    reused here since by_subagent_type can carry more entries
+    than fit on a card grid."""
     by_subagent_type = cost.get("by_subagent_type")
     if not by_subagent_type:
         return ""
@@ -486,10 +502,11 @@ def _render_subagent_types(cost):
 
 
 def _render_money_panel(cost):
-    """The Money section's deterministic data viz, merged into the single
-    Money `<section>` via `_render_section`'s `extra_html` -- replaces the
-    old renderer's separate bare "Cost" section, which double-rendered the
-    same topic the narrative "Money" section already covered."""
+    """The Money section's deterministic data viz, merged into
+    the single Money `<section>` via `_render_section`'s
+    `extra_html` -- replaces the old renderer's separate bare
+    "Cost" section, which double-rendered the same topic the
+    narrative "Money" section already covered."""
     return (
         f"{_render_money_main_vs_subagent(cost)}"
         f"{_render_model_distribution(cost)}"
@@ -500,12 +517,13 @@ def _render_money_panel(cost):
 
 
 def _render_time_partition(timeline):
-    """The Time panel's data viz: a stacked bar across the time buckets,
-    plus the agent-hours-vs-wall-clock-occupied parallelism pair. Every
-    duration goes through _format_duration_hours (gap 4) -- `pct` is
-    still printed exactly as supplied, never re-derived, since
-    extract-session-timeline.py already reconciled the buckets to sum to
-    100 via largest-remainder rounding."""
+    """The Time panel's data viz: a stacked bar across the time
+    buckets, plus the agent-hours-vs-wall-clock-occupied
+    parallelism pair. Every duration goes through
+    _format_duration_hours (gap 4) -- `pct` is still printed
+    exactly as supplied, never re-derived, since
+    extract-session-timeline.py already reconciled the buckets
+    to sum to 100 via largest-remainder rounding."""
     partition = timeline.get("time_partition", {})
     buckets = partition.get("buckets", {})
     segments = [
@@ -543,12 +561,14 @@ def _read_template():
 
 
 def render_audit_html(cost, timeline, narrative, template=None):
-    """The full self-contained HTML string for one session's audit.
+    """The full self-contained HTML string for one session's
+    audit.
 
-    Every dynamic value is HTML-escaped before insertion: cost.json,
-    timeline.json, and narrative.json all ultimately carry transcript-
-    derived text (commit messages, shard findings quoting the session),
-    and this string is written straight to a file a browser will open.
+    Every dynamic value is HTML-escaped before insertion:
+    cost.json, timeline.json, and narrative.json all ultimately
+    carry transcript-derived text (commit messages, shard
+    findings quoting the session), and this string is written
+    straight to a file a browser will open.
     """
     if template is None:
         template = _read_template()
@@ -562,12 +582,13 @@ def render_audit_html(cost, timeline, narrative, template=None):
 
 
 def _sanitize_sid_for_filename(sid):
-    """A session id must never carry a path separator into the output
-    filename -- extract-session-timeline.py/claude-usage-report.py both
-    treat sid as an opaque token, never a path, but a malformed or
-    adversarial one (e.g. containing "../") must not be able to steer
-    write_audit_html's output outside the requested out_dir, such as
-    into usage-history/snapshots/ (AC5)."""
+    """A session id must never carry a path separator into the
+    output filename -- extract-session-timeline.py/
+    claude-usage-report.py both treat sid as an opaque token,
+    never a path, but a malformed or adversarial one (e.g.
+    containing "../") must not be able to steer
+    write_audit_html's output outside the requested out_dir,
+    such as into usage-history/snapshots/ (AC5)."""
     return re.sub(r"[/\\]", "_", sid)
 
 

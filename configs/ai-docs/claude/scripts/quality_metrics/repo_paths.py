@@ -8,11 +8,13 @@ import os
 
 
 def repo_relative(repo_dir, name):
-    """A repo-relative path, whether `name` is absolute or typed `./a`.
+    """A repo-relative path, whether `name` is absolute or typed
+    `./a`.
 
-    gcov2lcov, c8 and jest may name a file by absolute path, and a
-    `--files` argument may be typed either way. Both sides are
-    resolved first, so `/tmp/x` and `/private/tmp/x` compare equal.
+    gcov2lcov, c8 and jest may name a file by absolute path, and
+    a `--files` argument may be typed either way. Both sides are
+    resolved first, so `/tmp/x` and `/private/tmp/x` compare
+    equal.
     A path outside the repo comes back unchanged.
     """
     name = os.path.normpath(name)

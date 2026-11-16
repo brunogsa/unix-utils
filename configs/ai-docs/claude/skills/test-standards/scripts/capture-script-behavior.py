@@ -98,13 +98,15 @@ ROW_TIMEOUT_SECONDS = 60
 
 
 class RowError(Exception):
-    """Base of every error caused by one table row. The CLI catches
-    only this, so a malformed table's JSONDecodeError (also a
-    ValueError) is never mistaken for a bad row.
+    """Base of every error caused by one table row. The CLI
+    catches only this, so a malformed table's
+    JSONDecodeError (also a ValueError) is never mistaken for
+    a bad row.
 
-    `row` is the label the CLI prints: a quoted name, or `#<index>`
-    for a row without one. A raiser that cannot know it leaves it
-    None and the caller that can fills it in."""
+    `row` is the label the CLI prints: a quoted name, or
+    `#<index>` for a row without one. A raiser that cannot
+    know it leaves it None and the caller that can fills it
+    in."""
 
     def __init__(self, reason: str, *, row: str | None = None):
         super().__init__(reason)
@@ -120,15 +122,16 @@ class InvalidRowError(RowError, ValueError):
 
 
 class FixtureEscapeError(RowError, ValueError):
-    """Raised when a row's fixture_files key would write outside its
-    isolated fixture directory."""
+    """Raised when a row's fixture_files key would write
+    outside its isolated fixture directory."""
 
 
 class TableError(ValueError):
-    """Raised when the table itself is malformed, a fault about no
-    single row. Kept apart from RowError because it names the table
-    file, not a row. The CLI catches it by name, never a bare
-    ValueError, so a JSONDecodeError still surfaces."""
+    """Raised when the table itself is malformed, a fault about
+    no single row. Kept apart from RowError because it names
+    the table file, not a row. The CLI catches it by name,
+    never a bare ValueError, so a JSONDecodeError still
+    surfaces."""
 
     def __init__(self, table: Path, reason: str):
         super().__init__(reason)
@@ -144,9 +147,9 @@ class RowTimeoutError(RowError, RuntimeError):
 
 
 class RowLaunchError(RowError, RuntimeError):
-    """Raised when a row's script cannot be started or copied into
-    its fixture: a missing file, no exec bit, a file the kernel
-    cannot exec."""
+    """Raised when a row's script cannot be started or copied
+    into its fixture: a missing file, no exec bit, a file the
+    kernel cannot exec."""
 
 
 class RowOutputError(RowError):
@@ -211,12 +214,13 @@ class Captured:
 
 
 def mask_text(text: str, *, fixture_dir: Path | None = None) -> str:
-    """Normalize non-deterministic values so two captures differing
-    only in duration/pid/uuid/temp-path compare equal. `fixture_dir`
-    is substituted first (both its raw and resolved form, since
-    macOS symlinks /tmp -> /private/tmp) because it's a value we
-    KNOW is unique per run - the generic patterns below only catch
-    the common shapes, not every OS's real temp-dir layout."""
+    """Normalize non-deterministic values so two captures
+    differing only in duration/pid/uuid/temp-path compare
+    equal. `fixture_dir` is substituted first (both its raw
+    and resolved form, since macOS symlinks /tmp ->
+    /private/tmp) because it's a value we KNOW is unique per
+    run - the generic patterns below only catch the common
+    shapes, not every OS's real temp-dir layout."""
     if fixture_dir is not None:
         # Longest-first: the resolved path (e.g. macOS's
         # /private/var/... symlink target) contains the raw path
@@ -301,7 +305,8 @@ ROW_FIELD_TYPES = {
 
 
 def _entries(value) -> list:
-    """(label suffix, entry) pairs of an array or object value."""
+    """(label suffix, entry) pairs of an array or object
+    value."""
     if isinstance(value, list):
         return [(f"[{index}]", entry) for index, entry in enumerate(value)]
     return [(f"[{key!r}]", entry) for key, entry in value.items()]
@@ -368,9 +373,10 @@ def _validate_argv(argv: list) -> None:
 
 
 def _build_env(row: Row, *, fixture_dir: Path) -> dict | None:
-    """The full environment for a row's run, or None to inherit.
-    subprocess.run(env=...) replaces the environment instead of
-    merging, so the row's entries are layered on os.environ here."""
+    """The full environment for a row's run, or None to
+    inherit. subprocess.run(env=...) replaces the environment
+    instead of merging, so the row's entries are layered on
+    os.environ here."""
     if row.env is None:
         return None
     merged = dict(os.environ)
@@ -433,9 +439,10 @@ def _validate_fixture_key(key: str) -> None:
 
 
 def hash_fixture_tree(root: Path, *, fixture_dir: Path, skip_relpath: str | None = None) -> dict:
-    """Recursively hash every file under `root` (masking content
-    first) into a {relpath: sha256} map - the post-state half of the
-    captured tuple. `skip_relpath` leaves one file out."""
+    """Recursively hash every file under `root` (masking
+    content first) into a {relpath: sha256} map - the
+    post-state half of the captured tuple. `skip_relpath`
+    leaves one file out."""
     tree = {}
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
@@ -478,10 +485,10 @@ def setup_fixture(fixture_dir: Path, row: Row) -> None:
 
 
 def _place_script_in_fixture(script: Path, row: Row, *, fixture_dir: Path) -> str:
-    """Copy `script` to row.script_relpath and return the program
-    to run. A copy, not a symlink: Path.resolve() and readlink -f
-    follow a symlink back into the repo. The './' prefix keeps
-    $0 free of any temp path."""
+    """Copy `script` to row.script_relpath and return the
+    program to run. A copy, not a symlink: Path.resolve() and
+    readlink -f follow a symlink back into the repo. The './'
+    prefix keeps $0 free of any temp path."""
     relpath = str(row.script_relpath)
     destination = fixture_dir / relpath
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -500,10 +507,11 @@ def _place_script_in_fixture(script: Path, row: Row, *, fixture_dir: Path) -> st
 
 
 def _kill_process_group(proc: subprocess.Popen) -> None:
-    """SIGKILL every process the row's script started. The script
-    leads its own group, so the group id is its pid. A group already
-    empty raises ProcessLookupError, and one holding only its
-    unreaped zombie leader raises PermissionError on macOS."""
+    """SIGKILL every process the row's script started. The
+    script leads its own group, so the group id is its pid. A
+    group already empty raises ProcessLookupError, and one
+    holding only its unreaped zombie leader raises
+    PermissionError on macOS."""
     try:
         os.killpg(proc.pid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError):
@@ -540,10 +548,11 @@ def _read_output(stream, *, stream_name: str, row: Row, encoding: str) -> str:
 def capture_row(
     script: Path, row: Row, *, fixture_dir: Path, timeout_seconds: float = ROW_TIMEOUT_SECONDS,
 ) -> Captured:
-    """Run one table row against `script` inside its own, already-
-    prepared fixture_dir and return the full captured tuple. A run
-    past `timeout_seconds` raises RowTimeoutError rather than
-    recording a golden from a killed process."""
+    """Run one table row against `script` inside its own,
+    already-prepared fixture_dir and return the full captured
+    tuple. A run past `timeout_seconds` raises
+    RowTimeoutError rather than recording a golden from a
+    killed process."""
     program = str(script)
     if row.script_relpath is not None:
         program = _place_script_in_fixture(script, row, fixture_dir=fixture_dir)
@@ -602,12 +611,13 @@ class ComparisonResult:
 
 
 def compare_captured(expected: dict, actual: Captured) -> ComparisonResult:
-    """Pure masked-field comparison of a row's golden fields against
-    a fresh Captured tuple - stdout, stderr, exit_code AND
-    post_state all participate, closing the gap of an older 3-tuple
-    comparison that ignored fixture state. No divergence logic here:
-    this is what both `compare` and the emitted <stem>.test.py call,
-    and a genuine regression must always fail it."""
+    """Pure masked-field comparison of a row's golden fields
+    against a fresh Captured tuple - stdout, stderr,
+    exit_code AND post_state all participate, closing the gap
+    of an older 3-tuple comparison that ignored fixture
+    state. No divergence logic here: this is what both
+    `compare` and the emitted <stem>.test.py call, and a
+    genuine regression must always fail it."""
     diff = {}
     for field_name, expected_key in (
         ("stdout", "expected_stdout"),

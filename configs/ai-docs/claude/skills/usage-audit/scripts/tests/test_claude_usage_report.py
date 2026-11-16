@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
-"""Billing-correctness and snapshot-mechanics tests for claude-usage-report.py.
+"""Billing-correctness and snapshot-mechanics tests for
+claude-usage-report.py.
 
-Fixtures: none on disk - every transcript is a handful of hand-readable
-records built in code via _assistant_record()/_write_transcript() below, each
-one small enough that the expected dollar figure can be verified by hand
+Fixtures: none on disk - every transcript is a handful of
+hand-readable records built in code via
+_assistant_record()/_write_transcript() below, each one small
+enough that the expected dollar figure can be verified by hand
 against MODEL_PRICES / SONNET_5_INTRO_PRICES / FAST_MODE_PRICES.
 
-The billing-correctness tests force TZ=America/Sao_Paulo (UTC-3, no DST) for
-their whole class so local-day bucketing is deterministic on any machine -
-Sao Paulo is also the real-world timezone the local-day bug was measured
-against. Every filesystem path used (transcripts root, snapshots dir) is a
-tempfile.TemporaryDirectory(); this file never reads or writes
-~/.claude/projects or the committed usage-history/snapshots/.
+The billing-correctness tests force TZ=America/Sao_Paulo
+(UTC-3, no DST) for their whole class so local-day bucketing
+is deterministic on any machine - Sao Paulo is also the
+real-world timezone the local-day bug was measured against.
+Every filesystem path used (transcripts root, snapshots dir)
+is a tempfile.TemporaryDirectory(); this file never reads or
+writes ~/.claude/projects or the committed
+usage-history/snapshots/.
 
 Usage:
   python3 scripts/tests/test_claude_usage_report.py
@@ -36,7 +40,8 @@ SCRIPTS = Path(__file__).parent.parent
 
 
 def _load_module(filename, module_name):
-    """Import a dash-named script (not a valid module name) by file path."""
+    """Import a dash-named script (not a valid module name)
+    by file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
 
     # spec_from_file_location returns None for a path no
@@ -53,13 +58,15 @@ cur = _load_module("claude-usage-report.py", "claude_usage_report")
 
 
 def _iso(epoch):
-    """Epoch seconds -> UTC ISO-8601 string, the shape parse_ts() expects."""
+    """Epoch seconds -> UTC ISO-8601 string, the shape
+    parse_ts() expects."""
     return datetime.fromtimestamp(epoch, tz=timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _advisor_iteration(*, input_tokens, output_tokens, model="claude-opus-5"):
-    """One usage.iterations entry for an /advisor turn's second model -
-    the only place Claude Code reports that model's tokens."""
+    """One usage.iterations entry for an /advisor turn's second
+    model - the only place Claude Code reports that model's
+    tokens."""
     return {
         "type": "advisor_message",
         "model": model,
@@ -76,12 +83,14 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
                        advisor_iterations=None, cwd=None, skills=(),
                        cache_write_5m=0, cache_write_1h=0,
                        cache_creation_total=None):
-    """One transcript line for a single content-block of an assistant
-    response, shaped like a real Claude Code transcript record.
+    """One transcript line for a single content-block of an
+    assistant response, shaped like a real Claude Code
+    transcript record.
 
-    `cache_creation_total` defaults to the two TTL buckets' sum, which
-    is what a well-formed record carries; pass it explicitly only to
-    build the malformed shape where the flat field disagrees."""
+    `cache_creation_total` defaults to the two TTL buckets'
+    sum, which is what a well-formed record carries; pass it
+    explicitly only to build the malformed shape where the
+    flat field disagrees."""
     if cache_creation_total is None:
         cache_creation_total = cache_write_5m + cache_write_1h
     usage = {
@@ -123,7 +132,8 @@ def _assistant_record(message_id, request_id, epoch, *, input_tokens, output_tok
 
 
 def _user_record(epoch, text, *, cwd=None):
-    """One typed human turn, the shape is_human_message() accepts."""
+    """One typed human turn, the shape is_human_message()
+    accepts."""
     record = {
         "type": "user",
         "timestamp": _iso(epoch),
@@ -135,7 +145,8 @@ def _user_record(epoch, text, *, cwd=None):
 
 
 def _write_transcript(dir_path, filename, records):
-    """Write one record per line to dir_path/filename; returns the path."""
+    """Write one record per line to dir_path/filename;
+    returns the path."""
     path = os.path.join(dir_path, filename)
     with open(path, "w") as fh:
         for record in records:
@@ -144,8 +155,9 @@ def _write_transcript(dir_path, filename, records):
 
 
 class TestPricingRates(unittest.TestCase):
-    """Pure unit tests of message_rates() - the branch that picks which price
-    tuple a message bills at, given its model, day, and usage.speed.
+    """Pure unit tests of message_rates() - the branch that
+    picks which price tuple a message bills at, given its
+    model, day, and usage.speed.
     """
 
     def test_sonnet_5_bills_at_the_introductory_rate_on_the_last_day_of_its_intro_window(self):
@@ -185,9 +197,9 @@ class TestPricingRates(unittest.TestCase):
 
 @unittest.skipUnless(hasattr(time, "tzset"), "requires POSIX tzset (macOS/Linux)")
 class TestBillingCorrectness(unittest.TestCase):
-    """Regression coverage for the two billing bugs described in this
-    script's module docstring, plus the day-attribution and subagent-rollup
-    invariants those bugs depend on.
+    """Regression coverage for the two billing bugs described
+    in this script's module docstring, plus the day-attribution
+    and subagent-rollup invariants those bugs depend on.
     """
 
     _original_tz = None
@@ -207,9 +219,10 @@ class TestBillingCorrectness(unittest.TestCase):
         time.tzset()
 
     def test_a_response_written_as_three_content_block_records_bills_exactly_once(self):
-        """A response Claude Code writes as N transcript records - one per
-        content block, each stamped with the identical message.usage - must
-        bill exactly once, not once per block. Regression for the bug fixed
+        """A response Claude Code writes as N transcript
+        records - one per content block, each stamped with the
+        identical message.usage - must bill exactly once, not
+        once per block. Regression for the bug fixed
         2026-07-27: summing every record inflated a day 3.4x."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
@@ -244,10 +257,11 @@ class TestBillingCorrectness(unittest.TestCase):
                 "API call, not 3")
 
     def test_a_response_with_growing_output_tokens_bills_the_peak_not_the_anchor_or_the_sum(self):
-        """output_tokens is written cumulatively as a response streams, so a
-        response whose blocks report output_tokens 100, then 400, then 900
-        must bill the peak (900) - not the earliest block's partial 100, and
-        not the naive sum 1400. Regression for the bug fixed 2026-08-08."""
+        """output_tokens is written cumulatively as a response
+        streams, so a response whose blocks report output_tokens
+        100, then 400, then 900 must bill the peak (900) - not
+        the earliest block's partial 100, and not the naive sum
+        1400. Regression for the bug fixed 2026-08-08."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -269,12 +283,14 @@ class TestBillingCorrectness(unittest.TestCase):
                 "(over-bills)")
 
     def test_a_response_with_growing_cache_read_tokens_bills_the_peak_not_the_anchor_or_the_sum(self):
-        """cache_read_input_tokens grows across a response's blocks on a
-        minority of responses, exactly as output_tokens does, so a response
-        whose blocks report 200, then 500, then 1200 cache-read tokens must
-        bill the peak (1200) - not the anchor block's 200, and not the sum
-        1900. Under-billing here left whole days below ccusage and cost them
-        their citable status. Regression for the bug fixed 2026-08-09."""
+        """cache_read_input_tokens grows across a response's
+        blocks on a minority of responses, exactly as
+        output_tokens does, so a response whose blocks report
+        200, then 500, then 1200 cache-read tokens must bill
+        the peak (1200) - not the anchor block's 200, and not
+        the sum 1900. Under-billing here left whole days below
+        ccusage and cost them their citable status. Regression
+        for the bug fixed 2026-08-09."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -298,12 +314,14 @@ class TestBillingCorrectness(unittest.TestCase):
                 "the sum 1900 (over-bills)")
 
     def test_a_response_whose_flat_cache_creation_field_is_zeroed_still_bills_the_ttl_breakdown(self):
-        """A minority of records zero every flat usage field while the
-        cache_creation breakdown keeps the real figure, so a response
-        reporting 0 in cache_creation_input_tokens but 8000 1h-TTL tokens
-        in the breakdown must bill those 8000. Trusting the flat field
-        dropped them entirely and left 4 days drifting below ccusage.
-        Regression for the bug fixed 2026-08-09."""
+        """A minority of records zero every flat usage field
+        while the cache_creation breakdown keeps the real
+        figure, so a response reporting 0 in
+        cache_creation_input_tokens but 8000 1h-TTL tokens in
+        the breakdown must bill those 8000. Trusting the flat
+        field dropped them entirely and left 4 days drifting
+        below ccusage. Regression for the bug fixed
+        2026-08-09."""
         day = "2026-07-23"
         since, until = cur.day_bounds(day)
         record = _assistant_record(
@@ -324,10 +342,11 @@ class TestBillingCorrectness(unittest.TestCase):
             msg="the 1h bucket must carry the breakdown's own figure")
 
     def test_a_response_with_no_cache_creation_breakdown_bills_its_flat_total_as_one_hour_tokens(self):
-        """Records predating the cache_creation breakdown carry only the
-        flat total, and Claude Code writes to the 1h cache, so a record
-        with an all-zero breakdown and 5000 flat tokens must still bill
-        those 5000 at the 1h rate rather than vanish."""
+        """Records predating the cache_creation breakdown carry
+        only the flat total, and Claude Code writes to the 1h
+        cache, so a record with an all-zero breakdown and 5000
+        flat tokens must still bill those 5000 at the 1h rate
+        rather than vanish."""
         day = "2026-07-23"
         since, until = cur.day_bounds(day)
         record = _assistant_record(
@@ -344,9 +363,10 @@ class TestBillingCorrectness(unittest.TestCase):
                 "figure available and belongs to the 1h bucket")
 
     def test_a_response_straddling_local_midnight_bills_once_to_the_earlier_local_day(self):
-        """A response whose content-block records straddle local midnight
-        must bill entirely to the local day of its earliest record, and must
-        not also be counted when the following day is scanned separately."""
+        """A response whose content-block records straddle
+        local midnight must bill entirely to the local day of
+        its earliest record, and must not also be counted when
+        the following day is scanned separately."""
         day1, day2 = "2026-07-16", "2026-07-17"
         boundary = cur.day_bounds(day2)[0]
         records = [
@@ -378,9 +398,10 @@ class TestBillingCorrectness(unittest.TestCase):
                 "response as an API call at all")
 
     def test_local_day_converts_a_utc_evening_timestamp_to_the_previous_local_calendar_day(self):
-        """A record whose UTC calendar date and local calendar date differ
-        must convert to the LOCAL date. Bucketing by the raw UTC date
-        historically misfiled 44.2% of records for a UTC-3 user."""
+        """A record whose UTC calendar date and local calendar
+        date differ must convert to the LOCAL date. Bucketing
+        by the raw UTC date historically misfiled 44.2% of
+        records for a UTC-3 user."""
 
         # 2026-07-21T01:00:00Z is 2026-07-20T22:00:00 local at
         # UTC-3 (this test class's forced TZ): UTC day is the
@@ -392,8 +413,9 @@ class TestBillingCorrectness(unittest.TestCase):
                 "local day 2026-07-20 (UTC-3), not the UTC date 2026-07-21")
 
     def test_aggregate_files_a_cross_utc_midnight_record_under_its_local_day_not_its_utc_day(self):
-        """The same UTC/local divergence, proven end to end through
-        aggregate()'s by_day rollup rather than just the local_day() helper."""
+        """The same UTC/local divergence, proven end to end
+        through aggregate()'s by_day rollup rather than just
+        the local_day() helper."""
         epoch = cur.parse_ts("2026-07-21T01:00:00Z")
         local_day, utc_day = "2026-07-20", "2026-07-21"
         since, until = cur.day_bounds(local_day)
@@ -413,10 +435,11 @@ class TestBillingCorrectness(unittest.TestCase):
                 "its UTC day 2026-07-21")
 
     def test_a_subagent_nested_two_levels_deep_rolls_up_to_the_top_level_session_once(self):
-        """A subagent transcript nested under .../subagents/... at any depth -
-        including a subagent's own subagent - rolls its cost up to the
-        top-level parent session, via path.split("/subagents/")[0], and is
-        counted exactly once in that parent's subagent tally."""
+        """A subagent transcript nested under .../subagents/...
+        at any depth - including a subagent's own subagent -
+        rolls its cost up to the top-level parent session, via
+        path.split("/subagents/")[0], and is counted exactly
+        once in that parent's subagent tally."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -461,10 +484,11 @@ class TestBillingCorrectness(unittest.TestCase):
                 "nested subagent), not merged into 1 or double-counted")
 
     def test_an_advisor_turn_bills_its_second_model_on_top_of_the_main_one(self):
-        """An /advisor turn bills a second model whose tokens appear ONLY in
-        usage.iterations - the top-level usage fields sum the "message"
-        iterations alone. Regression for the bug fixed 2026-08-09, where
-        those tokens were structurally invisible to the aggregator."""
+        """An /advisor turn bills a second model whose tokens
+        appear ONLY in usage.iterations - the top-level usage
+        fields sum the "message" iterations alone. Regression
+        for the bug fixed 2026-08-09, where those tokens were
+        structurally invisible to the aggregator."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -491,10 +515,12 @@ class TestBillingCorrectness(unittest.TestCase):
                 "to the main turn's 1,000, not silently dropped")
 
     def test_advisor_tokens_on_a_non_anchor_block_still_bill_and_bill_only_once(self):
-        """A subagent transcript never carries its advisor iterations on the
-        ANCHOR block record - measured 2026-07-19: 0 of 13 on the anchor. The
-        dedup gate skips every non-anchor record, so reading the iterations
-        off the record being priced dropped every subagent advisor call."""
+        """A subagent transcript never carries its advisor
+        iterations on the ANCHOR block record - measured
+        2026-07-19: 0 of 13 on the anchor. The dedup gate
+        skips every non-anchor record, so reading the
+        iterations off the record being priced dropped every
+        subagent advisor call."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -534,10 +560,11 @@ class TestBillingCorrectness(unittest.TestCase):
 
 
 class TestRepoClassSplit(unittest.TestCase):
-    """Coverage for splitting a day's spend and human touches into the work
-    half and the tooling half. Only the work half has a merged-PR
-    denominator - the delivered-work ledger excludes the personal-env repos
-    by design - so dividing TOTAL spend by PRs measured which repo the day
+    """Coverage for splitting a day's spend and human touches
+    into the work half and the tooling half. Only the work
+    half has a merged-PR denominator - the delivered-work
+    ledger excludes the personal-env repos by design - so
+    dividing TOTAL spend by PRs measured which repo the day
     was spent in more than how efficiently it was spent.
     """
 
@@ -581,9 +608,10 @@ class TestRepoClassSplit(unittest.TestCase):
                 "spend, mirroring how the ledger discovers work repos")
 
     def test_a_session_that_moves_between_a_work_repo_and_a_tooling_repo_splits_across_both(self):
-        """Classification is per record, not per session: a session that cd's
-        from a work repo into this config must land in both halves, which
-        per-session tagging could only round to one of them."""
+        """Classification is per record, not per session: a
+        session that cd's from a work repo into this config
+        must land in both halves, which per-session tagging
+        could only round to one of them."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -608,9 +636,9 @@ class TestRepoClassSplit(unittest.TestCase):
             msg="only the turn taken in this config may bill to the tooling half")
 
     def test_delegating_to_a_subagent_keeps_its_cost_in_the_parents_repo_half(self):
-        """A subagent inherits the working directory it was spawned from, so
-        delegating work must not move its cost out of the half that has to
-        answer for it."""
+        """A subagent inherits the working directory it was
+        spawned from, so delegating work must not move its
+        cost out of the half that has to answer for it."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -636,9 +664,10 @@ class TestRepoClassSplit(unittest.TestCase):
                 "half, so delegation cannot hide cost from the PR denominator")
 
     def test_the_delegated_share_of_a_halfs_spend_is_recorded_separately(self):
-        """Whether leaning on subagents helps is asked of the work half and the
-        tooling half separately, and a day-level subagent total cannot be split
-        back out per half once the two are summed."""
+        """Whether leaning on subagents helps is asked of the
+        work half and the tooling half separately, and a
+        day-level subagent total cannot be split back out per
+        half once the two are summed."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -672,9 +701,10 @@ class TestRepoClassSplit(unittest.TestCase):
                 "spend, never inherit the other half's subagent runs")
 
     def test_an_advisor_turns_second_model_bills_to_the_same_half_as_the_turn_it_rode_on(self):
-        """The advisor's tokens live only in usage.iterations and are priced
-        at a separate site from the main turn, so that site needs its own
-        classification or the advisor's spend silently defaults to work."""
+        """The advisor's tokens live only in usage.iterations
+        and are priced at a separate site from the main turn,
+        so that site needs its own classification or the
+        advisor's spend silently defaults to work."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -727,9 +757,10 @@ class TestRepoClassSplit(unittest.TestCase):
                 "not inflate the numerator of touches per merged PR")
 
     def test_a_subagents_user_records_never_count_as_touches_in_either_half(self):
-        """A subagent's "user" records are its spawn prompt and tool results,
-        not the human typing - counting them would inflate the very
-        denominator touches-per-merged-PR divides by."""
+        """A subagent's "user" records are its spawn prompt and
+        tool results, not the human typing - counting them
+        would inflate the very denominator
+        touches-per-merged-PR divides by."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         epoch = since + 3600
@@ -757,8 +788,9 @@ class TestRepoClassSplit(unittest.TestCase):
                 "prompt must not become a second touch")
 
     def test_the_snapshot_reports_both_halves_even_when_one_had_no_spend(self):
-        """A reader has to tell a day with no tooling spend apart from a day
-        whose split was never measured at all."""
+        """A reader has to tell a day with no tooling spend
+        apart from a day whose split was never measured at
+        all."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -779,12 +811,14 @@ class TestRepoClassSplit(unittest.TestCase):
 
 
 class TestSkillsPerRepoClass(unittest.TestCase):
-    """A skill's dollars and loads, read separately for work and tooling.
+    """A skill's dollars and loads, read separately for work
+    and tooling.
 
-    Averaged over every session alike, a skill that only ever fires while
-    tuning this config reads as a cost of shipping. The split is per session
-    rather than per record because a skill row counts sessions, and no
-    session-level counter could divide one row across two halves.
+    Averaged over every session alike, a skill that only ever
+    fires while tuning this config reads as a cost of
+    shipping. The split is per session rather than per record
+    because a skill row counts sessions, and no session-level
+    counter could divide one row across two halves.
     """
 
     TOOLING_CWD = "/Users/brunoagostini/unix-utils/configs/ai-docs/claude"
@@ -813,8 +847,8 @@ class TestSkillsPerRepoClass(unittest.TestCase):
                 "that same half, so loads per session divides within a half")
 
     def test_a_half_a_skill_never_ran_in_reports_zero_rather_than_nothing(self):
-        """A reader has to tell a skill that never fired in a half apart from
-        one whose split was never measured."""
+        """A reader has to tell a skill that never fired in a
+        half apart from one whose split was never measured."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -833,8 +867,9 @@ class TestSkillsPerRepoClass(unittest.TestCase):
                 "absence never reads as unmeasured")
 
     def test_a_session_split_across_both_halves_charges_its_skills_to_the_costlier_one(self):
-        """Deliberate approximation: no session-level counter can divide a
-        skill row's sessions, so the whole row follows where the money was."""
+        """Deliberate approximation: no session-level counter
+        can divide a skill row's sessions, so the whole row
+        follows where the money was."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -859,8 +894,9 @@ class TestSkillsPerRepoClass(unittest.TestCase):
                 "one session its loads-per-session figure divides by")
 
     def test_a_lone_skills_attributed_spend_lands_in_its_sessions_half(self):
-        """by_skill rows overlap across skills, so the attributable dollars a
-        per-skill average should divide come from the marginal partition."""
+        """by_skill rows overlap across skills, so the
+        attributable dollars a per-skill average should divide
+        come from the marginal partition."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -881,8 +917,9 @@ class TestSkillsPerRepoClass(unittest.TestCase):
             msg="no dedicated session may leak into the half it never ran in")
 
     def test_a_multi_skill_sessions_estimated_split_stays_inside_one_half(self):
-        """The mixed branch divides a session across the skills it invoked;
-        every slice still belongs to the one half the session ran in."""
+        """The mixed branch divides a session across the skills
+        it invoked; every slice still belongs to the one half
+        the session ran in."""
         day = "2026-07-20"
         since, until = cur.day_bounds(day)
         with tempfile.TemporaryDirectory() as tmp:
@@ -913,16 +950,18 @@ class TestSkillsPerRepoClass(unittest.TestCase):
 
 
 class TestSnapshotMechanics(unittest.TestCase):
-    """Refusal, backfill idempotency, retention coverage, and the ccusage
-    cross-check's graceful degradation. Every test isolates TRANSCRIPTS_ROOT
-    and SNAPSHOTS_DIR to a tempfile.TemporaryDirectory() via mock.patch.object
-    and clears the module's ccusage cache first, so no test depends on or
-    mutates real state.
+    """Refusal, backfill idempotency, retention coverage, and
+    the ccusage cross-check's graceful degradation. Every test
+    isolates TRANSCRIPTS_ROOT and SNAPSHOTS_DIR to a
+    tempfile.TemporaryDirectory() via mock.patch.object and
+    clears the module's ccusage cache first, so no test
+    depends on or mutates real state.
     """
 
     def test_refuses_to_snapshot_the_current_open_day(self):
-        """--day for today (not yet closed) must exit non-zero and must not
-        write a snapshot - a day is only immutable once it has ended."""
+        """--day for today (not yet closed) must exit non-zero
+        and must not write a snapshot - a day is only immutable
+        once it has ended."""
         today = date.today().isoformat()
         with tempfile.TemporaryDirectory() as tmp:
             transcripts_root = os.path.join(tmp, "projects")
@@ -943,8 +982,8 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "with a non-zero status")
 
     def test_backfill_skips_a_day_that_already_has_a_snapshot(self):
-        """--backfill without --rebuild must leave a day's existing
-        snapshot file untouched."""
+        """--backfill without --rebuild must leave a day's
+        existing snapshot file untouched."""
         day = "2026-07-20"
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
@@ -970,9 +1009,10 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "untouched without --rebuild")
 
     def test_backfill_with_rebuild_overwrites_a_days_existing_snapshot(self):
-        """--backfill --rebuild must re-measure and overwrite a day's
-        existing snapshot file rather than skipping it - the escape hatch
-        for when an aggregation fix leaves old snapshots wrong."""
+        """--backfill --rebuild must re-measure and overwrite a
+        day's existing snapshot file rather than skipping it -
+        the escape hatch for when an aggregation fix leaves old
+        snapshots wrong."""
         day = "2026-07-20"
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
@@ -999,9 +1039,10 @@ class TestSnapshotMechanics(unittest.TestCase):
         self.assertEqual(after["day"], day)
 
     def test_a_day_before_the_retention_floor_writes_unretained_coverage(self):
-        """A day whose transcripts have already been pruned past Claude
-        Code's retention floor must record coverage: "unretained", not
-        "complete" - unretained means unmeasurable, not idle."""
+        """A day whose transcripts have already been pruned
+        past Claude Code's retention floor must record
+        coverage: "unretained", not "complete" - unretained
+        means unmeasurable, not idle."""
         payload = self._snapshot_against_floor(day="2026-06-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1010,9 +1051,10 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "unretained, not complete")
 
     def test_the_retention_floor_day_itself_writes_partial_coverage(self):
-        """The prune cuts through the floor day at an hour, not at
-        midnight, so its earlier sessions are gone while its later ones
-        survive - that day must read "partial", never "complete"."""
+        """The prune cuts through the floor day at an hour, not
+        at midnight, so its earlier sessions are gone while its
+        later ones survive - that day must read "partial",
+        never "complete"."""
         payload = self._snapshot_against_floor(day="2026-07-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1022,8 +1064,9 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "transcripts can still account for")
 
     def test_a_day_after_the_retention_floor_writes_complete_coverage(self):
-        """A day strictly newer than the floor still has all of its
-        transcripts on disk and must record coverage: "complete"."""
+        """A day strictly newer than the floor still has all of
+        its transcripts on disk and must record coverage:
+        "complete"."""
         payload = self._snapshot_against_floor(day="2026-07-02",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1032,9 +1075,10 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "so it stays eligible for deltas and reconciliation")
 
     def test_a_partially_retained_day_reports_no_ccusage_verdict(self):
-        """A day the prune has reached is measured against a shrunken
-        corpus, so its ccusage cross-check would compare two different
-        corpora - it must report the coverage word instead of ok/drift."""
+        """A day the prune has reached is measured against a
+        shrunken corpus, so its ccusage cross-check would
+        compare two different corpora - it must report the
+        coverage word instead of ok/drift."""
         payload = self._snapshot_against_floor(day="2026-07-01",
                                                retention_floor="2026-07-01")
         self.assertEqual(
@@ -1044,9 +1088,10 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "may be issued for it")
 
     def test_rebuilding_a_pruned_day_keeps_the_committed_snapshot(self):
-        """--rebuild is mandatory after an aggregation fix, but a day
-        whose transcripts are gone can only re-measure LOWER - the older,
-        richer measurement must survive the rebuild."""
+        """--rebuild is mandatory after an aggregation fix, but
+        a day whose transcripts are gone can only re-measure
+        LOWER - the older, richer measurement must survive the
+        rebuild."""
         day = "2026-06-01"
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
@@ -1078,9 +1123,10 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "preserved, so the reader knows it rests on an older run")
 
     def test_rebuilding_a_retained_day_overwrites_a_higher_committed_total(self):
-        """A fully retained day measuring lower is an aggregation fix
-        landing, not history being lost - the 2026-07-27 dedup fix cut
-        2026-07-20 from $441.44 to $130.16 and had to be allowed to."""
+        """A fully retained day measuring lower is an
+        aggregation fix landing, not history being lost - the
+        2026-07-27 dedup fix cut 2026-07-20 from $441.44 to
+        $130.16 and had to be allowed to."""
         day = "2026-07-20"
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
@@ -1108,8 +1154,9 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "the committed series")
 
     def _snapshot_against_floor(self, *, day, retention_floor):
-        """Snapshot `day` over an empty transcripts root, with the
-        retention floor pinned, and return the payload written."""
+        """Snapshot `day` over an empty transcripts root, with
+        the retention floor pinned, and return the payload
+        written."""
         cur._ccusage_days.clear()
         with tempfile.TemporaryDirectory() as tmp:
             transcripts_root = os.path.join(tmp, "projects")
@@ -1125,9 +1172,9 @@ class TestSnapshotMechanics(unittest.TestCase):
                 return json.load(fh)
 
     def test_reconciliation_degrades_to_unavailable_when_ccusage_is_not_installed(self):
-        """When the ccusage binary is absent, the token cross-check must
-        degrade to status "unavailable" rather than crash or silently
-        report "ok"."""
+        """When the ccusage binary is absent, the token
+        cross-check must degrade to status "unavailable"
+        rather than crash or silently report "ok"."""
         cur._ccusage_days.clear()
         empty_tokens = {"tokens": dict.fromkeys(cur.TOKEN_KINDS, 0)}
         with mock.patch.object(cur.shutil, "which", return_value=None):
@@ -1138,10 +1185,11 @@ class TestSnapshotMechanics(unittest.TestCase):
                 "claim ok, when ccusage cannot run at all")
 
     def test_reconciliation_degrades_to_unavailable_when_ccusage_returns_an_unrecognized_schema(self):
-        """A ccusage output whose schema this script doesn't recognize (e.g.
-        a future version renaming or dropping a field) must degrade to
-        status "unavailable" instead of crashing the snapshot run - the
-        exact failure mode a ccusage 20.x schema change hit in production."""
+        """A ccusage output whose schema this script doesn't
+        recognize (e.g. a future version renaming or dropping
+        a field) must degrade to status "unavailable" instead
+        of crashing the snapshot run - the exact failure mode
+        a ccusage 20.x schema change hit in production."""
         cur._ccusage_days.clear()
         empty_tokens = {"tokens": dict.fromkeys(cur.TOKEN_KINDS, 0)}
         fake_result = subprocess.CompletedProcess(
@@ -1157,18 +1205,22 @@ class TestSnapshotMechanics(unittest.TestCase):
 
 
 class TestSessionMode(unittest.TestCase):
-    """--session SID --json: the existing aggregate()/build_payload() pipeline
-    run over one session id's own transcripts (its main file plus any
-    subagent runs under it), found by searching every ~/.claude/projects/*/
-    directory rather than only the caller's cwd project - a --session audit
-    commonly targets a past run made from elsewhere. Never touches
-    snapshot_day()/run_backfill(): a mid-session read is inherently partial
-    and must not be written under usage-history/snapshots/.
+    """--session SID --json: the existing
+    aggregate()/build_payload() pipeline run over one session
+    id's own transcripts (its main file plus any subagent
+    runs under it), found by searching every
+    ~/.claude/projects/*/ directory rather than only the
+    caller's cwd project - a --session audit commonly targets
+    a past run made from elsewhere. Never touches
+    snapshot_day()/run_backfill(): a mid-session read is
+    inherently partial and must not be written under
+    usage-history/snapshots/.
     """
 
     def _run_session_json(self, transcripts_root, sid, *, top=8):
-        """Run `--session sid --json` against a mocked TRANSCRIPTS_ROOT and
-        return the parsed stdout payload."""
+        """Run `--session sid --json` against a mocked
+        TRANSCRIPTS_ROOT and return the parsed stdout
+        payload."""
         argv = ["claude-usage-report.py", "--session", sid, "--json", "--top", str(top)]
         buf = io.StringIO()
         with mock.patch.object(cur, "TRANSCRIPTS_ROOT", transcripts_root), \
@@ -1178,8 +1230,8 @@ class TestSessionMode(unittest.TestCase):
         return json.loads(buf.getvalue())
 
     def test_emits_a_json_payload_for_a_session_id_found_in_the_local_projects_transcript_directory(self):
-        """The common case: the session's main transcript lives directly
-        under one of the project directories."""
+        """The common case: the session's main transcript lives
+        directly under one of the project directories."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1200,10 +1252,11 @@ class TestSessionMode(unittest.TestCase):
                 "found under the session's own project directory")
 
     def test_includes_the_main_vs_subagent_cost_split_for_a_session_that_has_subagent_runs(self):
-        """A session that delegated to a subagent must report the two
-        halves separately, not just their sum - main_cost and
-        subagent_cost using distinct token counts so a swapped key would
-        be caught rather than masked by equal totals."""
+        """A session that delegated to a subagent must report
+        the two halves separately, not just their sum -
+        main_cost and subagent_cost using distinct token counts
+        so a swapped key would be caught rather than masked by
+        equal totals."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1232,8 +1285,9 @@ class TestSessionMode(unittest.TestCase):
             msg="subagent_cost must reflect only its subagent runs' spend")
 
     def test_reports_zero_subagent_cost_never_fails_when_the_session_has_no_subagents_directory(self):
-        """A session that never delegated has no subagents/ directory at
-        all on disk - that must read as zero cost, not raise."""
+        """A session that never delegated has no subagents/
+        directory at all on disk - that must read as zero
+        cost, not raise."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1253,9 +1307,10 @@ class TestSessionMode(unittest.TestCase):
         self.assertEqual(payload["total"], payload["main_cost"])
 
     def test_omits_the_reconciliation_field_in_session_mode_exactly_as_the_existing_ad_hoc_window_omits_it(self):
-        """--session never asks ccusage for a cross-check: reconciliation is
-        a snapshot-only concept (one closed day to cross-check against),
-        and a session may span partial or multiple days."""
+        """--session never asks ccusage for a cross-check:
+        reconciliation is a snapshot-only concept (one closed
+        day to cross-check against), and a session may span
+        partial or multiple days."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1274,9 +1329,9 @@ class TestSessionMode(unittest.TestCase):
                 "the same as the existing ad-hoc rolling window")
 
     def test_still_returns_correct_totals_when_the_sessions_transcript_spans_a_single_record(self):
-        """A one-line transcript (no separate human-turn record at all) is
-        the minimal real-world shape and must not trip an off-by-one in the
-        per-file scan."""
+        """A one-line transcript (no separate human-turn
+        record at all) is the minimal real-world shape and
+        must not trip an off-by-one in the per-file scan."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1295,9 +1350,10 @@ class TestSessionMode(unittest.TestCase):
         self.assertEqual(payload["api_calls"]["main"], 1)
 
     def test_dedupes_per_content_block_records_via_billing_id_before_summing_cost(self):
-        """A response written as 2 content-block records sharing one
-        message.id/requestId must bill once, the same billing_id() dedup
-        the ad-hoc window and snapshots already rely on."""
+        """A response written as 2 content-block records
+        sharing one message.id/requestId must bill once, the
+        same billing_id() dedup the ad-hoc window and
+        snapshots already rely on."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1320,10 +1376,11 @@ class TestSessionMode(unittest.TestCase):
         self.assertEqual(payload["api_calls"]["main"], 1)
 
     def test_reuses_local_day_and_parse_ts_for_any_date_bucketed_figures_instead_of_reimplementing_them(self):
-        """A response stamped just after UTC midnight, still before local
-        midnight in America/Sao_Paulo (UTC-3), must bucket under its LOCAL
-        day in by_day - proof --session calls the shared local_day()/
-        parse_ts() rather than re-deriving day bucketing from the raw
+        """A response stamped just after UTC midnight, still
+        before local midnight in America/Sao_Paulo (UTC-3),
+        must bucket under its LOCAL day in by_day - proof
+        --session calls the shared local_day()/parse_ts()
+        rather than re-deriving day bucketing from the raw
         UTC timestamp."""
         original_tz = os.environ.get("TZ")
         os.environ["TZ"] = "America/Sao_Paulo"
@@ -1354,9 +1411,10 @@ class TestSessionMode(unittest.TestCase):
             msg="the raw UTC calendar day must never appear as a by_day key")
 
     def test_exits_non_zero_naming_every_project_directory_searched_when_the_given_session_id_matches_no_transcript(self):
-        """An unknown session id must fail loudly and name every directory
-        that was searched, so the reader can tell a typo'd sid from a
-        transcript that was pruned or never existed."""
+        """An unknown session id must fail loudly and name
+        every directory that was searched, so the reader can
+        tell a typo'd sid from a transcript that was pruned or
+        never existed."""
         with tempfile.TemporaryDirectory() as tmp:
             dir_a = os.path.join(tmp, "-Users-x-project-a")
             dir_b = os.path.join(tmp, "-Users-x-project-b")
@@ -1386,10 +1444,12 @@ class TestSessionMode(unittest.TestCase):
                            "including one that held nothing at all")
 
     def test_never_writes_to_usage_history_snapshots_when_run_in_session_mode(self):
-        """--session must never create the snapshots directory, and must
-        never reach snapshot_day()/run_backfill() at all - a mid-session
-        read is inherently partial and must not be mistaken for the
-        immutable closed-day record those two produce."""
+        """--session must never create the snapshots
+        directory, and must never reach
+        snapshot_day()/run_backfill() at all - a mid-session
+        read is inherently partial and must not be mistaken
+        for the immutable closed-day record those two
+        produce."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1419,11 +1479,13 @@ class TestSessionMode(unittest.TestCase):
             msg="--session mode must never create the usage-history/snapshots/ directory")
 
     def test_leaves_the_backfill_and_day_code_paths_producing_identical_output_to_before_the_session_flag_was_added(self):
-        """Regression guard: --day's snapshot pipeline (aggregate() ->
-        build_payload() -> snapshot_day()) must still produce the exact
-        pre-change dollar figure and coverage/reconciliation verdict -
-        proven against a hand-computed expected value, not f(X) === f(X),
-        so a real drift in the shared pipeline would be caught here."""
+        """Regression guard: --day's snapshot pipeline
+        (aggregate() -> build_payload() -> snapshot_day())
+        must still produce the exact pre-change dollar figure
+        and coverage/reconciliation verdict - proven against a
+        hand-computed expected value, not f(X) === f(X), so a
+        real drift in the shared pipeline would be caught
+        here."""
         day = "2026-07-20"
         since, _ = cur.day_bounds(day)
         epoch = since + 3600
@@ -1457,22 +1519,25 @@ class TestSessionMode(unittest.TestCase):
 
 class TestSpawnAttribution(unittest.TestCase):
     """Pure unit tests of collect_agent_spawns()/match_spawn()/
-    attribute_subagent() -- how a subagent transcript is linked back to the
-    Task/Agent dispatch record that started it.
+    attribute_subagent() -- how a subagent transcript is linked
+    back to the Task/Agent dispatch record that started it.
 
-    attribute_subagent() is the primary mechanism: the .meta.json sidecar
-    Claude Code writes beside a subagent transcript carries the real
-    "agentType" directly, and its "toolUseId" resolves to the exact dispatch
-    record for by_skill_marginal's span placement -- no heuristic needed.
-    match_spawn()'s prompt-prefix matching is the fallback, used only when a
-    sidecar is absent or unreadable (older sessions predate sidecars), and
-    every case here about it degrading gracefully instead of silently
-    mis-crediting still applies to that fallback path.
+    attribute_subagent() is the primary mechanism: the
+    .meta.json sidecar Claude Code writes beside a subagent
+    transcript carries the real "agentType" directly, and its
+    "toolUseId" resolves to the exact dispatch record for
+    by_skill_marginal's span placement -- no heuristic needed.
+    match_spawn()'s prompt-prefix matching is the fallback,
+    used only when a sidecar is absent or unreadable (older
+    sessions predate sidecars), and every case here about it
+    degrading gracefully instead of silently mis-crediting
+    still applies to that fallback path.
     """
 
     def _spawn_record(self, epoch, subagent_type, prompt, tool_use_id=None):
-        """One assistant record dispatching a Task/Agent subagent -- the
-        shape collect_agent_spawns() scans for."""
+        """One assistant record dispatching a Task/Agent
+        subagent -- the shape collect_agent_spawns() scans
+        for."""
         content = {
             "type": "tool_use",
             "name": "Task",
@@ -1487,8 +1552,9 @@ class TestSpawnAttribution(unittest.TestCase):
         }
 
     def _sidecar(self, subagent_path, **fields):
-        """Writes subagent_path's .meta.json sidecar -- the filesystem link
-        attribute_subagent() reads before falling back to prompt matching."""
+        """Writes subagent_path's .meta.json sidecar -- the
+        filesystem link attribute_subagent() reads before
+        falling back to prompt matching."""
         meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
         with open(meta_path, "w") as fh:
             json.dump(fields, fh)
@@ -1510,9 +1576,10 @@ class TestSpawnAttribution(unittest.TestCase):
                 "match_spawn can discriminate collisions past the old 150-char cut")
 
     def test_collect_agent_spawns_captures_the_dispatch_records_tool_use_id(self):
-        """The Task/Agent tool_use block's own "id" must be captured too --
-        it's what attribute_subagent() resolves a sidecar's toolUseId
-        against to find this spawn's record_index."""
+        """The Task/Agent tool_use block's own "id" must be
+        captured too -- it's what attribute_subagent()
+        resolves a sidecar's toolUseId against to find this
+        spawn's record_index."""
         with tempfile.TemporaryDirectory() as tmp:
             path = _write_transcript(tmp, "main.jsonl", [
                 self._spawn_record(1_700_000_000, "tdd-coder", "do the thing", tool_use_id="toolu_xyz"),
@@ -1607,11 +1674,13 @@ class TestSpawnAttribution(unittest.TestCase):
                 "transcript must fall through to the remaining one, not UNMATCHED")
 
     def test_attribute_subagent_uses_the_sidecars_agent_type_over_a_mismatched_prompt_match(self):
-        """The sidecar's real "agentType" must win even when the transcript's
-        first_prompt happens to prompt-prefix-match a spawn recorded under a
-        DIFFERENT subagent_type -- the sidecar is the filesystem link Claude
-        Code itself writes, not a heuristic to be overridden by a coincidence
-        in prompt text."""
+        """The sidecar's real "agentType" must win even when
+        the transcript's first_prompt happens to
+        prompt-prefix-match a spawn recorded under a
+        DIFFERENT subagent_type -- the sidecar is the
+        filesystem link Claude Code itself writes, not a
+        heuristic to be overridden by a coincidence in prompt
+        text."""
         with tempfile.TemporaryDirectory() as tmp:
             subagent_path = os.path.join(tmp, "agent-abc123.jsonl")
             self._sidecar(subagent_path, agentType="Explore", toolUseId="toolu_explore")
@@ -1632,10 +1701,12 @@ class TestSpawnAttribution(unittest.TestCase):
                 "dispatch record")
 
     def test_attribute_subagent_keeps_the_sidecars_agent_type_when_its_tool_use_id_resolves_to_no_dispatch_record(self):
-        """11 of 39 subagent runs on a real session carry a toolUseId with no
-        matching Task/Agent record in the main transcript at all. That must
-        NOT destroy the sidecar's own agentType -- only record_index (used
-        for by_skill_marginal's span placement) goes missing."""
+        """11 of 39 subagent runs on a real session carry a
+        toolUseId with no matching Task/Agent record in the
+        main transcript at all. That must NOT destroy the
+        sidecar's own agentType -- only record_index (used
+        for by_skill_marginal's span placement) goes
+        missing."""
         with tempfile.TemporaryDirectory() as tmp:
             subagent_path = os.path.join(tmp, "agent-def456.jsonl")
             self._sidecar(subagent_path, agentType="tdd-coder", toolUseId="toolu_nowhere")
@@ -1650,9 +1721,10 @@ class TestSpawnAttribution(unittest.TestCase):
                 "the sidecar's real agentType is kept, only record_index is None")
 
     def test_attribute_subagent_falls_back_to_match_spawn_when_the_sidecar_is_missing(self):
-        """Older sessions predate the .meta.json sidecar -- attribute_subagent
-        must fall back to match_spawn()'s prompt-prefix matching rather than
-        reporting UNMATCHED just because no sidecar exists on disk."""
+        """Older sessions predate the .meta.json sidecar --
+        attribute_subagent must fall back to match_spawn()'s
+        prompt-prefix matching rather than reporting
+        UNMATCHED just because no sidecar exists on disk."""
         with tempfile.TemporaryDirectory() as tmp:
             subagent_path = os.path.join(tmp, "agent-nosidecar.jsonl")
             prompt = "Refactor the checkout pricing module end to end."
@@ -1666,8 +1738,9 @@ class TestSpawnAttribution(unittest.TestCase):
                 "match_spawn's prompt-prefix matching and resolve normally")
 
     def test_attribute_subagent_falls_back_to_match_spawn_when_the_sidecar_is_unreadable(self):
-        """A sidecar that fails to parse as JSON must be treated the same as
-        a missing one -- fall back to prompt matching, not a hard failure."""
+        """A sidecar that fails to parse as JSON must be
+        treated the same as a missing one -- fall back to
+        prompt matching, not a hard failure."""
         with tempfile.TemporaryDirectory() as tmp:
             subagent_path = os.path.join(tmp, "agent-badmeta.jsonl")
             meta_path = os.path.splitext(subagent_path)[0] + ".meta.json"
@@ -1684,9 +1757,10 @@ class TestSpawnAttribution(unittest.TestCase):
                 "same as a missing sidecar, not raise or silently go UNMATCHED")
 
     def test_attribute_subagent_reports_unmatched_only_when_both_the_sidecar_and_the_prompt_fallback_fail(self):
-        """UNMATCHED must stay the label of last resort: no sidecar on disk
-        AND no spawn whose prompt the transcript's first_prompt prefixes (or
-        is prefixed by)."""
+        """UNMATCHED must stay the label of last resort: no
+        sidecar on disk AND no spawn whose prompt the
+        transcript's first_prompt prefixes (or is prefixed
+        by)."""
         with tempfile.TemporaryDirectory() as tmp:
             subagent_path = os.path.join(tmp, "agent-orphan.jsonl")
             session_spawns = [("tdd-coder", "Write the export job tests", 1, "toolu_export")]

@@ -205,7 +205,8 @@ MODEL_DATE_SUFFIX_RE = re.compile(r"-\d{8}$")
 
 
 def model_key(model):
-    """Model id stripped of its release-date suffix, for price lookup."""
+    """Model id stripped of its release-date suffix, for price
+    lookup."""
     return MODEL_DATE_SUFFIX_RE.sub("", (model or "").strip().lower())
 
 
@@ -220,7 +221,8 @@ def price_family(model):
 
 
 def message_rates(model, day, speed):
-    """(input, output, cache_read) $/MTok for one message, given its day and speed."""
+    """(input, output, cache_read) $/MTok for one message,
+    given its day and speed."""
     key = model_key(model)
     if speed == "fast" and key in FAST_MODE_MODELS:
         return FAST_MODE_PRICES
@@ -230,13 +232,16 @@ def message_rates(model, day, speed):
 
 
 def billing_id(record, message):
-    """The key identifying ONE billed API response, or None when unidentifiable.
+    """The key identifying ONE billed API response, or None when
+    unidentifiable.
 
-    `uuid` cannot serve here: it is unique per transcript LINE, and one response
-    writes one line per content block. `message.id` is the API's own response id,
-    and `requestId` disambiguates the retry case where a response is re-delivered
-    under a fresh request. A record missing either is counted rather than dropped -
-    over-counting a rare malformed record beats silently deleting real spend.
+    `uuid` cannot serve here: it is unique per transcript LINE,
+    and one response writes one line per content block.
+    `message.id` is the API's own response id, and `requestId`
+    disambiguates the retry case where a response is
+    re-delivered under a fresh request. A record missing either
+    is counted rather than dropped - over-counting a rare
+    malformed record beats silently deleting real spend.
     """
     message_id = message.get("id")
     request_id = record.get("requestId")
@@ -248,22 +253,25 @@ def billing_id(record, message):
 def cache_writes(usage):
     """(5m, 1h) cache-write token counts of one usage record.
 
-    The `cache_creation` breakdown is authoritative, not the flat
-    `cache_creation_input_tokens` beside it, which a minority of
-    records zero out while the breakdown keeps the real figure.
+    The `cache_creation` breakdown is authoritative, not the
+    flat `cache_creation_input_tokens` beside it, which a
+    minority of records zero out while the breakdown keeps the
+    real figure.
 
-    Those records carry every flat field at 0 and an `iterations`
-    entry of type `message` holding the true usage, so trusting the
-    flat total drops their cache writes entirely.
+    Those records carry every flat field at 0 and an
+    `iterations` entry of type `message` holding the true
+    usage, so trusting the flat total drops their cache writes
+    entirely.
 
-    Reading the breakdown instead reconciles cache_write to 0.0000%
-    against ccusage on all 28 retained days (measured 2026-08-09).
-    Trusting the flat total left 4 of them drifting up to 2.5%, in
-    BOTH directions - the sign varies because some records zero the
-    total while others carry one the breakdown no longer matches.
+    Reading the breakdown instead reconciles cache_write to
+    0.0000% against ccusage on all 28 retained days (measured
+    2026-08-09). Trusting the flat total left 4 of them
+    drifting up to 2.5%, in BOTH directions - the sign varies
+    because some records zero the total while others carry one
+    the breakdown no longer matches.
 
-    The split also decides price, not just the count: the two TTLs
-    bill at 1.25x and 2x input.
+    The split also decides price, not just the count: the two
+    TTLs bill at 1.25x and 2x input.
     """
     breakdown = usage.get("cache_creation") or {}
     write_5m = breakdown.get("ephemeral_5m_input_tokens", 0) or 0
@@ -277,7 +285,8 @@ def cache_writes(usage):
 
 
 def message_cost(model, usage, day=None):
-    """Dollar cost of one API message at list prices, split by cache-write TTL."""
+    """Dollar cost of one API message at list prices, split by
+    cache-write TTL."""
     p = message_rates(model, day, usage.get("speed"))
     input_tokens = usage.get("input_tokens", 0) or 0
     output_tokens = usage.get("output_tokens", 0) or 0
@@ -293,15 +302,18 @@ def message_cost(model, usage, day=None):
 
 
 def repo_class(cwd):
-    """Which half of the ledger a record's working directory belongs to.
+    """Which half of the ledger a record's working directory
+    belongs to.
 
-    Everything outside the five personal-env repos counts as work, mirroring
-    delivered-work-ledger.py's find_repos(), which discovers work repos as
-    exactly that complement. Matching its rule is what lets work spend divide
-    by the merged-PR count that same ledger produces.
+    Everything outside the five personal-env repos counts as
+    work, mirroring delivered-work-ledger.py's find_repos(),
+    which discovers work repos as exactly that complement.
+    Matching its rule is what lets work spend divide by the
+    merged-PR count that same ledger produces.
 
-    A missing cwd counts as work too: it can only under-report the tooling
-    side, and a third "unknown" class would need a denominator nothing emits.
+    A missing cwd counts as work too: it can only under-report
+    the tooling side, and a third "unknown" class would need a
+    denominator nothing emits.
     """
     for part in (cwd or "").split("/"):
         if part in PERSONAL_ENV:
@@ -310,7 +322,8 @@ def repo_class(cwd):
 
 
 def parse_ts(iso_timestamp):
-    """ISO-8601 timestamp string -> epoch seconds, or None on absent/malformed."""
+    """ISO-8601 timestamp string -> epoch seconds, or None on
+    absent/malformed."""
     if not iso_timestamp:
         return None
     try:
@@ -320,30 +333,36 @@ def parse_ts(iso_timestamp):
 
 
 def local_day(epoch):
-    """Epoch seconds -> 'YYYY-MM-DD' in the machine's LOCAL timezone.
+    """Epoch seconds -> 'YYYY-MM-DD' in the machine's LOCAL
+    timezone.
 
-    Transcripts timestamp in UTC ('...Z'), so slicing the raw string buckets by
-    UTC day. For any user not on UTC that misfiles the tail of each local
-    evening into the next day - measured at 44.2% of priced records at UTC-3.
+    Transcripts timestamp in UTC ('...Z'), so slicing the raw
+    string buckets by UTC day. For any user not on UTC that
+    misfiles the tail of each local evening into the next day
+    - measured at 44.2% of priced records at UTC-3.
     """
     return datetime.fromtimestamp(epoch).strftime("%Y-%m-%d")
 
 
 def day_bounds(day):
-    """A 'YYYY-MM-DD' local day -> (start_epoch inclusive, end_epoch exclusive)."""
+    """A 'YYYY-MM-DD' local day -> (start_epoch inclusive,
+    end_epoch exclusive)."""
     start = datetime.strptime(day, "%Y-%m-%d")
     return start.timestamp(), (start + timedelta(days=1)).timestamp()
 
 
 def find_transcripts(since_epoch):
-    """All .jsonl transcripts that COULD hold records at/after since_epoch.
+    """All .jsonl transcripts that COULD hold records at/after
+    since_epoch.
 
-    mtime is a file's LAST write, so a file older than since_epoch cannot hold a
-    record after it - a sound lower bound. There is deliberately no upper bound:
-    a file written today may still carry records from weeks ago (resumed or
-    long-running sessions), so the window's far end is enforced per record in
-    scan_transcript() instead. Skipping recent files here would silently drop
-    exactly the old records a backfill exists to recover.
+    mtime is a file's LAST write, so a file older than
+    since_epoch cannot hold a record after it - a sound lower
+    bound. There is deliberately no upper bound: a file
+    written today may still carry records from weeks ago
+    (resumed or long-running sessions), so the window's far
+    end is enforced per record in scan_transcript() instead.
+    Skipping recent files here would silently drop exactly the
+    old records a backfill exists to recover.
     """
     main_files, subagent_files = [], []
     for dirpath, _, names in os.walk(TRANSCRIPTS_ROOT):
@@ -364,16 +383,19 @@ def find_transcripts(since_epoch):
 
 
 def project_directories():
-    """Every ~/.claude/projects/*/ directory, sorted for stable --session error output."""
+    """Every ~/.claude/projects/*/ directory, sorted for stable
+    --session error output."""
     return sorted(entry.path for entry in os.scandir(TRANSCRIPTS_ROOT) if entry.is_dir())
 
 
 def find_session_transcripts(sid):
-    """(main_path, subagent_paths) for one session id, searched across every
-    project directory rather than only the caller's cwd project - a --session
-    audit commonly targets a past run made from a different working directory
-    than the one auditing it now. main_path is None when no project directory
-    holds "<sid>.jsonl"; subagent_paths is [] in that case.
+    """(main_path, subagent_paths) for one session id, searched
+    across every project directory rather than only the
+    caller's cwd project - a --session audit commonly targets
+    a past run made from a different working directory than
+    the one auditing it now. main_path is None when no project
+    directory holds "<sid>.jsonl"; subagent_paths is [] in
+    that case.
     """
     for project_dir in project_directories():
         main_path = os.path.join(project_dir, f"{sid}.jsonl")
@@ -384,11 +406,12 @@ def find_session_transcripts(sid):
 
 
 def exit_session_not_found(sid):
-    """Exit 1 naming every project directory searched - the one failure path
-    for a sid that matches no transcript. Shared with
-    extract-session-timeline.py, which imports this module rather than
-    re-deriving the message: two copies would let the two entry points drift
-    into reporting the same failure differently."""
+    """Exit 1 naming every project directory searched - the one
+    failure path for a sid that matches no transcript. Shared
+    with extract-session-timeline.py, which imports this
+    module rather than re-deriving the message: two copies
+    would let the two entry points drift into reporting the
+    same failure differently."""
     print(f"session {sid!r} not found. Searched project directories:", file=sys.stderr)
     for project_dir in project_directories():
         print(f"  {project_dir}", file=sys.stderr)
@@ -396,11 +419,13 @@ def exit_session_not_found(sid):
 
 
 def oldest_retained_day():
-    """Local day of the oldest transcript still on disk, or None when there are none.
+    """Local day of the oldest transcript still on disk, or None
+    when there are none.
 
-    Claude Code prunes transcripts on `cleanupPeriodDays` (default 30), so days
-    before this are unmeasurable rather than idle - the difference a $0 snapshot
-    would otherwise erase. Feeds the `coverage` field in build_payload().
+    Claude Code prunes transcripts on `cleanupPeriodDays`
+    (default 30), so days before this are unmeasurable rather
+    than idle - the difference a $0 snapshot would otherwise
+    erase. Feeds the `coverage` field in build_payload().
     """
     oldest = None
     for dirpath, _, names in os.walk(TRANSCRIPTS_ROOT):
@@ -417,12 +442,15 @@ def oldest_retained_day():
 
 
 def day_coverage(day, retention_floor):
-    """How much of `day` the transcripts on disk can still account for.
+    """How much of `day` the transcripts on disk can still
+    account for.
 
-    The floor day is "partial", never "complete": the prune cuts through it at
-    an hour, not at midnight, so its earlier sessions are already gone while the
-    ones that ran past the cut survive. Calling it complete is what let
-    2026-07-09 be measured at 68% of its real spend and read as a counting bug.
+    The floor day is "partial", never "complete": the prune
+    cuts through it at an hour, not at midnight, so its
+    earlier sessions are already gone while the ones that ran
+    past the cut survive. Calling it complete is what let
+    2026-07-09 be measured at 68% of its real spend and read
+    as a counting bug.
     """
     if not retention_floor or day < retention_floor:
         return "unretained"
@@ -442,24 +470,28 @@ def iter_records(path):
 
 
 def collect_agent_spawns(main_files):
-    """session file -> [(subagent_type, full dispatch prompt, record_index,
-    tool_use_id)] for subagent attribution.
+    """session file -> [(subagent_type, full dispatch prompt,
+    record_index, tool_use_id)] for subagent attribution.
 
-    record_index is this record's position in the SAME iter_records(path) sequence
-    scan_transcript() enumerates below, so a spawn's index lines up with the
-    skill-invocation and message-cost positions scan_transcript records for that
-    file - that alignment is what lets by_skill_marginal place a subagent into
-    the skill span it was spawned in.
+    record_index is this record's position in the SAME
+    iter_records(path) sequence scan_transcript() enumerates
+    below, so a spawn's index lines up with the
+    skill-invocation and message-cost positions
+    scan_transcript records for that file - that alignment is
+    what lets by_skill_marginal place a subagent into the
+    skill span it was spawned in.
 
-    The prompt is stored in full, not truncated, because match_spawn() needs to
-    compare candidates past whatever prefix length they happen to share - a
-    150-char cut here would silently reintroduce the same collision it exists
+    The prompt is stored in full, not truncated, because
+    match_spawn() needs to compare candidates past whatever
+    prefix length they happen to share - a 150-char cut here
+    would silently reintroduce the same collision it exists
     to resolve, just at a longer prefix.
 
-    tool_use_id is the tool_use block's own "id" - what a subagent's
-    .meta.json sidecar's "toolUseId" resolves against in
-    find_spawn_by_tool_use_id(), the exact (non-heuristic) link
-    attribute_subagent() prefers over prompt-prefix matching.
+    tool_use_id is the tool_use block's own "id" - what a
+    subagent's .meta.json sidecar's "toolUseId" resolves
+    against in find_spawn_by_tool_use_id(), the exact
+    (non-heuristic) link attribute_subagent() prefers over
+    prompt-prefix matching.
     """
     spawns = defaultdict(list)
     for path in main_files:
@@ -482,7 +514,8 @@ def collect_agent_spawns(main_files):
 
 
 def is_human_message(record, content):
-    """True when a user record is a typed human turn, not a tool result or harness meta."""
+    """True when a user record is a typed human turn, not a tool
+    result or harness meta."""
     if record.get("isMeta") or record.get("isCompactSummary"):
         return False
     if isinstance(content, str):
@@ -495,7 +528,8 @@ def is_human_message(record, content):
 
 
 def first_text(content):
-    """First text payload of a user record: the string itself or its first text block."""
+    """First text payload of a user record: the string itself or
+    its first text block."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -506,7 +540,8 @@ def first_text(content):
 
 
 def iter_text_payloads(content):
-    """Every text payload of a record, whether content is a string or a block list."""
+    """Every text payload of a record, whether content is a
+    string or a block list."""
     if isinstance(content, str):
         yield content
     elif isinstance(content, list):
@@ -516,22 +551,28 @@ def iter_text_payloads(content):
 
 
 def scan_transcript(path, since_epoch, until_epoch, seen_messages):
-    """Cost, tokens, call/turn counters, skills, and wall-clock bounds of one transcript.
+    """Cost, tokens, call/turn counters, skills, and wall-clock
+    bounds of one transcript.
 
-    Both bounds are enforced per record, not per file. A file can clear the
-    mtime-based find_transcripts() gate while holding records far outside the
-    window on either side (a long-running or resumed session), so `since_epoch`
-    keeps older records out and `until_epoch` (exclusive) keeps newer ones out.
-    The upper bound is what makes a past day recoverable at all.
+    Both bounds are enforced per record, not per file. A file
+    can clear the mtime-based find_transcripts() gate while
+    holding records far outside the window on either side (a
+    long-running or resumed session), so `since_epoch` keeps
+    older records out and `until_epoch` (exclusive) keeps
+    newer ones out. The upper bound is what makes a past day
+    recoverable at all.
 
-    `seen_messages` is the caller's billing-key set, shared across every file of
-    one run. Duplicates were measured as intra-file only, but a resumed or forked
-    session copies its parent's records verbatim into a new file, so a per-file
-    set would let that whole prefix bill twice.
+    `seen_messages` is the caller's billing-key set, shared
+    across every file of one run. Duplicates were measured as
+    intra-file only, but a resumed or forked session copies
+    its parent's records verbatim into a new file, so a
+    per-file set would let that whole prefix bill twice.
 
-    That set is per-DAY, so it cannot see a response whose blocks straddle local
-    midnight - the `anchor_epoch` pre-pass below is what stops both days billing
-    one. It costs a second parse of each file, paid only on a full --rebuild.
+    That set is per-DAY, so it cannot see a response whose
+    blocks straddle local midnight - the `anchor_epoch`
+    pre-pass below is what stops both days billing one. It
+    costs a second parse of each file, paid only on a full
+    --rebuild.
     """
     stats = {
         "cost": 0.0,
@@ -879,24 +920,31 @@ def scan_transcript(path, since_epoch, until_epoch, seen_messages):
 
 
 def match_spawn(prompt, session_spawns):
-    """(subagent_type, spawn record_index) for the Task/Agent call that started this
-    subagent transcript, matched by prompt prefix. The fallback attribute_subagent()
-    uses only when a subagent's .meta.json sidecar is absent or unreadable (older
-    sessions predate sidecars) - see attribute_subagent()'s docstring for the
-    primary, non-heuristic mechanism. ("UNMATCHED", None) if no call matches.
+    """(subagent_type, spawn record_index) for the Task/Agent
+    call that started this subagent transcript, matched by
+    prompt prefix. The fallback attribute_subagent() uses only
+    when a subagent's .meta.json sidecar is absent or
+    unreadable (older sessions predate sidecars) - see
+    attribute_subagent()'s docstring for the primary,
+    non-heuristic mechanism. ("UNMATCHED", None) if no call
+    matches.
 
-    A spawn is a candidate when either string prefixes the other over at least
-    the first 100 characters - kept as the recall floor so a transcript whose
-    captured prompt is shorter than the dispatch prompt (or vice versa) still
-    qualifies. Among candidates, the one with the longest common prefix wins,
-    ties going to the earliest (lowest-index) candidate.
+    A spawn is a candidate when either string prefixes the
+    other over at least the first 100 characters - kept as the
+    recall floor so a transcript whose captured prompt is
+    shorter than the dispatch prompt (or vice versa) still
+    qualifies. Among candidates, the one with the longest
+    common prefix wins, ties going to the earliest
+    (lowest-index) candidate.
 
-    The winner is REMOVED from session_spawns (it's the caller's own list,
-    mutated in place): two spawns can share an opening long enough to collide
-    at the 100-char floor, and a verbatim retry collides even at the full
-    prompt. Without consuming the winner, every later transcript sharing that
-    opening would re-match the same first spawn, over-crediting one
-    subagent_type for runs that belong to others.
+    The winner is REMOVED from session_spawns (it's the
+    caller's own list, mutated in place): two spawns can share
+    an opening long enough to collide at the 100-char floor,
+    and a verbatim retry collides even at the full prompt.
+    Without consuming the winner, every later transcript
+    sharing that opening would re-match the same first spawn,
+    over-crediting one subagent_type for runs that belong to
+    others.
     """
     best_index = None
     best_common_len = -1
@@ -920,16 +968,18 @@ def match_spawn(prompt, session_spawns):
 
 
 def sidecar_path(subagent_path):
-    """The .meta.json sidecar path Claude Code writes beside a subagent
-    transcript, e.g. agent-<agentId>.jsonl -> agent-<agentId>.meta.json."""
+    """The .meta.json sidecar path Claude Code writes beside a
+    subagent transcript, e.g. agent-<agentId>.jsonl ->
+    agent-<agentId>.meta.json."""
     return os.path.splitext(subagent_path)[0] + ".meta.json"
 
 
 def read_sidecar(subagent_path):
-    """subagent_path's sidecar as a dict, or None when it's absent or
-    unreadable - a missing file (older sessions predate sidecars) and a
-    malformed one are treated identically, both falling through to
-    attribute_subagent()'s prompt-matching fallback."""
+    """subagent_path's sidecar as a dict, or None when it's
+    absent or unreadable - a missing file (older sessions
+    predate sidecars) and a malformed one are treated
+    identically, both falling through to attribute_subagent()'s
+    prompt-matching fallback."""
     path = sidecar_path(subagent_path)
     if not os.path.isfile(path):
         return None
@@ -941,14 +991,16 @@ def read_sidecar(subagent_path):
 
 
 def find_spawn_by_tool_use_id(tool_use_id, session_spawns):
-    """record_index for the Task/Agent dispatch record whose captured
-    tool_use_id matches tool_use_id, consuming that entry from
-    session_spawns (mutated in place, same reason match_spawn() consumes its
-    winner: without it, a later prompt-prefix fallback for a different
-    subagent could re-claim the dispatch record this sidecar already
-    resolved). None when tool_use_id is falsy or resolves to no record in
-    this session's main transcript - 11 of 39 subagent runs on a real
-    session carry a toolUseId with no matching dispatch record at all.
+    """record_index for the Task/Agent dispatch record whose
+    captured tool_use_id matches tool_use_id, consuming that
+    entry from session_spawns (mutated in place, same reason
+    match_spawn() consumes its winner: without it, a later
+    prompt-prefix fallback for a different subagent could
+    re-claim the dispatch record this sidecar already
+    resolved). None when tool_use_id is falsy or resolves to
+    no record in this session's main transcript - 11 of 39
+    subagent runs on a real session carry a toolUseId with no
+    matching dispatch record at all.
     """
     if not tool_use_id:
         return None
@@ -962,17 +1014,19 @@ def find_spawn_by_tool_use_id(tool_use_id, session_spawns):
 def attribute_subagent(subagent_path, prompt, session_spawns):
     """(subagent_type, record_index) for one subagent run.
 
-    The .meta.json sidecar's "agentType" is authoritative whenever the
-    sidecar exists and is readable - it's the filesystem link Claude Code
-    itself writes, not a heuristic. record_index comes from resolving the
-    sidecar's "toolUseId" against session_spawns (needed only for
-    by_skill_marginal's span placement); a toolUseId that resolves to no
-    record yields record_index=None but NEVER falls back to "UNMATCHED" -
-    a missing dispatch record must not destroy an attribution the sidecar
-    already answered.
+    The .meta.json sidecar's "agentType" is authoritative
+    whenever the sidecar exists and is readable - it's the
+    filesystem link Claude Code itself writes, not a
+    heuristic. record_index comes from resolving the
+    sidecar's "toolUseId" against session_spawns (needed only
+    for by_skill_marginal's span placement); a toolUseId that
+    resolves to no record yields record_index=None but NEVER
+    falls back to "UNMATCHED" - a missing dispatch record must
+    not destroy an attribution the sidecar already answered.
 
-    match_spawn()'s prompt-prefix heuristic is the fallback, used only when
-    the sidecar is absent or unreadable (older sessions predate sidecars).
+    match_spawn()'s prompt-prefix heuristic is the fallback,
+    used only when the sidecar is absent or unreadable (older
+    sessions predate sidecars).
     """
     meta = read_sidecar(subagent_path)
     if meta is not None:
@@ -984,21 +1038,26 @@ def attribute_subagent(subagent_path, prompt, session_spawns):
 
 
 def span_owner(sorted_events, event_indices, position):
-    """The skill owning `position` (a record_index) under by_skill_marginal's span
-    rule: a skill's span runs from its invocation event up to the next invocation
-    event (of any skill). None if `position` precedes every event in the session -
-    that cost is excluded from all skills, same rule as pre-invocation messages.
+    """The skill owning `position` (a record_index) under
+    by_skill_marginal's span rule: a skill's span runs from its
+    invocation event up to the next invocation event (of any
+    skill). None if `position` precedes every event in the
+    session - that cost is excluded from all skills, same rule
+    as pre-invocation messages.
 
-    `sorted_events` is stats["skill_events"] sorted by index; `event_indices` is
-    its parallel list of just the indices, passed separately so callers doing this
-    per-message/per-subagent inside one session build it once via bisect, not per call.
+    `sorted_events` is stats["skill_events"] sorted by index;
+    `event_indices` is its parallel list of just the indices,
+    passed separately so callers doing this
+    per-message/per-subagent inside one session build it once
+    via bisect, not per call.
     """
     i = bisect.bisect_right(event_indices, position) - 1
     return sorted_events[i][1] if i >= 0 else None
 
 
 def merge_common(result, stats, side):
-    """Fold one transcript's family/day/token/char counters into the aggregate."""
+    """Fold one transcript's family/day/token/char counters into
+    the aggregate."""
     result["api_calls"][side] += stats["api_calls"]
     result["thinking_blocks"] += stats["thinking_blocks"]
     result["text_blocks"] += stats["text_blocks"]
@@ -1027,7 +1086,8 @@ def merge_common(result, stats, side):
 
 
 def new_marginal_counters():
-    """Zeroed by_skill_marginal counters, for a row or for one of its halves."""
+    """Zeroed by_skill_marginal counters, for a row or for one
+    of its halves."""
     return {"dedicated_sessions": 0, "dedicated_cost": 0.0,
             "mixed_sessions": 0, "mixed_cost_estimate": 0.0}
 
@@ -1035,14 +1095,16 @@ def new_marginal_counters():
 def session_repo_class(stats):
     """The single half a whole session counts under.
 
-    Skill rows are per session, so splitting them per record would need a
-    denominator no session-level counter has. Across 328 transcripts over 14
-    days not one spanned both halves, so charging the whole session to its
-    costliest half costs nothing measurable and keeps the split summing back
-    to the row it refines.
+    Skill rows are per session, so splitting them per record
+    would need a denominator no session-level counter has.
+    Across 328 transcripts over 14 days not one spanned both
+    halves, so charging the whole session to its costliest
+    half costs nothing measurable and keeps the split summing
+    back to the row it refines.
 
-    Ties break toward work, matching repo_class()'s own bias: over-reporting
-    the work half can only make the KPI it feeds read worse, never better.
+    Ties break toward work, matching repo_class()'s own bias:
+    over-reporting the work half can only make the KPI it
+    feeds read worse, never better.
     """
     by_class = stats["by_repo_class"]
     if not by_class:
@@ -1051,7 +1113,8 @@ def session_repo_class(stats):
 
 
 def session_duration(stats):
-    """Wall-clock seconds from first to last record (includes idle gaps)."""
+    """Wall-clock seconds from first to last record (includes
+    idle gaps)."""
     if stats["first_epoch"] is None or stats["last_epoch"] is None:
         return 0.0
     return max(0.0, stats["last_epoch"] - stats["first_epoch"])
@@ -1338,7 +1401,8 @@ def aggregate(main_files, subagent_files, since_epoch, until_epoch):
 
 
 def derived_metrics(result):
-    """Ratios and KPI-level rollups computed from the raw aggregate."""
+    """Ratios and KPI-level rollups computed from the raw
+    aggregate."""
     tokens = result["tokens"]
     priced_input = (tokens["cache_read"] + tokens["input"]
                     + tokens["cache_write_5m"] + tokens["cache_write_1h"])
@@ -1459,26 +1523,33 @@ def render_text(result, top_n):
 
 
 def skill_halves(row, per_half):
-    """One skill row's counters split per half, both halves always present.
+    """One skill row's counters split per half, both halves
+    always present.
 
-    Emitting the empty half rather than omitting it keeps every consumer on
-    one shape, so reading a skill that never ran in a half needs no guard.
+    Emitting the empty half rather than omitting it keeps every
+    consumer on one shape, so reading a skill that never ran in
+    a half needs no guard.
     """
     return {cls: per_half(row["by_repo_class"][cls]) for cls in REPO_CLASSES}
 
 
 def build_payload(result, top_n, day=None, coverage="complete", reconciliation=None):
-    """The machine-readable aggregate - shared by --json and --snapshot.
+    """The machine-readable aggregate - shared by --json and
+    --snapshot.
 
-    `day` set marks a single closed local calendar day (the committed snapshot
-    unit); left None it is an ad-hoc rolling window, which never gets snapshotted.
-    `coverage` is "complete" when transcripts for the period are still on disk,
-    "partial" on the retention-floor day itself, whose earlier sessions are gone
-    while its later ones survive, and "unretained" once the whole day was pruned -
-    an unretained day reads $0 but means "unmeasurable", not "idle", so no
-    reader mistakes deleted history for a day off.
-    `reconciliation` is the ccusage token cross-check, present on snapshots only -
-    an ad-hoc window has no day for ccusage to be asked about.
+    `day` set marks a single closed local calendar day (the
+    committed snapshot unit); left None it is an ad-hoc
+    rolling window, which never gets snapshotted.
+    `coverage` is "complete" when transcripts for the period
+    are still on disk, "partial" on the retention-floor day
+    itself, whose earlier sessions are gone while its later
+    ones survive, and "unretained" once the whole day was
+    pruned - an unretained day reads $0 but means
+    "unmeasurable", not "idle", so no reader mistakes deleted
+    history for a day off.
+    `reconciliation` is the ccusage token cross-check, present
+    on snapshots only - an ad-hoc window has no day for
+    ccusage to be asked about.
     """
     grand = result["main_cost"] + result["subagent_cost"]
     derived = derived_metrics(result)
@@ -1614,12 +1685,14 @@ SNAPSHOT_DAY_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})\.json$")
 
 
 def write_snapshot(payload, day):
-    """Persist one closed day's aggregate, named for the day it MEASURES.
+    """Persist one closed day's aggregate, named for the day it
+    MEASURES.
 
-    The old naming used the run date, so a file said when it was captured rather
-    than what it covered - and a same-day rerun at a different --days silently
-    replaced a different period under an identical name. Keying on the measured
-    day makes a rewrite idempotent instead of destructive.
+    The old naming used the run date, so a file said when it
+    was captured rather than what it covered - and a same-day
+    rerun at a different --days silently replaced a different
+    period under an identical name. Keying on the measured day
+    makes a rewrite idempotent instead of destructive.
     """
     os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
     path = os.path.join(SNAPSHOTS_DIR, f"{day}.json")
@@ -1630,18 +1703,22 @@ def write_snapshot(payload, day):
 
 
 def keep_richer_snapshot(payload, day, coverage):
-    """The existing snapshot's path when it outvalues `payload`, else None.
+    """The existing snapshot's path when it outvalues
+    `payload`, else None.
 
-    A rewrite is idempotent only while the day's transcripts are still on disk.
-    Once the prune reaches them the same code path becomes the most destructive
-    operation here: `--rebuild` is mandatory after any aggregation fix, and it
-    would replace a day measured while its records existed with a $0 reading of
-    their absence. Measured on 2026-08-09: rebuilding 2026-06-14 writes $0.00
-    over a committed $5.62, and 2026-07-10 drops $507.89 to $507.54.
+    A rewrite is idempotent only while the day's transcripts
+    are still on disk. Once the prune reaches them the same
+    code path becomes the most destructive operation here:
+    `--rebuild` is mandatory after any aggregation fix, and it
+    would replace a day measured while its records existed
+    with a $0 reading of their absence. Measured on
+    2026-08-09: rebuilding 2026-06-14 writes $0.00 over a
+    committed $5.62, and 2026-07-10 drops $507.89 to $507.54.
 
-    Gated on coverage so a genuine correction still lands. The 2026-07-27 dedup
-    fix cut 2026-07-20 from $441.44 to $130.16 - a fully retained day measured
-    lower is the fix working, not history being lost.
+    Gated on coverage so a genuine correction still lands. The
+    2026-07-27 dedup fix cut 2026-07-20 from $441.44 to
+    $130.16 - a fully retained day measured lower is the fix
+    working, not history being lost.
     """
     if coverage == "complete":
         return None
@@ -1664,7 +1741,8 @@ def existing_snapshot_days():
 
 
 def day_range(first_day, last_day):
-    """Every local day from first_day to last_day inclusive, ascending."""
+    """Every local day from first_day to last_day inclusive,
+    ascending."""
     start = datetime.strptime(first_day, "%Y-%m-%d").date()
     end = datetime.strptime(last_day, "%Y-%m-%d").date()
     return [(start + timedelta(days=offset)).isoformat()
@@ -1724,7 +1802,8 @@ _ccusage_days = {}
 
 
 def prime_ccusage(first_day, last_day):
-    """Load ccusage's per-day totals for a range. False when it cannot run."""
+    """Load ccusage's per-day totals for a range. False when it
+    cannot run."""
     if shutil.which("ccusage") is None:
         return False
     try:
@@ -1778,7 +1857,8 @@ def prime_ccusage(first_day, last_day):
 
 
 def reconcile_tokens(result, day):
-    """This run's token totals for `day` against ccusage's, bucket by bucket."""
+    """This run's token totals for `day` against ccusage's,
+    bucket by bucket."""
     mine = {
         "input": result["tokens"]["input"],
         "output": result["tokens"]["output"],
@@ -1818,9 +1898,10 @@ def snapshot_day(day, top_n):
 
     Returns (path, total cost, ccusage reconciliation status).
 
-    The retention floor is read HERE, per day, rather than once per run. Claude
-    Code prunes transcripts on its own schedule, so a multi-minute rebuild can
-    straddle a prune and label every day it scans afterwards from a floor that
+    The retention floor is read HERE, per day, rather than once
+    per run. Claude Code prunes transcripts on its own
+    schedule, so a multi-minute rebuild can straddle a prune
+    and label every day it scans afterwards from a floor that
     stopped being true partway through.
     """
     since_epoch, until_epoch = day_bounds(day)
@@ -1859,13 +1940,16 @@ def snapshot_day(day, top_n):
 
 
 def run_backfill(args, last_closed_day):
-    """Write a snapshot for every closed day in range that has none yet.
+    """Write a snapshot for every closed day in range that has
+    none yet.
 
-    Each day runs the SAME single-day path a live capture uses, rather than one
-    pass bucketed across days. A 30-day rebuild costs a couple of minutes that
-    way, but a backfilled day and a live-captured day come out byte-identical by
-    construction - a second code path could drift from the first and silently
-    split the history into two incomparable halves.
+    Each day runs the SAME single-day path a live capture uses,
+    rather than one pass bucketed across days. A 30-day rebuild
+    costs a couple of minutes that way, but a backfilled day
+    and a live-captured day come out byte-identical by
+    construction - a second code path could drift from the
+    first and silently split the history into two incomparable
+    halves.
     """
     retention_floor = oldest_retained_day()
     first_day = args.since or retention_floor or last_closed_day

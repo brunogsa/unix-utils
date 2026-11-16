@@ -29,8 +29,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent.parent.parent.p
 
 
 class _TempDirTestCase(unittest.TestCase):
-    """Shared per-test isolation: a fresh temp dir any script-under-
-    test or table file gets written into, torn down after."""
+    """Shared per-test isolation: a fresh temp dir any
+    script-under-test or table file gets written into, torn down
+    after."""
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -52,10 +53,10 @@ def _run(*args, cwd=None, env=None):
 
 
 def _write_executable(path: Path, content: str) -> Path:
-    """Write `content` to `path` and mark it executable - every toy
-    script-under-test is invoked directly (its own shebang decides
-    the interpreter), matching how a real .sh or converted .py
-    script is captured."""
+    """Write `content` to `path` and mark it executable - every
+    toy script-under-test is invoked directly (its own shebang
+    decides the interpreter), matching how a real .sh or
+    converted .py script is captured."""
     path.write_text(content)
     path.chmod(0o755)
     return path
@@ -1117,8 +1118,9 @@ class TestCaptureScriptBehaviorUnreceivableValues(_TempDirTestCase):
 
 class TestCaptureScriptBehaviorCompareInput(_TempDirTestCase):
     def _compare(self, expected, actual):
-        """Run `compare` in-process on two JSON files holding the
-        given values, returning (exit code, stdout, stderr)."""
+        """Run `compare` in-process on two JSON files holding
+        the given values, returning (exit code, stdout,
+        stderr)."""
         harness = _load_harness()
         expected_path = self.tmp_path / "expected.json"
         actual_path = self.tmp_path / "actual.json"
@@ -1235,8 +1237,9 @@ class TestCaptureScriptBehaviorNonTextStrings(_TempDirTestCase):
 
 
 class TestCaptureScriptBehaviorProcessGroup(_TempDirTestCase):
-    """Rows run through /bin/sh -c so no new executable is written
-    (macOS scans each new executable on its first direct exec)."""
+    """Rows run through /bin/sh -c so no new executable is
+    written (macOS scans each new executable on its first direct
+    exec)."""
 
     def setUp(self):
         super().setUp()

@@ -54,8 +54,9 @@ COMMAND_PREFIXES = {"{", "}", "!", "then", "do", "else", "command"}
 
 
 def list_tracked_files(repo_root):
-    """Return every tracked path under SCAN_DIR, repo-root-relative.
-    -z keeps paths with spaces or unicode intact."""
+    """Return every tracked path under SCAN_DIR,
+    repo-root-relative. -z keeps paths with spaces or unicode
+    intact."""
     completed = subprocess.run(
         ["git", "-C", str(repo_root), "ls-files", "-z", "--", SCAN_DIR],
         capture_output=True,
@@ -80,7 +81,8 @@ def is_shell_script(path):
 
 def join_continued_lines(text):
     """Yield (first_line_number, logical_line), folding every
-    trailing-backslash continuation into the line it started on."""
+    trailing-backslash continuation into the line it started
+    on."""
     pending = []
     start = 0
     for number, line in enumerate(text.splitlines(), start=1):
@@ -97,9 +99,10 @@ def join_continued_lines(text):
 
 
 def split_simple_commands(line):
-    """Return the line's simple commands as lists of words, quotes
-    already removed. A line shlex cannot tokenize (a quote opened
-    on another line, a here-doc body) returns no commands."""
+    """Return the line's simple commands as lists of words,
+    quotes already removed. A line shlex cannot tokenize (a
+    quote opened on another line, a here-doc body) returns no
+    commands."""
     lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
     lexer.commenters = ""
@@ -160,9 +163,10 @@ LINE_SLICERS = {
 
 
 def slices_own_source(words):
-    """True when one simple command cuts a fixed line range out of
-    the script's own file. The self-reference must be a whole word,
-    so an awk program's own $0 (the current record) never counts."""
+    """True when one simple command cuts a fixed line range out
+    of the script's own file. The self-reference must be a whole
+    word, so an awk program's own $0 (the current record) never
+    counts."""
     while words and words[0] in COMMAND_PREFIXES:
         words = words[1:]
     if not words:

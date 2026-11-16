@@ -1,13 +1,14 @@
 """Failure contract shared by every doc-standards checker.
 
-A checker that cannot do its job must say so: exit 2, print nothing on
-stdout, name itself and the input on stderr, and leave the file alone.
-Callers run the checkers with stderr discarded and read any exit code
-other than 0 or 1 as "no signal", so an exit 1 on unreadable input
-reads as a false finding and an exit 0 reads as a clean file.
+A checker that cannot do its job must say so: exit 2, print
+nothing on stdout, name itself and the input on stderr, and
+leave the file alone. Callers run the checkers with stderr
+discarded and read any exit code other than 0 or 1 as "no
+signal", so an exit 1 on unreadable input reads as a false
+finding and an exit 0 reads as a clean file.
 
-Checkers are discovered by glob rather than listed by hand, so a new
-checker is held to the contract the moment it lands.
+Checkers are discovered by glob rather than listed by hand, so a
+new checker is held to the contract the moment it lands.
 """
 
 import os

@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Generate and serve a review page for eval results.
 
-Reads the workspace directory, discovers runs (directories with outputs/),
-embeds all output data into a self-contained HTML page, and serves it via
-a tiny HTTP server. Feedback auto-saves to feedback.json in the workspace.
+Reads the workspace directory, discovers runs (directories
+with outputs/), embeds all output data into a self-contained
+HTML page, and serves it via a tiny HTTP server. Feedback
+auto-saves to feedback.json in the workspace.
 
 Usage:
-    python generate_review.py <workspace-path> [--port PORT] [--skill-name NAME]
-    python generate_review.py <workspace-path> --previous-feedback /path/to/old/feedback.json
+    python generate_review.py <workspace-path> [--port PORT]
+        [--skill-name NAME]
+    python generate_review.py <workspace-path>
+        --previous-feedback /path/to/old/feedback.json
 
 No dependencies beyond the Python stdlib are required.
 """
@@ -58,7 +61,9 @@ def get_mime_type(path: Path) -> str:
 
 
 def find_runs(workspace: Path) -> list[dict]:
-    """Recursively find directories that contain an outputs/ subdirectory."""
+    """Recursively find directories that contain an outputs/
+    subdirectory.
+    """
     runs: list[dict] = []
     _find_runs_recursive(workspace, workspace, runs)
     runs.sort(key=lambda r: (r.get("eval_id", float("inf")), r["id"]))
@@ -83,7 +88,9 @@ def _find_runs_recursive(root: Path, current: Path, runs: list[dict]) -> None:
 
 
 def build_run(root: Path, run_dir: Path) -> dict | None:
-    """Build a run dict with prompt, outputs, and grading data."""
+    """Build a run dict with prompt, outputs, and grading
+    data.
+    """
     prompt = ""
     eval_id = None
 
@@ -213,7 +220,8 @@ def embed_file(path: Path) -> dict:
 def load_previous_iteration(workspace: Path) -> dict[str, dict]:
     """Load previous iteration's feedback and outputs.
 
-    Returns a map of run_id -> {"feedback": str, "outputs": list[dict]}.
+    Returns a map of run_id ->
+    {"feedback": str, "outputs": list[dict]}.
     """
     result: dict[str, dict] = {}
 
@@ -254,7 +262,9 @@ def generate_html(
     previous: dict[str, dict] | None = None,
     benchmark: dict | None = None,
 ) -> str:
-    """Generate the complete standalone HTML page with embedded data."""
+    """Generate the complete standalone HTML page with embedded
+    data.
+    """
     template_path = Path(__file__).parent / "viewer.html"
     template = template_path.read_text()
 
@@ -310,8 +320,9 @@ def _kill_port(port: int) -> None:
 class ReviewHandler(BaseHTTPRequestHandler):
     """Serves the review HTML and handles feedback saves.
 
-    Regenerates the HTML on each page load so that refreshing the browser
-    picks up new eval outputs without restarting the server.
+    Regenerates the HTML on each page load so that refreshing
+    the browser picks up new eval outputs without restarting
+    the server.
     """
 
     def __init__(
@@ -362,16 +373,19 @@ class ReviewHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def is_request_from_own_page(self) -> bool:
-        """True when a POST did not come from some other site's page.
+        """True when a POST did not come from some other site's
+        page.
 
-        This server binds 127.0.0.1, but that only stops other machines - any
-        page the user has open can still POST to localhost and overwrite
-        feedback.json. Browsers attach Origin to every cross-site POST, so
-        checking it is what closes that hole.
+        This server binds 127.0.0.1, but that only stops other
+        machines - any page the user has open can still POST to
+        localhost and overwrite feedback.json. Browsers attach
+        Origin to every cross-site POST, so checking it is what
+        closes that hole.
 
-        A missing Origin is allowed on purpose: browsers always send one on
-        POST, so no-Origin means curl or a script, which the attacker does not
-        control and which would otherwise lose the ability to seed feedback.
+        A missing Origin is allowed on purpose: browsers always
+        send one on POST, so no-Origin means curl or a script,
+        which the attacker does not control and which would
+        otherwise lose the ability to seed feedback.
         """
         origin = self.headers.get("Origin")
         if origin is None:

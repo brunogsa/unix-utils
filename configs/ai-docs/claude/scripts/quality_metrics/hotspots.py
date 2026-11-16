@@ -1,4 +1,5 @@
-"""Draws the Mermaid hotspot view: touched files plus one import hop.
+"""Draws the Mermaid hotspot view: touched files plus one import
+hop.
 
 Each touched file takes the color of its worst metric's share of
 that metric's limit. Files one hop away are drawn uncolored,
@@ -26,7 +27,8 @@ QUOTE_ENTITY = "#quot;"
 
 
 def hotspot_view(measurements, import_edges):
-    """A fenced Mermaid flowchart; `import_edges` are (importer, imported) paths."""
+    """A fenced Mermaid flowchart; `import_edges` are
+    (importer, imported) paths."""
     colors_by_file = _colors_by_touched_file(measurements)
     touched = sorted(colors_by_file)
     edges = _edges_touching(touched, import_edges)
@@ -65,7 +67,8 @@ def badness(record):
 
 
 def _colors_by_touched_file(measurements):
-    """Each touched file's (color, label), read from its worst metric."""
+    """Each touched file's (color, label), read from its worst
+    metric."""
     worst_by_file = {}
     for record in measurements:
         if is_neutral(record):
@@ -77,7 +80,8 @@ def _colors_by_touched_file(measurements):
 
 
 def _severity(record):
-    """Sort key: the color first, then the badness share of the limit."""
+    """Sort key: the color first, then the badness share of the
+    limit."""
     return COLOR_SEVERITY.index(_color(record)), _share_of_limit(record)
 
 

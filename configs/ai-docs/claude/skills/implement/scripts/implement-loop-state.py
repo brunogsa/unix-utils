@@ -99,11 +99,11 @@ def in_progress_count(state: dict) -> int:
 
 
 class BudgetStatus:
-    """task_count/non_pass_dispatches/budget_threshold/exhausted for
-    one state file, computed once and shared by --budget,
-    --eligible-set, --next-eligible, and the no-flag backstop below
-    -- so the one comparison can't drift into four slightly
-    different ones."""
+    """task_count/non_pass_dispatches/budget_threshold/exhausted
+    for one state file, computed once and shared by --budget,
+    --eligible-set, --next-eligible, and the no-flag backstop
+    below -- so the one comparison can't drift into four
+    slightly different ones."""
 
     __slots__ = ("task_count", "non_pass_dispatches", "budget_threshold", "exhausted")
 

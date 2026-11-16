@@ -1,8 +1,10 @@
-"""Tooling failures: timeouts, deferrals and the fix-now-or-defer ask.
+"""Tooling failures: timeouts, deferrals and the
+fix-now-or-defer ask.
 
 A tool that runs past its time budget is retried exactly once.
-Only a second timeout under free headroom is a tooling failure the
-checks can ask about; a timeout on a busy machine waits instead.
+Only a second timeout under free headroom is a tooling failure
+the checks can ask about; a timeout on a busy machine waits
+instead.
 A headless session has no one to ask, so it never emits the ask.
 A deferred tool scores pessimistically and never holds a commit.
 """
@@ -57,8 +59,8 @@ class ToolTimedOutTwice(ToolError):
 def machine_has_headroom():
     """True when check-machine-headroom.sh exits 0 (GO).
 
-    NO-GO (1) and UNKNOWN (2) both read as no headroom: the script
-    says an unmeasurable gate is treated as NO-GO.
+    NO-GO (1) and UNKNOWN (2) both read as no headroom: the
+    script says an unmeasurable gate is treated as NO-GO.
     """
     return run_command([str(HEADROOM_SCRIPT)]).returncode == 0
 
@@ -69,36 +71,42 @@ def _as_deferred(record):
 
 
 def deferred_measurement(target, metric, limit, function=None):
-    """A record for a metric whose tool could not run and was deferred.
+    """A record for a metric whose tool could not run and was
+    deferred.
 
-    It has no value, so it never reads as passing, and it carries the
-    `pessimistic` marker that keeps it from holding a commit.
+    It has no value, so it never reads as passing, and it
+    carries the `pessimistic` marker that keeps it from holding
+    a commit.
     """
     return _as_deferred(measurement(target, metric, None, limit, function))
 
 
 def deferred_flagged_measurement(target, metric, flagged_value, limit):
-    """A record read as flagged when its tool could not run, labelled.
+    """A record read as flagged when its tool could not run,
+    labelled.
 
     The worst case lists as a violation yet, being pessimistic,
-    never holds a commit, so a missing tool scores no better than
-    a failing check.
+    never holds a commit, so a missing tool scores no better
+    than a failing check.
     """
     return _as_deferred(measurement(target, metric, flagged_value, limit))
 
 
 def deferred_crap_measurements(target, functions):
-    """One CRAP violation per touched function when complexity is deferred.
+    """One CRAP violation per touched function when complexity
+    is deferred.
 
-    Without a complexity there is no score, so each record reads the
-    lowest score that flags (CRAP_LIMIT): a worst case that lists as a
-    violation yet, being pessimistic, never holds a commit.
+    Without a complexity there is no score, so each record
+    reads the lowest score that flags (CRAP_LIMIT): a worst
+    case that lists as a violation yet, being pessimistic,
+    never holds a commit.
     """
     return [_as_deferred(crap_record(target, function, CRAP_LIMIT)) for function in functions]
 
 
 def deferred_coverage_measurement(target):
-    """Coverage read as 0% for a deferred coverage tool, labelled.
+    """Coverage read as 0% for a deferred coverage tool,
+    labelled.
 
     0% is the worst case, so CRAP stays pessimistic; the marker
     keeps it from holding a commit.
@@ -107,10 +115,11 @@ def deferred_coverage_measurement(target):
 
 
 def unmeasured_file_measurement(file_path):
-    """A file-scoped record: no language entry, so nothing was measured.
+    """A file-scoped record: no language entry, so nothing was
+    measured.
 
-    Deferred and valueless, it never reads as passing, and it never
-    holds a commit.
+    Deferred and valueless, it never reads as passing, and it
+    never holds a commit.
     """
     target = Target(Path(file_path), None, None)
     return {
@@ -120,14 +129,16 @@ def unmeasured_file_measurement(file_path):
 
 
 def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None):
-    """`{"language", "ask", "measurements"}` for one changed code file.
+    """`{"language", "ask", "measurements"}` for one changed
+    code file.
 
     A file no language entry claims yields an ask, naming its
-    extension as the tool to fix, and no measurements. Once that
-    extension is deferred in `tool_map`'s batch, or when no session
-    can ask (see `session_can_ask`), the file is listed as not
-    measured and scored pessimistically. With no `tool_map` there
-    is no deferral list to read, so it never asks.
+    extension as the tool to fix, and no measurements. Once
+    that extension is deferred in `tool_map`'s batch, or when
+    no session can ask (see `session_can_ask`), the file is
+    listed as not measured and scored pessimistically. With no
+    `tool_map` there is no deferral list to read, so it never
+    asks.
     """
     try:
         return {"language": language_for_file(declaration, file_path), "ask": None, "measurements": []}
@@ -142,7 +153,8 @@ def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None
 def unclaimed_file_records(declaration, file_path, coverage_run):
     """The records for a code file no language entry claims.
 
-    An ask it raises joins `coverage_run.asks`, never the records.
+    An ask it raises joins `coverage_run.asks`, never the
+    records.
     """
     outcome = measure_language_entry_or_ask(declaration, file_path, coverage_run.tool_map)
     if outcome["ask"]:
@@ -151,19 +163,22 @@ def unclaimed_file_records(declaration, file_path, coverage_run):
 
 
 def _deferred_function_metric(target, metric):
-    """The pessimistic record for one metric a failed function tool left unmeasured."""
+    """The pessimistic record for one metric a failed function
+    tool left unmeasured."""
     if metric == "coverage":
         return deferred_coverage_measurement(target)
     return deferred_measurement(target, metric, FUNCTION_METRIC_LIMITS[metric])
 
 
 def function_tool_failure_records(target, metrics, error, coverage_run):
-    """The pessimistic records for `metrics` after a global function tool failed.
+    """The pessimistic records for `metrics` after a global
+    function tool failed.
 
-    The ask joins `coverage_run.asks`, once per tool however many
-    files it failed on. It is None once the tool is deferred in
-    the batch or when no session can ask. It needs a tool map: the
-    caller re-raises `error` when there is none.
+    The ask joins `coverage_run.asks`, once per tool however
+    many files it failed on. It is None once the tool is
+    deferred in the batch or when no session can ask. It needs
+    a tool map: the caller re-raises `error` when there is
+    none.
     """
     ask = ask_or_defer(
         coverage_run.tool_map, error.tool, "function metrics", str(error), coverage_run.environ
@@ -174,11 +189,12 @@ def function_tool_failure_records(target, metrics, error, coverage_run):
 
 
 def session_can_ask(environ=None):
-    """False when the entry point is set and is not the interactive CLI.
+    """False when the entry point is set and is not the
+    interactive CLI.
 
-    A headless run (`claude -p` sets `sdk-cli`) has no human to ask,
-    so the variable decides, not the agent. Unset means a session
-    can ask. `environ` defaults to os.environ.
+    A headless run (`claude -p` sets `sdk-cli`) has no human to
+    ask, so the variable decides, not the agent. Unset means a
+    session can ask. `environ` defaults to os.environ.
     """
     entry_point = (os.environ if environ is None else environ).get(ENTRYPOINT_VARIABLE)
     return entry_point is None or entry_point == INTERACTIVE_ENTRYPOINT
@@ -187,8 +203,9 @@ def session_can_ask(environ=None):
 def tooling_ask(tool, metric, reason):
     """The `ask` record the main session renders as a prompt.
 
-    The script never asks anyone: this record carries the question
-    (fix `tool` now or defer it) and `choices` are its two answers.
+    The script never asks anyone: this record carries the
+    question (fix `tool` now or defer it) and `choices` are its
+    two answers.
     """
     return {
         "kind": "ask",
@@ -200,10 +217,12 @@ def tooling_ask(tool, metric, reason):
 
 
 def ask_unless_deferred(tool_map, tool, metric, reason):
-    """A tooling ask, or None when `tool` is deferred in this batch.
+    """A tooling ask, or None when `tool` is deferred in this
+    batch.
 
-    `tool_map` is the batch's LazyToolMap: its entry's `deferred`
-    list is the one record of what the developer already deferred.
+    `tool_map` is the batch's LazyToolMap: its entry's
+    `deferred` list is the one record of what the developer
+    already deferred.
     """
     if tool in tool_map.entry()["deferred"]:
         return None
@@ -211,7 +230,8 @@ def ask_unless_deferred(tool_map, tool, metric, reason):
 
 
 def ask_or_defer(tool_map, tool, metric, reason, environ=None):
-    """A tooling ask, or None when no session can ask or `tool` is deferred.
+    """A tooling ask, or None when no session can ask or `tool`
+    is deferred.
 
     None means the caller scores the metric pessimistically.
     """
@@ -221,10 +241,12 @@ def ask_or_defer(tool_map, tool, metric, reason, environ=None):
 
 
 def holds_commit(records):
-    """True when a touched function breaks a limit on a real measurement.
+    """True when a touched function breaks a limit on a real
+    measurement.
 
-    A pessimistic record (a deferred tool, a red build) never holds
-    the commit: it states a worst case, not a measured violation.
+    A pessimistic record (a deferred tool, a red build) never
+    holds the commit: it states a worst case, not a measured
+    violation.
     """
     return any(
         record["scope"] == "function" and is_over_limit(record) and not record.get("pessimistic")
@@ -236,8 +258,8 @@ def holds_commit(records):
 class TimeoutPolicy:
     """How long a tool may run and what a timeout triggers.
 
-    `headroom_is_go` and `sleep` are injected so tests never wait
-    on a real clock or on this machine's load.
+    `headroom_is_go` and `sleep` are injected so tests never
+    wait on a real clock or on this machine's load.
     """
 
     timeout_seconds: float = TOOL_TIMEOUT_SECONDS
@@ -245,14 +267,17 @@ class TimeoutPolicy:
     sleep: Callable[[float], None] = time.sleep
 
     def run(self, attempt):
-        """Return `attempt(timeout_seconds)`, retrying a timeout once.
+        """Return `attempt(timeout_seconds)`, retrying a timeout
+        once.
 
-        `attempt` raises subprocess.TimeoutExpired past the budget.
+        `attempt` raises subprocess.TimeoutExpired past the
+        budget.
         A timeout on a machine with no headroom is the machine's
-        fault: wait for headroom, then retry without using the retry.
-        Raises ToolTimedOutTwice when the retry times out as well,
-        or when headroom stays NO-GO past HEADROOM_MAX_WAIT_SECONDS
-        in total (a permanent NO-GO must end in an ask, not a hang).
+        fault: wait for headroom, then retry without using the
+        retry. Raises ToolTimedOutTwice when the retry times out
+        as well, or when headroom stays NO-GO past
+        HEADROOM_MAX_WAIT_SECONDS in total (a permanent NO-GO
+        must end in an ask, not a hang).
         """
         genuine_timeouts = 0
         waited_seconds = 0
@@ -265,10 +290,12 @@ class TimeoutPolicy:
                 )
 
     def _count_timeout(self, error, waited_seconds, genuine_timeouts):
-        """`(waited_seconds, genuine_timeouts)` after one more timeout.
+        """`(waited_seconds, genuine_timeouts)` after one more
+        timeout.
 
-        A timeout followed by a wait for headroom does not count.
-        Raises ToolTimedOutTwice once the genuine timeouts run out.
+        A timeout followed by a wait for headroom does not
+        count. Raises ToolTimedOutTwice once the genuine
+        timeouts run out.
         """
         waited_after = self._wait_for_headroom(waited_seconds, error)
         if waited_after > waited_seconds:
@@ -280,7 +307,8 @@ class TimeoutPolicy:
         return waited_after, genuine_timeouts + 1
 
     def _wait_for_headroom(self, waited_seconds, timeout_error):
-        """Block until headroom is GO; return the total seconds waited."""
+        """Block until headroom is GO; return the total seconds
+        waited."""
         while not self.headroom_is_go():
             if waited_seconds >= HEADROOM_MAX_WAIT_SECONDS:
                 raise ToolTimedOutTwice(

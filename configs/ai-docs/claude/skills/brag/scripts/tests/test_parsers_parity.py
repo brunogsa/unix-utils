@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Parity tests: both parsers must produce identical output for the 2026-W16 fixtures.
+"""Parity tests: both parsers must produce identical output for
+the 2026-W16 fixtures.
 
 Fixtures:
-  scripts/tests/fixtures/gcal_mcp_2026w16.json  - raw MCP JSON for Apr 13-17 2026
-  scripts/tests/fixtures/expected_2026w16.json   - golden output both parsers must match
-  ~/brag/calendar-example.ical.zip               - full calendar export (private repo, not
-                                                   in unix-utils); ICS tests skipped if absent
+  scripts/tests/fixtures/gcal_mcp_2026w16.json
+    - raw MCP JSON for Apr 13-17 2026
+  scripts/tests/fixtures/expected_2026w16.json
+    - golden output both parsers must match
+  ~/brag/calendar-example.ical.zip
+    - full calendar export (private repo, not in unix-utils);
+      ICS tests skipped if absent
 
 Usage:
   python3 scripts/tests/test_parsers_parity.py
@@ -35,7 +39,8 @@ GOLDEN = FIXTURES / "expected_2026w16.json"
 
 
 def _extract_ics(zip_path: Path) -> Path:
-    """Unzip calendar export and return path to the .ics file inside."""
+    """Unzip calendar export and return path to the .ics file
+    inside."""
     tmp = tempfile.mkdtemp(prefix="brag-cal-test-")
     subprocess.run(["unzip", "-o", str(zip_path), "-d", tmp], check=True, capture_output=True)
     ics_files = list(Path(tmp).glob("*.ics"))

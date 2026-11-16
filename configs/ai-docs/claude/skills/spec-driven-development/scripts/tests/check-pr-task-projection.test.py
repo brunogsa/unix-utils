@@ -1,8 +1,9 @@
 """Blackbox CLI tests for check-pr-task-projection.py.
 
-Fixtures: none on disk except what each test writes to tmp_path - every
-plan is a minimal, hand-built Task Breakdown + PR Breakdown pair, small
-enough that the expected FAIL/OK verdict is verifiable by eye.
+Fixtures: none on disk except what each test writes to
+tmp_path - every plan is a minimal, hand-built Task Breakdown +
+PR Breakdown pair, small enough that the expected FAIL/OK
+verdict is verifiable by eye.
 
 Usage:
   pytest scripts/tests/check-pr-task-projection.test.py
@@ -18,8 +19,8 @@ SCRIPT = Path(__file__).parent.parent / "check-pr-task-projection.py"
 
 
 def _write_plan(tmp_path, *, task_body, pr_body):
-    """Write a minimal plan_<slug>.md fixture with only the two sections
-    the checker reads, and return its path."""
+    """Write a minimal plan_<slug>.md fixture with only the two
+    sections the checker reads, and return its path."""
     text = (
         "## Task Breakdown\n\n"
         f"{task_body}\n\n"

@@ -1,18 +1,25 @@
 #!/usr/bin/env python3
-"""Convert Markdown (from stdin or a file) to Atlassian Document Format JSON (to stdout).
+"""Convert Markdown (from stdin or a file) to Atlassian Document
+Format JSON (to stdout).
 
-The Jira Cloud REST API v3 requires comments and other rich-text fields to be ADF documents, not
-markdown. This does the minimal conversion sufficient for an evidence comment:
+The Jira Cloud REST API v3 requires comments and other
+rich-text fields to be ADF documents, not markdown.
+This does the minimal conversion sufficient for an evidence
+comment:
 
   - H1-H6 headings
   - Paragraphs (consecutive non-blank lines folded)
   - Bullet lists (- or *) and numbered lists (1. 2. 3.)
-  - Fenced code blocks (``` or ~~~), with the info-string language carried into ADF `codeBlock.attrs`
+  - Fenced code blocks (``` or ~~~), with the info-string
+    language carried into ADF `codeBlock.attrs`
   - Inline: **bold**, `code`, [text](url)
 
-Anything else - tables, blockquotes, nested lists, images - degrades to paragraphs of plain text: the
-words survive, the formatting does not. That degradation is silent in the resulting comment, and a
-comment is public the moment it posts, so unsupported constructs are reported on stderr.
+Anything else - tables, blockquotes, nested lists, images -
+degrades to paragraphs of plain text: the words survive, the
+formatting does not.
+That degradation is silent in the resulting comment, and a
+comment is public the moment it posts, so unsupported
+constructs are reported on stderr.
 
 Usage:
     build-adf-payload.py < comment.md > comment.adf.json
@@ -40,7 +47,8 @@ INLINE_RE = re.compile(
 
 
 def warn_unsupported(md):
-    """Report constructs this converter cannot represent, so the loss is noticed before posting."""
+    """Report constructs this converter cannot represent, so the
+    loss is noticed before posting."""
     findings = []
     for number, line in enumerate(md.split("\n"), start=1):
         if TABLE_RE.match(line):

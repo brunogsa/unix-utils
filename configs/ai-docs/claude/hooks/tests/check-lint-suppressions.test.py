@@ -1,9 +1,10 @@
-"""Prove check-lint-suppressions flags net-new lint/type-checker suppressions.
+"""Prove check-lint-suppressions flags net-new lint/type-checker
+suppressions.
 
-Each test drives the real hooks/check-lint-suppressions.py as a subprocess
-with a PostToolUse JSON payload on stdin, the way Claude Code does, and
-reads the exit code and stderr - exit 2 is the channel PostToolUse feeds
-back to the model.
+Each test drives the real hooks/check-lint-suppressions.py as a
+subprocess with a PostToolUse JSON payload on stdin, the way
+Claude Code does, and reads the exit code and stderr - exit 2
+is the channel PostToolUse feeds back to the model.
 """
 
 import json

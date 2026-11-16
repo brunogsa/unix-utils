@@ -1,20 +1,24 @@
 """Blackbox CLI tests for check-ac-task-consistency.py.
 
-Fixtures: none on disk except what each test writes to tmp_path - every
-plan is a minimal Test Design + Task Breakdown + Task Details trio,
-small enough that the expected OK/mismatch verdict is verifiable by
-eye. No test reads a planning artifact from the repo, so no suite run
-can be steered, or broken, by a document its author is still editing.
+Fixtures: none on disk except what each test writes to
+tmp_path - every plan is a minimal Test Design + Task
+Breakdown + Task Details trio, small enough that the expected
+OK/mismatch verdict is verifiable by eye. No test reads a
+planning artifact from the repo, so no suite run can be
+steered, or broken, by a document its author is still
+editing.
 
-Fixtures use the reshaped doc layout: a task's own `### N.` heading
-(body side, under `## Task Breakdown`) carries no AC field any more -
-its `**Testable Acceptance criteria**` field moved into the appendix,
-under `## Task Details`, one `<details><summary>Task N - ...`
-per task. Old-location reading (the field still on the body-side
-heading) is deliberately not supported: this checker only ever runs
-at authoring time, from to-plan self-review against a freshly
-written plan, never against an old in-flight plan the way /implement's
-parsers do - so new-shape-only is the right tradeoff, not a gap.
+Fixtures use the reshaped doc layout: a task's own `### N.`
+heading (body side, under `## Task Breakdown`) carries no AC
+field any more - its `**Testable Acceptance criteria**` field
+moved into the appendix, under `## Task Details`, one
+`<details><summary>Task N - ...` per task. Old-location
+reading (the field still on the body-side heading) is
+deliberately not supported: this checker only ever runs at
+authoring time, from to-plan self-review against a freshly
+written plan, never against an old in-flight plan the way
+/implement's parsers do - so new-shape-only is the right
+tradeoff, not a gap.
 
 Usage:
   pytest scripts/tests/check-ac-task-consistency.test.py
@@ -108,9 +112,10 @@ def _write_plan(
     details_body: str | None = "",
     trailer="",
 ):
-    """Write a plan_<slug>.md fixture holding only the sections the gate
-    reads, and return its path. A body of None omits that whole
-    section, which is how the missing-section cases are built."""
+    """Write a plan_<slug>.md fixture holding only the sections
+    the gate reads, and return its path. A body of None omits
+    that whole section, which is how the missing-section cases
+    are built."""
     text = "# plan_fixture\n\n"
     if design_body is not None:
         text += f"## Test Design\n\n{design_body}\n---\n\n"
@@ -135,10 +140,12 @@ def _run(*args):
 
 
 def _line_of(plan_path, needle):
-    """The 1-based line number of the first fixture line holding needle.
+    """The 1-based line number of the first fixture line
+    holding needle.
 
-    The expected `line <n>:` prefix is located independently of the gate
-    under test, so a fixture edit cannot silently drift the assertion."""
+    The expected `line <n>:` prefix is located independently of
+    the gate under test, so a fixture edit cannot silently
+    drift the assertion."""
     lines = plan_path.read_text(encoding="utf-8").splitlines()
     return next(i for i, text in enumerate(lines, 1) if needle in text)
 
@@ -446,10 +453,10 @@ def test_exits_two_when_the_plan_has_no_task_details_section(tmp_path):
 def test_ignores_a_task_heading_inside_a_fenced_block_in_task_breakdown(
     tmp_path,
 ):
-    """A fenced sample showing task-heading syntax (e.g. a template
-    snippet) must not register as a real task - it would open a
-    phantom task with no Task Details entry and trip the pairing
-    check for no reason."""
+    """A fenced sample showing task-heading syntax (e.g. a
+    template snippet) must not register as a real task - it
+    would open a phantom task with no Task Details entry and
+    trip the pairing check for no reason."""
     fenced_task_body = (
         CONSISTENT_TASKS
         + "\n```\n### 3. Example heading shown as sample markup\n```\n"
@@ -467,9 +474,10 @@ def test_ignores_a_task_heading_inside_a_fenced_block_in_task_breakdown(
 def test_ignores_a_task_heading_quoted_inside_a_longer_backtick_fence(
     tmp_path,
 ):
-    """A four-backtick fence quoting a bare three-backtick opener must stay
-    open until its own four-backtick closer, so the task heading quoted
-    inside it never opens a phantom task."""
+    """A four-backtick fence quoting a bare three-backtick
+    opener must stay open until its own four-backtick closer,
+    so the task heading quoted inside it never opens a phantom
+    task."""
     fenced_task_body = CONSISTENT_TASKS + (
         "\n````markdown\n```mermaid\n### 3. Example heading shown as sample markup\n````\n"
     )
@@ -486,9 +494,9 @@ def test_ignores_a_task_heading_quoted_inside_a_longer_backtick_fence(
 def test_ignores_a_task_heading_after_an_inner_bare_line_inside_a_longer_backtick_fence(
     tmp_path,
 ):
-    """A bare three-backtick line (no info string) inside a four-backtick
-    fence must not close it, so the task heading quoted after it never
-    opens a phantom task."""
+    """A bare three-backtick line (no info string) inside a
+    four-backtick fence must not close it, so the task heading
+    quoted after it never opens a phantom task."""
     fenced_task_body = CONSISTENT_TASKS + (
         "\n````markdown\n```\n### 3. Example heading shown as sample markup\n````\n"
     )
@@ -505,8 +513,8 @@ def test_ignores_a_task_heading_after_an_inner_bare_line_inside_a_longer_backtic
 def test_ignores_a_task_heading_quoted_inside_a_longer_tilde_fence(
     tmp_path,
 ):
-    """A four-tilde fence quoting a bare three-tilde line must stay open
-    until its own four-tilde closer."""
+    """A four-tilde fence quoting a bare three-tilde line must
+    stay open until its own four-tilde closer."""
     fenced_task_body = CONSISTENT_TASKS + (
         "\n~~~~markdown\n~~~\n### 3. Example heading shown as sample markup\n~~~~\n"
     )
@@ -523,9 +531,9 @@ def test_ignores_a_task_heading_quoted_inside_a_longer_tilde_fence(
 def test_ignores_a_task_heading_after_an_inner_line_carrying_an_info_string(
     tmp_path,
 ):
-    """An inner ```mermaid line inside a three-backtick fence has the same
-    marker and run length as the opener, so only its info string keeps
-    it from being read as the closer."""
+    """An inner ```mermaid line inside a three-backtick fence
+    has the same marker and run length as the opener, so only
+    its info string keeps it from being read as the closer."""
     fenced_task_body = CONSISTENT_TASKS + (
         "\n```\n```mermaid\n### 3. Example heading shown as sample markup\n```\n"
     )
@@ -543,9 +551,9 @@ def test_ignores_a_summary_task_line_inside_a_fenced_block_in_task_details(
     tmp_path,
 ):
     """A fenced sample inside Task Details showing the
-    `<summary>Task N` syntax must not register as a real entry - it
-    would pair a phantom Task Details entry against no matching task
-    heading."""
+    `<summary>Task N` syntax must not register as a real entry
+    - it would pair a phantom Task Details entry against no
+    matching task heading."""
     fenced_details_body = (
         CONSISTENT_DETAILS
         + "\n```\n<summary>Task 9 - Example entry shown as sample markup</summary>\n```\n"

@@ -29,7 +29,8 @@ GO_CHANGED = GO_BASE + "\nfunc added(a int) int {\n\treturn a + 1\n}\n"
 
 
 def load_measure_script():
-    """The script's top-level names, without running its main."""
+    """The script's top-level names, without running its
+    main."""
     return runpy.run_path(str(MEASURE_SCRIPT), run_name="measure_quality_metrics")
 
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Improve a skill description based on eval results.
 
-Takes eval results (from run_eval.py) and generates an improved description
-by calling `claude -p` as a subprocess (same auth pattern as run_eval.py -
-uses the session's Claude Code auth, no separate ANTHROPIC_API_KEY needed).
+Takes eval results (from run_eval.py) and generates an improved
+description by calling `claude -p` as a subprocess (same auth
+pattern as run_eval.py - uses the session's Claude Code auth, no
+separate ANTHROPIC_API_KEY needed).
 """
 
 import argparse
@@ -18,10 +19,11 @@ from scripts.utils import parse_skill_md
 
 
 def _call_claude(prompt: str, model: str | None, timeout: int = 300) -> str:
-    """Run `claude -p` with the prompt on stdin and return the text response.
+    """Run `claude -p` with the prompt on stdin and return the
+    text response.
 
-    Prompt goes over stdin (not argv) because it embeds the full SKILL.md
-    body and can easily exceed comfortable argv length.
+    Prompt goes over stdin (not argv) because it embeds the full
+    SKILL.md body and can easily exceed comfortable argv length.
     """
     cmd = ["claude", "-p", "--output-format", "text"]
     if model:
@@ -61,7 +63,8 @@ def improve_description(
     log_dir: Path | None = None,
     iteration: int | None = None,
 ) -> str:
-    """Call Claude to improve the description based on eval results."""
+    """Call Claude to improve the description based on eval
+    results."""
     failed_triggers = [
         r for r in eval_results["results"]
         if r["should_trigger"] and not r["pass"]

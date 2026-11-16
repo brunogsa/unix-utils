@@ -30,9 +30,10 @@ SUBJECT_EXTENSIONS = (".sh", ".py", ".js")
 
 
 def is_excluded(path):
-    """Return True when path falls under node_modules or the stale
-    worktree checkout, so the caller skips it with no output - never
-    a reason to report, never mixed into a pass/fail count."""
+    """Return True when path falls under node_modules or the
+    stale worktree checkout, so the caller skips it with no
+    output - never a reason to report, never mixed into a
+    pass/fail count."""
     if "node_modules" in path.parts:
         return True
     if STALE_WORKTREE_MARKER in path.as_posix():
@@ -41,8 +42,8 @@ def is_excluded(path):
 
 
 def collect_harnesses(tree_root):
-    """Return every test-*.sh file under tree_root, excluded paths
-    already filtered, sorted for stable output."""
+    """Return every test-*.sh file under tree_root, excluded
+    paths already filtered, sorted for stable output."""
     return sorted(
         p
         for p in tree_root.rglob("test-*.sh")
@@ -51,18 +52,20 @@ def collect_harnesses(tree_root):
 
 
 def subject_dir_for(harness):
-    """Return the directory a harness's subject would live in: one
-    level up when the harness sits in a tests/ subdirectory (the
-    common layout), else the harness's own directory."""
+    """Return the directory a harness's subject would live in:
+    one level up when the harness sits in a tests/
+    subdirectory (the common layout), else the harness's own
+    directory."""
     if harness.parent.name == "tests":
         return harness.parent.parent
     return harness.parent
 
 
 def naive_subject(harness):
-    """Return the single sibling file naive stem-matching resolves as
-    harness's subject, or None when zero or multiple candidates exist
-    (ambiguous - never guessed, falls through to the override map)."""
+    """Return the single sibling file naive stem-matching
+    resolves as harness's subject, or None when zero or
+    multiple candidates exist (ambiguous - never guessed,
+    falls through to the override map)."""
     stem = harness.stem  # e.g. "test-check-density"
     if not stem.startswith("test-"):
         return None
@@ -76,11 +79,12 @@ def naive_subject(harness):
 
 
 def classify_by_extension(subject_path):
-    """Return True (still shell, OK), False (now .py/.js, orphaned),
-    or None (unrecognized extension) for subject_path's suffix. The
-    same rule classifies a naively-found subject and an override-
-    mapped one - the map supplies WHICH file is the subject, never a
-    verdict, so the checker's contract stays mechanical and uniform."""
+    """Return True (still shell, OK), False (now .py/.js,
+    orphaned), or None (unrecognized extension) for
+    subject_path's suffix. The same rule classifies a
+    naively-found subject and an override-mapped one - the map
+    supplies WHICH file is the subject, never a verdict, so
+    the checker's contract stays mechanical and uniform."""
     suffix = subject_path.suffix
     if suffix == ".sh":
         return True
@@ -90,11 +94,12 @@ def classify_by_extension(subject_path):
 
 
 def evaluate_harness(harness, tree_root, overrides):
-    """Return (status, message) for one harness: OK/FAIL plus the
-    reason. Resolution order: naive stem-match first; on ambiguity
-    (zero or 2+ candidates), the override map; a harness absent from
-    both fails loudly and distinctly from an orphan - never silently
-    passes and never guesses a subject the map didn't name."""
+    """Return (status, message) for one harness: OK/FAIL plus
+    the reason. Resolution order: naive stem-match first; on
+    ambiguity (zero or 2+ candidates), the override map; a
+    harness absent from both fails loudly and distinctly from
+    an orphan - never silently passes and never guesses a
+    subject the map didn't name."""
     subject = naive_subject(harness)
     if subject is not None:
         subject_rel = subject.relative_to(tree_root)
@@ -119,10 +124,10 @@ def evaluate_harness(harness, tree_root, overrides):
 
 
 def load_overrides(overrides_arg):
-    """Return the override map from --overrides, or {} when the flag
-    was not given. Raises ValueError (caught by main as a usage
-    error) on a missing or invalid file, rather than silently
-    treating a typo'd path as 'no overrides'."""
+    """Return the override map from --overrides, or {} when the
+    flag was not given. Raises ValueError (caught by main as a
+    usage error) on a missing or invalid file, rather than
+    silently treating a typo'd path as 'no overrides'."""
     if overrides_arg is None:
         return {}
     path = Path(overrides_arg).expanduser()

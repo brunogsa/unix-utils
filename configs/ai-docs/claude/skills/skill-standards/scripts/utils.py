@@ -5,7 +5,8 @@ from pathlib import Path
 
 
 def parse_skill_md(skill_path: Path) -> tuple[str, str, str]:
-    """Parse a SKILL.md file, returning (name, description, full_content)."""
+    """Parse a SKILL.md file, returning (name, description,
+    full_content)."""
     content = (skill_path / "SKILL.md").read_text()
     lines = content.split("\n")
 

@@ -1,50 +1,60 @@
 #!/usr/bin/env python3
-"""check-hard-wrap.py - flag prose paragraphs hard-wrapped across physical lines.
+"""check-hard-wrap.py - flag prose paragraphs hard-wrapped
+across physical lines.
 
-Rule (doc-standards, "Density"): "In standalone markdown docs, keep each prose
-paragraph on a single physical line - never hard-wrap mid-paragraph; rely on
-the editor's soft-wrap."
+Rule (doc-standards, "Density"): "In standalone markdown docs,
+keep each prose paragraph on a single physical line - never
+hard-wrap mid-paragraph; rely on the editor's soft-wrap."
 
-Nothing else enforced this. check-density.sh only flags lines OVER the cap, so
-hard-wrapping is not merely unchecked - it actively DEFEATS that check: a
-60-word paragraph broken into three 20-word lines passes every line while
-costing the reader the same 60 words.
+Nothing else enforced this. check-density.sh only flags lines
+OVER the cap, so hard-wrapping is not merely unchecked - it
+actively DEFEATS that check: a 60-word paragraph broken into
+three 20-word lines passes every line while costing the reader
+the same 60 words.
 
 DETECTION ONLY - do not add a --fix pass.
 
-check-bullet-gap.py has one, so the absence here reads like an omission. It is
-not. The mechanical fix for a hard wrap is joining the lines, and a naive join
-can produce a line over check-density.sh's cap: several short wrapped lines
-concatenate into one long paragraph line with no regard for where the cap
+check-bullet-gap.py has one, so the absence here reads like an
+omission. It is not. The mechanical fix for a hard wrap is
+joining the lines, and a naive join can produce a line over
+check-density.sh's cap: several short wrapped lines concatenate
+into one long paragraph line with no regard for where the cap
 falls.
 
-A --fix whose output fails a sibling checker is a broken tool. The rule's own
-remedy is "over the cap, split on a sentence boundary - never drop info to
-fit", and choosing that boundary is an authorial decision, not a transform. So
-unwrapping is join-THEN-split, and it has to satisfy both checkers at once.
+A --fix whose output fails a sibling checker is a broken tool.
+The rule's own remedy is "over the cap, split on a sentence
+boundary - never drop info to fit", and choosing that boundary
+is an authorial decision, not a transform. So unwrapping is
+join-THEN-split, and it has to satisfy both checkers at once.
 
-AI-consumed output (compact, parseable - mirrors check-density.sh):
-  == <filename>          header, printed once per file that has hits
-  <line>:continues-prose    the line continues a prose line above it
-  <line>:continues-bullet   the line continues a bullet above it
+AI-consumed output (compact, parseable - mirrors
+check-density.sh):
+  == <filename>          header, printed once per file that has
+                         hits
+  <line>:continues-prose    the line continues a prose line
+                            above it
+  <line>:continues-bullet   the line continues a bullet above
+                            it
 
-Both reasons are violations. They are counted separately so the unwrap diff
-stays auditable, not because one is tolerated.
+Both reasons are violations. They are counted separately so the
+unwrap diff stays auditable, not because one is tolerated.
 
 Usage:
   check-hard-wrap.py [--changed-only] <file> [<file>...]
 
---changed-only scopes every reported hit to the lines get-changed-lines.sh
-reports as changed vs HEAD for that same file, so a fixer's convergence
-loop never re-reports a violation that predates the session's own edits.
-The scope check is the CONTINUATION line's own number (the line already
-printed), never the line it continues - see find_hits()'s docstring.
+--changed-only scopes every reported hit to the lines
+get-changed-lines.sh reports as changed vs HEAD for that same
+file, so a fixer's convergence loop never re-reports a
+violation that predates the session's own edits. The scope
+check is the CONTINUATION line's own number (the line already
+printed), never the line it continues - see find_hits()'s
+docstring.
 
 Exit codes:
   0  clean
   1  violations found
-  2  usage error, (with --changed-only) get-changed-lines.sh failed, or
-     an input file is unreadable or not valid UTF-8
+  2  usage error, (with --changed-only) get-changed-lines.sh
+     failed, or an input file is unreadable or not valid UTF-8
 """
 
 import importlib.util
@@ -94,48 +104,56 @@ TAB_WIDTH = 4
 
 
 def indent_columns(line):
-    """The line's leading indent, in columns, with tabs expanded."""
+    """The line's leading indent, in columns, with tabs
+    expanded."""
     expanded = line.expandtabs(TAB_WIDTH)
     return len(expanded) - len(expanded.lstrip())
 
 
 def bullet_content_column(line):
-    """The column a bullet's own text starts at, or None for a non-bullet.
+    """The column a bullet's own text starts at, or None for a
+    non-bullet.
 
-    Content indented past that column belongs to the item, which is why it
-    is also where a code block nested inside the item has to start.
+    Content indented past that column belongs to the item,
+    which is why it is also where a code block nested inside
+    the item has to start.
     """
     match = BULLET.match(line.expandtabs(TAB_WIDTH))
     return len(match.group(0)) if match else None
 
 
 def is_setext_underline(line, previous):
-    """True when `line` underlines `previous` into a setext heading.
+    """True when `line` underlines `previous` into a setext
+    heading.
 
-    Context-dependent, so it cannot join the classifier above: the very same
-    `-----` is a heading underline after a title and a horizontal rule after a
-    blank line. Getting this wrong is destructive rather than merely noisy -
-    the report says "joinable", and joining an underline into its title
+    Context-dependent, so it cannot join the classifier above:
+    the very same `-----` is a heading underline after a title
+    and a horizontal rule after a blank line. Getting this
+    wrong is destructive rather than merely noisy - the report
+    says "joinable", and joining an underline into its title
     silently deletes the heading.
     """
     return bool(SETEXT_UNDERLINE.match(line)) and bool(previous.strip())
 
 
 def is_continuable_prose(line):
-    """True when this line is body prose a paragraph could be wrapped across.
+    """True when this line is body prose a paragraph could be
+    wrapped across.
 
-    Judges a line on its own markers alone. For those it is the inverse of
-    check-density.sh's skip-set: a line that script declines to MEASURE is a
-    line this script must decline to JOIN.
+    Judges a line on its own markers alone. For those it is the
+    inverse of check-density.sh's skip-set: a line that script
+    declines to MEASURE is a line this script must decline to
+    JOIN.
 
-    Block context is find_hits()'s job, and there the two checkers diverge
-    deliberately. check-density.sh skips only frontmatter and fenced code, so
-    an INDENTED code block is prose to it and unjoinable here.
+    Block context is find_hits()'s job, and there the two
+    checkers diverge deliberately. check-density.sh skips only
+    frontmatter and fenced code, so an INDENTED code block is
+    prose to it and unjoinable here.
 
-    That divergence is safe because density only flags prose lines OVER a
-    512-char cap, which indented code lines do not reach - the blind spot is
-    inert on density's side, while joining an indented block here destroys
-    the code.
+    That divergence is safe because density only flags prose
+    lines OVER a 512-char cap, which indented code lines do not
+    reach - the blind spot is inert on density's side, while
+    joining an indented block here destroys the code.
     """
     if not line.strip():
         return False
@@ -163,7 +181,8 @@ def is_continuable_prose(line):
 
 
 def find_hits(lines):
-    """(line_number, reason) for every line continuing the line above it."""
+    """(line_number, reason) for every line continuing the line
+    above it."""
     hits = []
     in_fence = False
     in_indented_code = False
@@ -270,16 +289,18 @@ def find_hits(lines):
 
 
 class ChangedLinesError(Exception):
-    """get-changed-lines.sh failed to determine scope for one file."""
+    """get-changed-lines.sh failed to determine scope for one
+    file."""
 
 
 def get_changed_line_numbers(path):
-    """The set of line numbers get-changed-lines.sh reports as changed for
-    `path` vs HEAD. Never reimplements its git/awk logic - shells out to
-    the one shared helper every doc-standards checker's --changed-only
-    scopes itself against, so they can never disagree on what "changed"
-    means. Raises ChangedLinesError on a non-zero exit rather than
-    treating failure as clean or as whole-file-in-scope."""
+    """The set of line numbers get-changed-lines.sh reports as
+    changed for `path` vs HEAD. Never reimplements its git/awk
+    logic - shells out to the one shared helper every
+    doc-standards checker's --changed-only scopes itself
+    against, so they can never disagree on what "changed"
+    means. Raises ChangedLinesError on a non-zero exit rather
+    than treating failure as clean or as whole-file-in-scope."""
     result = subprocess.run(
         [str(CHANGED_LINES_SCRIPT), str(path)],
         capture_output=True,

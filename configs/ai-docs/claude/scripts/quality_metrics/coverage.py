@@ -1,10 +1,11 @@
 """Joins the lines a change touched with an lcov report into
 changed-line coverage, as a percentage.
 
-Coverage under 90% is flagged. A changed line with no lcov entry
-holds no executable code, so it counts toward neither side. A file
-the report omits entirely reads 0%: nothing ran it. A listed file
-with no coverable changed line reads not applicable.
+Coverage under 90% is flagged. A changed line with no lcov
+entry holds no executable code, so it counts toward neither
+side. A file the report omits entirely reads 0%: nothing ran
+it. A listed file with no coverable changed line reads not
+applicable.
 """
 
 from quality_metrics.functions import measurement
@@ -17,7 +18,8 @@ PERCENT = 100
 
 
 def coverage_measurement(target, line_hits):
-    """One file-scoped record: share of changed coverable lines run.
+    """One file-scoped record: share of changed coverable lines
+    run.
 
     `line_hits` is None when the report omits the file.
     """
@@ -36,7 +38,8 @@ def coverage_measurement(target, line_hits):
 
 
 def not_applicable_record(target):
-    """A listed file whose changed lines hold no code: no verdict."""
+    """A listed file whose changed lines hold no code: no
+    verdict."""
     record = measurement(target, "coverage", None, COVERAGE_LIMIT)
     return {**record, "status": NO_COVERABLE_LINES}
 

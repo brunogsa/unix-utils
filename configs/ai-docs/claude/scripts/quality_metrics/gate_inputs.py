@@ -1,14 +1,16 @@
 """Judges a branch by gate inputs read from the base ref.
 
-A branch that edits the inputs it is measured by could pass its own
-gate. So a suppression comment it adds, or a coverage exclude it adds
-to the repo's jest config, is listed as a violation, and the config is
-read as the base ref committed it.
+A branch that edits the inputs it is measured by could pass
+its own gate. So a suppression comment it adds, or a
+coverage exclude it adds to the repo's jest config, is
+listed as a violation, and the config is read as the base
+ref committed it.
 
-A suppression counts as added when the diff holds more of that token
-on its added lines than on its removed ones, so moving or keeping one
-is silent. A coverage exclude is read from the literal lists
-`coveragePathIgnorePatterns` and `collectCoverageFrom` (`!` entries).
+A suppression counts as added when the diff holds more of
+that token on its added lines than on its removed ones, so
+moving or keeping one is silent. A coverage exclude is read
+from the literal lists `coveragePathIgnorePatterns` and
+`collectCoverageFrom` (`!` entries).
 """
 
 import re
@@ -55,8 +57,8 @@ NEGATED_GLOB_MARK = "!"
 
 
 def find_violations(repo_dir, base_ref, head_ref=None, declaration_path=None):
-    """Every suppression, coverage exclude and declaration change
-    the branch adds.
+    """Every suppression, coverage exclude and declaration
+    change the branch adds.
 
     `head_ref` None means the working tree, untracked files
     included. `declaration_path` None skips the declaration.
@@ -71,11 +73,12 @@ def find_violations(repo_dir, base_ref, head_ref=None, declaration_path=None):
 def write_base_ref_declaration(repo_dir, base_ref, declaration_path, directory):
     """The declaration file to measure with.
 
-    A declaration the repo commits is copied as `base_ref` committed
-    it, so a branch edit never loosens its own gate. One outside the
-    repo is copied as the HEAD of its own git repo committed it.
-    A declaration with no committed text (new on the branch, or not
-    under git at all) is returned as given.
+    A declaration the repo commits is copied as `base_ref`
+    committed it, so a branch edit never loosens its own
+    gate. One outside the repo is copied as the HEAD of its
+    own git repo committed it.
+    A declaration with no committed text (new on the branch,
+    or not under git at all) is returned as given.
     """
     _, text, _ = _declaration_texts(repo_dir, base_ref, None, declaration_path)
     if text is None:
@@ -86,8 +89,8 @@ def write_base_ref_declaration(repo_dir, base_ref, declaration_path, directory):
 
 
 def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
-    """A metric the branch drops from a language is an opt-out; any
-    other changed key is a declaration change."""
+    """A metric the branch drops from a language is an opt-out;
+    any other changed key is a declaration change."""
     if declaration_path is None:
         return []
     name, base_text, head_text = _declaration_texts(
@@ -105,7 +108,8 @@ def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
 
 
 def _changed_keys(base, head):
-    """The top-level keys, apart from languages, whose value changed."""
+    """The top-level keys, apart from languages, whose value
+    changed."""
     changes = []
     for key in sorted(set(base) | set(head)):
         if key != LANGUAGES_KEY and base.get(key) != head.get(key):
@@ -114,7 +118,8 @@ def _changed_keys(base, head):
 
 
 def _language_changes(language, entry, head_entry):
-    """The (kind, value) changes one language's declaration shows."""
+    """The (kind, value) changes one language's declaration
+    shows."""
     if head_entry is None:
         return [(DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}")]
     dropped = set(entry.get(METRICS_KEY) or ()) - set(head_entry.get(METRICS_KEY) or ())
@@ -136,10 +141,11 @@ def _changed_fields(entry, head_entry):
 def _declaration_texts(repo_dir, base_ref, head_ref, declaration_path):
     """The declaration's name, committed text and current text.
 
-    Inside the repo, committed means at `base_ref` and current means
-    at `head_ref`. Outside it, committed means the HEAD of the git
-    repo holding the file and current is the working copy. A text
-    is None when the file has none there.
+    Inside the repo, committed means at `base_ref` and current
+    means at `head_ref`. Outside it, committed means the HEAD
+    of the git repo holding the file and current is the
+    working copy. A text is None when the file has none
+    there.
     """
     name = _repo_relative_name(repo_dir, declaration_path)
     if name is not None:
@@ -162,11 +168,13 @@ def _repo_relative_name(repo_dir, path):
 
 
 def write_base_ref_configs(repo_dir, base_ref, directory):
-    """Copy the repo's jest configs as `base_ref` committed them.
+    """Copy the repo's jest configs as `base_ref` committed
+    them.
 
-    Jest reads its own config at run time and is pointed at the
-    copy, so the branch's excludes never shape its numbers.
-    Returns the copies' paths, in detector-rule order.
+    Jest reads its own config at run time and is pointed at
+    the copy, so the branch's excludes never shape its
+    numbers. Returns the copies' paths, in detector-rule
+    order.
     """
     copies = []
     for name in _config_names("jest"):
@@ -191,11 +199,13 @@ EMPTY_COVERAGE_CONFIG_NAME = ".coveragerc"
 
 
 def write_base_ref_coverage_config(repo_dir, base_ref, directory):
-    """Copy the coverage.py config `base_ref` committed; return its path.
+    """Copy the coverage.py config `base_ref` committed; return
+    its path.
 
-    The copy keeps its file name, so coverage.py parses it in the
-    right format. A ref with no coverage config gets an empty copy,
-    so no file of the branch's can shape the measured number.
+    The copy keeps its file name, so coverage.py parses it in
+    the right format. A ref with no coverage config gets an
+    empty copy, so no file of the branch's can shape the
+    measured number.
     """
     for name, marker in COVERAGE_PY_CONFIG_MARKERS.items():
         text = _text_at(repo_dir, base_ref, name)
@@ -291,8 +301,9 @@ def _config_names(tool):
 
 
 def _text_at(repo_dir, ref, path):
-    """The file's text at `ref`, or in the `repo_dir` working tree
-    when `ref` is None; None when the file is absent there."""
+    """The file's text at `ref`, or in the `repo_dir` working
+    tree when `ref` is None; None when the file is absent
+    there."""
     if ref is None:
         file_path = Path(repo_dir) / path
         return file_path.read_text() if file_path.exists() else None

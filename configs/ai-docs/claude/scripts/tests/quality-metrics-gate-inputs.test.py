@@ -29,7 +29,8 @@ def report_target(repo):
 
 
 def jest_coverage_run(repo, map_dir, base_ref):
-    """A coverage run whose tool map lists the repo's jest config."""
+    """A coverage run whose tool map lists the repo's jest
+    config."""
     tool_map = lazy_tool_map_for(
         repo, load_detector_rules(DETECTOR_RULES_PATH), "session-5a2f8c", map_dir, base_ref=base_ref
     )

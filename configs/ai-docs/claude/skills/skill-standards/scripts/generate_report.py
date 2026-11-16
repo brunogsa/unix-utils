@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate an HTML report from run_loop.py output.
 
-Takes the JSON output from run_loop.py and generates a visual HTML report
-showing each description attempt with check/x for each test case.
+Takes the JSON output from run_loop.py and generates a visual
+HTML report showing each description attempt with check/x for
+each test case.
 Distinguishes between train and test queries.
 """
 
@@ -14,7 +15,9 @@ from pathlib import Path
 
 
 def generate_html(data: dict, auto_refresh: bool = False, skill_name: str = "") -> str:
-    """Generate HTML report from loop output data. If auto_refresh is True, adds a meta refresh tag."""
+    """Generate HTML report from loop output data.
+
+    If auto_refresh is True, adds a meta refresh tag."""
     history = data.get("history", [])
     holdout = data.get("holdout", 0)
     title_prefix = html.escape(skill_name + " \u2014 ") if skill_name else ""

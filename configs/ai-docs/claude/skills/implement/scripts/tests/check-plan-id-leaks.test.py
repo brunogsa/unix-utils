@@ -43,8 +43,8 @@ def commit_all(repo, message):
 
 
 def make_repo(tmp_path, base_branch="main"):
-    """A repo whose base branch holds one spec and one design doc, with
-    the feature branch checked out on top of it."""
+    """A repo whose base branch holds one spec and one design
+    doc, with the feature branch checked out on top of it."""
     repo = tmp_path / "repo"
     repo.mkdir()
     git(repo, "init", "--quiet", "--initial-branch", base_branch)
@@ -65,8 +65,8 @@ def run_script(repo, *args):
 
 
 def add_spec_lines(repo, *lines):
-    """Insert lines after the spec's `it(...)` line, so the hunk starts
-    past line 1 of an already-tracked file."""
+    """Insert lines after the spec's `it(...)` line, so the hunk
+    starts past line 1 of an already-tracked file."""
     base_lines = BASE_SPEC.splitlines(keepends=True)
     added = [line + "\n" for line in lines]
     write(repo, SPEC_PATH, "".join(base_lines[:3] + added + base_lines[3:]))

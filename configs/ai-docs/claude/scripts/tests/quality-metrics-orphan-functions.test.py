@@ -1,4 +1,5 @@
-"""Every public quality_metrics function has a production caller.
+"""Every public quality_metrics function has a production
+caller.
 
 A public module-level function whose only callers live in tests/
 ships as dead code that still looks covered. A caller is a name
@@ -38,13 +39,15 @@ def _public_functions(tree):
 
 
 def _parsed_modules(directory):
-    """Each `*.py` file name in `directory`, mapped to its AST."""
+    """Each `*.py` file name in `directory`, mapped to its
+    AST."""
     paths = sorted(directory.glob("*.py"))
     return {path.name: ast.parse(path.read_text(encoding="utf-8")) for path in paths}
 
 
 def _top_level_nodes_except(function, modules):
-    """Every module's top-level nodes, minus `function` itself."""
+    """Every module's top-level nodes, minus `function`
+    itself."""
     nodes = []
     for tree in modules.values():
         nodes += [node for node in tree.body if node is not function]
@@ -52,7 +55,8 @@ def _top_level_nodes_except(function, modules):
 
 
 def _public_functions_by_file(modules):
-    """`(module file, function node)` for every public function."""
+    """`(module file, function node)` for every public
+    function."""
     public = []
     for file_name, tree in modules.items():
         public += [(file_name, function) for function in _public_functions(tree)]
@@ -60,7 +64,8 @@ def _public_functions_by_file(modules):
 
 
 def orphan_functions(scripts_dir):
-    """`(module file, function)` pairs with no production caller."""
+    """`(module file, function)` pairs with no production
+    caller."""
     modules = _parsed_modules(scripts_dir / PACKAGE_NAME)
     script_names = _referenced_names(_parsed_modules(scripts_dir).values())
     public = _public_functions_by_file(modules)

@@ -48,7 +48,8 @@ def snippets_around_dashes(text):
 
 
 def collect_strings(value):
-    """Yield every string value nested anywhere in dicts and lists (keys excluded)."""
+    """Yield every string value nested anywhere in dicts and
+    lists (keys excluded)."""
     if isinstance(value, str):
         yield value
     elif isinstance(value, dict):
@@ -60,7 +61,8 @@ def collect_strings(value):
 
 
 def read_baseline_file(file_path):
-    """Return the file's text, "" if it does not exist, or None if it cannot be read as text."""
+    """Return the file's text, "" if it does not exist, or None
+    if it cannot be read as text."""
     try:
         return Path(file_path).read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -70,7 +72,8 @@ def read_baseline_file(file_path):
 
 
 def read_notebook_cell_source(notebook_path, cell_id):
-    """Return the targeted cell's source text, or None when it cannot be determined."""
+    """Return the targeted cell's source text, or None when it
+    cannot be determined."""
     try:
         notebook = json.loads(Path(notebook_path).read_text(encoding="utf-8"))
         for cell in notebook["cells"]:
@@ -129,7 +132,8 @@ def check_notebook_edit(tool_input):
 
 
 def net_new_dashes(new_text, baseline_count):
-    """Return (extra_count, snippets) when new_text holds more dashes than the baseline."""
+    """Return (extra_count, snippets) when new_text holds more
+    dashes than the baseline."""
     extra = count_dashes(new_text) - baseline_count
     if extra <= 0:
         return None
@@ -145,7 +149,8 @@ def check_outgoing_message(tool_input):
 
 
 def check_tool_call(tool_name, tool_input):
-    """Return (new_dash_count, snippets, is_outgoing) to deny, or None to allow."""
+    """Return (new_dash_count, snippets, is_outgoing) to
+    deny, or None to allow."""
     if OUTGOING_TOOL_PATTERN.match(tool_name):
         found = check_outgoing_message(tool_input)
         return found + (True,) if found else None

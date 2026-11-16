@@ -1,8 +1,8 @@
 """Finds the over-limit functions a change removed.
 
-A removed function that broke a limit at the base is resolved by the
-change. One that was under every limit is not reported, since nothing
-was fixed by removing it.
+A removed function that broke a limit at the base is resolved
+by the change. One that was under every limit is not
+reported, since nothing was fixed by removing it.
 """
 
 import tempfile
@@ -13,11 +13,12 @@ from quality_metrics.touched import file_text_at
 
 
 def resolved_measurements(changes, base_ref, measure_at_base, function_names_in):
-    """List each over-limit function the changes removed, with its base-side score.
+    """List each over-limit function the changes removed, with
+    its base-side score.
 
-    `measure_at_base(copy_path, original_path)` measures a copy of the
-    base-side file. `function_names_in(path)` names the functions the
-    head-side file still holds.
+    `measure_at_base(copy_path, original_path)` measures a copy
+    of the base-side file. `function_names_in(path)` names the
+    functions the head-side file still holds.
     """
     resolved = []
     with tempfile.TemporaryDirectory() as directory:

@@ -1,25 +1,28 @@
 """Blackbox CLI tests for resolve-subagent-compaction-bump.py.
 
-The hook is the only production caller of tmux-window-title.sh's
---bump-subagent-counter, so these tests pin the two things that
-decide whether the tmux title's subagent half is ever right:
+The hook is the only production caller of
+tmux-window-title.sh's --bump-subagent-counter, so these
+tests pin the two things that decide whether the tmux title's
+subagent half is ever right:
 
   - how many `compact_boundary` entries a subagent transcript
-    really holds, counted by parsing each line as JSON rather than
-    by matching the literal string (ordinary conversation text
-    mentions `compact_boundary` and inflates a text match);
+    really holds, counted by parsing each line as JSON rather
+    than by matching the literal string (ordinary conversation
+    text mentions `compact_boundary` and inflates a text
+    match);
 
-  - how many of those are NEW since the last SubagentStop for the
-    same agent, since Claude Code fires SubagentStop again every
-    time a resumed agent stops.
+  - how many of those are NEW since the last SubagentStop for
+    the same agent, since Claude Code fires SubagentStop again
+    every time a resumed agent stops.
 
-Every test drives a COPY of the hook under tmp_path, beside a stub
-tmux-window-title.sh that records its argv instead of driving tmux,
-and with HOME pointed at a throwaway directory - so no assertion
-can reach the developer's real tmux window or real ~/.claude state.
+Every test drives a COPY of the hook under tmp_path, beside a
+stub tmux-window-title.sh that records its argv instead of
+driving tmux, and with HOME pointed at a throwaway directory -
+so no assertion can reach the developer's real tmux window or
+real ~/.claude state.
 
 Usage:
-  pytest configs/ai-docs/claude/hooks/tests/resolve-subagent-compaction-bump.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -38,9 +41,9 @@ AGENT_ID = "a859f1768d6aa9f18"
 
 
 def _install_hook(tmp_path, title_exit=0):
-    """Mirror the real hooks/ + scripts/ sibling layout the hook
-    resolves its title script against, with the title script stubbed
-    out to append its argv to a capture file."""
+    """Mirror the real hooks/ + scripts/ sibling layout the
+    hook resolves its title script against, with the title
+    script stubbed out to append its argv to a capture file."""
     hooks_dir = tmp_path / "hooks"
     scripts_dir = tmp_path / "scripts"
     hooks_dir.mkdir(parents=True, exist_ok=True)
@@ -63,8 +66,9 @@ def _install_hook(tmp_path, title_exit=0):
 
 
 def _run_hook(hook_copy, payload, home_dir):
-    """Feed one SubagentStop payload to the hook copy. `payload` is a
-    dict (serialized here) or a raw string for malformed-stdin cases."""
+    """Feed one SubagentStop payload to the hook copy.
+    `payload` is a dict (serialized here) or a raw string for
+    malformed-stdin cases."""
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
     home_dir.mkdir(parents=True, exist_ok=True)
 
@@ -84,8 +88,8 @@ def _bump_calls(capture_path):
 
 
 def _boundary_entry(agent_id, timestamp):
-    """One real compact_boundary system entry, shaped as Claude Code
-    writes it into a subagent transcript."""
+    """One real compact_boundary system entry, shaped as
+    Claude Code writes it into a subagent transcript."""
     return {
         "parentUuid": None,
         "logicalParentUuid": "4188096c-c11b-4f18-b61e-f07242656eaa",
@@ -102,11 +106,12 @@ def _boundary_entry(agent_id, timestamp):
 
 
 def _decoy_entry(agent_id):
-    """An ordinary assistant turn whose TEXT mentions compact_boundary.
+    """An ordinary assistant turn whose TEXT mentions
+    compact_boundary.
 
-    This is the entry a `grep -c compact_boundary` counts and a JSON
-    parse does not - the exact miscount that made the counter wrong
-    while it was being diagnosed."""
+    This is the entry a `grep -c compact_boundary` counts and a
+    JSON parse does not - the exact miscount that made the
+    counter wrong while it was being diagnosed."""
     return {
         "parentUuid": "1d4e8a02-77c4-4b91-9b0a-2c6f31f0a7e2",
         "isSidechain": True,
@@ -153,10 +158,10 @@ def _transcript_with(tmp_path, boundary_count, agent_id=AGENT_ID, with_decoy=Tru
 
 
 def _payload(transcript_path, agent_id=AGENT_ID, session_id=SESSION_ID):
-    """The captured real SubagentStop shape, trimmed to the fields the
-    hook reads. agent_type is an EMPTY STRING in production, so it is
-    kept empty here - branching on it is what made the previous hook
-    dead code."""
+    """The captured real SubagentStop shape, trimmed to the
+    fields the hook reads. agent_type is an EMPTY STRING in
+    production, so it is kept empty here - branching on it is
+    what made the previous hook dead code."""
     return {
         "session_id": session_id,
         "transcript_path": f"/Users/brunoagostini/.claude/projects/-Users-brunoagostini-unix-utils/{session_id}.jsonl",

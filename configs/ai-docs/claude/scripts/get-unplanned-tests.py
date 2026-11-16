@@ -69,8 +69,9 @@ def run_git(*args):
 
 
 def normalize_title(title):
-    """Reduce a title to lowercase words so a Python name, a Go name
-    and a JS sentence naming the same behavior compare equal."""
+    """Reduce a title to lowercase words so a Python name, a Go
+    name and a JS sentence naming the same behavior compare
+    equal."""
     if title.startswith("test_"):
         title = title[len("test_"):]
     elif re.match(r"Test[A-Z0-9]", title):
@@ -98,8 +99,8 @@ def read_planned_titles(plan_path):
 
 
 def declared_title(path, source_line):
-    """Return the test title a source line of this file declares,
-    else None."""
+    """Return the test title a source line of this file
+    declares, else None."""
     pattern = DECLARATION_PATTERN_BY_EXTENSION.get(Path(path).suffix)
     if pattern is None:
         return None
@@ -108,9 +109,10 @@ def declared_title(path, source_line):
 
 
 def list_added_tests(base):
-    """Return (path, line at HEAD, title) for every test declaration
-    on a `+` line of the diff from the fork point to HEAD, except
-    a declaration the same file also removed (an edited signature)."""
+    """Return (path, line at HEAD, title) for every test
+    declaration on a `+` line of the diff from the fork point to
+    HEAD, except a declaration the same file also removed (an
+    edited signature)."""
     diff = run_git(
         "diff",
         "--no-color",
@@ -159,8 +161,9 @@ def list_added_tests(base):
 
 def read_gate(path, title, base):
     """Return the Gate trailer of the first branch commit that
-    introduced this title in this file, or GATE_UNKNOWN when that
-    commit carries none. A later edit of the line never counts."""
+    introduced this title in this file, or GATE_UNKNOWN when
+    that commit carries none. A later edit of the line never
+    counts."""
     introducing_commits = run_git(
         "log",
         "--reverse",

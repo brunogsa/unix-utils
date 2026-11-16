@@ -5,7 +5,7 @@ tmp_path - never a real repo file - so a case stays green
 independent of anything else in the repo.
 
 Usage:
-  pytest configs/ai-docs/claude/skills/code-standards/scripts/tests/classify-conversion.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -21,7 +21,8 @@ LINE_CAP = 128
 
 
 def _write_script(tmp_path, name, lines):
-    """Write a fixture script from physical lines, return its path."""
+    """Write a fixture script from physical lines, return its
+    path."""
     path = tmp_path / name
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -31,7 +32,8 @@ def _write_script(tmp_path, name, lines):
 def _script_with_line_count(tmp_path, name, line_count, body_lines=()):
     """Build a fixture with an exact physical line count, padded
     with plain echo lines that carry none of the four risky
-    constructs, so only the line count itself can trigger convert."""
+    constructs, so only the line count itself can trigger
+    convert."""
     lines = ["#!/usr/bin/env bash", *body_lines]
     while len(lines) < line_count:
         lines.append(f"echo 'padding line {len(lines)}'")
@@ -53,10 +55,11 @@ def _single_result(result):
 
 
 class _TempDirTestCase(unittest.TestCase):
-    """Gives each test its own temp dir, reachable as `self._tmp()`.
-    Written once and inherited by all three classes here, so a change
-    to how the temp dir is created or torn down can't land in one
-    class and silently miss the other two."""
+    """Gives each test its own temp dir, reachable as
+    `self._tmp()`. Written once and inherited by all three
+    classes here, so a change to how the temp dir is created or
+    torn down can't land in one class and silently miss the
+    other two."""
 
     def setUp(self):
         self._tmpdir = tempfile.TemporaryDirectory()

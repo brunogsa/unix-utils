@@ -1,9 +1,11 @@
-"""Prove subagent-notes-guard keeps subagents off the main session's notes file.
+"""Prove subagent-notes-guard keeps subagents off the main
+session's notes file.
 
-Each test drives the real hooks/subagent-notes-guard.py as a subprocess with a
-PreToolUse JSON payload on stdin, the way Claude Code does. A subagent call is
-one whose payload carries agent_id, the field the hooks docs mark as present
-only inside a subagent (https://code.claude.com/docs/en/hooks).
+Each test drives the real hooks/subagent-notes-guard.py as a
+subprocess with a PreToolUse JSON payload on stdin, the way
+Claude Code does. A subagent call is one whose payload carries
+agent_id, the field the hooks docs mark as present only inside
+a subagent (https://code.claude.com/docs/en/hooks).
 """
 
 import json

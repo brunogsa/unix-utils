@@ -1,7 +1,8 @@
 """Tests for check-bullet-gap.py's report mode.
 
-The --fix and --changed-only contracts live in test-check-bullet-gap-fix.sh;
-this file covers which list shapes the scan reports at all.
+The --fix and --changed-only contracts live in
+test-check-bullet-gap-fix.sh; this file covers which list
+shapes the scan reports at all.
 """
 
 import subprocess
@@ -12,8 +13,9 @@ SCRIPT = Path(__file__).resolve().parent.parent / "check-bullet-gap.py"
 
 
 def run(tmp_path, content):
-    """Write one fixture and run the checker over it as a subprocess, the way
-    the prose-format PostToolUse hook calls it."""
+    """Write one fixture and run the checker over it as a
+    subprocess, the way the prose-format PostToolUse hook
+    calls it."""
     path = tmp_path / "doc.md"
     path.write_text(content, encoding="utf-8")
     return subprocess.run(
@@ -24,10 +26,12 @@ def run(tmp_path, content):
 
 
 def hits(result):
-    """The `<line>:<detail>` rows as [(int, str)], dropping the `==` header.
+    """The `<line>:<detail>` rows as [(int, str)], dropping the
+    `==` header.
 
-    Asserts the checker actually ran first (exit 0 or 1): a crash prints no
-    rows, which would otherwise pass every "is not reported" test.
+    Asserts the checker actually ran first (exit 0 or 1): a
+    crash prints no rows, which would otherwise pass every
+    "is not reported" test.
     """
     assert result.returncode in (0, 1), result.stderr
     rows = []

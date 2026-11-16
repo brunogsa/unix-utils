@@ -37,13 +37,15 @@ def ledger_path():
 
 
 def item_key(item):
-    """sha256 of origin + newline + the verbatim with whitespace runs collapsed."""
+    """sha256 of origin + newline + the verbatim with whitespace
+    runs collapsed."""
     normalized_verbatim = " ".join(item["verbatim"].split())
     return hashlib.sha256(f"{item['origin']}\n{normalized_verbatim}".encode()).hexdigest()
 
 
 def read_items():
-    """Parse stdin into a list of items, dying before any write on bad shape."""
+    """Parse stdin into a list of items, dying before any write
+    on bad shape."""
     try:
         items = json.load(sys.stdin)
     except json.JSONDecodeError as error:
@@ -60,7 +62,8 @@ def read_items():
 
 
 def read_handled_keys(path):
-    """Keys already in the ledger; a malformed line is warned about and skipped."""
+    """Keys already in the ledger; a malformed line is warned
+    about and skipped."""
     handled_keys = set()
     try:
         with open(path, encoding="utf-8") as ledger_file:

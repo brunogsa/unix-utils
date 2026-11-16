@@ -1,37 +1,44 @@
-"""Prove the /implement §2.3 state-file skip is detected instead of silently ignored.
+"""Prove the /implement §2.3 state-file skip is detected
+instead of silently ignored.
 
 The gap this suite covers, end to end:
 
-  implement/SKILL.md §2.3 requires writing /tmp/implement_<session_id>.json
-  before the first task dispatch. On 2026-08-10 a whole six-task batch ran with
-  NO state file and nothing noticed - implement-loop-state.py already errors on
-  a missing path, but nothing ever called it, and
-  claude-implement-stop-hook.sh's session scoping treats an empty glob as
-  "no /implement in this session" and exits silently.
+  implement/SKILL.md §2.3 requires writing
+  /tmp/implement_<session_id>.json before the first task
+  dispatch. On 2026-08-10 a whole six-task batch ran with NO
+  state file and nothing noticed - implement-loop-state.py
+  already errors on a missing path, but nothing ever called it,
+  and claude-implement-stop-hook.sh's session scoping treats an
+  empty glob as "no /implement in this session" and exits
+  silently.
 
-Two scripts close it, and both are exercised here against real fixtures:
+Two scripts close it, and both are exercised here against real
+fixtures:
 
   build-implement-invocation-marker.sh   (UserPromptSubmit)
-      writes /tmp/implement_<session_id>.expected when the submitted prompt is
-      a /implement slash-command invocation.
+      writes /tmp/implement_<session_id>.expected when the
+      submitted prompt is a /implement slash-command invocation.
 
-  claude-implement-stop-hook.sh          (Stop, via claude-stop-orchestrator.sh)
-      now separates the two empty-glob cases: marker absent → unchanged silent
-      exit 0; marker present with no §2.3 evidence → block naming the path.
+  claude-implement-stop-hook.sh
+      (Stop, via claude-stop-orchestrator.sh)
+      now separates the two empty-glob cases: marker absent →
+      unchanged silent exit 0; marker present with no §2.3
+      evidence → block naming the path.
 
-Every test drives the REAL scripts as subprocesses over REAL /tmp fixtures,
-because /tmp/implement_<session_id>* paths are hardcoded in both hooks and are
-exactly what the guard keys on - a test that stubbed the path would not be
-testing the guard.
+Every test drives the REAL scripts as subprocesses over REAL
+/tmp fixtures, because /tmp/implement_<session_id>* paths are
+hardcoded in both hooks and are exactly what the guard keys on
+- a test that stubbed the path would not be testing the guard.
 
-Session ids are all prefixed "pyb1-" so they can never collide with
-hooks/tests/test-claude-implement-stop-hook.sh, whose EXIT trap cleans only
-/tmp/implement_sess-*.json. Teardown here removes every /tmp/implement_pyb1-*
-artifact - .json, .md and .expected alike - so a crashed run cannot leave a
-stale marker that makes the bash suite block unexpectedly.
+Session ids are all prefixed "pyb1-" so they can never collide
+with hooks/tests/test-claude-implement-stop-hook.sh, whose EXIT
+trap cleans only /tmp/implement_sess-*.json. Teardown here
+removes every /tmp/implement_pyb1-* artifact - .json, .md and
+.expected alike - so a crashed run cannot leave a stale marker
+that makes the bash suite block unexpectedly.
 
 Usage:
-  pytest configs/ai-docs/claude/hooks/tests/implement-state-file-guard.test.py
+  ./run-tests.py <this file>
 """
 
 import glob
@@ -54,9 +61,10 @@ BASH = shutil.which("bash") or "/bin/bash"
 def session_id(name: str) -> str:
     """Return a session id unique to this run AND to this suite.
 
-    The uuid suffix keeps two concurrent pytest runs (or a re-run racing its
-    own teardown) from sharing fixture files; the pyb1- prefix keeps the bash
-    suite's sess-* namespace disjoint from this one in both directions.
+    The uuid suffix keeps two concurrent pytest runs (or a
+    re-run racing its own teardown) from sharing fixture files;
+    the pyb1- prefix keeps the bash suite's sess-* namespace
+    disjoint from this one in both directions.
     """
     return f"pyb1-{name}-{uuid.uuid4().hex[:8]}"
 
@@ -95,9 +103,9 @@ def run_hook(script: Path, stdin_text: str, args=(), path_override=None):
 
 
 def run_marker_hook(prompt=None, sid=None, raw=None, path_override=None):
-    """Drive the UserPromptSubmit hook. raw bypasses payload construction so a
-    test can feed malformed or empty stdin, the two gaps the harness itself can
-    produce."""
+    """Drive the UserPromptSubmit hook. raw bypasses payload
+    construction so a test can feed malformed or empty stdin,
+    the two gaps the harness itself can produce."""
     if raw is None:
         payload = {"hook_event_name": "UserPromptSubmit", "cwd": "/tmp"}
         if sid is not None:
@@ -121,9 +129,11 @@ def run_stop_hook(sid=None, stop_hook_active=False, args=(), raw=None,
 def cat_only_bin(tmp_dir: Path) -> Path:
     """Return a PATH directory holding cat and nothing else.
 
-    Both hooks read stdin with `input=$(cat)` before reaching their jq guard,
-    so a jq-unavailable fixture has to keep cat reachable - the same
-    construction test-claude-implement-stop-hook.sh uses for its own jq test.
+    Both hooks read stdin with `input=$(cat)` before reaching
+    their jq guard, so a jq-unavailable fixture has to keep cat
+    reachable - the same construction
+    test-claude-implement-stop-hook.sh uses for its own jq
+    test.
     """
     fake_bin = tmp_dir / "fake-bin"
     fake_bin.mkdir(parents=True, exist_ok=True)
@@ -134,16 +144,18 @@ def cat_only_bin(tmp_dir: Path) -> Path:
 
 
 class MarkerHookTestCase(unittest.TestCase):
-    """build-implement-invocation-marker.sh - writes the marker, or nothing."""
+    """build-implement-invocation-marker.sh - writes the marker,
+    or nothing."""
 
     def setUp(self):
         self.sid = session_id("marker")
         self.addCleanup(cleanup, self.sid)
 
     def assert_inert(self, result, note):
-        """A UserPromptSubmit hook must never print to stdout (stdout is
-        injected into the conversation as context) and must never exit
-        non-zero (a non-zero exit interferes with the human's prompt)."""
+        """A UserPromptSubmit hook must never print to stdout
+        (stdout is injected into the conversation as context)
+        and must never exit non-zero (a non-zero exit interferes
+        with the human's prompt)."""
         self.assertEqual(result.returncode, 0, msg=f"{note}: exit\n{result.stderr}")
         self.assertEqual(result.stdout, "", msg=f"{note}: stdout must stay empty")
 
@@ -240,7 +252,8 @@ class MarkerHookTestCase(unittest.TestCase):
 
 
 class StopHookStateFileGuardTestCase(unittest.TestCase):
-    """claude-implement-stop-hook.sh - the two empty-glob cases, told apart."""
+    """claude-implement-stop-hook.sh - the two empty-glob cases,
+    told apart."""
 
     def setUp(self):
         self.sid = session_id("stop")
@@ -251,11 +264,13 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         return marker_path(self.sid)
 
     def write_scratchpad(self, offset_seconds):
-        """Write the §2.3 scratchpad with an mtime offset from the marker's.
+        """Write the §2.3 scratchpad with an mtime offset from
+        the marker's.
 
-        Positive means "written after this run's /implement prompt" - real §2.3
-        evidence. Negative means a leftover from an EARLIER /implement in the
-        same session, which must not disarm the guard for the new run.
+        Positive means "written after this run's /implement
+        prompt" - real §2.3 evidence. Negative means a leftover
+        from an EARLIER /implement in the same session, which
+        must not disarm the guard for the new run.
         """
         path = scratchpad_path(self.sid)
         path.write_text("# implement scratchpad\n")

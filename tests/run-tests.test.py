@@ -184,10 +184,12 @@ def build_sandbox(
     bash_suite_bodies=None,
     node_suites=(),
 ):
-    """Build a sandbox repo root; a None gate, node or pytest is left absent.
+    """Build a sandbox repo root; a None gate, node or pytest is
+    left absent.
 
-    bash_suites maps a suite path to the exit code of a suite that only logs
-    that it ran; bash_suite_bodies maps a suite path to its full script text.
+    bash_suites maps a suite path to the exit code of a suite
+    that only logs that it ran; bash_suite_bodies maps a suite
+    path to its full script text.
     """
     for tree in SUITE_TREES:
         (root / tree).mkdir(parents=True, exist_ok=True)
@@ -214,7 +216,8 @@ def build_sandbox(
 
 
 def run_runner(sandbox, *, stdin=subprocess.DEVNULL, timeout=None, args=()):
-    """Run the sandboxed runner with stderr merged into stdout."""
+    """Run the sandboxed runner with stderr merged into
+    stdout."""
     completed = subprocess.run(
         [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME), *args],
         cwd=sandbox,
@@ -799,10 +802,12 @@ WAIT_BOUND_SECONDS = 10
 
 
 def bash_wait_until(condition):
-    """Script lines polling a bash condition: exit 0 once it holds, 1 past the bound.
+    """Script lines polling a bash condition: exit 0 once it
+    holds, 1 past the bound.
 
-    The bound is a hang guard, not a timing assertion: a runner that never
-    satisfies the condition fails the suite instead of hanging the test.
+    The bound is a hang guard, not a timing assertion: a runner
+    that never satisfies the condition fails the suite instead
+    of hanging the test.
     """
     return (
         f"deadline=$((SECONDS + {WAIT_BOUND_SECONDS}))\n"
@@ -1047,11 +1052,13 @@ class SignalledRun:
 
 
 def blocking_suite_body(started_marker, block_fifo, traps=()):
-    """Script text that installs traps, marks itself started, then blocks.
+    """Script text that installs traps, marks itself started,
+    then blocks.
 
-    It blocks on a bash builtin read, never a child process, so the only
-    process to stop is the suite itself. The traps come first, so the start
-    marker also means they are in place.
+    It blocks on a bash builtin read, never a child process, so
+    the only process to stop is the suite itself.
+    The traps come first, so the start marker also means they
+    are in place.
     """
     return "".join(
         [
@@ -1084,11 +1091,13 @@ def is_process_group_gone(group_id):
 
 
 def run_runner_until_signalled(sandbox, *, started_markers, send_signal, preexec_fn=None):
-    """Start the runner in its own process group, signal it once every marker exists.
+    """Start the runner in its own process group, signal it once
+    every marker exists.
 
-    TMPDIR is a directory this test owns, so the runner's log dir must be
-    gone from it afterwards. Output goes to files, not pipes, so a process
-    the runner left behind can never hold the test's read open.
+    TMPDIR is a directory this test owns, so the runner's log
+    dir must be gone from it afterwards.
+    Output goes to files, not pipes, so a process the runner
+    left behind can never hold the test's read open.
     """
     temp_dir = sandbox / "runner-temp"
     temp_dir.mkdir()

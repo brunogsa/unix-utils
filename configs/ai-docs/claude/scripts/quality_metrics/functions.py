@@ -1,9 +1,10 @@
 """Measures each function's nesting, parameters and complexity.
 
-lizard reads every language here except Bash, whose function syntax it
-misreads (complexity 5 against a hand count of 8, and it misses
-`function name {}`). shellmetrics reads Bash instead, with shfmt
-supplying the end line shellmetrics lacks.
+lizard reads every language here except Bash, whose function
+syntax it misreads (complexity 5 against a hand count of 8, and
+it misses `function name {}`).
+shellmetrics reads Bash instead, with shfmt supplying the end
+line shellmetrics lacks.
 """
 
 import csv
@@ -48,7 +49,8 @@ SHFMT_FUNCTION_NODE = "FuncDecl"
 
 @dataclass(frozen=True)
 class FunctionMeasure:
-    """One function's measures; a field the tool cannot read is None."""
+    """One function's measures; a field the tool cannot read is
+    None."""
 
     name: str
     start: int
@@ -61,7 +63,8 @@ class FunctionMeasure:
 
 
 class FunctionToolError(ToolError):
-    """A global function tool is missing, crashed or timed out twice."""
+    """A global function tool is missing, crashed or timed out
+    twice."""
 
     def __init__(self, tool, reason):
         super().__init__(reason)
@@ -69,10 +72,12 @@ class FunctionToolError(ToolError):
 
 
 def _run_function_tool(policy, command, input_text=None):
-    """The tool's stdout, run under `policy`'s timeout when given.
+    """The tool's stdout, run under `policy`'s timeout when
+    given.
 
     Any ToolError, a timeout twice included, is re-raised as a
-    FunctionToolError naming the tool, so a caller can ask about it.
+    FunctionToolError naming the tool, so a caller can ask about
+    it.
     """
     try:
         if policy is None:
@@ -122,12 +127,13 @@ def measure(target, metrics):
 
 
 def is_over_limit(item):
-    """A record flags past its limit, at it when it says so (CRAP),
-    or under it when it says so (coverage).
+    """A record flags past its limit, at it when it says so
+    (CRAP), or under it when it says so (coverage).
 
-    The comparison reads the unrounded value; display_value is for
-    showing it only. A record with no value, such as coverage
-    not applicable, is neither passed nor flagged.
+    The comparison reads the unrounded value; display_value is
+    for showing it only.
+    A record with no value, such as coverage not applicable, is
+    neither passed nor flagged.
     """
     if item["value"] is None:
         return False
@@ -141,7 +147,8 @@ def is_over_limit(item):
 def display_value(item):
     """The record's value cut to 2 decimals, never rounded up.
 
-    Rounding would show 7.996 as 8.00 beside a record that passed.
+    Rounding would show 7.996 as 8.00 beside a record that
+    passed.
     Trailing zeros drop, so 4 shows as 4 and 8.90 as 8.9.
     """
     cut = Decimal(str(item["value"])).quantize(DISPLAY_STEP, ROUND_DOWN)
@@ -149,7 +156,8 @@ def display_value(item):
 
 
 def measurement(target, metric, value, limit, function=None):
-    """One report record; a record with no function is file-scoped."""
+    """One report record; a record with no function is
+    file-scoped."""
     return {
         "file": str(target.path),
         "function": function.name if function else None,
@@ -203,11 +211,12 @@ def _measure_bash_functions(path, policy):
 
 
 def _bash_function_end_lines(path, policy):
-    """Map (name, start line) of each Bash function to its end line.
+    """Map (name, start line) of each Bash function to its end
+    line.
 
-    shellmetrics gives no end line, so shfmt's syntax tree supplies it:
-    a parser knows where a function ends when a heredoc or a quoted
-    brace holds a `}`.
+    shellmetrics gives no end line, so shfmt's syntax tree
+    supplies it: a parser knows where a function ends when a
+    heredoc or a quoted brace holds a `}`.
     """
     tree = json.loads(_run_function_tool(
         policy, ["shfmt", "--to-json", "-ln=bash"], Path(path).read_text()

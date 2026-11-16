@@ -36,7 +36,8 @@ WRITE_CREATE_TYPE = "create"
 
 
 def get_replaced_and_new_text(tool_name, tool_input, tool_response):
-    """Return (replaced, new) text for the edit, or None when unknown."""
+    """Return (replaced, new) text for the edit, or None when
+    unknown."""
     if tool_name == "Edit":
         old = tool_input.get("old_string")
         new = tool_input.get("new_string")

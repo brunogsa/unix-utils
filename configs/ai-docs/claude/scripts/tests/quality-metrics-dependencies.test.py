@@ -16,7 +16,8 @@ from quality_metrics_support import (
 )
 
 def declaration_for(language, extension):
-    """A declaration measuring only dependency direction for one language."""
+    """A declaration measuring only dependency direction for
+    one language."""
     return f"""\
 excluded_paths: [dist/]
 ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
@@ -68,7 +69,8 @@ BILLING_INVOICE_READING_ORDERS = (
 
 
 def report_for_branch(tmp_path, declaration, base_files, branch_files, *arguments, env=None):
-    """Report of a branch adding `branch_files` on top of `base_files`."""
+    """Report of a branch adding `branch_files` on top of
+    `base_files`."""
     repo = make_repo(tmp_path, base_files)
     base_sha = head_of(repo)
     for name, text in branch_files.items():
@@ -83,7 +85,8 @@ def report_for_branch(tmp_path, declaration, base_files, branch_files, *argument
 
 
 def measure_branch(tmp_path, declaration, base_files, branch_files, *arguments, env=None):
-    """Violations of a branch adding `branch_files` on top of `base_files`."""
+    """Violations of a branch adding `branch_files` on top of
+    `base_files`."""
     return report_for_branch(
         tmp_path, declaration, base_files, branch_files, *arguments, env=env
     )["violations"]
@@ -307,7 +310,8 @@ def env_with_go_arch_lint_stub(tmp_path, capture_path):
 
 
 def env_without_go_arch_lint():
-    """PATH with every directory that holds a go-arch-lint removed."""
+    """PATH with every directory that holds a go-arch-lint
+    removed."""
     kept = [
         directory for directory in GIT_ENV["PATH"].split(os.pathsep)
         if not (Path(directory) / "go-arch-lint").exists()
@@ -348,7 +352,8 @@ exec "{real_tool}" "$@"
 
 
 def env_capturing_configs(tmp_path, capture_dir):
-    """Env where dependency-cruiser, uv and go-arch-lint save their configs."""
+    """Env where dependency-cruiser, uv and go-arch-lint save
+    their configs."""
     stubbed_env = env_with_go_arch_lint_stub(tmp_path, capture_dir / "unused-copy")
     wrapper_dir = tmp_path / "capture-bin"
     wrapper_dir.mkdir()

@@ -1,10 +1,12 @@
-"""Tests for parse-fences.awk and parse-fences.py, the two twins of the
-CommonMark code-fence state machine shared by every markdown-scanning script.
+"""Tests for parse-fences.awk and parse-fences.py, the two twins
+of the CommonMark code-fence state machine shared by every
+markdown-scanning script.
 
-A fence opens on 3+ backticks or tildes at column 0. It closes only on a line
-that uses the SAME character, a run at least as long as the opener, and no info
-string. Anything else inside a fence is content, so a heading-shaped line in
-there is never a real heading.
+A fence opens on 3+ backticks or tildes at column 0.
+It closes only on a line that uses the SAME character, a run at
+least as long as the opener, and no info string.
+Anything else inside a fence is content, so a heading-shaped
+line in there is never a real heading.
 """
 
 import importlib.util
@@ -206,12 +208,14 @@ class TestAwkLibrary:
 
 
 class TestAwkLibraryToldItsOwnCoordinates:
-    """A caller piping a SLICE of a document into awk leaves the unclosed-fence
-    message pointing nowhere: FILENAME is empty because awk reads stdin, and NR
-    counts from the slice, not from the document the reader has open.
+    """A caller piping a SLICE of a document into awk leaves the
+    unclosed-fence message pointing nowhere: FILENAME is empty
+    because awk reads stdin, and NR counts from the slice, not
+    from the document the reader has open.
 
-    fence_file and fence_line_offset let that caller hand awk the real
-    coordinates, so the message names the file and the line a reader can jump to.
+    fence_file and fence_line_offset let that caller hand awk
+    the real coordinates, so the message names the file and the
+    line a reader can jump to.
     """
 
     def test_names_the_callers_file_and_document_line_for_a_slice_read_from_stdin(

@@ -1,28 +1,39 @@
 #!/usr/bin/env python3
-"""Extract the request/response/callback payloads of one transaction from a CloudWatch Insights CSV.
+"""Extract the request/response/callback payloads of one
+transaction from a CloudWatch Insights CSV.
 
-The CSVs produced by scripts/rotation-support/aws/logs/get-logs-from-insights.js hold one row per
-log line, with the full raw JSON log line in the `@message` column. A single transaction produces
-hundreds of rows, most of them unrelated HTTP calls (Salesforce, DynamoDB, SQS), because every
-outbound call is logged by the same `AxiosHttpClient.executeRequest`. Isolating the calls that
-matter therefore needs two filters: the transaction id, then an `httpUrl` substring.
+The CSVs produced by
+scripts/rotation-support/aws/logs/get-logs-from-insights.js
+hold one row per log line, with the full raw JSON log line in
+the `@message` column. A single transaction produces hundreds
+of rows, most of them unrelated HTTP calls (Salesforce,
+DynamoDB, SQS), because every outbound call is logged by the
+same `AxiosHttpClient.executeRequest`. Isolating the calls
+that matter therefore needs two filters: the transaction id,
+then an `httpUrl` substring.
 
 Modes:
-  --list-transactions   discover transaction ids in a CSV (optionally narrowed by --grep)
+  --list-transactions   discover transaction ids in a CSV
+                        (optionally narrowed by --grep)
   (default)             extract one transaction's payloads
 
 Usage:
     # 1. Discover the transaction id for a contract version
-    extract-payloads.py --csv core.csv --list-transactions --grep 766128
+    extract-payloads.py --csv core.csv --list-transactions \\
+        --grep 766128
 
-    # 2. Pull that transaction's payloads (pretty JSON, one ###section### per payload -
-    #    paste each body into a fenced ```json block in the notes file)
-    extract-payloads.py --csv core.csv --middleware-csv middleware.csv \\
+    # 2. Pull that transaction's payloads (pretty JSON, one
+    #    ###section### per payload - paste each body into a
+    #    fenced ```json block in the notes file)
+    extract-payloads.py --csv core.csv \\
+        --middleware-csv middleware.csv \\
         --transaction-id 525e14b8-a0ba-4ef0-9bac-b22aad5c674b \\
-        --erp-url-filter SalesAgreements --callback-url-filter contract_callback \\
+        --erp-url-filter SalesAgreements \\
+        --callback-url-filter contract_callback \\
         --trim-field DetalhesContrato --trim-field KIT
 
-Exit codes: 0 on success, 1 on a usage/IO error, 2 when the transaction id matched no rows.
+Exit codes: 0 on success, 1 on a usage/IO error, 2 when the
+transaction id matched no rows.
 """
 import argparse
 import csv
@@ -55,7 +66,8 @@ SECTIONS = (
 
 
 def raise_csv_field_limit():
-    """A raw `@message` holding a full contract body exceeds the 131072-char default and raises."""
+    """A raw `@message` holding a full contract body exceeds
+    the 131072-char default and raises."""
     try:
         csv.field_size_limit(sys.maxsize)
     except OverflowError:
@@ -68,9 +80,11 @@ def load_rows(path):
 
 
 def parse_log_line(row):
-    """Return the parsed `@message` JSON, or None when the line is not JSON.
+    """Return the parsed `@message` JSON, or None when the
+    line is not JSON.
 
-    Not every log line is structured - plain-text lines exist and must not abort the run.
+    Not every log line is structured - plain-text lines exist
+    and must not abort the run.
     """
     raw = row.get("@message")
     if not raw:
@@ -83,7 +97,8 @@ def parse_log_line(row):
 
 
 def row_transaction_id(row, parsed):
-    """Prefer the CSV column, fall back to the log line - the query may not have selected it."""
+    """Prefer the CSV column, fall back to the log line -
+    the query may not have selected it."""
     return row.get("transactionId") or (parsed or {}).get("transactionId")
 
 
@@ -92,7 +107,8 @@ def row_message(row, parsed):
 
 
 def iter_transaction(rows, transaction_id):
-    """Yield (row, parsed) for the rows belonging to one transaction, in file order."""
+    """Yield (row, parsed) for the rows belonging to one
+    transaction, in file order."""
     for row in rows:
         parsed = parse_log_line(row)
         if row_transaction_id(row, parsed) == transaction_id:
@@ -100,11 +116,14 @@ def iter_transaction(rows, transaction_id):
 
 
 def trim_fields(node, field_names):
-    """Recursively replace any array whose key matches `field_names` with a count-bearing note.
+    """Recursively replace any array whose key matches
+    `field_names` with a count-bearing note.
 
-    Bulky line-item arrays (contract details, kit SKUs) crowd out the fields under investigation
-    and can push a Jira comment past a readable size. Matching is case-insensitive so one flag
-    covers both a request's `DetalhesContrato` and a response's `detalhesContrato`.
+    Bulky line-item arrays (contract details, kit SKUs) crowd
+    out the fields under investigation and can push a Jira
+    comment past a readable size. Matching is
+    case-insensitive so one flag covers both a request's
+    `DetalhesContrato` and a response's `detalhesContrato`.
     """
     if not field_names:
         return node
@@ -132,10 +151,12 @@ def extract_webhook(rows, transaction_id) -> Optional[Any]:
 
 
 def extract_http_calls(rows, transaction_id, url_filter) -> Dict[str, Any]:
-    """Collect the request/response/error of the calls whose `httpUrl` contains `url_filter`.
+    """Collect the request/response/error of the calls whose
+    `httpUrl` contains `url_filter`.
 
-    A transaction may repeat a call (retries); the last occurrence wins, which is the outcome the
-    callback reports.
+    A transaction may repeat a call (retries); the last
+    occurrence wins, which is the outcome the callback
+    reports.
     """
     found: Dict[str, Any] = {"request": None, "response": None, "error": None}
     if not url_filter:
@@ -161,7 +182,8 @@ def extract_http_calls(rows, transaction_id, url_filter) -> Dict[str, Any]:
 
 
 def list_transactions(rows, grep):
-    """Summarise the transactions present in a CSV, newest activity last."""
+    """Summarise the transactions present in a CSV, newest
+    activity last."""
     summary = {}
     for row in rows:
         raw = row.get("@message") or ""

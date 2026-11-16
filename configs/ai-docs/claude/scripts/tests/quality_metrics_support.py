@@ -1,7 +1,8 @@
-"""Temp-git-repo and measure-script helpers the quality-metrics suites share.
+"""Temp-git-repo and measure-script helpers the quality-metrics
+suites share.
 
-Named without a `.test.py` or `test_` marker, so pytest imports it
-and never collects it.
+Named without a `.test.py` or `test_` marker, so pytest
+imports it and never collects it.
 """
 
 import importlib.machinery
@@ -79,10 +80,12 @@ GLOBAL_COVERAGE_PERCENT = 100
 
 
 def assert_fell_through_to_global(tmp_path, measured, source_entry, repo_attempts):
-    """The repo tool failed, so the global collector measured once.
+    """The repo tool failed, so the global collector measured
+    once.
 
-    `measured` is (coverage_run, records, global_calls); the repo
-    tool ran `repo_attempts` times before the fall-through.
+    `measured` is (coverage_run, records, global_calls); the
+    repo tool ran `repo_attempts` times before the
+    fall-through.
     """
     coverage_run, records, global_calls = measured
     assert coverage_run.sources == [source_entry]
@@ -92,7 +95,8 @@ def assert_fell_through_to_global(tmp_path, measured, source_entry, repo_attempt
 
 
 def stubbed_env():
-    """The environment a script subprocess needs to see stub tools.
+    """The environment a script subprocess needs to see stub
+    tools.
 
     GIT_ENV froze its PATH at import, so a stub installed by
     `install_stub_tool` is only on os.environ's PATH.
@@ -102,7 +106,9 @@ def stubbed_env():
 
 
 def install_stub_tool(tmp_path, monkeypatch, name, script):
-    """Put an executable `name` first on PATH, standing in for a real tool."""
+    """Put an executable `name` first on PATH, standing in for
+    a real tool.
+    """
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     stub = bin_dir / name
@@ -112,9 +118,11 @@ def install_stub_tool(tmp_path, monkeypatch, name, script):
 
 
 def load_script(script_path, module_name):
-    """A hyphen-named script as a module, so a test can call its functions.
+    """A hyphen-named script as a module, so a test can call its
+    functions.
 
-    SCRIPTS_DIR must already be on sys.path for the script's own imports.
+    SCRIPTS_DIR must already be on sys.path for the script's
+    own imports.
     """
     loader = importlib.machinery.SourceFileLoader(module_name, str(script_path))
     module = types.ModuleType(loader.name)
@@ -179,7 +187,8 @@ languages:
 
 
 def coverage_records_of(tmp_path, target, coverage_run):
-    """The coverage records `crap_coverage.measure` gives one target.
+    """The coverage records `crap_coverage.measure` gives one
+    target.
 
     Imports sit inside the function because a suite puts
     SCRIPTS_DIR on sys.path only after importing this module.
@@ -195,7 +204,8 @@ def coverage_records_of(tmp_path, target, coverage_run):
 
 
 def coverage_run_for(repo, tmp_path, **options):
-    """A CoverageRun whose tool map reads the repo's committed HEAD.
+    """A CoverageRun whose tool map reads the repo's committed
+    HEAD.
 
     Imports sit inside the function for the same reason as
     `coverage_records_of`.
@@ -210,10 +220,11 @@ def coverage_run_for(repo, tmp_path, **options):
 
 
 def install_global_collector(monkeypatch, calls, hits_by_file=None, error=None):
-    """Stand in for the global coverage collector of every language.
+    """Stand in for the global coverage collector of every
+    language.
 
-    Records each call in `calls`; raises `error` when given, else
-    reports `hits_by_file`.
+    Records each call in `calls`; raises `error` when given,
+    else reports `hits_by_file`.
     """
     from quality_metrics import collection
 
@@ -242,10 +253,12 @@ CART_SOURCE = (
 def measure_cart_where_global_c8_writes_no_data(
     tmp_path, monkeypatch, extra_files, declaration_text
 ):
-    """The script's result for src/cart.js with a c8 that writes no report.
+    """The script's result for src/cart.js with a c8 that
+    writes no report.
 
     With a session id the script can ask, so the failed global
-    collector raises an ask. `extra_files` may add the repo's jest.
+    collector raises an ask. `extra_files` may add the repo's
+    jest.
     """
     repo = make_repo(tmp_path, {
         "package.json": PACKAGE_WITH_TEST_SCRIPT, "src/cart.js": CART_SOURCE, **extra_files,
@@ -261,7 +274,9 @@ def measure_cart_where_global_c8_writes_no_data(
 
 
 def verdict_section(verdict, title_prefix):
-    """The text of the `## <title_prefix>...` section, up to the next `## `."""
+    """The text of the `## <title_prefix>...` section, up to
+    the next `## `.
+    """
     match = re.search(
         rf"^## {re.escape(title_prefix)}.*?$(.*?)(?=^## |\Z)", verdict, re.M | re.S
     )
@@ -274,7 +289,9 @@ def verdict_entry_headings(text):
 
 
 def measure_report(repo, declaration_path, *arguments, env=None):
-    """The measure script's parsed JSON report; fails loudly on no output."""
+    """The measure script's parsed JSON report; fails loudly on
+    no output.
+    """
     result = run_measure(repo, declaration_path, *arguments, env=env)
     assert result.stdout, f"no output; stderr: {result.stderr}"
     return json.loads(result.stdout)

@@ -63,10 +63,13 @@ def commit_files(repo, subject, line_counts, gate=None):
 
 
 def build_feature_repo(tmp_path, commits, base_files=None):
-    """A repo with a base commit, then `commits` on the feature branch.
+    """A repo with a base commit, then `commits` on the feature
+    branch.
 
-    Each commit is (subject, {file name: line count}, gate trailer or None).
-    `base_files` ({file name: line count}) joins README.md in the base.
+    Each commit is (subject, {file name: line count}, gate
+    trailer or None).
+    `base_files` ({file name: line count}) joins README.md in
+    the base.
     Returns the repo path and the base commit's SHA.
     """
     repo = tmp_path / "repo"

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Convert Markdown (from stdin) to Atlassian Document Format JSON (to stdout).
+"""Convert Markdown (from stdin) to Atlassian Document Format
+JSON (to stdout).
 
-The Jira Cloud REST API v3 requires descriptions, comments, and other rich-text
-fields to be ADF documents - not plain markdown. This script does a minimal
-markdown -> ADF conversion sufficient for typical issue descriptions:
+The Jira Cloud REST API v3 requires descriptions, comments, and
+other rich-text fields to be ADF documents - not plain markdown.
+This script does a minimal markdown -> ADF conversion sufficient
+for typical issue descriptions:
 
   - H1-H6 headings (cap at H6 since ADF supports up to level 6)
   - Paragraphs (consecutive non-blank lines folded)
@@ -11,9 +13,9 @@ markdown -> ADF conversion sufficient for typical issue descriptions:
   - Numbered lists (1. 2. 3.)
   - Inline: **bold**, `code`, [text](url)
 
-Anything more exotic (tables, blockquotes, fenced code blocks, images, nested
-lists) falls back to paragraphs of plain text - preserves the words, not the
-formatting.
+Anything more exotic (tables, blockquotes, fenced code blocks,
+images, nested lists) falls back to paragraphs of plain text -
+preserves the words, not the formatting.
 
 Usage:
     python3 md-to-adf.py < input.md > output.adf.json

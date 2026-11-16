@@ -1,13 +1,14 @@
 """Blackbox CLI tests for get-excluded-specs-for-range.py.
 
-Fixtures: each test builds a throwaway git repo under tmp_path that
-mirrors the shape of the incident this finder exists for - a nested
-`core/tsconfig.json` mapping `@orders/*` to `src/modules/orders/*`, a
-changed `create-x/index.ts` use case, and an integration spec that
-builds it through the alias. Nothing reads or writes the live repo.
+Fixtures: each test builds a throwaway git repo under tmp_path
+that mirrors the shape of the incident this finder exists for -
+a nested `core/tsconfig.json` mapping `@orders/*` to
+`src/modules/orders/*`, a changed `create-x/index.ts` use case,
+and an integration spec that builds it through the alias.
+Nothing reads or writes the live repo.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/get-excluded-specs-for-range.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -56,8 +57,8 @@ def _run(repo, *args):
 
 
 def _init_incident_shaped_repo(repo):
-    """Commit the baseline the range will diff against: the tsconfig
-    with its alias, two use cases, and no specs yet."""
+    """Commit the baseline the range will diff against: the
+    tsconfig with its alias, two use cases, and no specs yet."""
     _git(repo, "init", "-q")
     _write(
         repo,
@@ -148,8 +149,9 @@ SPEC_AT_CHAIN_HEAD = "core/test/modules/orders/chain.consumer.integration.spec.t
 
 
 def _write_import_chain(repo, module_count):
-    """Write spec -> chain/m1 -> ... -> chain/m<module_count> -> create-x
-    (the changed use case), so the spec reaches it in module_count + 1 hops."""
+    """Write spec -> chain/m1 -> ... -> chain/m<module_count>
+    -> create-x (the changed use case), so the spec reaches it
+    in module_count + 1 hops."""
     _write(repo, SPEC_AT_CHAIN_HEAD, "import { M } from '../../../src/modules/orders/chain/m1';\n")
     for index in range(1, module_count + 1):
         is_last = index == module_count

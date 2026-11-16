@@ -1,7 +1,9 @@
-"""Detects the repo's own measuring tools and keeps the per-session tool map.
+"""Detects the repo's own measuring tools and keeps the
+per-session tool map.
 
-Detection reads the repo's root file list at the base ref, never the
-working tree, so a branch cannot add a config and have it measured.
+Detection reads the repo's root file list at the base ref, never
+the working tree, so a branch cannot add a config and have it
+measured.
 """
 
 import fcntl
@@ -30,7 +32,8 @@ def load_detector_rules(path):
 
 
 def detect_tools(repo, base_sha, rules):
-    """The rules whose config file is in the repo root at `base_sha`."""
+    """The rules whose config file is in the repo root at
+    `base_sha`."""
     root_files = set(run_tool(
         ["git", "-C", str(repo), "ls-tree", "--name-only", base_sha]
     ).splitlines())
@@ -62,7 +65,8 @@ def tool_map_path(session_id, map_dir=TOOL_MAP_DIR):
 
 
 def build_tool_map_entry(repo, base_sha, rules, session_id, map_dir=TOOL_MAP_DIR):
-    """Detect the repo's tools and store them under the repo-and-base key."""
+    """Detect the repo's tools and store them under the
+    repo-and-base key."""
     detected = detect_tools(repo, base_sha, rules)
     path = tool_map_path(session_id, map_dir)
     key = tool_map_key(repo, base_sha)
@@ -114,10 +118,11 @@ class LazyToolMap:
         self.map_dir = map_dir
 
     def entry(self):
-        """The stored entry, built only when the map lacks its tools.
+        """The stored entry, built only when the map lacks its
+        tools.
 
-        An entry holding only a deferral has no `tools` yet, so it
-        is built, keeping the deferral.
+        An entry holding only a deferral has no `tools` yet, so
+        it is built, keeping the deferral.
         """
         path = tool_map_path(self.session_id, self.map_dir)
         stored = _read_map(path).get(tool_map_key(self.repo, self.base_sha))

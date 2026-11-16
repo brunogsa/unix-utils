@@ -1,4 +1,5 @@
-"""The metrics verdict's tooling sections: asks raised and coverage sources."""
+"""The metrics verdict's tooling sections: asks raised and
+coverage sources."""
 
 import sys
 from pathlib import Path

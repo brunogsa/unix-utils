@@ -89,7 +89,8 @@ def js_target(repo):
 
 
 def measure_js_with_jest_stub(tmp_path, monkeypatch, stub, **options):
-    """The coverage run, its records and the global collector's calls for one JS target."""
+    """The coverage run, its records and the global collector's
+    calls for one JS target."""
     repo = make_repo(tmp_path, JEST_REPO_FILES)
     monkeypatch.setenv("ATTEMPT_LOG", str(tmp_path / "attempts.log"))
     install_stub_tool(tmp_path, monkeypatch, "jest", stub)

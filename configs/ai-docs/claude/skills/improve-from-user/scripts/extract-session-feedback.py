@@ -1,32 +1,46 @@
 #!/usr/bin/env python3
-"""Recover compaction-proof feedback from a Claude Code session transcript.
+"""Recover compaction-proof feedback from a Claude Code session
+transcript.
 
 Mode A of the improve-from-user skill used to
-"review the conversation history" - i.e. Claude's in-context memory. Compaction
-thins that memory to a summary, so verbatim user corrections from earlier in the
-session are gone by the time the skill runs.
+"review the conversation history" - i.e. Claude's in-context
+memory. Compaction thins that memory to a summary, so verbatim
+user corrections from earlier in the session are gone by the
+time the skill runs.
 
-They are NOT gone from disk. Claude Code appends every message to a JSONL
-transcript under ~/.claude/projects/<cwd-slug>/<session-id>.jsonl, and compaction
-never rewrites that file - it only inserts a `compact_boundary` marker and keeps
-appending. The originals survive above each boundary. Verified: one session held
-13 compactions in a single file with all 14 pre-first-boundary user turns intact.
+They are NOT gone from disk. Claude Code appends every message
+to a JSONL transcript under
+~/.claude/projects/<cwd-slug>/<session-id>.jsonl, and
+compaction never rewrites that file - it only inserts a
+`compact_boundary` marker and keeps appending. The originals
+survive above each boundary. Verified: one session held 13
+compactions in a single file with all 14 pre-first-boundary
+user turns intact.
 
 This script reads that file and emits two things:
-  1. verbatim user turns  - each with a one-line note of what Claude did next
-  2. compaction boundaries - marked inline so you see where memory was thinned
+  1. verbatim user turns  - each with a one-line note of what
+     Claude did next
+  2. compaction boundaries - marked inline so you see where
+     memory was thinned
 
-Scope: a multi-session sweep, not a single file. Every transcript whose mtime
-falls in the --since window AND holds >= 2 real user turns qualifies; the
-running session's own transcript is always excluded, even when it qualifies.
+Scope: a multi-session sweep, not a single file. Every
+transcript whose mtime falls in the --since window AND holds
+>= 2 real user turns qualifies; the running session's own
+transcript is always excluded, even when it qualifies.
 
 Usage:
-  extract-session-feedback.py [--since DAYS] [--project-dirs DIR [DIR ...]]
+  extract-session-feedback.py [--since DAYS]
+      [--project-dirs DIR [DIR ...]]
 
 Examples:
-  extract-session-feedback.py                       # last 7 days, default read scope
-  extract-session-feedback.py --since 30            # last 30 days
-  extract-session-feedback.py --project-dirs ~/.claude/projects/-Users-me-some-repo
+  # last 7 days, default read scope
+  extract-session-feedback.py
+
+  # last 30 days
+  extract-session-feedback.py --since 30
+
+  extract-session-feedback.py --project-dirs
+      ~/.claude/projects/-Users-me-some-repo
 """
 
 import argparse
@@ -52,7 +66,8 @@ def die(msg, code=2) -> NoReturn:
 
 
 def is_real_user_prose(d):
-    """A genuine user prose turn - not a tool result, meta, slash command, or summary."""
+    """A genuine user prose turn - not a tool result, meta,
+    slash command, or summary."""
     if d.get("type") != "user" or d.get("isMeta") or d.get("isCompactSummary"):
         return False
     content = d.get("message", {}).get("content")
@@ -94,11 +109,13 @@ def one_line(text, cap):
 
 
 def _real_user_turn_texts(path):
-    """Yield each real user prose turn's stripped text content from path.
+    """Yield each real user prose turn's stripped text content
+    from path.
 
-    Shared by count_real_user_turns and survey() so the JSONL-parse loop and
-    the is_real_user_prose filter live in exactly one place. A malformed
-    trailing line (a live-appending transcript's partial write) is skipped,
+    Shared by count_real_user_turns and survey() so the
+    JSONL-parse loop and the is_real_user_prose filter live in
+    exactly one place. A malformed trailing line (a
+    live-appending transcript's partial write) is skipped,
     matching the pre-existing behavior this sweep preserves.
     """
     with open(path, encoding="utf-8") as fh:
@@ -115,21 +132,25 @@ def _real_user_turn_texts(path):
 
 
 def count_real_user_turns(path):
-    """Count path's real user prose turns (see is_real_user_prose)."""
+    """Count path's real user prose turns (see
+    is_real_user_prose)."""
     return sum(1 for _ in _real_user_turn_texts(path))
 
 
 def qualifying_transcripts(project_dirs, since_days, exclude_path):
-    """Top-level *.jsonl transcripts across project_dirs that qualify for the sweep.
+    """Top-level *.jsonl transcripts across project_dirs that
+    qualify for the sweep.
 
-    A transcript qualifies when its mtime falls within the last since_days
-    days AND it holds >= 2 real user turns (Finding 2/3: this filter is what
-    keeps a routine sweep tractable). exclude_path - the running session's
-    own transcript - is dropped even when it otherwise qualifies (D7).
+    A transcript qualifies when its mtime falls within the last
+    since_days days AND it holds >= 2 real user turns (Finding
+    2/3: this filter is what keeps a routine sweep tractable).
+    exclude_path - the running session's own transcript - is
+    dropped even when it otherwise qualifies (D7).
 
-    Only top-level files are considered, not nested <session>/subagents/*.jsonl
-    files, which carry no user prose (derived design constraint). Returned in
-    mtime order (oldest first) so callers group output in session order.
+    Only top-level files are considered, not nested
+    <session>/subagents/*.jsonl files, which carry no user
+    prose (derived design constraint). Returned in mtime order
+    (oldest first) so callers group output in session order.
     """
     cutoff = time.time() - since_days * 86400
     exclude_abs = os.path.abspath(exclude_path) if exclude_path else None
@@ -150,12 +171,14 @@ def qualifying_transcripts(project_dirs, since_days, exclude_path):
 
 
 def survey(qualifying):
-    """Corpus survey for qualifying: file count, real user turns, estimated tokens.
+    """Corpus survey for qualifying: file count, real user
+    turns, estimated tokens.
 
-    Estimated tokens is user_chars / 4 (D "escalation threshold ~80k
-    estimated tokens" - the same rough conversion the plan's fan-out
-    threshold is built on). Printed before any session content (D12) so an
-    oversized sweep is visible before a single message body is read.
+    Estimated tokens is user_chars / 4 (D "escalation threshold
+    ~80k estimated tokens" - the same rough conversion the
+    plan's fan-out threshold is built on). Printed before any
+    session content (D12) so an oversized sweep is visible
+    before a single message body is read.
     """
     file_count = len(qualifying)
     turn_count = 0
@@ -174,9 +197,10 @@ def survey(qualifying):
 def parse_transcript(path):
     """Parse one transcript into (turns, boundaries).
 
-    Restores the event-linking loop the deleted single-file resolve_transcript()
-    used to run inline in main() - each assistant burst is attached to the user
-    turn it answers. Now scoped per file so the sweep's emit() can call it once
+    Restores the event-linking loop the deleted single-file
+    resolve_transcript() used to run inline in main() - each
+    assistant burst is attached to the user turn it answers.
+    Now scoped per file so the sweep's emit() can call it once
     per qualifying transcript instead of once per process.
     """
 
@@ -231,11 +255,13 @@ def parse_transcript(path):
 
 
 def _default_project_dirs():
-    """Resolve the default read-scope dirs via resolve-repo-targets.py --json.
+    """Resolve the default read-scope dirs via
+    resolve-repo-targets.py --json.
 
-    CLI composition, not a cross-import: both scripts keep their hyphenated
-    filenames (matching every other script in this skill), and Python can't
-    cleanly import a hyphenated module name.
+    CLI composition, not a cross-import: both scripts keep
+    their hyphenated filenames (matching every other script in
+    this skill), and Python can't cleanly import a hyphenated
+    module name.
     """
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resolve-repo-targets.py")
     result = subprocess.run([sys.executable, script, "--json"], capture_output=True, text=True)
@@ -249,10 +275,12 @@ def _default_project_dirs():
 
 
 def _running_session_transcript(project_dirs):
-    """Resolve the live session's own transcript via $CLAUDE_CODE_SESSION_ID, or None.
+    """Resolve the live session's own transcript via
+    $CLAUDE_CODE_SESSION_ID, or None.
 
-    The one piece of session-identity logic that survives from the deleted
-    precedence chain - now used only for exclusion, never for selection (D7).
+    The one piece of session-identity logic that survives from
+    the deleted precedence chain - now used only for
+    exclusion, never for selection (D7).
     """
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
     if not session_id:
@@ -293,10 +321,11 @@ def main():
 def _emit_session(out, path, index, total, turns, boundaries):
     """Write one session's verbatim turns to out.
 
-    Body formatting (truncation, NEXT: line, compaction-boundary notes) is
-    unchanged from the pre-sweep single-file emit() - only the surrounding
-    per-session header/grouping is new, so a multi-session sweep reads as N
-    of these blocks back to back, in session order.
+    Body formatting (truncation, NEXT: line, compaction-boundary
+    notes) is unchanged from the pre-sweep single-file emit() -
+    only the surrounding per-session header/grouping is new, so
+    a multi-session sweep reads as N of these blocks back to
+    back, in session order.
     """
     mtime = ""
     try:
@@ -334,7 +363,8 @@ def _emit_session(out, path, index, total, turns, boundaries):
 
 
 def emit(paths):
-    """Emit every qualifying session's feedback, grouped and in session order (D8)."""
+    """Emit every qualifying session's feedback, grouped and in
+    session order (D8)."""
     out = sys.stdout
     out.write("# Session feedback extract (recovered from disk - survives compaction)\n\n")
     total = len(paths)

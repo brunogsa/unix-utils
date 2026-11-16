@@ -1,21 +1,24 @@
 """pytest suite for check-uncollected-background-output.py.
 
-The hook reads only its stdin payload plus the transcript that payload
-points at, so every case here writes a synthetic JSONL transcript into
-tmp_path and feeds a realistic SubagentStop payload naming it. Nothing is
-stubbed: these tests assert the hook's real transcript walk and its
-{"decision": "block"} contract.
+The hook reads only its stdin payload plus the transcript
+that payload points at, so every case here writes a
+synthetic JSONL transcript into tmp_path and feeds a
+realistic SubagentStop payload naming it. Nothing is
+stubbed: these tests assert the hook's real transcript walk
+and its {"decision": "block"} contract.
 
-The two transcript fixtures are the two ways a subagent reaches an
-uncollected background job, both copied from the runner's own message
-templates rather than invented:
+The two transcript fixtures are the two ways a subagent
+reaches an uncollected background job, both copied from the
+runner's own message templates rather than invented:
 
-  - agent-initiated   "Command running in background with ID: <id>."
-  - harness-initiated "Command did not complete within its <n>s timeout and
-                       was moved to the background (ID: <id>)."
+  - agent-initiated
+      "Command running in background with ID: <id>."
+  - harness-initiated
+      "Command did not complete within its <n>s timeout
+       and was moved to the background (ID: <id>)."
 
-They share one literal, "Output is being written to: <path>.", and that
-shared literal is what the hook keys on.
+They share one literal, "Output is being written to:
+<path>.", and that shared literal is what the hook keys on.
 """
 
 import json
@@ -77,8 +80,8 @@ def bash_output_call(tool_id, bash_id):
 
 
 def tool_result(tool_id, content):
-    """One user line carrying a plain-string tool_result, the shape the
-    runner emits for a Bash result."""
+    """One user line carrying a plain-string tool_result, the
+    shape the runner emits for a Bash result."""
     return {
         "type": "user",
         "message": {
@@ -96,7 +99,8 @@ def tool_result(tool_id, content):
 
 
 def agent_backgrounded_result(tool_id, job_id, output_path):
-    """The runner's message when the AGENT passed run_in_background: true."""
+    """The runner's message when the AGENT passed
+    run_in_background: true."""
     return tool_result(
         tool_id,
         f"Command running in background with ID: {job_id}. "
@@ -108,9 +112,10 @@ def agent_backgrounded_result(tool_id, job_id, output_path):
 
 
 def harness_backgrounded_result(tool_id, job_id, output_path):
-    """The runner's message when the command ran in the FOREGROUND and the
-    harness auto-backgrounded it on timeout. The agent chose nothing here,
-    which is why a PreToolUse payload check would miss this case."""
+    """The runner's message when the command ran in the
+    FOREGROUND and the harness auto-backgrounded it on
+    timeout. The agent chose nothing here, which is why a
+    PreToolUse payload check would miss this case."""
     return tool_result(
         tool_id,
         f"Command did not complete within its 600s timeout and was moved to the "
@@ -130,10 +135,12 @@ def write_transcript(tmp_path, name, entries):
 
 
 def payload(agent_transcript_path, stop_hook_active=False):
-    """The captured real SubagentStop shape, trimmed to the fields the hook
-    reads. transcript_path (the PARENT session's file) is kept alongside
-    agent_transcript_path (the subagent's own) precisely because the runner
-    sends both and only the second one holds this agent's tool calls."""
+    """The captured real SubagentStop shape, trimmed to the
+    fields the hook reads. transcript_path (the PARENT
+    session's file) is kept alongside agent_transcript_path
+    (the subagent's own) precisely because the runner sends
+    both and only the second one holds this agent's tool
+    calls."""
     return {
         "session_id": SESSION_ID,
         "transcript_path": (
@@ -162,8 +169,8 @@ def run_hook(hook_payload, hook=HOOK):
 
 
 def decision_of(result):
-    """The .decision field of the hook's stdout, or "" when it printed
-    nothing at all (its silent-allow shape)."""
+    """The .decision field of the hook's stdout, or "" when it
+    printed nothing at all (its silent-allow shape)."""
     if not result.stdout.strip():
         return ""
     return json.loads(result.stdout)["decision"]
@@ -264,8 +271,9 @@ class TestBlocksAnUncollectedBackgroundJob:
     def test_should_still_block_when_a_truncated_final_line_follows_the_backgrounded_job(
         self, tmp_path
     ):
-        """A transcript still being written ends mid-line. That must not
-        blind the guard to the complete lines before it."""
+        """A transcript still being written ends mid-line. That
+        must not blind the guard to the complete lines before
+        it."""
         transcript = write_transcript(
             tmp_path,
             "truncated-tail",
@@ -334,11 +342,12 @@ class TestBlockReasonNamesTheFix:
 class TestIgnoresTextThatMerelyQuotesTheAnnouncement:
     """Reading ABOUT a background job is not starting one.
 
-    Every case here was produced by running this guard against the
-    transcript of the run that wrote it. It reported four jobs, and
-    three of them were text that merely contained the announcement's
-    trailing clause. A guard that fires on its own documentation
-    blocks the very agents maintaining it."""
+    Every case here was produced by running this guard
+    against the transcript of the run that wrote it. It
+    reported four jobs, and three of them were text that
+    merely contained the announcement's trailing clause. A
+    guard that fires on its own documentation blocks the very
+    agents maintaining it."""
 
     def test_should_stay_silent_when_a_tool_result_only_quotes_the_hook_header(
         self, tmp_path
@@ -393,9 +402,10 @@ class TestIgnoresTextThatMerelyQuotesTheAnnouncement:
     def test_should_still_block_a_real_job_announced_among_quoted_ones(
         self, tmp_path
     ):
-        """The discriminator must not be "any transcript that mentions the
-        literal is exempt" -- a real job alongside quoted text still blocks,
-        and the reason names only the real one."""
+        """The discriminator must not be "any transcript that
+        mentions the literal is exempt" -- a real job
+        alongside quoted text still blocks, and the reason
+        names only the real one."""
         transcript = write_transcript(
             tmp_path,
             "real-job-beside-quoted",

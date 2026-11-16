@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
-"""check-ac-references.py - flag every line of a spec or plan that
-cites an acceptance criterion by its `AC-<n>` ID instead of spelling
-out the behavior.
+"""check-ac-references.py - flag every line of a spec or plan
+that cites an acceptance criterion by its `AC-<n>` ID instead
+of spelling out the behavior.
 
 Anchors - the places another gate joins on the ID - are exempt:
   - the spec's `### AC-<n>:` and `### Retired: AC-<n>` headings
   - the plan's `- **AC-<n>**` coverage-list headers
-  - inside a fence, a trailing `// AC-<n>... T<n>... [on-demand]`
-    annotation, or the exact line
-    `// AC-<n> - prose, verified by direct-coder diff review, no test`
+  - inside a fence, a trailing
+    `// AC-<n>... T<n>... [on-demand]` annotation, or the exact
+    line
+    `// AC-<n> - prose, verified by direct-coder diff review,
+    no test`
   - the bullet lines of a `## Task Details` entry's
-    `**Testable Acceptance criteria**` field, read with the same rule
-    check-ac-task-consistency.py uses to join them
+    `**Testable Acceptance criteria**` field, read with the
+    same rule check-ac-task-consistency.py uses to join them
 
-Only the anchor itself is exempt: an ID elsewhere on the same line,
-such as one inside an it() title before its annotation, still counts.
+Only the anchor itself is exempt: an ID elsewhere on the same
+line, such as one inside an it() title before its annotation,
+still counts.
 
 Usage:
   check-ac-references.py <doc> [<doc>...]
 
 stdout: one `<file>:<line>: <text>` per line citing an ID
 stderr: a diagnostic on a usage error or an unreadable file
-exit: 0 no citation; 1 at least one citation; 2 usage error, or a file
-      missing, unreadable or not valid UTF-8
+exit: 0 no citation; 1 at least one citation; 2 usage error, or
+      a file missing, unreadable or not valid UTF-8
 """
 
 import importlib.util
@@ -92,7 +95,8 @@ def strip_anchors(text, is_fenced):
 
 
 def find_citations(lines):
-    """1-based numbers of the lines citing an ID outside an anchor."""
+    """1-based numbers of the lines citing an ID outside an
+    anchor."""
     citations = []
     in_fence = False
     fence_char = ""

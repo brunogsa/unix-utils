@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Smoke tests for config-change-ledger.py's classify() - the pure function
-that maps a changed file path to the config surface an audit reasons about.
+"""Smoke tests for config-change-ledger.py's classify() - the
+pure function that maps a changed file path to the config
+surface an audit reasons about.
 
-Fixtures: none on disk - every input is a literal path string small enough
-to verify the expected surface by eye against CONFIG_PATH's own layout
-rules (skills/agents/hooks/scripts are directories; settings.json etc. are
-single files).
+Fixtures: none on disk - every input is a literal path string
+small enough to verify the expected surface by eye against
+CONFIG_PATH's own layout rules (skills/agents/hooks/scripts
+are directories; settings.json etc. are single files).
 
 Usage:
   python3 scripts/tests/test_config_change_ledger.py
@@ -19,7 +20,8 @@ SCRIPTS = Path(__file__).parent.parent
 
 
 def _load_module(filename, module_name):
-    """Import a dash-named script (not a valid module name) by file path."""
+    """Import a dash-named script (not a valid module name) by
+    file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
 
     # spec_from_file_location returns None for a path no
@@ -36,8 +38,9 @@ cur = _load_module("config-change-ledger.py", "config_change_ledger")
 
 
 class TestClassify(unittest.TestCase):
-    """classify() collapses a changed file path into the surface an audit
-    reasons about ("did a skill change or did the model pin change?")."""
+    """classify() collapses a changed file path into the surface
+    an audit reasons about ("did a skill change or did the model
+    pin change?")."""
 
     def test_a_changed_file_inside_a_skill_directory_classifies_as_that_skill(self):
         surface = cur.classify(

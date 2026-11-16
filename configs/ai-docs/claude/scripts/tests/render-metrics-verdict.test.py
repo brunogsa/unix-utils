@@ -1,10 +1,10 @@
 """Blackbox CLI tests for render-metrics-verdict.py.
 
-Fixtures: each test writes a throwaway measure report under tmp_path
-and runs the script on it. Nothing reads the live repo.
+Fixtures: each test writes a throwaway measure report under
+tmp_path and runs the script on it. Nothing reads the live repo.
 
 Usage:
-  pytest configs/ai-docs/claude/scripts/tests/render-metrics-verdict.test.py
+  ./run-tests.py <this file>
 """
 
 import json
@@ -53,7 +53,8 @@ def _render(cwd, *arguments, env=None):
 
 
 def _outside_git_env(tmp_path):
-    """An environment where no repo encloses tmp_path, whatever lies above it."""
+    """An environment where no repo encloses tmp_path, whatever
+    lies above it."""
     return {**GIT_ENV, "GIT_CEILING_DIRECTORIES": str(tmp_path.parent)}
 
 
@@ -69,7 +70,8 @@ def _assert_report_rejected(tmp_path, report_path):
 
 
 def _render_rejecting_exceptions(tmp_path, exceptions):
-    """Render with a bad exceptions file; assert the rejection; return the run."""
+    """Render with a bad exceptions file; assert the rejection;
+    return the run."""
     report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
     exceptions_path = _write_json(tmp_path / "exceptions.json", exceptions)
     out_dir = tmp_path / "out"

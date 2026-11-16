@@ -254,7 +254,8 @@ class PageMeter:
         self.charge(self.get_line_cost(index) if has_summary else 1)
 
     def charge_code_fence(self, opener_index):
-        """Charge a fenced block and return the index past it."""
+        """Charge a fenced block and return the index past
+        it."""
         lines = self.lines
         is_mermaid = "mermaid" in lines[opener_index].lower()
         fence_state = get_fence_state(lines[opener_index], CLOSED_FENCE)

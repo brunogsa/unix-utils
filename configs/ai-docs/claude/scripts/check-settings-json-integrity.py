@@ -30,7 +30,8 @@ DEFAULT_SETTINGS_PATH = Path.home() / ".claude" / "settings.json"
 
 
 def find_detachment_reason(settings_path: Path, source_path: Path) -> str | None:
-    """Return why settings_path is detached from source_path, or None if intact."""
+    """Return why settings_path is detached from source_path,
+    or None if intact."""
     if not settings_path.is_symlink():
         if not settings_path.exists():
             return f"{settings_path} does not exist"

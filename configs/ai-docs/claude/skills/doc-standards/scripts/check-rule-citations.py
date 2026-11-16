@@ -1,69 +1,92 @@
 #!/usr/bin/env python3
-"""check-rule-citations.py - flag cross-file rule citations that don't resolve.
+"""check-rule-citations.py - flag cross-file rule citations
+that don't resolve.
 
-These docs deliberately don't restate rules; each one points at whichever file
-authors the rule ("the rule is canonical; do not restate it here"). That only
-holds if the pointer resolves. When it names the wrong file the reader follows
-it, finds nothing, and re-derives the rule locally - recreating exactly the
-duplication the pointer exists to prevent. A wrong pointer is worse than none,
-because it looks satisfied.
+These docs deliberately don't restate rules; each one points
+at whichever file authors the rule ("the rule is canonical;
+do not restate it here"). That only holds if the pointer
+resolves. When it names the wrong file the reader follows
+it, finds nothing, and re-derives the rule locally -
+recreating exactly the duplication the pointer exists to
+prevent. A wrong pointer is worse than none, because it
+looks satisfied.
 
-Four citation forms are recognised, three of them quoting the rule by name:
+Four citation forms are recognised, three of them quoting
+the rule by name:
 
   A  the "Context section" rule in writing-style.md
   B  writing-style.md's "Bullets"
   D  SKILL.md "JSON snippets" rule
-  C  pr-page-budget.md's altitude rule          <- descriptive slug, not a name
+  C  pr-page-budget.md's altitude rule
+     <- descriptive slug, not a name
 
-A/B/D are checked STRICTLY: every significant word of the quoted name must
-appear in one bold span (`- **Bullets** -- ...`) or heading (`## the one-page
-goal`) of the cited file - the two forms a rule is authored in. Word-set
-containment rather than substring, because a correct citation may compress the
-authored name: "Section names in the PR's primary language" is authored as
-**Section names AND body prose in the PR's primary language**.
+A/B/D are checked STRICTLY: every significant word of the
+quoted name must appear in one bold span
+(`- **Bullets** -- ...`) or heading (`## the one-page
+goal`) of the cited file - the two forms a rule is authored
+in. Word-set containment rather than substring, because a
+correct citation may compress the authored name: "Section
+names in the PR's primary language" is authored as
+**Section names AND body prose in the PR's primary
+language**.
 
-C is checked WEAKLY - its words need only appear somewhere in the cited file.
-The slug is a paraphrase, so there is no name to match; absent words still prove
-the citation wrong, present ones prove nothing. This one-sided check is
-deliberate: restricting C to bold spans would flag correct citations of CLAUDE.md,
-whose rules are often not bolded, and a check that cries wolf gets ignored.
+C is checked WEAKLY - its words need only appear somewhere
+in the cited file. The slug is a paraphrase, so there is no
+name to match; absent words still prove the citation wrong,
+present ones prove nothing. This one-sided check is
+deliberate: restricting C to bold spans would flag correct
+citations of CLAUDE.md, whose rules are often not bolded,
+and a check that cries wolf gets ignored.
 
-C gets one extra hop. When the cited file does mention the slug, but every line
-mentioning it also names ANOTHER .md, that file is a signpost rather than the
-author and the citation should have named whatever it points at. A slug the cited
-file authors as a bold span or heading is its own, however many example files
-those lines link out to.
+C gets one extra hop. When the cited file does mention the
+slug, but every line mentioning it also names ANOTHER .md,
+that file is a signpost rather than the author and the
+citation should have named whatever it points at. A slug
+the cited file authors as a bold span or heading is its own,
+however many example files those lines link out to.
 
-A cited filename that doesn't resolve is SKIPPED, not reported - example content
-legitimately names files from other projects, and there is nothing to verify.
+A cited filename that doesn't resolve is SKIPPED, not
+reported - example content legitimately names files from
+other projects, and there is nothing to verify.
 
-AI-consumed output (compact, parseable - mirrors check-density.sh):
-  == <filename>                          header, per file with hits
-  <line>:unresolved-rule:<file>:"<name>" quoted name is authored nowhere in <file>
-  <line>:unknown-topic:<file>:<slug>     slug's words appear nowhere in <file>
-  <line>:forwarded:<file>:<other>        <file> only forwards the slug to <other>
+AI-consumed output (compact, parseable - mirrors
+check-density.sh):
+  == <filename>
+     header, per file with hits
+  <line>:unresolved-rule:<file>:"<name>"
+     quoted name is authored nowhere in <file>
+  <line>:unknown-topic:<file>:<slug>
+     slug's words appear nowhere in <file>
+  <line>:forwarded:<file>:<other>
+     <file> only forwards the slug to <other>
 
-The fix is the same for every hit: retarget the citation at the file that really
-authors the rule, or - if the rule is stated in more than one place - delete the
-extra homes so there is one owner to cite.
+The fix is the same for every hit: retarget the citation at
+the file that really authors the rule, or - if the rule is
+stated in more than one place - delete the extra homes so
+there is one owner to cite.
 
---changed-only scopes every reported row to lines the current git session
-changed vs HEAD, via the shared get-changed-lines.sh helper (never reimplemented
-here). Every row is single-line-anchored to the line carrying the citation
-pointer, so a row is in scope iff that line number is in the get-changed-lines
-set; an out-of-scope hit is entirely invisible, not merely deprioritized.
-Scope is recomputed fresh per file, per invocation - never cached.
+--changed-only scopes every reported row to lines the
+current git session changed vs HEAD, via the shared
+get-changed-lines.sh helper (never reimplemented here).
+Every row is single-line-anchored to the line carrying the
+citation pointer, so a row is in scope iff that line number
+is in the get-changed-lines set; an out-of-scope hit is
+entirely invisible, not merely deprioritized.
+Scope is recomputed fresh per file, per invocation - never
+cached.
 
 Usage:
   check-rule-citations.py [--changed-only] <file> [<file>...]
-  find ~/.claude/skills \\( -name '*.md' -o -name '*.sh' -o -name '*.py' \\) \\
+  find ~/.claude/skills \\( -name '*.md' -o -name '*.sh' \\
+    -o -name '*.py' \\) \\
     -print0 | xargs -0 check-rule-citations.py
 
 Exit codes:
   0  clean
   1  citations found that don't resolve
-  2  usage error, get-changed-lines.sh could not determine changed lines,
-     or an input file is unreadable or not valid UTF-8
+  2  usage error, get-changed-lines.sh could not determine
+     changed lines, or an input file is unreadable or not
+     valid UTF-8
 """
 
 import importlib.util
@@ -135,13 +158,17 @@ STOPWORDS = {
 
 
 def significant_words(phrase):
-    """Identifying words of a rule name - lowercased, stripped of punctuation."""
+    """Identifying words of a rule name - lowercased, stripped
+    of punctuation.
+    """
     raw = re.split(r"[^A-Za-z0-9]+", phrase.lower())
     return {word for word in raw if len(word) >= 3 and word not in STOPWORDS}
 
 
 def iter_prose_lines(path):
-    """Yield (line_no, text) for lines outside code fences and frontmatter."""
+    """Yield (line_no, text) for lines outside code fences and
+    frontmatter.
+    """
     with open(path, encoding="utf-8") as fh:
         lines = fh.read().splitlines()
 
@@ -166,19 +193,22 @@ def iter_prose_lines(path):
 
 
 class ChangedLinesError(Exception):
-    """get-changed-lines.sh could not determine a file's changed lines (not a
-    git work tree, missing file, etc). Never caught into a clean result or
-    a whole-file-in-scope fallback - the caller propagates it as exit 2."""
+    """get-changed-lines.sh could not determine a file's
+    changed lines (not a git work tree, missing file, etc).
+    Never caught into a clean result or a whole-file-in-scope
+    fallback - the caller propagates it as exit 2."""
 
 
 def changed_line_numbers(path):
-    """Line numbers `path` has changed vs git HEAD, via get-changed-lines.sh -
-    the one shared helper every --changed-only checker shells out to,
-    rather than reimplementing its git/awk logic locally.
+    """Line numbers `path` has changed vs git HEAD, via
+    get-changed-lines.sh - the one shared helper every
+    --changed-only checker shells out to, rather than
+    reimplementing its git/awk logic locally.
 
-    cwd is pinned to the file's own directory so the helper's git-rooted
-    lookup resolves against that file's real repo, regardless of whatever
-    directory this script itself happened to be invoked from.
+    cwd is pinned to the file's own directory so the helper's
+    git-rooted lookup resolves against that file's real repo,
+    regardless of whatever directory this script itself
+    happened to be invoked from.
     """
     result = subprocess.run(
         [str(SCRIPT_DIR / "get-changed-lines.sh"), str(path)],
@@ -192,7 +222,9 @@ def changed_line_numbers(path):
 
 
 def find_skill_root(path):
-    """Nearest ancestor directory holding a SKILL.md, or None outside a skill."""
+    """Nearest ancestor directory holding a SKILL.md, or None
+    outside a skill.
+    """
     for parent in Path(path).resolve().parents:
         if (parent / "SKILL.md").is_file():
             return parent
@@ -200,11 +232,14 @@ def find_skill_root(path):
 
 
 def resolve_target(cited, citing_path, skill_root):
-    """Filesystem path a cited filename names, or None when it names nothing here.
+    """Filesystem path a cited filename names, or None when it
+    names nothing here.
 
-    SKILL.md means the citing file's own skill; CLAUDE.md means the config root
-    two levels above a skill (~/.claude/CLAUDE.md). Anything else is searched in
-    the citing file's directory, then the skill's usual subdirectories.
+    SKILL.md means the citing file's own skill; CLAUDE.md
+    means the config root two levels above a skill
+    (~/.claude/CLAUDE.md). Anything else is searched in the
+    citing file's directory, then the skill's usual
+    subdirectories.
     """
     citing_dir = Path(citing_path).resolve().parent
 
@@ -228,7 +263,9 @@ def resolve_target(cited, citing_path, skill_root):
 
 @lru_cache(maxsize=None)
 def authored_names(path):
-    """Every bold span and heading in a file - the two forms a rule is authored in."""
+    """Every bold span and heading in a file - the two forms a
+    rule is authored in.
+    """
     spans = []
     for _, line in iter_prose_lines(path):
         heading = HEADING.match(line)
@@ -240,13 +277,17 @@ def authored_names(path):
 
 @lru_cache(maxsize=None)
 def file_words(path):
-    """Every significant word anywhere in a file, for the weak slug check."""
+    """Every significant word anywhere in a file, for the weak
+    slug check.
+    """
     with open(path, encoding="utf-8") as fh:
         return frozenset(significant_words(fh.read()))
 
 
 def is_authored_in(name, target):
-    """True when one bold span or heading of target carries every word of name."""
+    """True when one bold span or heading of target carries
+    every word of name.
+    """
     wanted = significant_words(name)
     if not wanted:
         return True
@@ -254,18 +295,23 @@ def is_authored_in(name, target):
 
 
 def is_mentioned_in(slug, target):
-    """True when every word of a descriptive slug appears somewhere in target."""
+    """True when every word of a descriptive slug appears
+    somewhere in target.
+    """
     wanted = significant_words(slug)
     return not wanted or wanted <= file_words(target)
 
 
 def forwarded_to(topic, target):
-    """The file target hands `topic` off to, or None when target keeps it.
+    """The file target hands `topic` off to, or None when
+    target keeps it.
 
-    Catches the one-hop-stale citation: target does mention the topic, but only
-    on lines that name another file - so target is a signpost, not the author,
-    and the citation should have named whatever it points at. A single mention
-    that names nobody else means target really does carry the rule.
+    Catches the one-hop-stale citation: target does mention
+    the topic, but only on lines that name another file - so
+    target is a signpost, not the author, and the citation
+    should have named whatever it points at. A single mention
+    that names nobody else means target really does carry the
+    rule.
     """
     wanted = significant_words(topic)
     if not wanted:
@@ -285,7 +331,9 @@ def forwarded_to(topic, target):
 
 
 def cited_names(line):
-    """Yield (cited_file, name, is_quoted) for every citation on one line."""
+    """Yield (cited_file, name, is_quoted) for every citation
+    on one line.
+    """
     for name, cited in FORM_QUOTED_IN_FILE.findall(line):
         yield cited, name, True
     for cited, name in FORM_FILE_OWNS_QUOTED.findall(line):
@@ -297,11 +345,15 @@ def cited_names(line):
 
 
 class CannotReadError(Exception):
-    """A file the run needed could not be read; str() is the stderr line."""
+    """A file the run needed could not be read; str() is the
+    stderr line.
+    """
 
 
 def judge_citation(cited, name, is_quoted, target):
-    """The violation detail for one citation of `target`, or None."""
+    """The violation detail for one citation of `target`, or
+    None.
+    """
     if is_quoted:
         return None if is_authored_in(name, target) else f'unresolved-rule:{cited}:"{name}"'
 
@@ -319,15 +371,18 @@ def judge_citation(cited, name, is_quoted, target):
 
 
 def check(path, changed_only=False):
-    """Unresolved citations in one file, as sorted (line_no, detail) rows.
+    """Unresolved citations in one file, as sorted
+    (line_no, detail) rows.
 
-    changed_only restricts every row to a line changed_line_numbers
-    reports as changed vs HEAD - an out-of-scope hit is skipped before it
-    can ever reach `hits`, so it is never printed and never counted toward
+    changed_only restricts every row to a line
+    changed_line_numbers reports as changed vs HEAD - an
+    out-of-scope hit is skipped before it can ever reach
+    `hits`, so it is never printed and never counted toward
     the exit code.
 
-    Raises CannotReadError naming the cited file when one cannot be read,
-    so the message blames the file that failed, not the one citing it.
+    Raises CannotReadError naming the cited file when one
+    cannot be read, so the message blames the file that
+    failed, not the one citing it.
     """
     skill_root = find_skill_root(path)
     hits = []

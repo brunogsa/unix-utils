@@ -31,11 +31,13 @@ def get_settings_path():
 
 
 def get_enabled_plugins(settings_path):
-    """Return the enabledPlugins mapping, or {} when the file cannot supply one.
+    """Return the enabledPlugins mapping, or {} when the file
+    cannot supply one.
 
-    A missing file is a genuinely absent module and stays silent; an existing
-    file that cannot be read or parsed would look identical, so it warns on
-    stderr to make "cannot tell" distinguishable from "not installed".
+    A missing file is a genuinely absent module and stays
+    silent; an existing file that cannot be read or parsed
+    would look identical, so it warns on stderr to make
+    "cannot tell" distinguishable from "not installed".
     """
     try:
         with open(settings_path, encoding="utf-8") as settings_file:

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Tests for delivered-work-ledger.py - the repo walk, the shipped-commit
-filter, and the committed-ledger reader.
+"""Tests for delivered-work-ledger.py - the repo walk, the
+shipped-commit filter, and the committed-ledger reader.
 
-Fixtures: real directory trees and real git repositories built in a temp
-directory, not mocks. The behaviours under test ARE git's (what --author
-matches, which date --since reads, what a branch makes reachable), so a
-faked git would only replay the assumptions that caused the bugs these
-tests pin.
+Fixtures: real directory trees and real git repositories
+built in a temp directory, not mocks. The behaviours under
+test ARE git's (what --author matches, which date --since
+reads, what a branch makes reachable), so a faked git would
+only replay the assumptions that caused the bugs these tests
+pin.
 
 Usage:
   python3 scripts/tests/test_delivered_work_ledger.py
@@ -27,7 +28,8 @@ TEAMMATE = "debora.rissatto"
 
 
 def _load_module(filename, module_name):
-    """Import a dash-named script (not a valid module name) by file path."""
+    """Import a dash-named script (not a valid module name) by
+    file path."""
     spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / filename)
     if spec is None or spec.loader is None:
         raise ImportError(f"cannot load {filename} from {SCRIPTS}")
@@ -40,7 +42,8 @@ ledger = _load_module("delivered-work-ledger.py", "delivered_work_ledger")
 
 
 def _make_repo_marker(root, *parts):
-    """Create a directory holding a .git dir, which is what find_repos looks for."""
+    """Create a directory holding a .git dir, which is what
+    find_repos looks for."""
     repo = Path(root, *parts)
     (repo / ".git").mkdir(parents=True)
     return str(repo)
@@ -62,10 +65,12 @@ def _init_repo(root, name="work-repo"):
 
 def _commit(repo, subject, author=OWNER, authored_on="2026-07-11",
             committed_on=None):
-    """Commit one file, pinning the author and committer dates independently.
+    """Commit one file, pinning the author and committer dates
+    independently.
 
-    Splitting the two dates is the point: a rebase moves the committer date
-    weeks past the author date, and this ledger attributes by author date.
+    Splitting the two dates is the point: a rebase moves the
+    committer date weeks past the author date, and this
+    ledger attributes by author date.
     """
     committed_on = committed_on or authored_on
     name = subject.lower().replace(" ", "-")
@@ -85,8 +90,9 @@ def _commit(repo, subject, author=OWNER, authored_on="2026-07-11",
 
 
 class TestFindRepos(unittest.TestCase):
-    """find_repos() answers "which checkouts on this machine hold work?" - the
-    question a wrong answer to reports a confident zero."""
+    """find_repos() answers "which checkouts on this machine
+    hold work?" - the question a wrong answer to reports a
+    confident zero."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -133,8 +139,9 @@ class TestFindRepos(unittest.TestCase):
 
 
 class TestShippedCommits(unittest.TestCase):
-    """shipped_commits() decides what counts as delivered: this author's work,
-    reachable from the default branch, on the day it was written."""
+    """shipped_commits() decides what counts as delivered:
+    this author's work, reachable from the default branch, on
+    the day it was written."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -206,8 +213,9 @@ class TestShippedCommits(unittest.TestCase):
 
 
 class TestLoad(unittest.TestCase):
-    """load() hands the viewer the committed ledger, which is the only record
-    of delivery once the work repos leave this machine."""
+    """load() hands the viewer the committed ledger, which is
+    the only record of delivery once the work repos leave
+    this machine."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -254,7 +262,8 @@ def _record(branch, stamp, cwd=TICKET_CHECKOUT):
 
 
 def _write_transcript(root, name, records):
-    """Write one session transcript where Claude Code would put it."""
+    """Write one session transcript where Claude Code would
+    put it."""
     path = Path(root, "-Users-brunoagostini-workspace", f"{name}.jsonl")
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as handle:
@@ -272,8 +281,9 @@ def _pull_request(branch, number=2256, repo="arco-cv/arco2-integrator",
 
 
 class TestActiveSeconds(unittest.TestCase):
-    """Summing the gaps between touches is what turns a scatter of timestamps
-    into an hours-spent number the user can divide their spend by."""
+    """Summing the gaps between touches is what turns a
+    scatter of timestamps into an hours-spent number the user
+    can divide their spend by."""
 
     def _epochs(self, *stamps):
         return [ledger.parse_epoch(f"2026-07-14T{s}.000Z") for s in stamps]
@@ -310,8 +320,9 @@ class TestActiveSeconds(unittest.TestCase):
 
 
 class TestBranchActivity(unittest.TestCase):
-    """The branch name is the only join key that outlives the work: each ticket
-    gets its own checkout, and that directory is deleted once the PR merges."""
+    """The branch name is the only join key that outlives the
+    work: each ticket gets its own checkout, and that
+    directory is deleted once the PR merges."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -371,8 +382,8 @@ class TestBranchActivity(unittest.TestCase):
 
 
 class TestAttributeWorkTime(unittest.TestCase):
-    """Hours per merged PR is the KPI; these are the joins that can silently
-    inflate or deflate it."""
+    """Hours per merged PR is the KPI; these are the joins that
+    can silently inflate or deflate it."""
 
     def _activity(self, branch, *stamps):
         return {branch: [ledger.parse_epoch(f"2026-07-14T{s}.000Z")
