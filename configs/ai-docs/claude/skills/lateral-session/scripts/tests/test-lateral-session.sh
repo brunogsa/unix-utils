@@ -14,14 +14,14 @@ OUT_DIR="$WORK/out"
 mkdir -p "$STUB_DIR" "$OUT_DIR"
 
 # The stub records what claude was started with, then sleeps
-# so the window stays up long enough to inspect.
+# so the window stays up until cleanup kills the server.
 cat > "$STUB_DIR/claude" <<STUB
 #!/usr/bin/env bash
 pwd > "$OUT_DIR/pwd"
 echo "\$#" > "$OUT_DIR/argc"
 printf '%s' "\${1-}" > "$OUT_DIR/arg1"
 printf '%s' "\${2-}" > "$OUT_DIR/arg2"
-sleep 2
+exec cat
 STUB
 chmod +x "$STUB_DIR/claude"
 
