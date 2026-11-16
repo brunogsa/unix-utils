@@ -44,19 +44,7 @@ def coverage_values(result):
     return [item["value"] for item in report["measurements"] if item["metric"] == "coverage"]
 
 
-def test_should_run_the_repo_jest_when_a_session_id_is_given_and_the_base_ref_holds_a_jest_config(
-    tmp_path, monkeypatch
-):
-    result = measure_cart(
-        tmp_path, monkeypatch,
-        "--session-id", SESSION_ID, "--map-dir", str(tmp_path), "--map-base", "HEAD",
-    )
-
-    assert attempts_in(tmp_path) == 1
-    assert coverage_values(result) == [JEST_COVERAGE_PERCENT]
-
-
-def test_should_read_the_jest_config_from_the_judged_against_ref_when_no_map_base_is_given(
+def test_should_run_the_repo_jest_when_a_session_id_is_given_and_the_judged_against_ref_holds_a_jest_config(
     tmp_path, monkeypatch
 ):
     result = measure_cart(
@@ -76,12 +64,14 @@ def test_should_measure_with_the_global_tool_when_no_session_id_is_given(tmp_pat
     assert coverage_values(result) == [0]
 
 
-def test_should_exit_not_measured_when_the_map_base_names_a_ref_the_repo_lacks(tmp_path, monkeypatch):
+def test_should_reject_a_flag_that_lets_the_measured_branch_pick_the_ref_its_tools_are_read_at(
+    tmp_path, monkeypatch
+):
     result = measure_cart(
         tmp_path, monkeypatch,
-        "--session-id", SESSION_ID, "--map-dir", str(tmp_path), "--map-base", "no-such-ref",
+        "--session-id", SESSION_ID, "--map-dir", str(tmp_path), "--map-base", "HEAD",
     )
 
     assert result.returncode == 2
-    assert result.stderr.startswith("measure-quality-metrics:")
-    assert "no-such-ref" in result.stderr
+    assert "--map-base" in result.stderr
+    assert attempts_in(tmp_path) == 0

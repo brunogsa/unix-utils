@@ -9,7 +9,7 @@
 #   measure-quality-metrics.py --diff BASE...HEAD
 #   measure-quality-metrics.py [--per-unit] --files FILE...
 #
-# Add --session-id ID [--map-base REF] [--map-dir DIR] to
+# Add --session-id ID [--map-dir DIR] to
 # measure coverage with the repo's own tool when its tool map
 # lists one.
 #
@@ -186,9 +186,6 @@ def _add_tool_map_arguments(parser):
     parser.add_argument("--session-id", metavar="ID",
                         help="session whose tool map names the repo's own tools; "
                              "without it every metric uses the global tools")
-    parser.add_argument("--map-base", metavar="REF",
-                        help="ref the repo's tools are detected at "
-                             "(default: the ref the change is judged against)")
     parser.add_argument("--map-dir", default=TOOL_MAP_DIR, metavar="DIR",
                         help="directory holding the tool map (default: /tmp)")
 
@@ -197,12 +194,11 @@ def _coverage_run_for(options, judged_against):
     """The coverage run; with a session id it reads the repo's tool map."""
     if options.session_id is None:
         return CoverageRun(Path.cwd())
-    map_base = options.map_base or judged_against
     tool_map = lazy_tool_map_for(
         Path.cwd(), load_detector_rules(DETECTOR_RULES_PATH),
-        options.session_id, options.map_dir, map_base,
+        options.session_id, options.map_dir, judged_against,
     )
-    return CoverageRun(Path.cwd(), tool_map, base_ref=map_base)
+    return CoverageRun(Path.cwd(), tool_map, base_ref=judged_against)
 
 
 def _targets_from(options):
