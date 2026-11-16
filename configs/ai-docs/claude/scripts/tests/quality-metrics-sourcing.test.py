@@ -7,7 +7,6 @@ from quality_metrics_support import (
     CART_LCOV,
     SCRIPTS_DIR,
     install_jest_reporting_cart_coverage,
-    install_stub_tool,
     make_repo,
 )
 
@@ -15,17 +14,14 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import pytest
 
-from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
     NoGlobalToolError,
     lazy_tool_map_for,
-    measure_function_size_with_repo_tool,
     run_repo_jest,
     source_for,
 )
 from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
 from quality_metrics.tools import ToolError
-from quality_metrics.touched import Target
 
 SESSION_ID = "session-7b1d3e"
 
@@ -104,18 +100,14 @@ def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_on
     }
 
 
-def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_has_an_eslint_config(tmp_path):
+def test_should_measure_function_size_with_the_global_tool_even_when_the_repo_has_an_eslint_config(tmp_path):
     repo = make_repo(tmp_path, {"eslint.config.js": "module.exports = [];\n", "src/index.js": "module.exports = 1;\n"})
     rules = load_detector_rules(DETECTOR_RULES_PATH)
     tool_map = lazy_tool_map_for(repo, rules, SESSION_ID, tmp_path, base_ref="HEAD")
 
     size_source = source_for("size", tool_map, "js")
 
-    assert size_source == {
-        "metric": "size",
-        "source": {"kind": "repo", "tool": "eslint"},
-        "side_pr_candidate": None,
-    }
+    assert size_source["source"] == {"kind": "global", "tool": "lizard"}
 
 
 def test_should_measure_with_the_global_tool_and_list_a_side_pr_candidate_when_the_repo_lacks_the_tool(tmp_path):
@@ -143,34 +135,6 @@ def test_should_measure_with_the_global_fallback_named_as_the_source_outside_any
         "side_pr_candidate": None,
     }
     assert list(tmp_path.glob("quality-metrics_*.json")) == []
-
-
-# Reports its findings only when asked for every function
-# (a zero line allowance), as the repo's limit of 60 would
-# not.
-ESLINT_STUB = """#!/bin/bash
-case "$*" in
-  *"max-lines-per-function: [error, {max: 0, skipBlankLines: true, skipComments: true}]"*)
-    echo '[{"filePath":"src/cart.js","messages":[{"ruleId":"max-lines-per-function","message":"Function '"'"'applyDiscount'"'"' has too many lines (45). Maximum allowed is 0.","line":1,"endLine":45}]}]'
-    exit 1;;
-  *) echo '[{"filePath":"src/cart.js","messages":[]}]'; exit 0;;
-esac
-"""
-
-
-def test_should_flag_a_45_line_function_against_the_30_line_limit_when_the_repo_linter_allows_60(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, {"src/cart.js": "// 45-line function\n"})
-    install_stub_tool(tmp_path, monkeypatch, "eslint", ESLINT_STUB)
-    target = Target(repo / "src/cart.js", "javascript", {10})
-
-    records = measure_function_size_with_repo_tool(target, repo)
-
-    assert [(record["function"], record["value"], record["limit"]) for record in records] == [
-        ("applyDiscount", 45, 30)
-    ]
-    assert is_over_limit(records[0])
 
 
 def test_should_key_repo_jest_hits_by_repo_relative_path_when_the_report_names_the_file_by_absolute_path(

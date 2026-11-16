@@ -27,23 +27,6 @@ tools:
     languages: [python]
     configs:
       - .coveragerc
-  - tool: eslint
-    metric: complexity
-    languages: [js, ts]
-    configs: &eslint_configs
-      - eslint.config.js
-      - eslint.config.cjs
-      - eslint.config.mjs
-      - eslint.config.ts
-      - .eslintrc.js
-      - .eslintrc.cjs
-      - .eslintrc.json
-      - .eslintrc.yaml
-      - .eslintrc.yml
-  - tool: eslint
-    metric: size
-    languages: [js, ts]
-    configs: *eslint_configs
   - tool: jscpd
     metric: code_duplication
     languages: [js, ts, python, go, bash, html, css]

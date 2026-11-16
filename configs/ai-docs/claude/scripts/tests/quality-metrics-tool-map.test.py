@@ -23,6 +23,7 @@ DETECT_SCRIPT = SCRIPTS_DIR / "detect-repo-metric-tools.py"
 SESSION_ID = "session-4f2a9c"
 
 JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} };\n"
+JSCPD_CONFIG = '{"threshold": 5}\n'
 ESLINT_CONFIG = "module.exports = [];\n"
 
 
@@ -41,7 +42,6 @@ def read_map(map_dir):
 
 
 def tool_names(entry):
-    # eslint is listed once per metric it measures.
     return sorted({tool["tool"] for tool in entry["tools"]})
 
 
@@ -69,22 +69,30 @@ def test_should_declare_the_languages_each_detector_rule_measures():
 
 
 def test_should_leave_out_a_tool_whose_config_exists_only_on_the_branch_not_at_the_base_ref(tmp_path):
-    repo = make_repo(tmp_path, {"eslint.config.js": ESLINT_CONFIG})
+    repo = make_repo(tmp_path, {".jscpd.json": JSCPD_CONFIG})
     base_sha = head_of(repo)
     (repo / "jest.config.js").write_text(JEST_CONFIG)
     commit_all(repo, "branch adds a jest config")
 
     entry = detect(repo, tmp_path, base_sha)
 
-    assert tool_names(entry) == ["eslint"]
+    assert tool_names(entry) == ["jscpd"]
+
+
+def test_should_list_no_tool_for_a_repo_whose_base_ref_has_only_an_eslint_config(tmp_path):
+    repo = make_repo(tmp_path, {"eslint.config.js": ESLINT_CONFIG})
+
+    entry = detect(repo, tmp_path, head_of(repo))
+
+    assert entry["tools"] == []
 
 
 def test_should_key_the_tool_map_by_repo_path_and_base_sha_rebuilding_it_when_the_base_sha_changes(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
     first_sha = head_of(repo)
     detect(repo, tmp_path, first_sha)
-    (repo / "eslint.config.js").write_text(ESLINT_CONFIG)
-    commit_all(repo, "add an eslint config")
+    (repo / ".jscpd.json").write_text(JSCPD_CONFIG)
+    commit_all(repo, "add a jscpd config")
     second_sha = head_of(repo)
 
     detect(repo, tmp_path, second_sha)
@@ -93,7 +101,7 @@ def test_should_key_the_tool_map_by_repo_path_and_base_sha_rebuilding_it_when_th
     repo_path = str(repo.resolve())
     assert sorted(tool_map) == sorted([f"{repo_path}@{first_sha}", f"{repo_path}@{second_sha}"])
     assert tool_names(tool_map[f"{repo_path}@{first_sha}"]) == ["jest"]
-    assert tool_names(tool_map[f"{repo_path}@{second_sha}"]) == ["eslint", "jest"]
+    assert tool_names(tool_map[f"{repo_path}@{second_sha}"]) == ["jest", "jscpd"]
 
 
 def test_should_key_the_tool_map_by_the_same_sha_whether_the_base_is_given_as_a_ref_name_or_a_sha(tmp_path):
@@ -163,12 +171,12 @@ def test_should_still_detect_the_repos_tools_and_keep_the_deferral_when_a_tool_i
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
     base_sha = head_of(repo)
     rules = load_detector_rules(DETECTOR_RULES_PATH)
-    record_deferred_tool(repo, base_sha, "eslint", SESSION_ID, tmp_path)
+    record_deferred_tool(repo, base_sha, "jscpd", SESSION_ID, tmp_path)
 
     entry = LazyToolMap(repo, base_sha, rules, SESSION_ID, tmp_path).entry()
 
     assert tool_names(entry) == ["jest"]
-    assert entry["deferred"] == ["eslint"]
+    assert entry["deferred"] == ["jscpd"]
 
 
 WRITER_COUNT = 6
@@ -214,6 +222,24 @@ def start_process(program, *args):
     )
 
 
+def count_partial_map_reads_until_done(processes, map_dir):
+    partial_reads = 0
+    while any(process.poll() is None for process in processes):
+        try:
+            read_map(map_dir)
+        except json.JSONDecodeError:
+            partial_reads += 1
+    return partial_reads
+
+
+def deferred_tool_names():
+    return [
+        f"tool-{writer}-{number}"
+        for writer in range(WRITER_COUNT)
+        for number in range(DEFERRALS_PER_WRITER)
+    ]
+
+
 def test_should_land_both_concurrent_writers_deferred_entries_and_never_show_a_reader_a_partial_map_file(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
     base_sha = head_of(repo)
@@ -228,21 +254,12 @@ def test_should_land_both_concurrent_writers_deferred_entries_and_never_show_a_r
     processes = [*writers, builder]
 
     go_file.write_text("go")
-    partial_reads = 0
-    while any(process.poll() is None for process in processes):
-        try:
-            read_map(tmp_path)
-        except json.JSONDecodeError:
-            partial_reads += 1
+    partial_reads = count_partial_map_reads_until_done(processes, tmp_path)
     errors = [process.communicate()[1] for process in processes]
 
     assert errors == [""] * len(processes)
     assert partial_reads == 0
-    expected = sorted(
-        f"tool-{writer}-{number}"
-        for writer in range(WRITER_COUNT)
-        for number in range(DEFERRALS_PER_WRITER)
-    )
+    expected = sorted(deferred_tool_names())
     batch_entry = read_map(tmp_path)[f"{repo.resolve()}@{base_sha}"]
     assert sorted(batch_entry["deferred"]) == expected
     assert tool_names(batch_entry) == ["jest"]
