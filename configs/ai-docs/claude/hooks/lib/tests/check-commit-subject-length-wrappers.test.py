@@ -126,6 +126,20 @@ def test_should_report_no_commit_for_a_later_git_word_read_as_data_by_a_command_
     assert _attribution_verdict(command) == checker.NO_COMMIT_VERDICT
 
 
+# A function or alias of the same name runs its arguments, so
+# the git word after grep may then run as git.
+@pytest.mark.parametrize(
+    "command",
+    [
+        'grep() { "$@"; }; grep git zz -m x',
+        'function grep { "$@"; }; grep git zz -m x',
+        "alias grep=sh; grep git zz",
+    ],
+)
+def test_should_screen_a_later_git_word_after_grep_when_the_command_redefines_a_name(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
 # The guard reads no git config: an earlier stage may write
 # one, and sudo, find -exec or ssh may run git under another
 # user, directory or host, so any name may be an alias there.

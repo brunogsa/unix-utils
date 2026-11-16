@@ -108,6 +108,11 @@ RIPGREP = "rg"
 RIPGREP_PREPROCESSOR = "--pre"
 TEXT_READING_COMMANDS = frozenset({"grep", "egrep", "fgrep", RIPGREP})
 
+# A function or alias defined anywhere in the command, under
+# any name, may give a search command's name to a program that
+# runs its arguments.
+COMMAND_DEFINITION_TEXT = re.compile(r"(?<![\w.-])(?:alias|function)(?![\w.-])|\(\s*\)")
+
 # git, its global options, then the name it runs, read from
 # the raw text of a command the lexer cannot split.
 GIT_SUBCOMMAND_TEXT = re.compile(r"(?<![\w.-])git(?:\s+-\S+(?:\s+[^\s-]\S*)?)*?\s+([^\s-]\S*)")
@@ -833,9 +838,13 @@ def _may_git_run_commit(words, options_start):
     return subcommand.is_expandable or subcommand.text not in UNALIASABLE_GIT_COMMANDS
 
 
-def _may_run_commit(stage):
+def _may_run_commit(stage, is_text_reader_trusted):
     """True when a stage may run git commit, as it may when a
-    wrapper option hides which word the wrapper runs."""
+    wrapper option hides which word the wrapper runs.
+
+    is_text_reader_trusted is False when the command may have
+    given a search command's name to another program.
+    """
     words = stage.words
     try:
         index = _command_word_index(words, SCREENED_WRAPPERS)
@@ -844,9 +853,15 @@ def _may_run_commit(stage):
     command = None if index is None or words[index].is_expandable else words[index].text
     if command == "git":
         return _may_git_run_commit(words, index + 1)
-    if _reads_arguments_as_text(command, words):
+    if is_text_reader_trusted and _reads_arguments_as_text(command, words):
         return _names_commit(words)
     return _names_commit(words) or _may_later_git_run_commit(words)
+
+
+def _is_text_reader_trusted(command):
+    """True when the raw command text defines no function or
+    alias."""
+    return COMMAND_DEFINITION_TEXT.search(command) is None
 
 
 def _reads_arguments_as_text(command, words):
@@ -919,9 +934,10 @@ def _read_commit_stages(command, cwd):
     except CannotBeSure:
         return None
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
+    is_text_reader_trusted = _is_text_reader_trusted(command)
     commits = []
     for stage, is_piped in stages:
-        if _may_run_commit(stage):
+        if _may_run_commit(stage, is_text_reader_trusted):
             commits.append(_commit(stage, values, state))
         _update_state(stage, is_piped, state)
     return commits

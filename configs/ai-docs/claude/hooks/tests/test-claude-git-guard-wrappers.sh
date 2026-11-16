@@ -99,6 +99,19 @@ it_should_allow_a_later_git_word_read_as_data_by_a_command_that_runs_no_argument
   done
 }
 
+# A function or alias of the same name runs its arguments, so
+# the git word after grep may then run as git.
+it_should_block_a_later_git_word_after_grep_when_the_command_redefines_a_name() {
+  local cmd
+  for cmd in \
+    'grep() { "$@"; }; grep git zz -m x' \
+    'function grep { "$@"; }; grep git zz -m x' \
+    'alias grep=sh; grep git zz'; do
+    run_hook "$cmd"
+    assert_eq "should block a later git word after grep when the command redefines a name: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
 # The guard reads no git config: an earlier stage may write
 # one, and sudo, find -exec or ssh may run git under another
 # user, directory or host, so any name may be an alias there.
@@ -134,6 +147,7 @@ it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
 it_should_block_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word
 it_should_allow_a_later_git_word_read_as_data_by_a_command_that_runs_no_argument
+it_should_block_a_later_git_word_after_grep_when_the_command_redefines_a_name
 it_should_block_a_later_git_word_naming_no_git_builtin_after_a_command_that_may_run_it
 it_should_allow_a_wrapper_running_no_git_alias
 
