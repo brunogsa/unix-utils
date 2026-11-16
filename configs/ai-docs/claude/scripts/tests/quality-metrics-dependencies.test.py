@@ -288,6 +288,17 @@ cat <<'JSON'
 JSON
 """
 
+# Stands in for a go-arch-lint that skips the check on a config
+# notice, whatever the archfile holds.
+GO_ARCH_LINT_STUB_SKIPPING_THE_CHECK = """#!/bin/sh
+cat <<'JSON'
+{"Type":"models.Check","Payload":{"ExecutionWarnings":[{"Text":"config notice","File":"config.yml"}],
+"ArchHasWarnings":false,"ArchWarningsDeps":[],"ArchWarningsNotMatched":[],
+"ArchWarningsDeepScan":[],"OmittedCount":0,"ModuleName":"shop","Qualities":[]}}
+JSON
+exit 1
+"""
+
 GO_BASE_FILES = {
     "go.mod": GO_MODULE,
     "domain/order.go": GO_DOMAIN_WITHOUT_INFRA,
@@ -526,6 +537,13 @@ echo "Contract failed: cycles-shop. shop.orders and shop.billing import each oth
 exit 1
 """
 
+# An import-linter run that checked no contract: no summary
+# line, as when it cannot read its config.
+UV_STUB_PRINTING_NO_CONTRACT_SUMMARY = """#!/bin/sh
+echo "Could not read configuration."
+exit 0
+"""
+
 PYTHON_CYCLE_BASE_FILES = {
     "shop/__init__.py": "",
     "shop/orders/__init__.py": "",
@@ -570,6 +588,41 @@ def test_scores_a_python_file_as_a_deferred_violation_when_import_linter_breaks_
     assert len(violations) == 1
     deferred = violations[0]
     assert deferred["file"] == "shop/orders/order.py"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
+def test_scores_a_python_file_as_a_deferred_violation_when_import_linter_checks_no_contract(tmp_path):
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
+        {"shop/orders/order.py": ORDER_READS_BILLING},
+        env=env_with_uv_stub(tmp_path, UV_STUB_PRINTING_NO_CONTRACT_SUMMARY),
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["file"] == "shop/orders/order.py"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
+def test_scores_a_go_file_as_a_deferred_violation_when_go_arch_lint_skips_the_check(tmp_path):
+    stub_dir = tmp_path / "skipping-stub-bin"
+    stub_dir.mkdir()
+    stub = stub_dir / "go-arch-lint"
+    stub.write_text(GO_ARCH_LINT_STUB_SKIPPING_THE_CHECK)
+    stub.chmod(0o755)
+
+    violations = measure_branch(
+        tmp_path, GO_DECLARATION, GO_BASE_FILES,
+        {"domain/order.go": GO_DOMAIN_READING_INFRA},
+        "--layers", write_layers(tmp_path, DECLARED_LAYERS),
+        env={**GIT_ENV, "PATH": f"{stub_dir}{os.pathsep}{GIT_ENV['PATH']}"},
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["file"] == "domain/order.go"
     assert deferred["pessimistic"] is True
     assert "deferred" in deferred["label"]
 
