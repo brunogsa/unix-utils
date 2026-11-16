@@ -8,9 +8,9 @@
 #   render-metrics-verdict.py --help
 #
 # stdin: none.
-# stdout: the path of the verdict file written.
-# exit: 0 on success, 2 on a missing or unparseable input
-#   file or a missing out dir (no verdict file is written)
+# stdout: the verdict file path.
+# exit: 0 on success, 2 on bad input: a bad report or claim,
+#   or a missing out dir (nothing is written)
 import argparse
 import json
 import subprocess
@@ -24,6 +24,7 @@ from quality_metrics import report as verdict_report
 
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H:%M:%S"
 REQUIRED_REPORT_KEYS = ("measurements", "violations")
+REQUIRED_CLAIM_KEYS = ("file", "function", "metric", "diff_path", "split_value", "rejected")
 
 
 def fail(message):
@@ -52,6 +53,13 @@ def load_exceptions(path):
     loaded = load_json(path, "exceptions file")
     if not isinstance(loaded, list):
         fail(f"exceptions file {path} must hold a JSON list")
+    for claim in loaded:
+        missing = [
+            key for key in REQUIRED_CLAIM_KEYS
+            if not isinstance(claim, dict) or key not in claim
+        ]
+        if missing:
+            fail(f"exceptions file {path} has a claim lacking {', '.join(missing)}")
     return loaded
 
 

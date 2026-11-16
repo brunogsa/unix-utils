@@ -136,6 +136,50 @@ class TestBadInputWritesNoVerdict:
         assert str(exceptions_path) in completed.stderr
         assert list(out_dir.iterdir()) == []
 
+    def test_should_exit_2_naming_the_exceptions_file_and_the_missing_key_when_a_claim_lacks_the_function_key(
+        self, tmp_path
+    ):
+        report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
+        claim_without_function = {
+            "file": "src/invoice.py",
+            "metric": "crap",
+            "diff_path": "split_reconcile_invoice.diff",
+            "split_value": 12.0,
+            "rejected": False,
+        }
+        exceptions_path = _write_json(tmp_path / "exceptions.json", [claim_without_function])
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(
+            tmp_path, "--report", str(report_path),
+            "--exceptions", str(exceptions_path), "--out-dir", str(out_dir),
+        )
+
+        assert completed.returncode == 2
+        assert str(exceptions_path) in completed.stderr
+        assert "function" in completed.stderr
+        assert "Traceback" not in completed.stderr
+        assert list(out_dir.iterdir()) == []
+
+    def test_should_exit_2_naming_the_exceptions_file_when_a_claim_is_not_a_json_object(
+        self, tmp_path
+    ):
+        report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
+        exceptions_path = _write_json(tmp_path / "exceptions.json", ["src/invoice.py"])
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(
+            tmp_path, "--report", str(report_path),
+            "--exceptions", str(exceptions_path), "--out-dir", str(out_dir),
+        )
+
+        assert completed.returncode == 2
+        assert str(exceptions_path) in completed.stderr
+        assert "Traceback" not in completed.stderr
+        assert list(out_dir.iterdir()) == []
+
     def test_should_exit_2_naming_the_directory_when_the_out_dir_does_not_exist(self, tmp_path):
         report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
         missing_dir = tmp_path / "no-such-dir"

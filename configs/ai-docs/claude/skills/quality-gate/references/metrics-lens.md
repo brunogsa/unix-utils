@@ -75,7 +75,7 @@ For each claim you were given:
 
 4. Write the rulings as a JSON list to `<RUN_DIR>/metrics-exceptions.json`, one object per claim with the keys `file`, `function`, `metric`, `diff_path`, `split_value`, `rejected`.
    - `rejected` is true when you ruled the claim rejected, false when the exception stands.
-   - [Why] `build_verdict` in `quality_metrics/report.py` reads exactly these keys, so a differently named key drops the claim from the verdict.
+   - [Why] `build_verdict` in `quality_metrics/report.py` reads exactly these keys, so a claim missing any of them makes the render exit 2.
 
 5. Render the verdict, passing `--exceptions` only when you wrote that file:
 
