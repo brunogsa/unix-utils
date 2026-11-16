@@ -284,3 +284,39 @@ class TestNoGitVerdict:
         assert "removed-code check" in skipped
         assert "base-ref" in skipped
         assert "Skipped" not in report.build_verdict(run)
+
+
+KILL_MID_WRITE = """
+import os
+import signal
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from quality_metrics import report
+
+# The temp file is fully written; the process dies before the rename.
+report.os.replace = lambda *_: os.kill(os.getpid(), signal.SIGKILL)
+report.write_verdict(sys.argv[2], sys.argv[3], "new verdict body\\n")
+"""
+
+
+class TestAtomicVerdictWrite:
+    def test_should_leave_no_partial_verdict_when_the_run_is_killed_mid_write(self, tmp_path):
+        timestamp = "2026-11-15_22-30"
+        old_verdict = tmp_path / report.verdict_filename(timestamp)
+        old_verdict.write_text("old verdict body\n")
+
+        killed = subprocess.run(
+            [sys.executable, "-c", KILL_MID_WRITE, str(SCRIPTS_DIR), str(tmp_path), timestamp]
+        )
+
+        assert killed.returncode == -9
+        assert old_verdict.read_text() == "old verdict body\n"
+        assert list(tmp_path.glob("verdict_*")) == [old_verdict]
+        leftovers = [p for p in tmp_path.iterdir() if p != old_verdict]
+        assert leftovers, "the kill must have landed after the temp write began"
+
+        written = report.write_verdict(tmp_path, timestamp, "new verdict body\n")
+
+        assert written == old_verdict
+        assert written.read_text() == "new verdict body\n"

@@ -7,6 +7,8 @@ in prose alone, or one the judge rejected, stays an open violation.
 """
 
 import itertools
+import os
+import tempfile
 from pathlib import Path
 
 from quality_metrics import hotspots
@@ -35,6 +37,25 @@ def verdict_filename(timestamp, in_git=True):
     if in_git:
         return f"verdict_metrics_{timestamp}.md"
     return f"verdict_quality-gate_no-git_{timestamp}.md"
+
+
+def write_verdict(directory, timestamp, text, in_git=True):
+    """Write the verdict into `directory` and return its path.
+
+    The text goes to a hidden temp file in the same directory, then a
+    rename, so a reader sees no verdict or the whole one. A killed run
+    leaves only the temp file, whose name never matches `verdict_*`.
+    """
+    target = Path(directory) / verdict_filename(timestamp, in_git)
+    descriptor, temp_name = tempfile.mkstemp(dir=target.parent, prefix=".verdict-tmp-")
+    try:
+        with os.fdopen(descriptor, "w") as temp_file:
+            temp_file.write(text)
+        os.replace(temp_name, target)
+    except BaseException:
+        Path(temp_name).unlink(missing_ok=True)
+        raise
+    return target
 
 
 def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
