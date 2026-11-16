@@ -60,7 +60,7 @@ DUPLICATION_MODULE = "duplication"
 DEPENDENCIES_MODULE = "dependencies"
 
 # Which module measures each metric. A declared metric with no
-# entry here has no module yet and is skipped.
+# entry here and not in SKIPPED_ON_PURPOSE fails the run.
 METRIC_MODULES = {
     "size": "size",
     "nesting": "functions",
@@ -71,6 +71,10 @@ METRIC_MODULES = {
     "test_duplication": DUPLICATION_MODULE,
     "dependency_direction": DEPENDENCIES_MODULE,
 }
+
+# No script module on purpose: the code-reviewer metrics
+# lens judges entangled_tests.
+SKIPPED_ON_PURPOSE = {"entangled_tests"}
 
 EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
 
@@ -330,8 +334,11 @@ def _metrics_binding(declaration, language, mode, path):
 def _group_by_module(metrics):
     grouped = {}
     for metric in metrics:
-        if metric in METRIC_MODULES:
-            grouped.setdefault(METRIC_MODULES[metric], []).append(metric)
+        if metric in SKIPPED_ON_PURPOSE:
+            continue
+        if metric not in METRIC_MODULES:
+            raise ToolError(f"no module measures the declared metric {metric}")
+        grouped.setdefault(METRIC_MODULES[metric], []).append(metric)
     return grouped
 
 
