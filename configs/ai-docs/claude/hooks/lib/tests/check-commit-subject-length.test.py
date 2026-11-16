@@ -639,6 +639,8 @@ class TestAttributionAcrossSeveralCommits:
             pytest.param(f'"$G" commit --allow-empty -m "{SHORT_SUBJECT}"', id="quoted-expanded-command-word"),
             pytest.param(f'${{GIT}} commit --allow-empty -m "{SHORT_SUBJECT}"', id="braced-expanded-command-word"),
             pytest.param(f'alias g=git && g commit --allow-empty -m "{SHORT_SUBJECT}"', id="alias-command-word"),
+            pytest.param(f'git ci --allow-empty -m "{SHORT_SUBJECT}"', id="unknown-git-subcommand"),
+            pytest.param(f'git --config-env=alias.ci=GIT_ALIAS ci -m "{SHORT_SUBJECT}"', id="alias-from-config-env"),
         ],
     )
     def test_should_withhold_the_verdict_when_any_commit_cannot_be_read(self, unreadable_commit):

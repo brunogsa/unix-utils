@@ -819,6 +819,35 @@ it_should_allow_a_command_whose_paths_only_contain_the_word_commit() {
   done
 }
 
+# A git alias can map any name that is not a git command to
+# commit, from -c, --config-env or the repo's own config.
+it_should_block_a_commit_run_through_a_git_alias() {
+  local cmd
+  for cmd in \
+    'git ci -m msg' \
+    'git -c alias.ci=commit ci -m msg' \
+    "git -c alias.ci='!git commit' ci" \
+    'git --config-env=alias.ci=GIT_ALIAS ci' \
+    'git -c alias.status=commit status' \
+    'git -C /tmp/x ci -m msg'; do
+    run_hook "$cmd"
+    assert_eq "should block a commit run through a git alias: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_allow_a_git_command_no_alias_can_shadow() {
+  local cmd
+  for cmd in \
+    'git log --oneline -5' \
+    'git diff --stat' \
+    'git show HEAD' \
+    'git add notes.md' \
+    'git -C /tmp/x log'; do
+    run_hook "$cmd"
+    assert_eq "should allow a git command no alias can shadow: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -901,6 +930,8 @@ it_should_allow_a_heredoc_message_whose_last_paragraph_is_the_attribution
 it_should_block_a_command_whose_first_commit_cannot_be_read
 it_should_block_a_commit_run_through_an_unknown_command_word
 it_should_allow_a_command_whose_paths_only_contain_the_word_commit
+it_should_block_a_commit_run_through_a_git_alias
+it_should_allow_a_git_command_no_alias_can_shadow
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

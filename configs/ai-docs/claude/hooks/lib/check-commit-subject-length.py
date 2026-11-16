@@ -81,6 +81,31 @@ NO_COMMIT_VERDICT = "no-commit"
 # read, as eval "git commit ..." or bash -c '...' would.
 GIT_COMMIT_MENTION = re.compile(r"\bgit\b.*" + STANDALONE_COMMIT.pattern, re.DOTALL)
 
+# git ignores an alias named like one of its own commands, so
+# each of these runs git's own; any other name may be an alias
+# for commit. commit-tree is left out: it writes a commit too.
+UNALIASABLE_GIT_COMMANDS = frozenset(
+    {
+        "add", "am", "apply", "archive", "bisect", "blame", "branch",
+        "cat-file", "check-ignore", "checkout", "cherry-pick", "clean",
+        "clone", "config", "describe", "diff", "fetch", "for-each-ref",
+        "format-patch", "fsck", "gc", "grep", "help", "init",
+        "interpret-trailers", "log", "ls-files", "ls-remote", "ls-tree",
+        "merge", "merge-base", "mv", "notes", "pull", "push",
+        "range-diff", "rebase", "reflog", "remote", "reset", "restore",
+        "rev-list", "rev-parse", "revert", "rm", "shortlog", "show",
+        "show-ref", "sparse-checkout", "stash", "status", "submodule",
+        "switch", "symbolic-ref", "tag", "update-index", "update-ref",
+        "var", "version", "worktree",
+    }
+)
+ALIAS_CONFIG_SECTION = "alias."
+ALIAS_SETTING_TEXT = re.compile(r"(?<![\w.-])alias\.", re.IGNORECASE)
+
+# git, its global options, then the name it runs, read from
+# the raw text of a command the lexer cannot split.
+GIT_SUBCOMMAND_TEXT = re.compile(r"(?<![\w.-])git(?:\s+-\S+(?:\s+[^\s-]\S*)?)*?\s+([^\s-]\S*)")
+
 # A --trailer value may use = where a message trailer uses :.
 ATTRIBUTION_TRAILER = re.compile(r"co-authored-by\s*[:=].*claude", re.IGNORECASE)
 
@@ -452,11 +477,12 @@ def _is_cleanup_setting(setting):
 
 
 def _is_unsafe_setting(words, setting_index):
-    """True when the -c value is missing or may change the
-    message."""
+    """True when the -c value is missing, may change the
+    message, or sets an alias that may run commit."""
     if setting_index >= len(words):
         return True
-    return _is_cleanup_setting(words[setting_index].text)
+    setting = words[setting_index].text
+    return _is_cleanup_setting(setting) or setting.lower().startswith(ALIAS_CONFIG_SECTION)
 
 
 def _subcommand_index(words, index):
@@ -738,17 +764,34 @@ def _names_commit(words):
     return COMMIT_WORD in texts or bool(GIT_COMMIT_MENTION.search(" ".join(texts)))
 
 
+def _may_git_run_commit(words, options_start):
+    """True when git may run commit: through a global option it
+    cannot read or one setting an alias, or through a name that
+    is not one of git's own commands."""
+    index = _subcommand_index(words, options_start)
+    if index is None:
+        return True
+    subcommand = words[index]
+    return subcommand.is_expandable or subcommand.text not in UNALIASABLE_GIT_COMMANDS
+
+
 def _may_run_commit(stage):
     """True when a stage may run git commit."""
-    if _commit_subcommand_index(stage.words) is not None:
-        return True
-    return _names_commit(stage.words)
+    words = stage.words
+    index = _command_word_index(words)
+    is_plain_git = index is not None and not words[index].is_expandable and words[index].text == "git"
+    if not is_plain_git:
+        return _names_commit(words)
+    return _may_git_run_commit(words, index + 1)
 
 
 def _may_text_run_commit(command):
     """True when a command the lexer cannot split may run git
     commit, judged from its raw text."""
-    return bool(STANDALONE_COMMIT.search(command))
+    if STANDALONE_COMMIT.search(command) or ALIAS_SETTING_TEXT.search(command):
+        return True
+    names = GIT_SUBCOMMAND_TEXT.findall(command)
+    return any(name not in UNALIASABLE_GIT_COMMANDS for name in names)
 
 
 def _read_commit_stages(command, cwd):
