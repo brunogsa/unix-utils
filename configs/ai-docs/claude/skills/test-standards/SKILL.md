@@ -390,7 +390,7 @@ it('shows expired badge when past deadline', () => {
 - [Instruction] **CRITICAL: Let the system under test do the work - the test must encode an independent expectation, not recompute what the code does.**
   - [Why] If the test reproduces the logic, both move together: a production bug gets mirrored in the test and still passes.
 
-  - [Example] A test that still passes when every function under test returns nothing encodes no expectation - throw it out.
+  - [Example] Bad: a test that still passes when every function under test returns nothing - it encodes no expectation.
 
 [Example]
 ```ts
