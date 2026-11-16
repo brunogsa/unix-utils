@@ -192,3 +192,26 @@ class TestUnplannedTests:
         listed = _listed(repo, _plan(tmp_path), base)
 
         assert [row["title"] for row in listed] == ["rejects an empty row"]
+
+    def test_should_emit_nothing_when_every_added_test_matches_a_planned_title(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/parse.test.ts",
+            _it_lines_at(5, "parses a quoted field", "sums a column"),
+        )
+        _write(
+            repo,
+            "tests/export.test.ts",
+            _it_lines_at(9, "handles a trailing newline"),
+        )
+        _commit(repo, "test: csv tests the plan names", GATE_TRAILER)
+
+        completed = _run(repo, _plan(tmp_path), base)
+
+        assert completed.returncode == 0, completed.stderr
+        assert json.loads(completed.stdout) == []
