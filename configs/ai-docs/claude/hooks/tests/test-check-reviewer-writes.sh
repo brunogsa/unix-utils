@@ -197,6 +197,19 @@ assert_eq "blocks tee, sed -i or a redirect into a repo file when a backslash-ne
 assert_eq "blocks a write whose single-quoted text holds a backslash before a line break" \
   "2" "$(run_bash $'echo \'x\\\n\' > /tmp/y')"
 
+# GNU sed takes any unambiguous prefix of a long option, so
+# `--i`, `--in` and `--in-pl` all mean --in-place.
+prefixed_flag_writes=('gsed --in-pl s/a/b/ src/a.py'
+  'sed --in s/a/b/ src/a.py' 'sed --i s/a/b/ src/a.py'
+  'sed --i=.bak s/a/b/ src/a.py')
+allowed_prefixed_flag=""
+for c in "${prefixed_flag_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_prefixed_flag="$allowed_prefixed_flag [$c]"
+done
+assert_eq "blocks an in-place sed edit spelled as a shortened --in-place option" \
+  "" "$allowed_prefixed_flag"
+
 # A quoted backslash stays in the path, so this writes the
 # repo-relative `\/tmp/x`, never /tmp/x.
 assert_eq "blocks tee into a repo path that starts with a quoted backslash before /tmp" \
