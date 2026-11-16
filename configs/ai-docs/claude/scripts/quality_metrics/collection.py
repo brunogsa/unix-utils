@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Optional
 
 from quality_metrics.crap import parse_lcov
+from quality_metrics.dependencies import head_tree
 from quality_metrics.failures import TimeoutPolicy, ask_or_defer
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.sourcing import (
@@ -106,11 +107,15 @@ class CoverageRun:
 
     `sources` gets one entry per language measured, naming the
     tool and the repo gap; `asks` gets one entry per ask raised.
+
+    With a `head_ref`, tests run on an export of that ref, so an
+    uncommitted file cannot change the coverage of the range.
     """
 
     repo_dir: Path
     tool_map: Optional[LazyToolMap] = None
     base_ref: Optional[str] = None
+    head_ref: Optional[str] = None
     policy: Optional[TimeoutPolicy] = None
     environ: Optional[dict] = None
     sources: list = field(default_factory=list, init=False)
@@ -137,32 +142,34 @@ class CoverageRun:
 
     def _measure(self, language, collector):
         choice = source_for("coverage", self.tool_map, language)
-        if choice["source"]["tool"] in REPO_COVERAGE_RUNNERS:
-            return self._measure_with_repo_tool(language, collector, choice["source"])
-        return self._measure_globally(language, collector, choice["side_pr_candidate"])
+        with head_tree(self.repo_dir, self.head_ref) as tree:
+            if choice["source"]["tool"] in REPO_COVERAGE_RUNNERS:
+                return self._measure_with_repo_tool(language, choice["source"], tree)
+            return self._measure_globally(language, choice["side_pr_candidate"], tree)
 
-    def _measure_with_repo_tool(self, language, collector, source):
+    def _measure_with_repo_tool(self, language, source, tree):
         tool = source["tool"]
         try:
-            run = run_repo_coverage_under_policy(tool, self.repo_dir, self.policy, self.base_ref)
+            run = run_repo_coverage_under_policy(tool, tree, self.policy, self.base_ref)
         except RepoToolFailure as failure:
             if failure.exit_class == FAILED_TESTS:
                 return _Measured(RED_BUILD, FAILED_TESTS, source, None)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
-            return self._measure_globally(language, collector, f"repo {tool} {reason}", failure.exit_class)
-        result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)
+            return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
+        result = CoverageResult(_normalized_hits(tree, run["hits_by_file"], ""), False)
         return _Measured(result, run["exit_class"], source, None)
 
-    def _measure_globally(self, language, collector, side_pr_candidate, exit_class=None):
+    def _measure_globally(self, language, side_pr_candidate, tree, exit_class=None):
         tool = global_tool_for("coverage", language)
         source = {"kind": "global", "tool": tool}
-        return _Measured(self._collect_globally(collector, tool), exit_class, source, side_pr_candidate)
+        collector = COLLECTORS[language]
+        return _Measured(self._collect_globally(collector, tool, tree), exit_class, source, side_pr_candidate)
 
-    def _collect_globally(self, collector, tool):
+    def _collect_globally(self, collector, tool, tree):
         if self.tool_map is not None and tool in self.tool_map.entry()["deferred"]:
             return DEFERRED_COVERAGE
         try:
-            return collector(self.repo_dir)
+            return collector(tree)
         except ToolError as error:
             return self._defer_after_failure(tool, error)
 

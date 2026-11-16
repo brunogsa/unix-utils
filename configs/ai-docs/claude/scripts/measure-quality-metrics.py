@@ -110,7 +110,7 @@ def main(arguments):
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = _range_ends(options.diff)[1] if options.diff else None
-        coverage_run = _coverage_run_for(options, judged_against)
+        coverage_run = _coverage_run_for(options, judged_against, head_ref)
         layer_map = (
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
@@ -193,16 +193,18 @@ def _add_tool_map_arguments(parser):
                         help="directory holding the tool map (default: /tmp)")
 
 
-def _coverage_run_for(options, judged_against):
+def _coverage_run_for(options, judged_against, head_ref):
     """The coverage run; with a session id it reads the
     repo's tool map."""
     if options.session_id is None:
-        return CoverageRun(Path.cwd())
+        return CoverageRun(Path.cwd(), head_ref=head_ref)
     tool_map = lazy_tool_map_for(
         Path.cwd(), load_detector_rules(DETECTOR_RULES_PATH),
         options.session_id, options.map_dir, judged_against,
     )
-    return CoverageRun(Path.cwd(), tool_map, base_ref=judged_against)
+    return CoverageRun(
+        Path.cwd(), tool_map, base_ref=judged_against, head_ref=head_ref
+    )
 
 
 def _targets_from(options):

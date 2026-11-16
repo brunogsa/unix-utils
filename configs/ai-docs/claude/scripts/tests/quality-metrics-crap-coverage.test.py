@@ -641,6 +641,30 @@ class TestRemovedFunctionScoredAtBase:
         ] == [("legacy.py", "legacy_parse", "crap", 30)]
 
 
+class TestDiffCoverageOnHeadRefExport:
+    def test_should_read_the_head_ref_coverage_when_an_uncommitted_test_file_breaks_pytest_collection(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "invoice_totals.py": SOURCE_BASE,
+            TEST_FILE_NAME: TEST_FILE_TEXT.format(expected=90.0),
+        })
+        base = head_of(repo)
+        (repo / "invoice_totals.py").write_text(SOURCE_CHANGED)
+        commit_all(repo, "discount a positive rate")
+        (repo / "test_untracked_draft.py").write_text("def broken(:\n")
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(RUN_DECLARATION_TEXT)
+
+        result = run_measure(
+            repo, declaration_path, "--diff", f"{base}...HEAD"
+        )
+
+        (coverage_record,) = records_for(result, "coverage")
+        assert coverage_record["value"] == 100
+        assert "pessimistic" not in coverage_record
+
+
 class TestWorkingTreeDifferingFromHeadRef:
     def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
         self, tmp_path
