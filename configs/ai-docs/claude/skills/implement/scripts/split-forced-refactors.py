@@ -294,21 +294,17 @@ def move_forced_refactors(arguments, report):
         feature_branch=arguments.feature_branch,
     )
     if conflicting_operation is not None:
-        report.update(
-            get_conflict_report_fields(
-                arguments, conflicting_operation, report
-            )
+        return get_conflict_report_fields(
+            arguments, conflicting_operation, report
         )
-        return
-    report.update(
-        get_moved_report_fields(
-            arguments.refactor_branch, arguments.feature_branch
-        )
+    fields = get_moved_report_fields(
+        arguments.refactor_branch, arguments.feature_branch
     )
     if plan_update is not None:
         plan_text, label = plan_update
         write_text_atomically(arguments.plan, plan_text, PLAN_TEMP_PREFIX)
-        report["pr_entry"] = label
+        fields["pr_entry"] = label
+    return fields
 
 
 def main(argv):
@@ -322,7 +318,7 @@ def main(argv):
     files, lines = sum_changed_files_and_lines(arguments.repo, shas)
     report = get_kept_report(shas, files, lines)
     if files > MAX_FILES or lines > MAX_CHANGED_LINES:
-        move_forced_refactors(arguments, report)
+        report.update(move_forced_refactors(arguments, report))
     print(json.dumps(report))
     return 0
 
