@@ -143,12 +143,8 @@ def test_should_list_every_touched_function_as_a_pessimistic_crap_violation_when
     assert holds_commit(records) is False
 
 
-def test_should_list_a_file_with_no_language_entry_as_not_measured_and_scored_pessimistically_after_an_ask(
-    tmp_path,
-):
-    repo = make_repo(tmp_path, {"lib/convert.rb": "def convert(value)\n  value.to_s\nend\n"})
-    base_sha = head_of(repo)
-    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+def python_only_declaration(tmp_path):
+    """A declaration whose only language entry is Python."""
     declaration_path = tmp_path / "quality-metrics.yaml"
     declaration_path.write_text(
         "excluded_paths: []\n"
@@ -159,7 +155,16 @@ def test_should_list_a_file_with_no_language_entry_as_not_measured_and_scored_pe
         "    extensions: [.py]\n"
         "    metrics: [crap, size]\n"
     )
-    declaration = load_declaration(declaration_path)
+    return load_declaration(declaration_path)
+
+
+def test_should_list_a_file_with_no_language_entry_as_not_measured_and_scored_pessimistically_after_an_ask(
+    tmp_path,
+):
+    repo = make_repo(tmp_path, {"lib/convert.rb": "def convert(value)\n  value.to_s\nend\n"})
+    base_sha = head_of(repo)
+    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+    declaration = python_only_declaration(tmp_path)
 
     before_defer = measure_language_entry_or_ask(
         declaration, "lib/convert.rb", tool_map, environ=INTERACTIVE_SESSION

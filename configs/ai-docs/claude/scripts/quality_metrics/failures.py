@@ -258,15 +258,24 @@ class TimeoutPolicy:
             try:
                 return attempt(self.timeout_seconds)
             except subprocess.TimeoutExpired as error:
-                waited_before = waited_seconds
-                waited_seconds = self._wait_for_headroom(waited_seconds, error)
-                if waited_seconds > waited_before:
-                    continue
-                genuine_timeouts += 1
-                if genuine_timeouts == GENUINE_TIMEOUTS_ALLOWED:
-                    raise ToolTimedOutTwice(
-                        f"{error.cmd} ran past {self.timeout_seconds}s on both attempts"
-                    ) from error
+                waited_seconds, genuine_timeouts = self._count_timeout(
+                    error, waited_seconds, genuine_timeouts
+                )
+
+    def _count_timeout(self, error, waited_seconds, genuine_timeouts):
+        """`(waited_seconds, genuine_timeouts)` after one more timeout.
+
+        A timeout followed by a wait for headroom does not count.
+        Raises ToolTimedOutTwice once the genuine timeouts run out.
+        """
+        waited_after = self._wait_for_headroom(waited_seconds, error)
+        if waited_after > waited_seconds:
+            return waited_after, genuine_timeouts
+        if genuine_timeouts + 1 == GENUINE_TIMEOUTS_ALLOWED:
+            raise ToolTimedOutTwice(
+                f"{error.cmd} ran past {self.timeout_seconds}s on both attempts"
+            ) from error
+        return waited_after, genuine_timeouts + 1
 
     def _wait_for_headroom(self, waited_seconds, timeout_error):
         """Block until headroom is GO; return the total seconds waited."""
