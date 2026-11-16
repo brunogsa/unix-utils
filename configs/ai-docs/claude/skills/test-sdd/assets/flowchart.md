@@ -24,8 +24,9 @@ def test_sdd(arg):
     if not each_id_matched_exactly_one(tasks):             # 5
         return stop(the_id_that_missed_or_the_collision)   # 5a · a collision = malformed plan
 
-    # 6 · Step 3 - minted in CWD, one per run, never reused.
-    verdict_path = f"verdict_test-sdd_{now('%Y-%m-%d_%H:%M')}.md"
+    # 6 · Step 3 - minted in --out-dir when given, else CWD; one per run, never reused.
+    name = f"verdict_test-sdd_{now('%Y-%m-%d_%H:%M')}.md"
+    verdict_path = join(arg.out_dir, name) if arg.out_dir else name
 
     # 7 · Step 4 - ONE test-reviewer, agent-pinned, background, fresh context.
     dispatch("test-reviewer", plan, tasks, verdict_path)
@@ -89,7 +90,7 @@ flowchart TD
   n4["4. Step 2 · Resolve task-ids: every ### N. heading<br/>by default, else exact-match the arg's ids;<br/>record each task's status marker"]
   n5{"5. Every id matched exactly one heading?"}
   n5a(["5a. Stop: name the id that missed,<br/>or the collision (malformed plan)"])
-  n6["6. Step 3 · Mint VERDICT_PATH in CWD:<br/>date +verdict_test-sdd_%Y-%m-%d_%H:%M.md<br/>(one per run, never reused)"]:::state
+  n6["6. Step 3 · Mint VERDICT_PATH in --out-dir<br/>when given, else in CWD:<br/>date +verdict_test-sdd_%Y-%m-%d_%H:%M.md<br/>(one per run, never reused)"]:::state
   n7["7. Step 4 · Dispatch ONE test-reviewer<br/>(agent-pinned, background, fresh context)"]:::dispatch
   n7a["7a. Hook: check-reviewer-writes<br/>(only verdict_*.md writes are approved)"]:::hook
 

@@ -15,7 +15,7 @@ Fixing what it finds is a separate step, run by hand or by `/quality-gate`, whic
 ## Usage
 
 ```
-/test-sdd [plan-file] [task-ids] [--base-ref <ref>]
+/test-sdd [plan-file] [task-ids] [--base-ref <ref>] [--out-dir <dir>]
 ```
 
 - `plan-file` - the plan to check. Omit it, or pass the bare word `plan`, to discover `plan_*.md` in CWD.
@@ -23,6 +23,9 @@ Fixing what it finds is a separate step, run by hand or by `/quality-gate`, whic
 
 - `--base-ref <ref>` - the ref the branch's added tests are measured from, for the unplanned-tests finding (§5, §6). Omit it and run `~/.claude/scripts/resolve-base-ref.sh`, the same default `/quality-gate` uses.
   - A caller that already knows its range, as `/quality-gate` does, passes it here, so both skills diff the same range.
+
+- `--out-dir <dir>` - the directory the verdict file is written to. Omit it and it lands in CWD.
+  - `/quality-gate` passes its run dir, so the merged quality-gate verdict is the only file left in CWD.
 
 Examples:
 
@@ -76,7 +79,9 @@ The marker never changes whether a task is checked - it is carried into the repo
 
 ## 3. Mint the verdict path
 
-Run `date "+verdict_test-sdd_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD - never `/tmp/`, since the user reads it alongside the plan in their editor.
+Run `date "+verdict_test-sdd_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as the file name, and set `$VERDICT_PATH` to that name inside `--out-dir` when it was given, otherwise in CWD.
+
+Standalone (no `--out-dir`), never use `/tmp/`, since the user reads the file alongside the plan in their editor. With `--out-dir` the file lands in `/tmp/` on purpose, and the user reads the merged quality-gate verdict instead.
 
 The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes
 are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.

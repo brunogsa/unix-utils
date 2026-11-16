@@ -13,7 +13,8 @@ Why each rule holds: [`design-rationale.md`](design-rationale.md).
 
 Read every `verdict_quality-gate_*.md` in CWD - all of them, not the newest per lens.
 
-- Other verdict files are out of scope here: an `[AI!]` or `[AI!: <message>]` in `verdict_test-sdd_*` or a standalone lens file does not fire.
+- Other verdict files are out of scope here: an `[AI!]` or `[AI!: <message>]` in a standalone `verdict_test-sdd_*` or lens file does not fire.
+  - A quality-gate run writes no `verdict_test-sdd_*` in CWD: its test-sdd findings sit in the merged quality-gate file as `[test-sdd]` entries, where marks do fire.
   - List each such ignored tag in §6's report, so the human knows it never ran.
 
   - Name such a finding through an explicit list instead, which runs on the current branch only.
