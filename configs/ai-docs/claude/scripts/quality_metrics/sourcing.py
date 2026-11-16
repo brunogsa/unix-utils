@@ -55,8 +55,6 @@ FALL_THROUGH_REASONS = {
 }
 
 JEST, PYTEST_COV = "jest", "pytest-cov"
-REPO_COVERAGE_SOURCE = {"kind": "repo", "tool": JEST}
-PYTEST_COV_SOURCE = {"kind": "repo", "tool": PYTEST_COV}
 
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
@@ -122,22 +120,6 @@ def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
     return LazyToolMap(repo, base_sha, rules, session_id, map_dir)
 
 
-def run_repo_jest_under_policy(repo, policy, base_ref=None):
-    """The repo jest's coverage run, bounded by `policy`'s timeout.
-
-    Raises RepoToolFailure naming how jest failed: a timeout on
-    both attempts is TIMEOUT, any other tool error is CRASH.
-    """
-    try:
-        return policy.run(lambda timeout_seconds: run_repo_jest(repo, timeout_seconds, base_ref))
-    except ToolTimedOutTwice as error:
-        raise RepoToolFailure(TIMEOUT, str(error)) from error
-    except RepoToolFailure:
-        raise
-    except ToolError as error:
-        raise RepoToolFailure(CRASH, str(error)) from error
-
-
 @contextmanager
 def _base_ref_config_flags(repo, base_ref):
     """jest's flags for the config as `base_ref` committed it.
@@ -183,21 +165,6 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
         return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
 
 
-def run_repo_pytest_cov_under_policy(repo, policy, base_ref=None):
-    """The repo pytest-cov's coverage run, bounded by `policy`'s timeout.
-
-    Raises RepoToolFailure the way run_repo_jest_under_policy does.
-    """
-    try:
-        return policy.run(lambda timeout_seconds: run_repo_pytest_cov(repo, timeout_seconds, base_ref))
-    except ToolTimedOutTwice as error:
-        raise RepoToolFailure(TIMEOUT, str(error)) from error
-    except RepoToolFailure:
-        raise
-    except ToolError as error:
-        raise RepoToolFailure(CRASH, str(error)) from error
-
-
 def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
     """One coverage run of the repo's pytest: how it exited, and every file's line hits.
 
@@ -226,6 +193,27 @@ def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "pytest-cov wrote no lcov report")
         return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
+
+
+# The coverage runner of each repo tool the harness can run.
+REPO_COVERAGE_RUNNERS = {JEST: run_repo_jest, PYTEST_COV: run_repo_pytest_cov}
+
+
+def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None):
+    """The repo `tool`'s coverage run, bounded by `policy`'s timeout.
+
+    Raises RepoToolFailure naming how the tool failed: a timeout on
+    both attempts is TIMEOUT, any other tool error is CRASH.
+    """
+    run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
+    try:
+        return policy.run(lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref))
+    except ToolTimedOutTwice as error:
+        raise RepoToolFailure(TIMEOUT, str(error)) from error
+    except RepoToolFailure:
+        raise
+    except ToolError as error:
+        raise RepoToolFailure(CRASH, str(error)) from error
 
 
 def classify_exit(result):

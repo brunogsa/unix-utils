@@ -24,15 +24,11 @@ from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
-    JEST,
-    PYTEST_COV,
-    PYTEST_COV_SOURCE,
     PYTEST_NO_TESTS_EXIT,
-    REPO_COVERAGE_SOURCE,
+    REPO_COVERAGE_RUNNERS,
     RepoToolFailure,
     global_tool_for,
-    run_repo_jest_under_policy,
-    run_repo_pytest_cov_under_policy,
+    run_repo_coverage_under_policy,
     source_for,
 )
 from quality_metrics.tool_map import LazyToolMap
@@ -94,9 +90,10 @@ class _Measured:
 class CoverageRun:
     """Measures each language's coverage at most once per measuring run.
 
-    The repo's own jest runs first, once, for every language it
-    measures; any other language, or a jest that crashed, timed out or
-    wrote no coverage data, runs the global collector. A failing global
+    The repo's own jest or pytest-cov runs first, once, for every
+    language it measures; any other language, or a repo tool that
+    crashed, timed out or wrote no coverage data, runs the global
+    collector. A failing global
     collector asks (or defers on the spot in a session that cannot ask)
     and reads as deferred coverage. Failing tests are a red build.
 
@@ -133,33 +130,21 @@ class CoverageRun:
 
     def _measure(self, language, collector):
         choice = source_for("coverage", self.tool_map, language)
-        if choice["source"]["tool"] == JEST:
-            return self._measure_with_repo_jest(language, collector)
-        if choice["source"]["tool"] == PYTEST_COV:
-            return self._measure_with_repo_pytest_cov(language, collector)
+        if choice["source"]["tool"] in REPO_COVERAGE_RUNNERS:
+            return self._measure_with_repo_tool(language, collector, choice["source"])
         return self._measure_globally(language, collector, choice["side_pr_candidate"])
 
-    def _measure_with_repo_pytest_cov(self, language, collector):
+    def _measure_with_repo_tool(self, language, collector, source):
+        tool = source["tool"]
         try:
-            run = run_repo_pytest_cov_under_policy(self.repo_dir, self.policy, self.base_ref)
+            run = run_repo_coverage_under_policy(tool, self.repo_dir, self.policy, self.base_ref)
         except RepoToolFailure as failure:
             if failure.exit_class == FAILED_TESTS:
-                return _Measured(RED_BUILD, FAILED_TESTS, PYTEST_COV_SOURCE, None)
+                return _Measured(RED_BUILD, FAILED_TESTS, source, None)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
-            return self._measure_globally(language, collector, f"repo pytest-cov {reason}", failure.exit_class)
+            return self._measure_globally(language, collector, f"repo {tool} {reason}", failure.exit_class)
         result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)
-        return _Measured(result, run["exit_class"], PYTEST_COV_SOURCE, None)
-
-    def _measure_with_repo_jest(self, language, collector):
-        try:
-            run = run_repo_jest_under_policy(self.repo_dir, self.policy, self.base_ref)
-        except RepoToolFailure as failure:
-            if failure.exit_class == FAILED_TESTS:
-                return _Measured(RED_BUILD, FAILED_TESTS, REPO_COVERAGE_SOURCE, None)
-            reason = FALL_THROUGH_REASONS[failure.exit_class]
-            return self._measure_globally(language, collector, f"repo jest {reason}", failure.exit_class)
-        result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)
-        return _Measured(result, run["exit_class"], REPO_COVERAGE_SOURCE, None)
+        return _Measured(result, run["exit_class"], source, None)
 
     def _measure_globally(self, language, collector, side_pr_candidate, exit_class=None):
         tool = global_tool_for("coverage", language)
