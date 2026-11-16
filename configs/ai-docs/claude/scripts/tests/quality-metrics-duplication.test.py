@@ -223,6 +223,17 @@ def test_{name}():
     assert calculator.is_empty()
 """
 
+EIGHT_LINE_TEST = """\
+def test_{name}():
+    calculator = Calculator()
+    calculator.reset()
+    result = calculator.add({first}, {second})
+    assert result == {total}
+    assert calculator.history == [{total}]
+    calculator.clear()
+    assert calculator.history == []
+"""
+
 
 class TestDuplicatedTests:
     def test_should_flag_two_tests_sharing_a_9_line_block_as_duplicated_tests(self, tmp_path):
@@ -242,6 +253,21 @@ class TestDuplicatedTests:
             ("test_duplication", "tests/test_adds_two.py"),
             ("test_duplication", "tests/test_adds_other.py"),
         }
+
+    def test_should_not_flag_two_tests_sharing_only_an_8_line_block(self, tmp_path):
+        violations = measure_files(
+            tmp_path,
+            {
+                "tests/test_adds_two.py": EIGHT_LINE_TEST.format(
+                    name="adds_two", first=2, second=3, total=5
+                ),
+                "tests/test_adds_other.py": EIGHT_LINE_TEST.format(
+                    name="adds_other", first=7, second=8, total=15
+                ),
+            },
+        )
+
+        assert violations == []
 
     @pytest.mark.parametrize(
         "folder, prefix, flagged_metrics",
