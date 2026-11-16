@@ -205,26 +205,38 @@ def _problems_from_import_linter(output, tree, package_roots):
             continue
         layer_edge = LAYER_EDGE_LINE.match(line)
         if layer_edge and layer_rule:
-            importer, imported = layer_edge.groups()
-            problems.append(layer_problem(
-                layer_rule,
-                _module_to_file(tree, package_roots, importer),
-                _module_to_file(tree, package_roots, imported),
+            problems.append(_layer_edge_problem(
+                layer_rule, layer_edge.groups(), tree, package_roots
             ))
             continue
         edge_match = CONTRACT_EDGE_LINE.match(line)
         if edge_match and root:
-            importer, imported = edge_match.groups()
-            package_dir = _module_dir(package_roots, root)
-            problems.append(cycle_problem(
-                (root, importer, imported),
-                f"{root}.{importer} -> {root}.{imported}",
-
-                # A sibling: package dir or module file.
-                [
-                    f"{package_dir}/{sibling}{suffix}"
-                    for sibling in (importer, imported)
-                    for suffix in ("/", ".py")
-                ],
+            problems.append(_cycle_edge_problem(
+                root, edge_match.groups(), package_roots
             ))
     return problems
+
+
+def _layer_edge_problem(layer_rule, edge, tree, package_roots):
+    importer, imported = edge
+    return layer_problem(
+        layer_rule,
+        _module_to_file(tree, package_roots, importer),
+        _module_to_file(tree, package_roots, imported),
+    )
+
+
+def _cycle_edge_problem(root, edge, package_roots):
+    importer, imported = edge
+    package_dir = _module_dir(package_roots, root)
+    return cycle_problem(
+        (root, importer, imported),
+        f"{root}.{importer} -> {root}.{imported}",
+
+        # A sibling: package dir or module file.
+        [
+            f"{package_dir}/{sibling}{suffix}"
+            for sibling in (importer, imported)
+            for suffix in ("/", ".py")
+        ],
+    )
