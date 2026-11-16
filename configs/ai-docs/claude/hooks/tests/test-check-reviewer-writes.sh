@@ -137,6 +137,25 @@ assert_eq "blocks tee into a repo file separated from the word before it by a ta
 assert_eq "allows tee into two /tmp files separated by a tab" \
   "0" "$(run_bash $'echo x | tee /tmp/a\t/tmp/b')"
 
+# The shell runs tee whether it is named bare, by a path, after
+# a backslash or as the first word of a subshell.
+prefixed_tee_writes=('echo x | /usr/bin/tee src/a.py'
+  'echo x | ./tee src/a.py' 'echo x | \tee src/a.py'
+  'echo x | (tee src/a.py)')
+allowed_prefixed_tee=""
+for c in "${prefixed_tee_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_prefixed_tee="$allowed_prefixed_tee [$c]"
+done
+assert_eq "blocks tee into a repo file when tee is named by a path, a backslash or a subshell" \
+  "" "$allowed_prefixed_tee"
+
+assert_eq "blocks an in-place sed edit when sed is named by its path" \
+  "2" "$(run_bash '/usr/bin/sed -i s/a/b/ src/a.py')"
+
+assert_eq "allows tee named by its path into a /tmp file" \
+  "0" "$(run_bash 'echo x | /usr/bin/tee /tmp/x')"
+
 assert_eq "allows a plain grep" \
   "0" "$(run_bash 'grep -rn foo src')"
 
