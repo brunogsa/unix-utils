@@ -33,6 +33,7 @@
 # runner that stops at the first failure hides the
 # other 36.
 
+import fnmatch
 import glob
 import os
 import shutil
@@ -61,6 +62,11 @@ NODE_SUITE_GLOBS = (
     "configs/ai-docs/claude/hooks/tests/*.test.js",
     "configs/ai-docs/claude/skills/*/scripts/tests/*.test.js",
 )
+
+# What a path argument may name, one kind per runner.
+BASH_SUITE_FILENAME_PATTERN = "test-*.sh"
+NODE_SUITE_SUFFIX = ".test.js"
+PYTHON_SUITE_SUFFIX = ".py"
 
 # Run serially, the suites averaged 0.55 of this machine's
 # 12 cores (182 s CPU over 333 s wall-clock), so four at a
@@ -324,8 +330,56 @@ def discover_suites(patterns):
                 yield match
 
 
-def run_all_suites(log_dir, stop_request):
+def get_unusable_path_reason(path):
+    if not os.path.isfile(path):
+        return "no such file"
+    filename = os.path.basename(path)
+    if not (
+        is_bash_suite_path(path) or filename.endswith((NODE_SUITE_SUFFIX, PYTHON_SUITE_SUFFIX))
+    ):
+        return (
+            f"not a suite: expected {BASH_SUITE_FILENAME_PATTERN}, "
+            f"*{NODE_SUITE_SUFFIX} or *{PYTHON_SUITE_SUFFIX}"
+        )
+    return None
+
+
+def report_unusable_paths(given_paths, relative_paths, repo_root):
+    """Print each unusable path to stderr; return whether any was."""
+    found_unusable = False
+    for given, relative in zip(given_paths, relative_paths):
+        reason = get_unusable_path_reason(os.path.join(repo_root, relative))
+        if reason:
+            print(f"run-tests.py: {given}: {reason}", file=sys.stderr, flush=True)
+            found_unusable = True
+    return found_unusable
+
+
+def is_bash_suite_path(path):
+    return fnmatch.fnmatch(os.path.basename(path), BASH_SUITE_FILENAME_PATTERN)
+
+
+def get_named_entries(paths):
+    """Return one (suite, command) pair per named bash or node file, then
+    one pytest pair over every named python file."""
+    entries = []
+    python_paths = []
+    for path in paths:
+        if is_bash_suite_path(path):
+            entries.append((path, ["bash", path]))
+        elif path.endswith(NODE_SUITE_SUFFIX):
+            entries.append((path, ["node", "--test", path]))
+        else:
+            python_paths.append(path)
+    if python_paths:
+        entries.append(("pytest", ["pytest", *python_paths]))
+    return entries
+
+
+def run_all_suites(log_dir, stop_request, named_paths):
     tally = Tally()
+    if named_paths:
+        return run_suite_entries(get_named_entries(named_paths), log_dir, tally, stop_request)
     entries = [(suite, ["bash", suite]) for suite in discover_suites(BASH_SUITE_GLOBS)]
 
     # One entry per node file, unlike the single pytest
@@ -343,7 +397,10 @@ def run_all_suites(log_dir, stop_request):
     # as one more suite and its failures replay like a
     # bash suite's.
     entries.append(("pytest", ["pytest"]))
+    return run_suite_entries(entries, log_dir, tally, stop_request)
 
+
+def run_suite_entries(entries, log_dir, tally, stop_request):
     # Named by index, not by the suite path: two trees can
     # hold a suite of the same name, and flattening the path
     # would collide their logs.
@@ -378,6 +435,11 @@ def main():
     # caller's, so the globs resolve the same from any
     # subdirectory. Not resolved through symlinks.
     repo_root = os.path.dirname(os.path.abspath(__file__))
+
+    # Path arguments are the caller's, so they resolve against
+    # the caller's directory before the chdir below, then name
+    # each suite relative to the repo root.
+    named_paths = [os.path.relpath(os.path.abspath(path), repo_root) for path in sys.argv[1:]]
     os.chdir(repo_root)
 
     # Pre-flight headroom gate, not a lock.
@@ -419,7 +481,7 @@ def main():
     # TERM only record a stop, so a stopped run still
     # unwinds through the context manager.
     with tempfile.TemporaryDirectory() as log_dir:
-        tally = run_all_suites(log_dir, stop_request)
+        tally = run_all_suites(log_dir, stop_request, named_paths)
         if stop_request.signum is None:
             replay_failures(tally)
 

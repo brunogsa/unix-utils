@@ -213,10 +213,10 @@ def build_sandbox(
     return root
 
 
-def run_runner(sandbox, *, stdin=subprocess.DEVNULL, timeout=None):
+def run_runner(sandbox, *, stdin=subprocess.DEVNULL, timeout=None, args=()):
     """Run the sandboxed runner with stderr merged into stdout."""
     completed = subprocess.run(
-        [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME)],
+        [*RUNNER_ARGV_PREFIX, str(sandbox / RUNNER_NAME), *args],
         cwd=sandbox,
         env={**os.environ, "PATH": str(sandbox / "bin")},
         stdin=stdin,
@@ -645,6 +645,119 @@ class TestPytestStep:
             self, result
         ):
             assert "1 passed, 1 failed" in result.output
+
+
+OTHER_BASH_SUITE = "configs/ai-docs/claude/hooks/tests/test-other-suite.sh"
+NAMED_NODE_SUITE = "configs/ai-docs/claude/tests/named.test.js"
+OTHER_NODE_SUITE = "configs/ai-docs/claude/tests/other.test.js"
+FIRST_PYTHON_FILE = "tests/first.test.py"
+SECOND_PYTHON_FILE = "tests/second.test.py"
+
+
+def run_with_paths(tmp_path_factory, shared_stub, paths, **sandbox_options):
+    root = tmp_path_factory.mktemp("sandbox")
+    sandbox = build_sandbox(root, shared_stub, **sandbox_options)
+    return run_runner(sandbox, args=paths)
+
+
+def tool_calls(result, tool):
+    calls_log = result.sandbox / "bin" / f"{tool}.calls"
+    return calls_log.read_text().splitlines() if calls_log.exists() else []
+
+
+class TestPathArguments:
+    class TestNamedBashSuite:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_with_paths(
+                tmp_path_factory,
+                shared_stub,
+                [FAKE_BASH_SUITE],
+                bash_suites={FAKE_BASH_SUITE: 0, OTHER_BASH_SUITE: 0},
+                node_suites=(NAMED_NODE_SUITE,),
+            )
+
+        def test_should_report_only_the_named_bash_suite_and_exit_zero(self, result):
+            assert result.status == 0
+            assert result_lines(result) == [f"PASS  {FAKE_BASH_SUITE}"]
+
+        def test_should_leave_every_other_suite_and_the_pytest_entry_unrun(
+            self, result
+        ):
+            assert (result.sandbox / "body-runs.log").read_text() == "ran\n"
+            assert tool_calls(result, "node") == []
+            assert tool_calls(result, "pytest") == []
+
+    class TestNamedNodeSuite:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_with_paths(
+                tmp_path_factory,
+                shared_stub,
+                [NAMED_NODE_SUITE],
+                node_suites=(NAMED_NODE_SUITE, OTHER_NODE_SUITE),
+            )
+
+        def test_should_run_the_named_file_through_node_test_and_report_it(
+            self, result
+        ):
+            assert result.status == 0
+            assert result_lines(result) == [f"PASS  {NAMED_NODE_SUITE}"]
+            assert tool_calls(result, "node") == [f"--test {NAMED_NODE_SUITE}"]
+
+    class TestNamedPythonFiles:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            both_files = f"{FIRST_PYTHON_FILE} {SECOND_PYTHON_FILE}"
+            root = tmp_path_factory.mktemp("sandbox")
+            sandbox = build_sandbox(
+                root, shared_stub, pytest_tool=FakeTool(expected_args=both_files)
+            )
+            for relative_path in (FIRST_PYTHON_FILE, SECOND_PYTHON_FILE):
+                (sandbox / relative_path).parent.mkdir(exist_ok=True)
+                (sandbox / relative_path).write_text("# fake pytest never reads this\n")
+            return run_runner(
+                sandbox, args=[FIRST_PYTHON_FILE, SECOND_PYTHON_FILE]
+            )
+
+        def test_should_run_both_python_files_in_one_pytest_entry(self, result):
+            assert result.status == 0
+            assert result_lines(result) == ["PASS  pytest"]
+
+    class TestNamedSuiteFails:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            root = tmp_path_factory.mktemp("sandbox")
+            sandbox = build_sandbox(root, shared_stub)
+            write_bash_suite_body(
+                sandbox, FAKE_BASH_SUITE, "echo 'named suite assertion broke'\nexit 1\n"
+            )
+            return run_runner(sandbox, args=[FAKE_BASH_SUITE])
+
+        def test_should_exit_one_and_replay_the_named_suite_log(self, result):
+            assert result.status == 1
+            assert f"FAIL  {FAKE_BASH_SUITE}" in result.output
+            assert "named suite assertion broke" in result.output
+
+    class TestHeadroomGateRefuses:
+        @pytest.fixture(scope="class")
+        @classmethod
+        def result(cls, tmp_path_factory, shared_stub):
+            return run_with_paths(
+                tmp_path_factory,
+                shared_stub,
+                [FAKE_BASH_SUITE],
+                gate=FakeTool(exit_code=1, output=NO_GO_LINE),
+                bash_suites={FAKE_BASH_SUITE: 0},
+            )
+
+        def test_should_exit_two_without_running_the_named_suite(self, result):
+            assert result.status == 2
+            assert not suite_bodies_ran(result)
 
 
 WAIT_BOUND_SECONDS = 10
