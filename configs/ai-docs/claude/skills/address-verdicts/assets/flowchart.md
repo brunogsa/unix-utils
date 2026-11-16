@@ -114,9 +114,7 @@ def address_verdicts(arg):
         code, non_code = split_by_target(entry.findings)       # 21
         for f in non_code:
             if entry.lens == "test-sdd" and f.planned_test_covers_prose:
-                # 22 · NOT written at all: the one place this skill overrules
-                #      /quality-gate's "every test-sdd finding applies
-                #      unconditionally" - CLAUDE.md forbids the test.
+                # 22 · NOT written at all - CLAUDE.md forbids the test.
                 f.skipped, f.reason = True, "tests prose, which CLAUDE.md forbids"  # 22
         prose = [f for f in non_code if not f.skipped]
         if prose:
@@ -523,7 +521,7 @@ flowchart TD
   n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>no tag is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
   n21{"21. Step 4 · Classify each finding in this entry by what it EDITS,<br/>not by which lens found it. The per-lens routing below is only<br/>the default for a code finding - a non-code target overrides it"}
-  n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The one place this skill overrules /quality-gate's<br/>every-test-sdd-finding-applies rule - the forbidden test wins"]
+  n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The forbidden test wins"]
   n23["23. Dispatch direct-coder (agent-pinned, background, serial) for a<br/>doc, spec, plan, prompt-markdown, SKILL.md, agent file, comment,<br/>rename, file move, config or frontmatter value, whichever lens<br/>reported it. A test over prose costs more to author and maintain<br/>than the regressions it would catch. A lens with only non-code<br/>findings dispatches its own agent zero times - correct, not a failure"]:::dispatch
   n11{"11. Step 4 · Which lens does this seeded entry dispatch?<br/>Each dispatch carries ALL of that lens's selected<br/>findings at once, serially in the seeded order - NEVER<br/>in parallel, since every dispatch commits to the same<br/>branch. The refactor agent refuses any behavior change<br/>BY DESIGN, so a correctness fix or a missing test cannot<br/>route through it - both need tdd-coder's test-first<br/>discipline instead"}
 

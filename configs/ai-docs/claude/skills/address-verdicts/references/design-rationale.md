@@ -16,8 +16,6 @@ A correctness fix needs `tdd-coder`'s test-first discipline, and a "simplificati
 
 The human approved the plan, but CLAUDE.md forbids a test over prose, and the forbidden-to-exist test wins.
 
-This skill is the one place that overrules `/quality-gate` §5.1's "every test-sdd finding applies unconditionally".
-
 ## Why batches are sized and commits stay per finding
 
 A batch that outruns its subagent's turn budget leaves the work half-applied with no record of where it stopped.
