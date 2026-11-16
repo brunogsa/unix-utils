@@ -202,7 +202,9 @@ def git_succeeds(repo, *args):
     return result.returncode == 0
 
 
-def move_onto_refactor_branch(repo, base, shas, refactor_branch, feature_branch):
+def move_onto_refactor_branch(
+    *, repo, base, shas, refactor_branch, feature_branch
+):
     """Return None once moved, else the operation that conflicted.
 
     A conflict is aborted and the repo goes back to the branch and
@@ -285,11 +287,11 @@ def move_forced_refactors(arguments, report):
     # plan leaves the repo untouched.
     plan_update = read_plan_with_refactor_entry(arguments)
     conflicting_operation = move_onto_refactor_branch(
-        arguments.repo,
-        arguments.base,
-        report["commits"],
-        arguments.refactor_branch,
-        arguments.feature_branch,
+        repo=arguments.repo,
+        base=arguments.base,
+        shas=report["commits"],
+        refactor_branch=arguments.refactor_branch,
+        feature_branch=arguments.feature_branch,
     )
     if conflicting_operation is not None:
         report.update(
