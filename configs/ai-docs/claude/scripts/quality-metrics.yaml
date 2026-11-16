@@ -51,9 +51,11 @@ languages:
   # structure.
   html:
     extensions: [.html, .htm]
+    token_only_duplication: true
     metrics: [size, code_duplication]
   css:
     extensions: [.css, .scss]
+    token_only_duplication: true
     metrics: [size, code_duplication]
   python:
     extensions: [.py]
@@ -79,6 +81,7 @@ languages:
   # Complexity joins with its module.
   bash:
     extensions: [.sh, .bash]
+    token_only_duplication: true
     metrics: [size, crap, code_duplication]
   go:
     extensions: [.go]

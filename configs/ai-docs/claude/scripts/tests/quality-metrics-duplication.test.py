@@ -484,6 +484,27 @@ class TestTokenClonesInLanguagesWithoutSimilarity:
             ("code_duplication", f"src/second{extension}"),
         }
 
+    def test_should_scan_a_token_only_extension_added_to_the_declaration_as_token_only(
+        self, tmp_path
+    ):
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(
+            "per_unit: []\n"
+            "languages:\n"
+            "  zsh:\n"
+            "    extensions: [.zsh]\n"
+            "    token_only_duplication: true\n"
+            "    metrics: [code_duplication]\n"
+        )
+
+        violations = measure_files(
+            tmp_path,
+            {"src/first.zsh": BASH_FOUR_LINES, "src/second.zsh": 'echo "beta"\n' + BASH_FOUR_LINES},
+            declaration_path,
+        )
+
+        assert {item["metric"] for item in violations} == {"code_duplication"}
+
 
 def measure_uncommitted_changes(tmp_path, committed, changed):
     repo = make_repo(tmp_path, {"notes.txt": "fixture repo\n"})

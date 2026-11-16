@@ -51,6 +51,10 @@ class Language:
     extensions: tuple
     metrics: tuple
 
+    # jscpd's --similarity does not read this language, so
+    # duplication is found from exact token clones only.
+    is_token_only_duplication: bool = False
+
 
 @dataclass(frozen=True)
 class Declaration:
@@ -203,5 +207,9 @@ def _build_languages(raw_languages, ignored_extensions):
                 )
             claimed_by[extension] = name
         metrics = _validate_metric_names(name, entry.get("metrics") or ())
-        languages[name] = Language(extensions=extensions, metrics=metrics)
+        languages[name] = Language(
+            extensions=extensions,
+            metrics=metrics,
+            is_token_only_duplication=bool(entry.get("token_only_duplication")),
+        )
     return languages

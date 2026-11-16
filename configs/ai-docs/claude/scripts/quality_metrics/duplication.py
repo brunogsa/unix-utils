@@ -47,11 +47,10 @@ MIN_LINES = 4
 # duplicate is flagged only from 8 lines up.
 TEST_MIN_LINES = 8
 
-# --similarity does not read Bash, HTML or CSS, so only exact
-# token clones are found there. The 50-token default would hide
-# a clone of 4 short lines, so --min-tokens 1 lets the line
-# minimum alone decide.
-TOKEN_ONLY_SUFFIXES = (".sh", ".bash", ".html", ".htm", ".css", ".scss")
+# --similarity does not read the languages the declaration marks
+# token_only_duplication, so only exact token clones are found
+# there. The 50-token default would hide a clone of 4 short
+# lines, so --min-tokens 1 lets the line minimum alone decide.
 JSCPD_TOKEN_ONLY_MIN_TOKENS = "1"
 
 # jscpd gives an exact clone no similarity: it is a full match.
@@ -76,7 +75,12 @@ def measure(target, metrics, declaration):
         names = _stage_corpus(
             target, repo_path, suffix, peers, Path(scan_dir)
         )
-        clones = _scan_both_kinds(Path(scan_dir), suffix, min_lines)
+        is_token_only = declaration.languages[
+            target.language
+        ].is_token_only_duplication
+        clones = _scan_both_kinds(
+            Path(scan_dir), is_token_only, min_lines
+        )
     return _flagged_records(target, metric, repo_path, names, clones)
 
 
@@ -118,10 +122,10 @@ def _peers_of(repo_path, is_test, extensions):
     ]
 
 
-def _scan_both_kinds(scan_dir, suffix, min_lines):
+def _scan_both_kinds(scan_dir, is_token_only, min_lines):
     """Similar pairs of `min_lines` lines plus exact clones of
     as many."""
-    clones = _scan(scan_dir, suffix, min_lines - 1)
+    clones = _scan(scan_dir, is_token_only, min_lines - 1)
     return [
         clone for clone in clones
         if "similarity" in clone
@@ -148,10 +152,10 @@ def _longest_identical_run(scan_dir, clone):
     return longest
 
 
-def _scan(scan_dir, suffix, min_lines):
+def _scan(scan_dir, is_token_only, min_lines):
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
-        if suffix in TOKEN_ONLY_SUFFIXES else []
+        if is_token_only else []
     )
     with tempfile.TemporaryDirectory() as report_dir:
         # jscpd reads .jscpd.json from its cwd, so it runs in
