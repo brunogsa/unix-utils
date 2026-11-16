@@ -133,3 +133,14 @@ def test_raises_a_tool_error_naming_the_output_when_go_arch_lint_writes_no_json_
 
     with pytest.raises(ToolError, match="wrote no report: panic: cannot load module"):
         go_arch_lint.find_with_go_arch_lint(tmp_path, SHOP_LAYER_MAP)
+
+
+def test_raises_a_tool_error_when_go_arch_lint_reports_execution_warnings_instead_of_checking(tmp_path, monkeypatch):
+    stub_go_arch_lint_output(
+        monkeypatch,
+        '{"Type":"models.Check","Payload":{"ExecutionWarnings":'
+        '[{"Text":"config notice","File":"config.yml"}],"ArchWarningsDeps":[]}}',
+    )
+
+    with pytest.raises(ToolError, match="skipped the check: .*config notice"):
+        go_arch_lint.find_with_go_arch_lint(tmp_path, SHOP_LAYER_MAP)
