@@ -273,7 +273,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Instruction] Treat every `as` / `as unknown as` cast as a defect to remove - fix the declared type at its source so the compiler and linter prove the shape.
   - [Why] A cast suppresses the only tool that checks you, so the error it hides surfaces at runtime instead of at build.
-  - [Example] Bad: `kit.bimestre as Bimestre` - a webhook `number` asserted into `1|2|3|4`. Good: type that field `Bimestre` where the payload is parsed, or validate and throw.
+  - [Example] Bad: `kit.bimestre as Bimestre` - a webhook `number` asserted into `1|2|3|4`. Good: settle the shape `Bimestre` where the payload is parsed, or validate and throw.
 
 - [Instruction] Validate runtime-derived enum membership at the boundary and throw a domain error on mismatch.
   - [Why] Validation catches out-of-range values loudly at the boundary, not silently failing downstream as a wrong-typed enum.
