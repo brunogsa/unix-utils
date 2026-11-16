@@ -169,7 +169,7 @@ PHASE CODE:
 PHASE GREEN:
 
 - Run Verification once. Read the per-unit result.
-- All N green: append a confirmed-GREEN entry to the evidence file, then proceed to PHASE COMMIT for all N units.
+- All N green: append a confirmed-GREEN entry to the evidence file, then proceed to PHASE METRICS, then PHASE COMMIT, for all N units.
   - Before committing, run `~/.claude/scripts/get-excluded-specs-for-range.py <base-sha>`, passing the `base:` input, else step 1's `head:`.
     - It lists the integration and e2e specs importing a file the batch changed - the files a default test command ignores, so one broke in CI past a green Verification.
 
@@ -186,7 +186,8 @@ PHASE GREEN:
 
   - Once every previously-failing unit passes its targeted command, spend the second budgeted run: one full Verification, which is the GREEN entry's evidence.
   - Repeat until every unit is green or the cap is exhausted on at least one unit.
-  - Cap exhausted on any unit: stop repairing. Commit every unit that IS green (PHASE COMMIT, scoped to those), then report `blocked` naming only the units that never went green.
+  - Cap exhausted on any unit: stop repairing. Commit every unit that IS green (PHASE METRICS, then PHASE COMMIT, scoped to those).
+  - Then report `blocked` naming only the units that never went green.
     - The working tree holds real work at that point, and discarding it would be the wrong default.
 
 PHASE METRICS, after GREEN and before any commit:
