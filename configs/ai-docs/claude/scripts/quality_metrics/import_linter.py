@@ -96,26 +96,33 @@ def _importable_layers(tree, package_roots, layer_map):
         return []
     layers = []
     for layer in layer_map.layers:
-        modules = [
-            module for module in (
-                _glob_to_module(glob, package_roots) for glob in layer.paths
-            )
-            if module and _is_importable_package(tree, package_roots, module)
-        ]
+        modules = _layer_modules(layer, tree, package_roots)
         if modules:
             layers.append((layer.name, modules))
     if len(layers) < MIN_CHECKABLE_LAYERS:
-        resolved_names = {name for name, _ in layers}
-        unresolved_names = [
-            layer.name for layer in layer_map.layers
-            if layer.name not in resolved_names
-        ]
-        raise ToolError(
-            f"layer map names fewer than {MIN_CHECKABLE_LAYERS} Python "
-            "packages, so no layer direction was checked; unresolved "
-            f"layers: {', '.join(unresolved_names) or 'none declared'}"
-        )
+        raise _too_few_layers_error(layer_map, layers)
     return layers
+
+
+def _layer_modules(layer, tree, package_roots):
+    modules = (_glob_to_module(glob, package_roots) for glob in layer.paths)
+    return [
+        module for module in modules
+        if module and _is_importable_package(tree, package_roots, module)
+    ]
+
+
+def _too_few_layers_error(layer_map, layers):
+    resolved_names = {name for name, _ in layers}
+    unresolved_names = [
+        layer.name for layer in layer_map.layers
+        if layer.name not in resolved_names
+    ]
+    return ToolError(
+        f"layer map names fewer than {MIN_CHECKABLE_LAYERS} Python "
+        "packages, so no layer direction was checked; unresolved "
+        f"layers: {', '.join(unresolved_names) or 'none declared'}"
+    )
 
 
 def _glob_to_module(glob, package_roots):
@@ -193,15 +200,9 @@ def _problems_from_import_linter(output, tree, package_roots):
     root = None
     layer_rule = None
     for line in output.splitlines():
-        layer_match = LAYER_RULE_LINE.match(line)
-        if layer_match:
-            layer_rule = f"{LAYER_RULE_PREFIX}{layer_match.group(1)}"
-            root = None
-            continue
-        root_match = CONTRACT_ROOT_LINE.match(line)
-        if root_match:
-            root = root_match.group(1)
-            layer_rule = None
+        header = _contract_header(line)
+        if header:
+            root, layer_rule = header
             continue
         layer_edge = LAYER_EDGE_LINE.match(line)
         if layer_edge and layer_rule:
@@ -215,6 +216,20 @@ def _problems_from_import_linter(output, tree, package_roots):
                 root, edge_match.groups(), package_roots
             ))
     return problems
+
+
+def _contract_header(line):
+    """`(root, layer_rule)` a contract header line switches to,
+    else None; each header clears the other kind so an edge line
+    is read against the contract it sits under.
+    """
+    layer_match = LAYER_RULE_LINE.match(line)
+    if layer_match:
+        return None, f"{LAYER_RULE_PREFIX}{layer_match.group(1)}"
+    root_match = CONTRACT_ROOT_LINE.match(line)
+    if root_match:
+        return root_match.group(1), None
+    return None
 
 
 def _layer_edge_problem(layer_rule, edge, tree, package_roots):
