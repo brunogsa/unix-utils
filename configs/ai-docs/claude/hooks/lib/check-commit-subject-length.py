@@ -22,7 +22,6 @@
 # So does a git global option that could change the message,
 # since only a pager, repository or path option is known safe.
 
-import functools
 import importlib.util
 import os
 import re
@@ -103,17 +102,11 @@ UNALIASABLE_GIT_COMMANDS = frozenset(
 ALIAS_CONFIG_SECTION = "alias."
 ALIAS_SETTING_TEXT = re.compile(r"(?<![\w.-])alias\.", re.IGNORECASE)
 
-# git's own commands that write a commit, outside the list
-# above and named by no commit word.
-COMMIT_WRITING_COMMANDS = frozenset({"commit", "commit-tree"})
-
-# git's aliases, as the hook reads them for a git word past
-# another command's name.
-ALIAS_LOOKUP = ("git", "config", "-z", "--get-regexp", r"^alias\.")
-ALIAS_LOOKUP_TIMEOUT_SECONDS = 5
-
-# Text that may point git at config the lookup did not read.
-CONFIG_MOVING_TEXT = re.compile(r"(?<![\w.-])(?:GIT_\w*|HOME|XDG_CONFIG_HOME)=|\bgit\s+config\b")
+# Search commands that run none of their arguments; ag and ack
+# are left out, as each runs a program given by --pager.
+RIPGREP = "rg"
+RIPGREP_PREPROCESSOR = "--pre"
+TEXT_READING_COMMANDS = frozenset({"grep", "egrep", "fgrep", RIPGREP})
 
 # git, its global options, then the name it runs, read from
 # the raw text of a command the lexer cannot split.
@@ -840,105 +833,55 @@ def _may_git_run_commit(words, options_start):
     return subcommand.is_expandable or subcommand.text not in UNALIASABLE_GIT_COMMANDS
 
 
-def _may_run_commit(stage, is_config_known):
+def _may_run_commit(stage):
     """True when a stage may run git commit, as it may when a
-    wrapper option hides which word the wrapper runs.
-
-    is_config_known is False when the command may point git at
-    config other than the one the hook reads.
-    """
+    wrapper option hides which word the wrapper runs."""
     words = stage.words
     try:
         index = _command_word_index(words, SCREENED_WRAPPERS)
     except UnknownWrapperOption:
         return True
-    is_plain_git = index is not None and not words[index].is_expandable and words[index].text == "git"
-    if not is_plain_git:
-        return _names_commit(words) or _may_later_git_run_commit(words, is_config_known)
-    return _may_git_run_commit(words, index + 1)
+    command = None if index is None or words[index].is_expandable else words[index].text
+    if command == "git":
+        return _may_git_run_commit(words, index + 1)
+    if _reads_arguments_as_text(command, words):
+        return _names_commit(words)
+    return _names_commit(words) or _may_later_git_run_commit(words)
 
 
-def _may_later_git_run_commit(words, is_config_known):
+def _reads_arguments_as_text(command, words):
+    """True when the command word never runs its arguments, so
+    a git word there is a pattern or a path: grep git file.
+
+    rg runs a program given by --pre, and a word read only at
+    run time may turn into that option.
+    """
+    if command not in TEXT_READING_COMMANDS:
+        return False
+    return command != RIPGREP or not any(_may_set_preprocessor(word) for word in words)
+
+
+def _may_set_preprocessor(word):
+    """True when an rg word may set the program rg runs on each
+    file it searches."""
+    text = word.text
+    return word.is_expandable or text == RIPGREP_PREPROCESSOR or text.startswith(RIPGREP_PREPROCESSOR + "=")
+
+
+def _may_later_git_run_commit(words):
     """True when a git word past the command word may run
     commit, as stdbuf, doas or any command not known as a
-    wrapper may run the words after it."""
+    wrapper may run the words after it.
+
+    The guard reads no git config: an earlier stage may write
+    one, and sudo, find -exec or ssh may run git under another
+    user, directory or host, so any name may be an alias.
+    """
     for position in range(1, len(words) - 1):
         word = words[position]
-        if word.text == "git" and not word.is_expandable and _may_later_git_name_run_commit(words, position, is_config_known):
+        if word.text == "git" and not word.is_expandable and _may_git_run_commit(words, position + 1):
             return True
     return False
-
-
-def _may_later_git_name_run_commit(words, position, is_config_known):
-    """True when the name after a later git word may run commit:
-    a commit-writing command, an alias for commit, or a name
-    whose alias the hook cannot read for sure.
-
-    grep git file passes: file is no alias, so git, if it ran
-    at all, could not record a commit.
-    """
-    if not _may_git_run_commit(words, position + 1):
-        return False
-    name = words[position + 1]
-
-    # A word before git may hold env settings, and an option
-    # after it may point git at another repository.
-    is_name_readable = (
-        is_config_known
-        and not name.is_expandable
-        and not name.text.startswith("-")
-        and not any(word.is_expandable for word in words[:position])
-    )
-    if not is_name_readable or name.text in COMMIT_WRITING_COMMANDS:
-        return True
-    aliases = _git_aliases()
-    if aliases is None:
-        return True
-
-    # git reads alias names case-insensitively.
-    value = aliases.get(name.text.lower())
-    return value is not None and _may_alias_run_commit(value)
-
-
-def _may_alias_run_commit(value):
-    """True when an alias value may run commit: a shell alias,
-    or one whose first word is not one of git's own commands."""
-    first_words = value.split()
-    return value.startswith("!") or not first_words or first_words[0] not in UNALIASABLE_GIT_COMMANDS
-
-
-@functools.cache
-def _git_aliases():
-    """Return git's aliases as name to value, read once from the
-    hook's directory, or None when git cannot read them."""
-    cwd = os.environ.get(COMMIT_CWD_ENV) or os.getcwd()
-    try:
-        result = subprocess.run(
-            ALIAS_LOOKUP,
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=ALIAS_LOOKUP_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-    # Exit 1 with no output means no alias is set.
-    if result.returncode == 1 and not result.stdout:
-        return {}
-    if result.returncode != 0:
-        return None
-    aliases = {}
-    for entry in result.stdout.split("\0"):
-        if not entry:
-            continue
-        key, _, value = entry.partition("\n")
-        name = key[len(ALIAS_CONFIG_SECTION) :]
-        if not key.startswith(ALIAS_CONFIG_SECTION) or not name:
-            return None
-        aliases[name] = value
-    return aliases
 
 
 def _may_text_run_commit(command):
@@ -976,10 +919,9 @@ def _read_commit_stages(command, cwd):
     except CannotBeSure:
         return None
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
-    is_config_text_moved = bool(CONFIG_MOVING_TEXT.search(text) or ALIAS_SETTING_TEXT.search(text))
     commits = []
     for stage, is_piped in stages:
-        if _may_run_commit(stage, not (is_config_text_moved or state.is_cwd_moved)):
+        if _may_run_commit(stage):
             commits.append(_commit(stage, values, state))
         _update_state(stage, is_piped, state)
     return commits

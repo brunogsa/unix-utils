@@ -134,16 +134,27 @@ def test_should_screen_a_git_alias_for_commit_run_by_a_command_not_known_as_a_wr
     [
         "grep git file",
         "rg git configs",
-        "stdbuf -oL git st",
     ],
 )
-def test_should_report_no_commit_for_a_later_git_word_naming_no_alias_for_commit(command):
+def test_should_report_no_commit_for_a_later_git_word_read_as_data_by_a_command_that_runs_no_argument(command):
     assert _attribution_verdict(command) == checker.NO_COMMIT_VERDICT
 
 
+# The guard reads no git config: an earlier stage may write
+# one, and sudo, find -exec or ssh may run git under another
+# user, directory or host, so any name may be an alias there.
 @pytest.mark.parametrize(
     "command",
     [
+        "printf '[alias]\\n ci2 = commit\\n' >> ~/.gitconfig; stdbuf git ci2 -m x",
+        "tee -a .git/config < f; stdbuf git zz -m x",
+        "sudo -u other stdbuf git zz -m x",
+        "find . -maxdepth 0 -exec git zz -m x ;",
+        "ssh host git zz -m x",
+        "stdbuf -oL git st",
+        "rg --pre git zz file",
+        "rg x --pre git zz",
+        "rg $X git zz",
         "stdbuf git CI -m x",
         "stdbuf git commit-tree HEAD^{tree} -m x",
         "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.zz GIT_CONFIG_VALUE_0=commit stdbuf git zz -m x",
@@ -152,7 +163,7 @@ def test_should_report_no_commit_for_a_later_git_word_naming_no_alias_for_commit
         "cd /elsewhere && stdbuf git zz -m x",
     ],
 )
-def test_should_screen_a_later_git_word_whose_name_or_config_may_differ_from_the_one_read(command):
+def test_should_screen_a_later_git_word_naming_no_git_builtin_after_a_command_that_may_run_it(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
 
 
@@ -169,12 +180,6 @@ def test_should_screen_a_later_git_word_whose_name_or_config_may_differ_from_the
 )
 def test_should_screen_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
-
-
-# A config git cannot read hides which names are aliases.
-def test_should_screen_as_a_possible_commit_a_later_git_word_when_git_aliases_cannot_be_read(_git_aliases):
-    _git_aliases.write_text("[alias\n")
-    assert _attribution_verdict("grep git file") == WITHHELD_VERDICT
 
 
 # xargs -I swaps each named word for a stdin line, so the
