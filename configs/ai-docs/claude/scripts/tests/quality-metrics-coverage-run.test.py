@@ -311,6 +311,17 @@ SUBPROCESS_REPO_FILES = {
     ),
 }
 
+# Left behind by running the tests, never by the coverage setup.
+TEST_RUN_DIRECTORIES = {"__pycache__", ".pytest_cache"}
+
+
+def files_under(repo):
+    return {
+        str(path.relative_to(repo))
+        for path in repo.rglob("*")
+        if path.is_file() and not TEST_RUN_DIRECTORIES & set(path.relative_to(repo).parts)
+    }
+
 
 def write_repo(tmp_path, files):
     repo = tmp_path / "repo"
@@ -339,3 +350,14 @@ def test_should_count_lines_of_a_script_run_as_a_subprocess_by_a_test_as_covered
     result = collect_python(repo)
 
     assert result.hits_by_file["tool.py"][1] > 0
+
+
+def test_should_leave_only_the_lcov_report_as_a_new_file_in_the_repo_after_a_subprocess_coverage_run(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    repo = write_repo(tmp_path, SUBPROCESS_REPO_FILES)
+    files_before = files_under(repo)
+
+    collect_python(repo)
+
+    assert files_under(repo) - files_before == {"coverage/lcov.info"}
