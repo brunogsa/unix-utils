@@ -12,14 +12,28 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    commit_all, head_of, install_stub_tool, make_repo, measure_report,
+    commit_all, coverage_records_of, head_of, install_stub_tool, make_repo, measure_report,
 )
 
 from quality_metrics import gate_inputs
-from quality_metrics.sourcing import measure_coverage_with_repo_tool
+from quality_metrics.collection import CoverageRun
+from quality_metrics.sourcing import lazy_tool_map_for
+from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
 from quality_metrics.touched import Target
 
 FEEDBACK_EXIT = 2
+
+
+def report_target(repo):
+    return Target(repo / "src/report.ts", "ts", None, repo_path="src/report.ts")
+
+
+def jest_coverage_run(repo, map_dir, base_ref):
+    """A coverage run whose tool map lists the repo's jest config."""
+    tool_map = lazy_tool_map_for(
+        repo, load_detector_rules(DETECTOR_RULES_PATH), "session-5a2f8c", map_dir, base_ref=base_ref
+    )
+    return CoverageRun(repo, tool_map, base_ref=base_ref)
 
 # Records its arguments and the config text it was handed, then
 # writes an empty lcov report where jest was told to.
@@ -280,9 +294,9 @@ class TestHappyPath:
         monkeypatch.setenv("ARGS_LOG", str(args_log))
         monkeypatch.setenv("CONFIG_COPY_LOG", str(config_copy_log))
         install_stub_tool(tmp_path, monkeypatch, "jest", JEST_RECORDING_STUB)
-        target = Target(repo / "src/report.ts", "typescript", None)
+        coverage_run = jest_coverage_run(repo, tmp_path, base)
 
-        measure_coverage_with_repo_tool(target, repo, base_ref=base)
+        coverage_records_of(tmp_path, report_target(repo), coverage_run)
 
         arguments = args_log.read_text().splitlines()
         config_path = arguments[arguments.index("--config") + 1]
@@ -304,11 +318,11 @@ class TestHappyPath:
         preset_dir.mkdir(parents=True)
         (preset_dir / "index.js").write_text("module.exports = { collectCoverage: true };\n")
         install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CONFIG_LOADING_STUB)
-        target = Target(repo / "src/report.ts", "typescript", None)
+        coverage_run = jest_coverage_run(repo, tmp_path, base)
 
-        outcome = measure_coverage_with_repo_tool(target, repo, base_ref=base)
+        coverage_records_of(tmp_path, report_target(repo), coverage_run)
 
-        assert outcome["exit_class"] == "passed"
+        assert coverage_run.sources[0]["exit_class"] == "passed"
 
     def test_should_list_an_added_istanbul_ignore_comment_as_a_violation(self, tmp_path):
         repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})

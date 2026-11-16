@@ -376,6 +376,27 @@ class FixedCoverageRun:
         return self.result
 
 
+class TestDeferredCoverage:
+    def test_should_score_crap_and_coverage_as_pessimistic_when_the_coverage_tool_was_deferred(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(
+            crap_coverage, "touched_functions",
+            lambda target: [function_measure("split_payment", 1, 20, 8)],
+        )
+
+        records = crap_coverage.measure(
+            python_target({1, 2, 3}, repo_path=SOURCE_FILE), ["crap", "coverage"],
+            declaration=load_declaration(tmp_path),
+            coverage_run=FixedCoverageRun(collection.DEFERRED_COVERAGE, tmp_path),
+        )
+
+        assert [(record["metric"], record["value"], record["pessimistic"]) for record in records] == [
+            ("crap", crap.CRAP_LIMIT, True),
+            ("coverage", 0, True),
+        ]
+
+
 class TestGoModulePathLcovNames:
     @pytest.mark.parametrize(
         "go_mod, source_name, expected",

@@ -8,17 +8,12 @@ import json
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
-from quality_metrics.coverage import coverage_measurement, coverage_record
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
-from quality_metrics.failures import (
-    TimeoutPolicy,
-    ToolTimedOutTwice,
-    ask_or_defer,
-    deferred_coverage_measurement,
-)
+from quality_metrics.failures import ToolTimedOutTwice
 from quality_metrics.functions import FunctionMeasure, measurement
 from quality_metrics.gate_inputs import write_base_ref_configs
 from quality_metrics.size import FUNCTION_LINES_LIMIT
@@ -144,94 +139,14 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
-def measure_coverage(target, repo, measure_globally, tool_map, policy=None, base_ref=None):
-    """Changed-line coverage, from the repo's own tool or else the global one.
+def run_repo_jest_under_policy(repo, policy, base_ref=None):
+    """The repo jest's coverage run, bounded by `policy`'s timeout.
 
-    The repo tool comes from `tool_map`. Only jest has a runner here:
-    another repo tool (pytest-cov) or none sends the measurement to
-    `measure_globally()`. A repo with its own tool is no gap, so only
-    a repo with none is a side-PR candidate.
-
-    A jest that crashed, timed out twice or wrote no coverage data
-    falls through to `measure_globally()`, and the repo gap is the side-PR
-    candidate. Failing tests are a red build, never a tooling gap: nothing
-    falls through. A failure of the global tool propagates as ToolError.
-    `policy` is the TimeoutPolicy bounding each jest run.
+    Raises RepoToolFailure naming how jest failed: a timeout on
+    both attempts is TIMEOUT, any other tool error is CRASH.
     """
-    choice = source_for("coverage", tool_map, target.language)
-    if choice["source"].get("tool") != JEST:
-        return {
-            "source": {"kind": "global", "tool": global_tool_for("coverage", target.language)},
-            "exit_class": None, "red_build": False,
-            "measurements": measure_globally(),
-            "side_pr_candidate": choice["side_pr_candidate"],
-        }
     try:
-        outcome = _measure_coverage_under_timeout_policy(target, repo, policy or TimeoutPolicy(), base_ref)
-    except RepoToolFailure as failure:
-        if failure.exit_class == FAILED_TESTS:
-            return {
-                "source": REPO_COVERAGE_SOURCE, "exit_class": FAILED_TESTS, "red_build": True,
-                "measurements": [{**coverage_record(target, 0), "pessimistic": True}],
-                "side_pr_candidate": None,
-            }
-        return {
-            "source": {"kind": "global", "tool": global_tool_for("coverage", target.language)},
-            "exit_class": failure.exit_class, "red_build": False,
-            "measurements": measure_globally(),
-            "side_pr_candidate": f"repo jest {FALL_THROUGH_REASONS[failure.exit_class]}",
-        }
-    return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
-
-
-def measure_coverage_or_ask(
-    target, repo, measure_globally, tool_map, policy=None, environ=None, base_ref=None
-):
-    """`measure_coverage` plus an `ask` for a global tool that cannot measure.
-
-    A missing or crashing global tool, or a run that passes yet
-    writes no coverage data, yields an ask and no measurements.
-    Once the developer defers it (recorded in `tool_map`'s batch),
-    the tool is not run again: coverage reads 0%, labelled
-    pessimistic, and no second ask is emitted.
-    When no session can ask (see `session_can_ask`, read from
-    `environ`), a failure defers on the spot with no ask.
-    """
-    asks = []
-
-    def measure_globally_or_defer():
-        global_tool = global_tool_for("coverage", target.language)
-        if global_tool in tool_map.entry()["deferred"]:
-            return [deferred_coverage_measurement(target)]
-        measurements, failure = _global_coverage_or_failure(measure_globally, global_tool)
-        if failure is None:
-            return measurements
-        ask = ask_or_defer(tool_map, global_tool, "coverage", failure, environ)
-        if ask is None:
-            return [deferred_coverage_measurement(target)]
-        asks.append(ask)
-        return []
-
-    outcome = measure_coverage(target, repo, measure_globally_or_defer, tool_map, policy, base_ref)
-    return {**outcome, "ask": asks[0] if asks else None}
-
-
-def _global_coverage_or_failure(measure_globally, global_tool):
-    """The global tool's measurements and None, or no measurements and why."""
-    try:
-        measurements = measure_globally()
-    except ToolError as error:
-        return [], str(error)
-    if not measurements:
-        return [], f"{global_tool} exited zero but wrote no coverage data"
-    return measurements, None
-
-
-def _measure_coverage_under_timeout_policy(target, repo, policy, base_ref=None):
-    try:
-        return policy.run(
-            lambda timeout_seconds: measure_coverage_with_repo_tool(target, repo, timeout_seconds, base_ref)
-        )
+        return policy.run(lambda timeout_seconds: run_repo_jest(repo, timeout_seconds, base_ref))
     except ToolTimedOutTwice as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
     except RepoToolFailure:
@@ -240,37 +155,39 @@ def _measure_coverage_under_timeout_policy(target, repo, policy, base_ref=None):
         raise RepoToolFailure(CRASH, str(error)) from error
 
 
-def _base_ref_config_flags(repo, base_ref, config_dir):
+@contextmanager
+def _base_ref_config_flags(repo, base_ref):
     """jest's flags for the config as `base_ref` committed it.
 
     The copy lives in a subdirectory of the repo, so a preset it
     requires by package name resolves from the repo's node_modules.
-    `--rootDir` keeps jest resolving paths against the repo. No flags
-    when no ref is given or the base ref holds no jest config.
+    `--rootDir` keeps jest resolving paths against the repo. No flags,
+    and no directory made, when no ref is given or the base ref holds
+    no jest config.
     """
     if base_ref is None:
-        return []
-    copies = write_base_ref_configs(repo, base_ref, config_dir)
-    if not copies:
-        return []
-    return ["--config", str(copies[0]), f"--rootDir={repo}"]
+        yield []
+        return
+    with tempfile.TemporaryDirectory(dir=repo) as config_dir:
+        copies = write_base_ref_configs(repo, base_ref, config_dir)
+        yield ["--config", str(copies[0]), f"--rootDir={repo}"] if copies else []
 
 
-def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref=None):
-    """Changed-line coverage from the repo's jest, with how jest exited.
+def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
+    """One coverage run of the repo's jest: how it exited, and every file's line hits.
 
     With a `base_ref`, jest reads the config that ref committed,
     so a branch's own coverage excludes never shape the number.
 
-    The coverage reads valid when jest passed or exited non-zero on the
+    The hits read valid when jest passed or exited non-zero on the
     repo's own threshold: the harness judges the measured value against its
     own limit. Any other outcome raises RepoToolFailure naming its class.
     """
-    with tempfile.TemporaryDirectory() as report_dir, tempfile.TemporaryDirectory(dir=repo) as config_dir:
+    with tempfile.TemporaryDirectory() as report_dir, _base_ref_config_flags(repo, base_ref) as config_flags:
         result = run_command(
             [
                 "jest", "--coverage", "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
-                *_base_ref_config_flags(repo, base_ref, config_dir),
+                *config_flags,
             ],
             cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
         )
@@ -280,10 +197,7 @@ def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref
         report = Path(report_dir) / "lcov.info"
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
-        hits_by_file = parse_lcov(report.read_text())
-    target_path = Path(repo) / target.path
-    line_hits = hits_by_file.get(target.repo_path or str(target_path.relative_to(repo)))
-    return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}
+        return {"exit_class": exit_class, "hits_by_file": parse_lcov(report.read_text())}
 
 
 def classify_exit(result):

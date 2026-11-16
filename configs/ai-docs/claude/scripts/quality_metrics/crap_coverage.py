@@ -3,11 +3,13 @@
 Both metrics read the same test run, so one module serves them.
 """
 
-from quality_metrics.collection import NO_COVERAGE_DATA, repo_relative
+from quality_metrics.collection import NO_COVERAGE_DATA
 from quality_metrics.coverage import coverage_measurement
 from quality_metrics.crap import crap_measurements
 from quality_metrics.declaration import is_coverage_opted_out
+from quality_metrics.failures import deferred_coverage_measurement, deferred_crap_measurements
 from quality_metrics.functions import touched_functions
+from quality_metrics.repo_paths import repo_relative
 
 
 def measure(target, metrics, declaration, coverage_run):
@@ -18,6 +20,8 @@ def measure(target, metrics, declaration, coverage_run):
     `target.path` can be a temporary copy.
     """
     result = _coverage_result(declaration, target, coverage_run)
+    if result.is_deferred:
+        return _deferred_records(target, metrics)
     key = repo_relative(coverage_run.repo_dir, target.repo_path)
     records = []
     if "crap" in metrics:
@@ -31,6 +35,20 @@ def measure(target, metrics, declaration, coverage_run):
         ))
     if result.has_failed_tests:
         return [{**record, "pessimistic": True} for record in records]
+    return records
+
+
+def _deferred_records(target, metrics):
+    """Pessimistic records for a coverage tool that was deferred.
+
+    An ask is always paired with these, so a deferred tool never
+    leaves a metric with no record.
+    """
+    records = []
+    if "crap" in metrics:
+        records += deferred_crap_measurements(target, touched_functions(target))
+    if "coverage" in metrics:
+        records.append(deferred_coverage_measurement(target))
     return records
 
 

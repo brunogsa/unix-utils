@@ -22,10 +22,10 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
-from quality_metrics.collection import repo_relative
 from quality_metrics.declaration import DeclarationError, read_yaml
 from quality_metrics.failures import deferred_flagged_measurement
 from quality_metrics.functions import measurement
+from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import ToolError, run_command, run_tool
 
 METRIC = "dependency_direction"

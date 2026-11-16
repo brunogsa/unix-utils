@@ -15,9 +15,9 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from quality_metrics.collection import repo_relative
 from quality_metrics.declaration import is_excluded_path, is_test_file
 from quality_metrics.functions import measurement
+from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import run_tool
 
 CODE_METRIC = "code_duplication"

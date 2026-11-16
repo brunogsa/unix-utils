@@ -14,10 +14,24 @@ import os
 import shutil
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 from quality_metrics.crap import parse_lcov
+from quality_metrics.failures import TimeoutPolicy, ask_or_defer
+from quality_metrics.repo_paths import repo_relative
+from quality_metrics.sourcing import (
+    FAILED_TESTS,
+    FALL_THROUGH_REASONS,
+    JEST,
+    REPO_COVERAGE_SOURCE,
+    RepoToolFailure,
+    global_tool_for,
+    run_repo_jest_under_policy,
+    source_for,
+)
+from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import run_command, ToolError
 
 LCOV_PATH = Path("coverage") / "lcov.info"
@@ -45,30 +59,120 @@ NPM_INIT_TEST_STUB = 'echo "Error: no test specified"'
 
 @dataclass(frozen=True)
 class CoverageResult:
-    """Line hits per repo-relative file; `has_failed_tests` marks a red build."""
+    """Line hits per repo-relative file.
+
+    `has_failed_tests` marks a red build; `is_deferred` marks a
+    global tool that could not run and was deferred.
+    """
 
     hits_by_file: dict
     has_failed_tests: bool
+    is_deferred: bool = False
 
 
 NO_COVERAGE_DATA = CoverageResult(hits_by_file={}, has_failed_tests=False)
 RED_BUILD = CoverageResult(hits_by_file={}, has_failed_tests=True)
+DEFERRED_COVERAGE = CoverageResult(hits_by_file={}, has_failed_tests=False, is_deferred=True)
 
 
+@dataclass(frozen=True)
+class _Measured:
+    """A language's coverage and the tool that produced it."""
+
+    result: CoverageResult
+    exit_class: Optional[str]
+    source: dict
+    side_pr_candidate: Optional[str]
+
+
+@dataclass(eq=False)
 class CoverageRun:
-    """Runs each language's tests at most once per measuring run."""
+    """Measures each language's coverage at most once per measuring run.
 
-    def __init__(self, repo_dir):
-        self.repo_dir = Path(repo_dir)
-        self._results = {}
+    The repo's own jest runs first, once, for every language it
+    measures; any other language, or a jest that crashed, timed out or
+    wrote no coverage data, runs the global collector. A failing global
+    collector asks (or defers on the spot in a session that cannot ask)
+    and reads as deferred coverage. Failing tests are a red build.
+
+    `sources` gets one entry per language measured, naming the tool
+    and the repo gap; `asks` gets one entry per ask raised.
+    """
+
+    repo_dir: Path
+    tool_map: Optional[LazyToolMap] = None
+    base_ref: Optional[str] = None
+    policy: Optional[TimeoutPolicy] = None
+    environ: Optional[dict] = None
+    sources: list = field(default_factory=list, init=False)
+    asks: list = field(default_factory=list, init=False)
+    _measured: dict = field(default_factory=dict, init=False)
+
+    def __post_init__(self):
+        self.repo_dir = Path(self.repo_dir)
+        self.policy = self.policy or TimeoutPolicy()
 
     def result_for(self, language):
         collector = COLLECTORS.get(language)
         if collector is None:
             return NO_COVERAGE_DATA
-        if collector not in self._results:
-            self._results[collector] = collector(self.repo_dir)
-        return self._results[collector]
+        if collector not in self._measured:
+            self._measured[collector] = self._measure(language, collector)
+        measured = self._measured[collector]
+        if not self._has_source_entry(language):
+            self.sources.append(_source_entry(language, measured))
+        return measured.result
+
+    def _has_source_entry(self, language):
+        return language in {entry["language"] for entry in self.sources}
+
+    def _measure(self, language, collector):
+        choice = source_for("coverage", self.tool_map, language)
+        if choice["source"]["tool"] == JEST:
+            return self._measure_with_repo_jest(language, collector)
+        return self._measure_globally(language, collector, choice["side_pr_candidate"])
+
+    def _measure_with_repo_jest(self, language, collector):
+        try:
+            run = run_repo_jest_under_policy(self.repo_dir, self.policy, self.base_ref)
+        except RepoToolFailure as failure:
+            if failure.exit_class == FAILED_TESTS:
+                return _Measured(RED_BUILD, FAILED_TESTS, REPO_COVERAGE_SOURCE, None)
+            reason = FALL_THROUGH_REASONS[failure.exit_class]
+            return self._measure_globally(language, collector, f"repo jest {reason}", failure.exit_class)
+        result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)
+        return _Measured(result, run["exit_class"], REPO_COVERAGE_SOURCE, None)
+
+    def _measure_globally(self, language, collector, side_pr_candidate, exit_class=None):
+        tool = global_tool_for("coverage", language)
+        source = {"kind": "global", "tool": tool}
+        return _Measured(self._collect_globally(collector, tool), exit_class, source, side_pr_candidate)
+
+    def _collect_globally(self, collector, tool):
+        if self.tool_map is not None and tool in self.tool_map.entry()["deferred"]:
+            return DEFERRED_COVERAGE
+        try:
+            return collector(self.repo_dir)
+        except ToolError as error:
+            return self._defer_after_failure(tool, error)
+
+    def _defer_after_failure(self, tool, error):
+        if self.tool_map is None:
+            raise error
+        ask = ask_or_defer(self.tool_map, tool, "coverage", str(error), self.environ)
+        if ask is not None:
+            self.asks.append(ask)
+        return DEFERRED_COVERAGE
+
+
+def _source_entry(language, measured):
+    return {
+        "metric": "coverage",
+        "language": language,
+        "source": measured.source,
+        "exit_class": measured.exit_class,
+        "side_pr_candidate": measured.side_pr_candidate,
+    }
 
 
 def collect_python(repo_dir):
@@ -156,14 +260,18 @@ def read_fresh_lcov(repo_dir, run_started):
     if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
         return NO_COVERAGE_DATA
     hits_by_file = parse_lcov(lcov_file.read_text())
-    module_prefix = _go_module_prefix(repo_dir)
     return CoverageResult(
-        hits_by_file={
-            _without_prefix(repo_relative(repo_dir, name), module_prefix): hits
-            for name, hits in hits_by_file.items()
-        },
+        hits_by_file=_normalized_hits(repo_dir, hits_by_file, _go_module_prefix(repo_dir)),
         has_failed_tests=False,
     )
+
+
+def _normalized_hits(repo_dir, hits_by_file, module_prefix):
+    """Hits keyed by repo-relative name, with any go module prefix dropped."""
+    return {
+        _without_prefix(repo_relative(repo_dir, name), module_prefix): hits
+        for name, hits in hits_by_file.items()
+    }
 
 
 def _go_module_prefix(repo_dir):
@@ -185,16 +293,3 @@ def _without_prefix(name, prefix):
     if prefix and name.startswith(prefix):
         return name[len(prefix):]
     return name
-
-
-def repo_relative(repo_dir, name):
-    """A repo-relative path, whether `name` is absolute or typed `./a`.
-
-    gcov2lcov and c8 may name a file by absolute path, and a
-    `--files` argument may be typed either way.
-    """
-    name = os.path.normpath(name)
-    if not os.path.isabs(name):
-        return name
-    relative = os.path.relpath(name, repo_dir)
-    return name if relative.startswith("..") else relative

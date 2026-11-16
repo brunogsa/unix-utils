@@ -77,6 +77,57 @@ def run_measure(repo, declaration_path, *arguments, env=None):
     )
 
 
+COVERAGE_DECLARATION_TEXT = """\
+excluded_paths: []
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  js:
+    extensions: [.js]
+    metrics: [coverage]
+  ts:
+    extensions: [.ts]
+    metrics: [coverage]
+  python:
+    extensions: [.py]
+    metrics: [coverage]
+"""
+
+
+def coverage_records_of(tmp_path, target, coverage_run):
+    """The coverage records `crap_coverage.measure` gives one target.
+
+    Imports sit inside the function because a suite puts
+    SCRIPTS_DIR on sys.path only after importing this module.
+    """
+    from quality_metrics import crap_coverage
+    from quality_metrics.declaration import load_declaration
+
+    declaration_path = tmp_path / "coverage-declaration.yaml"
+    declaration_path.write_text(COVERAGE_DECLARATION_TEXT)
+    return crap_coverage.measure(
+        target, ["coverage"], load_declaration(declaration_path), coverage_run
+    )
+
+
+def install_global_collector(monkeypatch, calls, hits_by_file=None, error=None):
+    """Stand in for the global coverage collector of every language.
+
+    Records each call in `calls`; raises `error` when given, else
+    reports `hits_by_file`.
+    """
+    from quality_metrics import collection
+
+    def collector(repo_dir):
+        calls.append(repo_dir)
+        if error is not None:
+            raise error
+        return collection.CoverageResult(hits_by_file or {}, False)
+
+    for language in ("js", "ts", "python"):
+        monkeypatch.setitem(collection.COLLECTORS, language, collector)
+
+
 def measure_report(repo, declaration_path, *arguments, env=None):
     """The measure script's parsed JSON report; fails loudly on no output."""
     result = run_measure(repo, declaration_path, *arguments, env=env)

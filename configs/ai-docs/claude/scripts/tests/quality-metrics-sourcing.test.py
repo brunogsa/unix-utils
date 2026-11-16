@@ -3,20 +3,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import JEST_CRASH_STUB, SCRIPTS_DIR, install_stub_tool, make_repo
+from quality_metrics_support import SCRIPTS_DIR, install_stub_tool, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 import pytest
 
-from quality_metrics import sourcing
-from quality_metrics.coverage import coverage_measurement
-from quality_metrics.failures import TimeoutPolicy
 from quality_metrics.functions import is_over_limit
 from quality_metrics.sourcing import (
     NoGlobalToolError,
     lazy_tool_map_for,
-    measure_coverage_with_repo_tool,
     measure_function_size_with_repo_tool,
     source_for,
 )
@@ -154,32 +150,6 @@ esac
 """
 
 
-# Writes an lcov report where it is told to, then fails the
-# repo's own 95% threshold the way jest words it.
-JEST_STUB = """#!/bin/bash
-for argument in "$@"; do
-  case "$argument" in
-    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
-  esac
-done
-cp "$LCOV_FIXTURE" "$report_dir/lcov.info"
-echo 'Jest: "global" coverage threshold for lines (95%) not met: 92%' >&2
-exit 1
-"""
-
-# 25 coverable lines, 23 run: 92% changed-line coverage.
-CART_LCOV = "SF:src/cart.js\n" + "".join(
-    f"DA:{line},{1 if line <= 23 else 0}\n" for line in range(1, 26)
-) + "end_of_record\n"
-
-
-def install_jest_reporting_cart_coverage(tmp_path, monkeypatch):
-    lcov_fixture = tmp_path / "cart.lcov"
-    lcov_fixture.write_text(CART_LCOV)
-    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
-    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_STUB)
-
-
 def test_should_flag_a_45_line_function_against_the_30_line_limit_when_the_repo_linter_allows_60(
     tmp_path, monkeypatch
 ):
@@ -193,200 +163,6 @@ def test_should_flag_a_45_line_function_against_the_30_line_limit_when_the_repo_
         ("applyDiscount", 45, 30)
     ]
     assert is_over_limit(records[0])
-
-
-def test_should_read_measurements_as_valid_when_a_repo_tool_exits_non_zero_on_its_own_threshold(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered 92%\n"})
-    install_jest_reporting_cart_coverage(tmp_path, monkeypatch)
-    target = Target(repo / "src/cart.js", "javascript", None)
-
-    outcome = measure_coverage_with_repo_tool(target, repo)
-
-    assert outcome["exit_class"] == "repo_threshold"
-    assert [record["value"] for record in outcome["measurements"]] == [92]
-    assert not is_over_limit(outcome["measurements"][0])
-
-
-# Logs each attempt in $ATTEMPT_LOG, then hangs past a timeout.
-# `exec` so a kill lands on sleep itself, not a parent shell.
-JEST_HANG_STUB = """#!/bin/bash
-echo attempt >> "$ATTEMPT_LOG"
-exec sleep 5
-"""
-
-# Exits cleanly but never writes the lcov report.
-JEST_NO_REPORT_STUB = """#!/bin/bash
-echo attempt >> "$ATTEMPT_LOG"
-exit 0
-"""
-
-# Jest's own words for a run with failing tests.
-JEST_FAILED_TESTS_STUB = """#!/bin/bash
-echo "FAIL src/cart.test.js" >&2
-echo "Tests:       2 failed, 10 passed, 12 total" >&2
-exit 1
-"""
-
-GLOBAL_COVERAGE_PERCENT = 100
-
-JEST_REPO_FILES = {"jest.config.js": JEST_CONFIG, "src/cart.js": "// covered\n"}
-PYTEST_COV_REPO_FILES = {".coveragerc": "[run]\n", "src/cart.py": "# covered\n"}
-
-
-def repo_tool_map(repo, map_dir):
-    rules = load_detector_rules(DETECTOR_RULES_PATH)
-    return lazy_tool_map_for(repo, rules, SESSION_ID, map_dir, base_ref="HEAD")
-
-
-def measure_globally_for(target, calls):
-    """Stands in for the global coverage tool; records each call."""
-    def measure_globally():
-        calls.append(target.path)
-        return [coverage_measurement(target, {1: 1, 2: 1})]
-    return measure_globally
-
-
-def test_should_classify_a_crash_from_the_tool_output_and_fall_through_to_the_global_tool_with_a_side_pr_candidate(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, JEST_REPO_FILES)
-    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
-    target = Target(repo / "src/cart.js", "js", None)
-    global_calls = []
-
-    outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), repo_tool_map(repo, tmp_path)
-    )
-
-    assert outcome["exit_class"] == "crash"
-    assert outcome["source"] == {"kind": "global", "tool": "c8"}
-    assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
-    assert outcome["side_pr_candidate"] == "repo jest crashed"
-    assert len(global_calls) == 1
-
-
-@pytest.mark.parametrize(
-    ("stub", "expected_exit_class", "expected_candidate", "expected_attempts"),
-    [
-        (JEST_HANG_STUB, "timeout", "repo jest timed out twice", 2),
-        (JEST_NO_REPORT_STUB, "no_coverage_data", "repo jest wrote no coverage data", 1),
-    ],
-    ids=["timeout-on-both-attempts", "no-coverage-report-written"],
-)
-def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twice_or_writes_no_coverage_data(
-    tmp_path, monkeypatch, stub, expected_exit_class, expected_candidate, expected_attempts
-):
-    repo = make_repo(tmp_path, JEST_REPO_FILES)
-    attempt_log = tmp_path / "attempts.log"
-    monkeypatch.setenv("ATTEMPT_LOG", str(attempt_log))
-    install_stub_tool(tmp_path, monkeypatch, "jest", stub)
-    target = Target(repo / "src/cart.js", "js", None)
-    global_calls = []
-
-    outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), repo_tool_map(repo, tmp_path),
-        policy=TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True),
-    )
-
-    assert outcome["exit_class"] == expected_exit_class
-    assert outcome["source"] == {"kind": "global", "tool": "c8"}
-    assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
-    assert outcome["side_pr_candidate"] == expected_candidate
-    assert len(attempt_log.read_text().splitlines()) == expected_attempts
-    assert len(global_calls) == 1
-
-
-def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, JEST_REPO_FILES)
-    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_FAILED_TESTS_STUB)
-    target = Target(repo / "src/cart.js", "js", None)
-    global_calls = []
-
-    outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), repo_tool_map(repo, tmp_path)
-    )
-
-    assert outcome["exit_class"] == "failed_tests"
-    assert outcome["red_build"] is True
-    assert outcome["source"] == {"kind": "repo", "tool": "jest"}
-    assert outcome["side_pr_candidate"] is None
-    assert [(record["metric"], record["value"], record["pessimistic"]) for record in outcome["measurements"]] == [
-        ("coverage", 0, True)
-    ]
-    assert global_calls == []
-
-
-def measure_with_unused_jest(tmp_path, monkeypatch, repo, target):
-    """Measure coverage with a jest stub that logs any attempt to run."""
-    attempt_log = tmp_path / "attempts.log"
-    monkeypatch.setenv("ATTEMPT_LOG", str(attempt_log))
-    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_NO_REPORT_STUB)
-    global_calls = []
-    outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), repo_tool_map(repo, tmp_path)
-    )
-    return outcome, global_calls, attempt_log
-
-
-def test_should_run_the_repo_jest_and_name_it_as_the_source_when_the_tool_map_lists_jest(tmp_path, monkeypatch):
-    repo = make_repo(tmp_path, JEST_REPO_FILES)
-    install_jest_reporting_cart_coverage(tmp_path, monkeypatch)
-    target = Target(repo / "src/cart.js", "js", None)
-    global_calls = []
-
-    outcome = sourcing.measure_coverage(
-        target, repo, measure_globally_for(target, global_calls), repo_tool_map(repo, tmp_path)
-    )
-
-    assert outcome["source"] == {"kind": "repo", "tool": "jest"}
-    assert outcome["side_pr_candidate"] is None
-    assert [record["value"] for record in outcome["measurements"]] == [92]
-    assert global_calls == []
-
-
-def test_should_measure_globally_with_no_side_pr_candidate_when_the_repo_coverage_tool_has_no_runner_here(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, PYTEST_COV_REPO_FILES)
-    target = Target(repo / "src/cart.py", "python", None)
-
-    outcome, global_calls, attempt_log = measure_with_unused_jest(tmp_path, monkeypatch, repo, target)
-
-    assert outcome["source"] == {"kind": "global", "tool": "coverage.py"}
-    assert outcome["side_pr_candidate"] is None
-    assert [record["value"] for record in outcome["measurements"]] == [GLOBAL_COVERAGE_PERCENT]
-    assert len(global_calls) == 1
-    assert not attempt_log.exists()
-
-
-def test_should_measure_globally_and_list_a_side_pr_candidate_when_the_repo_has_no_coverage_tool(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
-    target = Target(repo / "src/cart.js", "js", None)
-
-    outcome, global_calls, attempt_log = measure_with_unused_jest(tmp_path, monkeypatch, repo, target)
-
-    assert outcome["source"] == {"kind": "global", "tool": "c8"}
-    assert outcome["side_pr_candidate"] == "no repo coverage tool for js"
-    assert len(global_calls) == 1
-    assert not attempt_log.exists()
-
-
-def test_should_resolve_a_relative_target_path_against_the_repo_when_no_repo_path_is_given(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered 92%\n"})
-    install_jest_reporting_cart_coverage(tmp_path, monkeypatch)
-    target = Target(Path("src/cart.js"), "js", None)
-
-    outcome = measure_coverage_with_repo_tool(target, repo)
-
-    assert [record["value"] for record in outcome["measurements"]] == [92]
 
 
 
