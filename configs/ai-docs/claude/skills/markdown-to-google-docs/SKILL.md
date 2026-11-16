@@ -132,6 +132,19 @@ Delete any scratch docs you created during verification so the user's Drive stay
   `--width` if margins differ.
 - **Image paths must resolve at pandoc time.** The build script rewrites relative refs to
   absolute paths so the working directory doesn't matter; keep that behavior if you edit it.
+
+- **`<placeholder>` text outside code vanished from the Doc.**
+
+  - pandoc read `<data a definir>` as raw HTML, which the docx writer drops with no warning.
+
+  - The build script reads markdown with `-raw_html`, so such text stays literal.
+
+- **A lone image dragged whole diagrams to the next page.**
+
+  - pandoc's `implicit_figures` adds a keep-with-next figure paragraph plus an "ImageCaption" line.
+
+  - The build script reads markdown with `-implicit_figures`, so images stay inline.
+
 - **Code blocks** (including ```jsonc / unknown languages) render as a monospace style -
   expected, not a bug.
 - **Scope matters for in-place edits.** Updating a doc the user didn't create needs full

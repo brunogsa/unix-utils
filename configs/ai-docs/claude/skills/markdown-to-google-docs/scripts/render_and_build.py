@@ -1,30 +1,78 @@
 #!/usr/bin/env python3
-"""Render Mermaid blocks in a markdown file and build a pandoc .docx ready for Google Docs.
+"""Render Mermaid blocks in a markdown file,
+then build a pandoc .docx ready for Google Docs.
 
 Why a .docx (and not HTML or paste-from-markdown):
-  Google Drive converts an uploaded .docx into a native Google Doc with full fidelity
-  AND keeps embedded images, because a .docx carries images as real media parts. Google's
-  HTML import, by contrast, silently strips inline/base64 images - so HTML loses every
-  diagram. The .docx path is the only one that preserves images through the conversion.
+  Google Drive turns an uploaded .docx into a native Google Doc.
+  The conversion keeps full fidelity AND keeps embedded images,
+  because a .docx carries images as real media parts.
+  Google's HTML import, by contrast,
+  silently strips inline/base64 images.
+  HTML therefore loses every diagram.
+  Only the .docx path preserves images through the conversion.
 
 What this does:
-  1. Find every ```mermaid fenced block, render each to a PNG via mmdc.
-  2. Resolve every relative image reference (e.g. ./assets/x.png) to an absolute path,
-     relative to the markdown file's own directory, so pandoc finds the files no matter
-     the working directory.
-  3. Width-constrain every image so wide diagrams don't overflow the page.
+  1. Find every ```mermaid fenced block,
+     render each to a PNG via mmdc.
+  2. Resolve every relative image reference to an absolute path.
+     Example: ./assets/x.png.
+     The base is the markdown file's own directory.
+     Pandoc then finds the files from any working directory.
+  3. Width-constrain every image.
+     Wide diagrams would otherwise overflow the page.
   4. Run pandoc to emit a .docx with all images embedded.
 
 Usage:
-  render_and_build.py <input.md> [--out-dir DIR] [--width 6in] [--scale 2]
+  render_and_build.py <input.md>
+      [--out-dir DIR] [--width 6in] [--scale 2]
 
-Prints the path of the generated .docx on the last line of stdout.
+It prints the path of the generated .docx.
+That path is the last line of stdout.
 """
 import argparse
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+MERMAID_RE = re.compile(r"```mermaid\n(.*?)\n```", re.DOTALL)
+
+# Group 3 captures an attribute block already trailing the ref
+# (e.g. {width=3in} or {#fig .wide}), so it is kept as-is
+# instead of a second block being appended after it.
+IMAGE_REF_RE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?")
+
+
+def rewrite_image_refs(text, rendered_pngs, src_dir, width_attr):
+    """Return text with mermaid fences swapped for image refs.
+    Every image ref is width-constrained.
+
+    rendered_pngs holds one PNG path per mermaid fence,
+    in fence order.
+    """
+
+    # 2. swap mermaid fences for image refs (in order)
+    n = {"i": 0}
+    def repl_mermaid(*_):
+        n["i"] += 1
+        return f"![Diagram {n['i']}]({rendered_pngs[n['i']-1]}){width_attr}"
+    text = MERMAID_RE.sub(repl_mermaid, text)
+
+    # 3. resolve relative image refs to absolute +
+    # width-constrain.
+    #    Leave absolute paths and URLs alone (only rewrite if
+    #    the resolved file exists).
+    def repl_img(m):
+        alt, target = m.group(1), m.group(2).strip()
+        attr = m.group(3) or width_attr
+        if target.startswith(("http://", "https://", "/")) or target.startswith("/tmp/"):
+            # already absolute or remote: just ensure width attr
+            return f"![{alt}]({target}){attr}"
+        resolved = (src_dir / target).resolve()
+        if resolved.exists():
+            return f"![{alt}]({resolved}){attr}"
+        return m.group(0)  # unknown ref, leave untouched
+    return IMAGE_REF_RE.sub(repl_img, text)
 
 
 def main():
@@ -51,8 +99,7 @@ def main():
     width_attr = "{width=%s}" % args.width
 
     # 1. render mermaid blocks
-    mermaid_re = re.compile(r"```mermaid\n(.*?)\n```", re.DOTALL)
-    blocks = mermaid_re.findall(text)
+    blocks = MERMAID_RE.findall(text)
     print(f"mermaid blocks: {len(blocks)}", file=sys.stderr)
     rendered = []
     for i, code in enumerate(blocks, 1):
@@ -68,27 +115,8 @@ def main():
         rendered.append(png)
         print(f"  rendered block {i} -> {png.name}", file=sys.stderr)
 
-    # 2. swap mermaid fences for image refs (in order)
-    n = {"i": 0}
-    def repl_mermaid(*_):
-        n["i"] += 1
-        return f"![Diagram {n['i']}]({rendered[n['i']-1]}){width_attr}"
-    text = mermaid_re.sub(repl_mermaid, text)
-
-    # 3. resolve relative image refs to absolute +
-    # width-constrain.
-    #    Leave absolute paths and URLs alone (only rewrite if
-    #    the resolved file exists).
-    def repl_img(m):
-        alt, target = m.group(1), m.group(2).strip()
-        if target.startswith(("http://", "https://", "/")) or target.startswith("/tmp/"):
-            # already absolute or remote: just ensure width attr
-            return f"![{alt}]({target}){width_attr}"
-        resolved = (src_dir / target).resolve()
-        if resolved.exists():
-            return f"![{alt}]({resolved}){width_attr}"
-        return m.group(0)  # unknown ref, leave untouched
-    text = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", repl_img, text)
+    text = rewrite_image_refs(text=text, rendered_pngs=rendered,
+                              src_dir=src_dir, width_attr=width_attr)
 
     out_md = out_dir / f"{src.stem}.pandoc.md"
     out_md.write_text(text, encoding="utf-8")
@@ -99,7 +127,13 @@ def main():
 
     # 4. pandoc -> docx
     out_docx = out_dir / f"{src.stem}.docx"
-    r = subprocess.run(["pandoc", str(out_md), "-o", str(out_docx)],
+
+    # -raw_html: the docx writer drops raw HTML, so `<valor>`
+    # placeholders would vanish. -implicit_figures: caption
+    # paragraphs keep-with-next, so Google Docs pushes diagrams
+    # to the next page.
+    r = subprocess.run(["pandoc", "-f", "markdown-implicit_figures-raw_html",
+                        str(out_md), "-o", str(out_docx)],
                        capture_output=True, text=True)
     if r.returncode != 0:
         sys.exit(f"pandoc failed:\n{r.stderr}")
