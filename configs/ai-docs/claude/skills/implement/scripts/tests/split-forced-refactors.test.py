@@ -99,3 +99,21 @@ def test_should_move_forced_refactors_of_2_files_and_101_changed_lines_onto_a_ne
         {"branch": FEATURE_BRANCH, "force_with_lease": True},
     ]
 
+
+def test_should_sum_three_40_line_forced_refactors_to_120_lines_and_move_them(
+    tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: split parser", {"parser.py": 40}, "metrics"),
+        ("refactor: split writer", {"writer.py": 40}, "metrics"),
+        ("refactor: split loader", {"loader.py": 40}, "metrics"),
+    ])
+
+    report = run_split(repo, base)
+
+    assert report["outcome"] == "moved"
+    assert report["files"] == 3
+    assert report["lines"] == 120
+    assert len(subjects_between(repo, base, REFACTOR_BRANCH)) == 3
+    assert subjects_between(repo, REFACTOR_BRANCH, FEATURE_BRANCH) == []
+
