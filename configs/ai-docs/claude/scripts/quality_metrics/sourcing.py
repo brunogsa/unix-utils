@@ -63,6 +63,11 @@ JEST, PYTEST_COV = "jest", "pytest-cov"
 # pytest-cov.readthedocs.io/en/latest/config.html
 PYTEST_COV_COMMAND = ["uv", "run", "--with", "pytest-cov", "--", "pytest", "--cov"]
 
+# coverage.py settings a caller measuring itself exports. The
+# repo pytest-cov must not inherit them: it would then write to
+# and combine away the caller's own data files.
+CALLER_COVERAGE_ENV_VARS = {"COVERAGE_FILE", "COVERAGE_RCFILE", "COVERAGE_PROCESS_CONFIG", "COVERAGE_PROCESS_START"}
+
 LIZARD, SHELLMETRICS, LINE_COUNT = "lizard", "shellmetrics", "line count"
 COVERAGE_PY, C8, GCOV2LCOV = "coverage.py", "c8", "gcov2lcov"
 JSCPD = "jscpd"
@@ -192,9 +197,12 @@ def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
         config_flags = (
             [f"--cov-config={write_base_ref_coverage_config(repo, base_ref, work_dir)}"] if base_ref else []
         )
+        env_without_caller_coverage = {
+            name: value for name, value in os.environ.items() if name not in CALLER_COVERAGE_ENV_VARS
+        }
         result = run_command(
             [*PYTEST_COV_COMMAND, f"--cov-report=lcov:{report}", *config_flags],
-            cwd=repo, timeout=timeout_seconds,
+            cwd=repo, env=env_without_caller_coverage, timeout=timeout_seconds,
         )
         if result.returncode == PYTEST_NO_TESTS_EXIT:
             return {"exit_class": NO_TESTS, "hits_by_file": {}}

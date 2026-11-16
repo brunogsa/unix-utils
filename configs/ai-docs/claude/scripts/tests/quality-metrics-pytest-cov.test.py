@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from collections import namedtuple
 from pathlib import Path
@@ -157,6 +158,48 @@ def test_should_measure_with_the_base_ref_coverage_config_when_the_branch_omits_
     run = sourcing.run_repo_pytest_cov(repo, base_ref="HEAD")
 
     assert run["hits_by_file"]["legacy.py"] == {1: 0, 2: 0}
+    assert run["hits_by_file"]["cart.py"] == {1: 1, 2: 1, 5: 1, 6: 0}
+
+
+# A caller measuring itself in parallel mode, the way
+# python_coverage.collect_python sets up its own pytest run.
+CALLER_PARALLEL_COVERAGE_CONFIG = "[run]\nparallel = True\n"
+CALLER_DATA_FILE_SUFFIX = "callerhost.4242.Xabc123"
+WRITE_REAL_COVERAGE_DATA = (
+    "import sys, coverage\n"
+    "data = coverage.CoverageData(sys.argv[1])\n"
+    "data.add_lines({sys.argv[2]: [1, 2]})\n"
+    "data.write()\n"
+)
+
+
+def write_caller_coverage_data(caller_dir):
+    """A real coverage.py data file, named the way a parallel
+    run names its per-process file."""
+    data_file = caller_dir / f".coverage.{CALLER_DATA_FILE_SUFFIX}"
+    subprocess.run(
+        ["uv", "run", "--no-project", "--with", "coverage", "--", "python", "-c",
+         WRITE_REAL_COVERAGE_DATA, str(data_file), str(caller_dir / "caller.py")],
+        check=True, capture_output=True,
+    )
+    return data_file
+
+
+def test_should_leave_a_callers_coverage_data_files_untouched_when_running_the_repos_own_pytest_cov(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, PYTEST_COV_REPO_FILES)
+    caller_dir = tmp_path / "caller"
+    caller_dir.mkdir()
+    caller_config = caller_dir / "coveragerc"
+    caller_config.write_text(CALLER_PARALLEL_COVERAGE_CONFIG)
+    caller_data_file = write_caller_coverage_data(caller_dir)
+    monkeypatch.setenv("COVERAGE_FILE", str(caller_dir / ".coverage"))
+    monkeypatch.setenv("COVERAGE_RCFILE", str(caller_config))
+
+    run = sourcing.run_repo_pytest_cov(repo)
+
+    assert caller_data_file.exists()
     assert run["hits_by_file"]["cart.py"] == {1: 1, 2: 1, 5: 1, 6: 0}
 
 
