@@ -161,7 +161,7 @@ Print the rejected list the same way, with the rejection reason. On the fallback
 
 ### 5.3. Every open metrics violation goes in, on report-only and auto-solve alike
 
-The plan approval already asked for measured quality, so no triage runs. Enter every entry under the rendered file's `## Open violations`, plus every `[metrics]` judge finding.
+The plan approval already asked for measured quality, so no triage runs. Enter every entry under the rendered file's `## Open violations` and `## Gate input violations`, plus every `[metrics]` judge finding.
 
 Ranked lists, exceptions and deferred entries stay out: they repeat a violation or are rulings. List the numbers with the awk in [`references/metrics-leg.md`](references/metrics-leg.md) §5.
 

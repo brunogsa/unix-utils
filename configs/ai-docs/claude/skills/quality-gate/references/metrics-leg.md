@@ -54,12 +54,12 @@ An exit 2 from the script or the verdict render, or no rendered file after one r
 
 ## 5. Open-violation entry numbers
 
-The rendered verdict lists open violations under one `## Open violations (<n>)` heading, each as `### N. [metrics] <text>`. This prints their numbers, one per line, skipping any `###` line inside a code fence:
+The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. This prints their numbers, one per line, skipping any `###` line inside a code fence:
 
 ```bash
-awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^## /{s=($0 ~ /^## Open violations/)} !f && s && /^### [0-9]+\. /{sub(/^### /,""); sub(/\..*/,""); print}' <rendered file>
+awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^## /{s=($0 ~ /^## (Open|Gate input) violations/)} !f && s && /^### [0-9]+\. /{sub(/^### /,""); sub(/\..*/,""); print}' <rendered file>
 ```
 
-The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so only `## Open violations` entries enter the apply list.
+The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so only the two violation sections' entries enter the apply list.
 
 Those numbers are the same in the merged file, where the rendered entries come first and keep numbers 1 to k. Each judge finding is a `[metrics]` heading numbered from k+1 in the merged file.
