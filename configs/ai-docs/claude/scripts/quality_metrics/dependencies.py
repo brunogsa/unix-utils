@@ -104,7 +104,14 @@ class LayerMap:
 
 
 def load_layer_map(path):
-    raw = read_yaml(Path(path))
+    try:
+        raw = read_yaml(Path(path))
+    except OSError as error:
+        raise DeclarationError(f"layer map '{path}': {error}") from error
+    if not isinstance(raw, dict):
+        raise DeclarationError(
+            f"layer map '{path}' must be a mapping with source and layers"
+        )
     layers = []
     for entry in raw.get("layers") or ():
         paths = tuple(entry.get("paths") or ())

@@ -12,7 +12,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    GIT_ENV, commit_all, head_of, make_repo, measure_report,
+    GIT_ENV, commit_all, head_of, make_repo, measure_report, run_measure,
 )
 
 PYTHON_DECLARATION = """\
@@ -627,3 +627,29 @@ def test_scores_a_go_file_as_a_deferred_violation_when_go_arch_lint_is_missing(t
     assert deferred["file"] == "domain/order.go"
     assert deferred["pessimistic"] is True
     assert "deferred" in deferred["label"]
+
+
+def test_exits_not_measured_with_a_message_when_the_layer_map_file_does_not_exist(tmp_path):
+    repo = make_repo(tmp_path, {"tools/sync.py": "SYNC = 1\n"})
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(PYTHON_DECLARATION)
+    missing_layers = tmp_path / "no-such-layers.yaml"
+
+    result = run_measure(repo, declaration_path, "--layers", str(missing_layers))
+
+    assert result.returncode == 2
+    assert "no-such-layers.yaml" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_exits_not_measured_with_a_message_when_the_layer_map_is_a_list_not_a_mapping(tmp_path):
+    repo = make_repo(tmp_path, {"tools/sync.py": "SYNC = 1\n"})
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(PYTHON_DECLARATION)
+    list_layers = write_layers(tmp_path, "- name: infra\n  paths: [infra/**]\n")
+
+    result = run_measure(repo, declaration_path, "--layers", list_layers)
+
+    assert result.returncode == 2
+    assert "must be a mapping" in result.stderr
+    assert "Traceback" not in result.stderr
