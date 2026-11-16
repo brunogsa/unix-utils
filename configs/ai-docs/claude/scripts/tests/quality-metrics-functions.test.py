@@ -609,3 +609,21 @@ class TestResolvedReadsTheHeadRef:
         report = measure_report(repo, declaration_path, "--diff", f"{base}...HEAD")
 
         assert [item["function"] for item in report["resolved"]] == ["legacy_parse"]
+
+
+class TestListedFilesUnderPerUnit:
+    def test_should_not_hold_the_commit_for_an_untouched_over_limit_function_in_a_listed_file_under_per_unit_files(
+        self, tmp_path
+    ):
+        committed = PACKAGE_LINE + go_function_nested("legacy_parse", 5) + go_function_nested("small", 1)
+        repo = make_repo(tmp_path, {"report.go": committed})
+        (repo / "report.go").write_text(
+            PACKAGE_LINE + go_function_nested("legacy_parse", 5)
+            + go_function_nested("small", 1).replace("return 0", "return 2")
+        )
+        declaration_path = write_declaration(tmp_path, ["nesting"])
+
+        report = measure_report(repo, declaration_path, "--per-unit", "--files", "report.go")
+
+        assert report["violations"] == []
+        assert report["holds_commit"] is False

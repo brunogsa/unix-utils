@@ -8,6 +8,7 @@
 # Or measure a range or explicit files:
 #   measure-quality-metrics.py --diff BASE...HEAD
 #   measure-quality-metrics.py [--per-unit] --files FILE...
+#     (with --per-unit: only FILE's lines touched vs --base)
 #
 # Add --session-id ID [--map-dir DIR] to
 # measure coverage with the repo's own tool when its tool map
@@ -164,7 +165,7 @@ def _parse_arguments(arguments):
     parser.add_argument("--base", default="HEAD",
                         help="ref the touched lines are diffed against (default HEAD)")
     parser.add_argument("--files", nargs="+", metavar="FILE",
-                        help="measure these files whole, with no git diff")
+                        help="measure only these files; --per-unit narrows them to touched lines")
     parser.add_argument("--diff", metavar="BASE...HEAD",
                         help="review mode: measure every declared metric on the code "
                              "the committed range changes, and list the over-limit "
@@ -203,6 +204,10 @@ def _coverage_run_for(options, judged_against):
 
 
 def _targets_from(options):
+    if options.files and options.per_unit:
+        # A file with no diff stays whole, never zero targets.
+        touched = touched_files_since(options.base)
+        return {path: touched.get(path, WHOLE_FILE) for path in options.files}
     if options.files:
         return {path: WHOLE_FILE for path in options.files}
     if options.diff:
