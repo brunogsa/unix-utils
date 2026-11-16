@@ -210,9 +210,11 @@ def move_onto_refactor_branch(
 
     A conflict is aborted and the repo goes back to the branch
     and commit it started on, with no refactor branch left
-    behind.
+    behind. A detached start goes back to its commit.
     """
-    original_branch = run_git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    original_ref = run_git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    if original_ref == "HEAD":
+        original_ref = run_git(repo, "rev-parse", "HEAD")
     run_git(repo, "checkout", "-b", refactor_branch, base)
     conflicting_operation = None
     if not git_succeeds(repo, "cherry-pick", *shas):
@@ -221,7 +223,7 @@ def move_onto_refactor_branch(
         conflicting_operation = "rebase"
     if conflicting_operation is not None:
         run_git(repo, conflicting_operation, "--abort")
-        run_git(repo, "checkout", original_branch)
+        run_git(repo, "checkout", original_ref)
         run_git(repo, "branch", "-D", refactor_branch)
     return conflicting_operation
 
