@@ -36,6 +36,7 @@ from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
 from quality_metrics.failures import (
     function_tool_failure_records,
+    holds_commit,
     unclaimed_file_records,
 )
 from quality_metrics.functions import (
@@ -135,6 +136,7 @@ def _print_report(measurements, unclaimed, resolved, gate_input_violations, cove
     report = {
         "measurements": measurements,
         "violations": violations,
+        "holds_commit": holds_commit(measurements),
         "gate_input_violations": gate_input_violations,
         "resolved": resolved,
         "unclaimed_files": unclaimed,
