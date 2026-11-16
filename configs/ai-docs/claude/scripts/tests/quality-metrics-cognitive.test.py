@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -17,6 +19,9 @@ languages:
   python:
     extensions: [.py]
     metrics: [cognitive_complexity]
+  ts:
+    extensions: [.ts]
+    metrics: [cognitive_complexity]
 """
 
 
@@ -32,6 +37,13 @@ def python_function_with_ifs(name, branch_count):
     for number in range(branch_count):
         lines += [f"    if a == {number}:", f"        return {number}"]
     return "\n".join(lines + ["    return 0", ""])
+
+
+def typescript_function_with_ifs(name, branch_count):
+    lines = [f"function {name}(a: number): number {{"]
+    for number in range(branch_count):
+        lines += [f"  if (a === {number}) {{", f"    return {number};", "  }"]
+    return "\n".join(lines + ["  return 0;", "}", ""])
 
 
 def cognitive_summary(report):
@@ -52,17 +64,27 @@ def measure_added(tmp_path, file_name, text):
     return measure_report(repo, write_declaration(tmp_path), "--per-unit")
 
 
+@pytest.mark.parametrize(
+    "file_name, build",
+    [
+        ("report.py", python_function_with_ifs),
+        ("report.ts", typescript_function_with_ifs),
+    ],
+    ids=["python", "typescript"],
+)
 class TestCognitiveComplexityOfTouchedFunctions:
     def test_should_flag_a_function_at_cognitive_complexity_16_against_limit_15(
-        self, tmp_path
+        self, tmp_path, file_name, build
     ):
-        report = measure_added(tmp_path, "report.py", python_function_with_ifs("route_order", 16))
+        report = measure_added(tmp_path, file_name, build("route_order", 16))
 
         assert cognitive_summary(report) == [("route_order", 16, COGNITIVE_LIMIT)]
         assert violation_names(report) == ["route_order"]
 
-    def test_should_pass_a_function_at_cognitive_complexity_15(self, tmp_path):
-        report = measure_added(tmp_path, "report.py", python_function_with_ifs("route_order", 15))
+    def test_should_pass_a_function_at_cognitive_complexity_15(
+        self, tmp_path, file_name, build
+    ):
+        report = measure_added(tmp_path, file_name, build("route_order", 15))
 
         assert cognitive_summary(report) == [("route_order", 15, COGNITIVE_LIMIT)]
         assert violation_names(report) == []
