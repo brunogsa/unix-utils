@@ -32,7 +32,9 @@ A file where this prints nothing contributes no item.
 
 ## Per-item field hints
 
-- **Source** - `<verdict file>:<heading line>`, plus the finding's lens tag (`[refactor]`, `[auto-review]`, `[test-sdd]`) when the heading carries one.
+- **Source** - `<verdict file>:<heading line>`, plus the finding's lens tag (`[refactor]`, `[auto-review]`, `[test-sdd]`, `[metrics]`) when the heading carries one.
+  - A rendered `[metrics]` heading has no severity: `### 3. [AI!][metrics] <text>`.
+
 - **Verbatim** - the heading line exactly; for a note, the message is in it.
 - **Context** - the finding's suggested fix, from its body.
   - Add its evidence only when the fix line alone does not say what the finding was about.
@@ -50,7 +52,7 @@ A file where this prints nothing contributes no item.
 
 Two kinds of lesson come out of a verdict file, with different targets:
 
-- **About the reviewer** - what a lens reports, how it ranks severity, how it phrases a fix → that lens's skill (`refactor`, `auto-review`, `test-sdd`) or `code-review-pipeline/references/review-principles.md`.
+- **About the reviewer** - what a lens reports, how it ranks severity, how it phrases a fix → that lens's skill (`refactor`, `auto-review`, `test-sdd`, `quality-gate` for `metrics`) or `code-review-pipeline/references/review-principles.md`.
 
 - **About the code** - a note saying "use helper X instead", "this repo keeps Y in Z" → the repo's `CLAUDE.md`, or `code-standards` when it holds across repos.
 

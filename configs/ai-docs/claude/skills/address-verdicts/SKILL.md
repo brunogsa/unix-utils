@@ -26,8 +26,8 @@ disable-model-invocation: false
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
 
 - `all` - every finding in every located verdict file, on the current branch.
-- A lens name, `refactor`, `auto-review`, `test-sdd`, or `quality-gate` - every finding in that lens's file only.
-  - `quality-gate` selects every finding in the newest merged file. `refactor` and `auto-review` select the findings of whichever source §1 picks for that lens, merged or standalone.
+- A lens name, `refactor`, `auto-review`, `test-sdd`, `metrics`, or `quality-gate` - every finding in that lens's file only.
+  - `quality-gate` selects every finding in the newest merged file. A lens name selects the findings of whichever source §1 picks for it, merged or standalone.
 
 - A severity floor, e.g. `high`/`high+` - every finding at or above it, only when the report labels severity (see §2).
 
@@ -67,9 +67,13 @@ Ask ONE clarifying question, with your recommended reading, on any of these:
 
 Never guess past an ambiguity - a wrong guess silently works the wrong finding.
 
-A severity floor compares the ordinal `HIGH`/`MEDIUM`/`LOW` tag each lens stamps in its finding headings, so all three filter alike. A `[QUESTION]` finding carries no ordinal, so no floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
+A severity floor compares the `HIGH`/`MEDIUM`/`LOW` tag in a finding heading.
 
-Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4). Infer it first - a `package.json` test script, a Makefile target, the repo's own CLAUDE.md - and ask only when it can't be inferred, bundling that ask into §2's clarifying question if one already fires.
+A rendered `[metrics]` entry (`### 2. [metrics] <text>`) carries none, so a floor never selects it - name it, or mark it `[AI!]`.
+
+A `[QUESTION]` finding carries no ordinal, so no floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
+
+Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4). Infer it first (a `package.json` script, a Makefile target, the repo's CLAUDE.md) and ask only when it can't be inferred, bundled into §2's question if one fires.
 
 **Under `--no-ask`, nothing above prompts.** Each ambiguity resolves to `SKIPPED (<the ambiguity>)` on that finding, and the run continues.
 
@@ -83,28 +87,28 @@ Before applying anything, group §2's selection by lens and create one entry per
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
 ```
 
-A merged-file finding joins the `auto-review` or `refactor` entry its heading tag names (`### 1. [HIGH][refactor] <title>`), never a `quality-gate` entry. One with no lens tag is an ambiguity: ask, or under `--no-ask` annotate `SKIPPED (no lens tag)`.
+A merged-file finding joins the entry its heading tag names - `auto-review`, `refactor`, `test-sdd` or `metrics` (`### 1. [HIGH][refactor] <title>`) - never a `quality-gate` entry. A heading with none of the four is an ambiguity: ask, or under `--no-ask` annotate `SKIPPED (no lens tag)`.
 
-Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, then `auto-review`, then `refactor`** - each stage hands the next a stronger safety net.
+Seed them in this fixed order, which is also §4's dispatch order: **`test-sdd`, `auto-review`, `refactor`, then `metrics`** - each stage hands the next a stronger safety net.
 
-A lens with no finding gets no entry, since an empty task reads as work that silently never ran. Mark the first entry `in_progress`, every other one `pending`.
+A lens with no finding gets no entry. Mark the first entry `in_progress`, every other one `pending`.
 
 **One entry per lens, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
-Each entry names its own count of dispatched findings, and §5 still annotates every finding individually in its verdict file.
+Each entry names its dispatched count.
 Add one closing `[Reminder]` entry for the final report (§6) - it survives a mid-run compaction, so the wrap-up step can't get silently skipped.
 
 ## 4. Apply each lens through one pinned subagent
 
 Dispatch one subagent per entry seeded above, **serially, in that seeded order** - never in parallel, since every dispatch commits to the same branch.
 
-**Classify each finding by what it edits, not by which lens found it.** The three bullets below are the default for a code finding; a non-code finding overrides them.
+**Classify each finding by what it edits, not by which lens found it.** The bullets below are the default for a code finding; a non-code finding overrides them.
 
 A finding whose target is a document, spec, plan, prompt-markdown, `SKILL.md`, agent file, comment, rename, file move, config value, or frontmatter value goes to `direct-coder`, whichever lens reported it.
 
 A `test-sdd` finding whose planned test covers prose is **not written at all**. Annotate it `SKIPPED (tests prose, which CLAUDE.md forbids)`.
 
-A lens whose findings are all non-code dispatches its own agent zero times - a correct outcome. §3 still seeds its entry, and §5 still annotates every finding.
+A lens whose findings are all non-code dispatches its own agent zero times; §3 still seeds it and §5 still annotates.
 
 **A finding tagged `[AI!: <message>]` (or `[AI! <message>]`) carries its message into the dispatch verbatim, as the human's instruction.**
 
@@ -114,7 +118,7 @@ A lens whose findings are all non-code dispatches its own agent zero times - a c
 
 Each dispatch carries **all** findings assigned to it at once, each with the identifier, scope, and evidence its report gives, plus the test command from §2:
 
-- **`test-sdd` entry** (from `verdict_test-sdd_*.md`): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
+- **`test-sdd` entry** (from `verdict_test-sdd_*.md`, or a `[test-sdd]` merged finding): `agent(subAgent=tdd-coder, title=Apply all test-sdd findings)`.
   - Dispatch only `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>` output, which omits the unplanned-tests finding, left unannotated.
 
   - A test-sdd finding names a planned test the repo lacks, so writing that test IS the fix.
@@ -127,7 +131,12 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - **`refactor` entry** (from `verdict_refactor_*.md`, or a `[refactor]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
 
-**Size all three entries to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch itself.
+- **`metrics` entry** (a `[metrics]` merged finding), split by what the fix edits - a default classification, not a spec rule:
+  - Size, nesting, complexity or duplication violations, and hotspots → `refactor`.
+  - Coverage or CRAP violations whose fix is a missing, vacuous or entangled test → `tdd-coder`.
+  - A prose or config target → `direct-coder`; the unplanned-tests finding is never dispatched.
+
+**Size every entry to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch itself.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture.
 - Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
@@ -137,7 +146,7 @@ Split an entry of more than ~10 findings into sequential dispatches to its own a
 
 Why the cap, and why code refactor findings keep their own agent: [`references/design-rationale.md`](references/design-rationale.md).
 
-**One commit per finding still holds inside a batched dispatch** - say so explicitly in every dispatch prompt. The batching exists to cut subagent spawns, not to coarsen the diff a human reviews.
+**One commit per finding still holds inside a batched dispatch** - say so in every dispatch prompt.
 
 - `tdd-coder` commits its own work under `commit-standards` - confirm each reported SHA exists rather than re-committing.
 
@@ -145,16 +154,18 @@ Why the cap, and why code refactor findings keep their own agent: [`references/d
 
 - `direct-coder` commits its own work under `commit-standards`, so a `refactor`-lens finding routed to it needs no commit from main - unlike the `refactor` agent.
 
-Verify each subagent's result against the artifacts - diff, test run - before trusting its "done"; the summary describes intent, only the artifact shows what landed. A finding whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
+Verify each subagent's result against the artifacts - diff, test run - before trusting its "done". A finding whose apply failed or was reverted is recorded as failed, never done, and never gets a commit.
 
-**Score a partial batch per finding, never per lens.** A dispatch that landed 6 of its 9 findings is recorded as 6 applied and 3 failed, never one failed lens, so six real commits are preserved in the ledger.
+**Score a partial batch per finding, never per lens.** A dispatch landing 6 of 9 findings records 6 applied and 3 failed.
 
 ## 5. Annotate the verdict file, the moment each lens's dispatch returns
 
 Write every one of that lens's outcomes in place, next to its own finding - never held back until the last lens finishes. Two marks per finding, doing different jobs:
 
-- **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the same convention `plan-status-markers` defines for plan task headings.
+- **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the `plan-status-markers` convention.
   - This is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
+
+  - Every heading parser accepts `### N. [AI!][metrics] <text>` and `### N. [Done][metrics] <text>`.
 
 - **In the finding's body**, the outcome and evidence:
   - `APPLIED (<sha>)` - the fix commit's SHA, pairs with a `[Done]` heading.
@@ -187,7 +198,7 @@ State plainly, every time:
 
 In marked mode, also report one line per tree branch and stopped subtree, per [`references/stack-mode.md`](references/stack-mode.md).
 
-Invoked by a skill, hand that same list back to the caller rather than only printing it - the caller composes the closing report the human reads, and can only name what it was told.
+Invoked by a skill, hand that same list back to the caller, which composes the human's closing report.
 
 ## Flowchart (human-facing)
 

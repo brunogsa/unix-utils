@@ -53,11 +53,11 @@ Its `auto-review` leg then runs without spec-conformance context - documented, n
 It runs here, not in a subagent, for two reasons:
 
 - Its `test-sdd` leg's write-permission prompt only renders in the main session.
-- Its three review legs are already fresh-context subagents - wrapping it would spend a nesting level deciding nothing.
+- Its four legs are already fresh-context subagents - wrapping it would spend a nesting level deciding nothing.
 
 **`--report-only` is always passed, never omitted** - omitting it makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
 
-All three legs run regardless - the tail never skips one, it only never applies what they find.
+All four legs run regardless - the tail never skips one, and never applies a `refactor` or `auto-review` finding.
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 
@@ -112,13 +112,13 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Per-task outcomes** - every task, all `done`, with its commit SHAs.
 - **Dropped full-suite checks** (only when §8.3 was skipped) - any plan-declared full-suite/repo-wide command §4.1 stripped from a task's dispatch that the gate would otherwise have re-covered.
 
-- **Every verdict file path** `/quality-gate` produced (the merged `verdict_quality-gate_<branch>_<ts>.md`, or the separate refactor and auto-review files when its merge failed, plus `verdict_test-sdd_<branch>_<ts>.md` when a plan resolved).
+- **Every verdict file path** `/quality-gate` produced (the merged `verdict_quality-gate_<branch>_<ts>.md`, carrying the metrics and test-sdd entries, or the separate leg files when its merge failed).
   - Plus any leg it flagged as failed.
 
 - **The quality-gate outcome** - one line per finding, never a bare id or count, plus its outcome and a one-line recap.
   - A merged finding reads `quality-gate#N [<lens>] (<file>:<lines>)`.
 
-  - A test-sdd finding, or any finding on the fallback path, reads `<lens>#N (<file>:<lines>)`.
+  - A finding on the fallback path reads `<lens>#N (<file>:<lines>)`.
 
   - Outcome is applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
 

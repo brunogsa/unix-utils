@@ -32,8 +32,8 @@ def address_verdicts(arg):
         findings = run_marked_stack(arg)                   # 1b-1x
         return close_with_report(arg, findings)            # 19
     # 2 · Step 1 - several timestamped generations can exist per lens. A
-    #     verdict_quality-gate_*.md counts as a source for both refactor and
-    #     auto-review.
+    #     verdict_quality-gate_*.md counts as a source for all four lenses
+    #     (refactor, auto-review, test-sdd, metrics).
     files = glob("verdict_refactor_*.md", "verdict_auto-review_*.md",
                  "verdict_test-sdd_*.md", "verdict_quality-gate_*.md")
 
@@ -87,14 +87,15 @@ def address_verdicts(arg):
 
     # 9 · Step 3 - group findings by lens; ONE TaskList entry per lens that
     #     contributed at least one finding, NEVER one per finding - seeded in
-    #     the FIXED order test-sdd, auto-review, refactor (also step 4's
+    #     the FIXED order test-sdd, auto-review, refactor, metrics (also step 4's
     #     dispatch order - each stage hands the next a stronger test safety
     #     net). Shaped "Apply all N <lens> findings". First entry
     #     in_progress, every other one pending. A real run yields 30-50
-    #     findings but at most 3 entries. A merged-file finding joins the
-    #     entry its heading lens tag names, never a quality-gate entry.
+    #     findings but at most 4 entries. A merged-file finding joins the
+    #     entry its heading lens tag names, never a quality-gate entry; a
+    #     heading with none of the four tags is SKIPPED (no lens tag).
     lens_entries = group_by_lens(findings,
-                                  order=["test-sdd", "auto-review", "refactor"])
+                                  order=["test-sdd", "auto-review", "refactor", "metrics"])
     tasklist.seed([f"[Task] Apply all {len(e.findings)} {e.lens} findings"
                    for e in lens_entries],
                   first="in_progress", rest="pending")     # 9
@@ -151,6 +152,15 @@ def address_verdicts(arg):
                 #       tests are green before and after.
                 result = agent("refactor", title="Apply all refactor findings",
                                 findings=code, test_cmd=test_cmd)  # 11c
+            case "metrics":
+                # 11d · Default split by what each fix edits: size, nesting,
+                #       complexity, duplication and hotspots go to refactor;
+                #       coverage/CRAP fixes that are missing, vacuous or
+                #       entangled tests go to tdd-coder. The unplanned-tests
+                #       finding is never dispatched.
+                for agent_name, group in split_metrics(code):
+                    result = agent(agent_name, title="Apply all metrics findings",
+                                    findings=group, test_cmd=test_cmd)  # 11d
 
         # 12 · Step 4 - one verify per dispatch, covering every finding in
         #      the batch. A subagent's summary describes intent; only the
@@ -506,10 +516,10 @@ def apply_scouts(scouts_files, marked, start_branch):
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
   n1a{"1a. Step 1 · Is &lt;which ones&gt; empty or 'marked'?<br/>Yes = MARKED MODE: only findings the human tagged [AI!],<br/>across a whole PR tree, with push. Any other selection<br/>(all, a lens, a severity floor, an explicit list) is the<br/>single-branch, no-push flow from node 2"}
-  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for both refactor<br/>and auto-review). Several timestamped generations<br/>can exist per lens"]
+  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for all four lenses:<br/>refactor, auto-review, test-sdd, metrics). Several timestamped generations<br/>can exist per lens"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
-  n4{"4. Step 1 · A lens has no source (a merged file covers<br/>refactor and auto-review) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
+  n4{"4. Step 1 · A lens has no source (a merged file covers<br/>all four lenses) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
   n4a(["4a. STOP - say no report exists for that lens"])
   n5["5. Step 1 · Per lens, the newest source by mtime wins: the<br/>newest merged file's findings tagged with that lens, or<br/>the newest standalone file, never both. A verdict file<br/>path inside &lt;which ones&gt; pins an older generation.<br/>A lens with no source is dropped, and named in step 6"]
   n6["6. Step 2 · Match &lt;which ones&gt; in this order: all (the<br/>default when empty), a lens name, a severity floor,<br/>then an explicit list of finding identifiers"]
@@ -518,7 +528,7 @@ flowchart TD
   n8a{"8a. Was --no-ask passed?"}
   n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>the caller re-runs it by hand after reading the ledger,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one - refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity - a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
-  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 3 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>no tag is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
+  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor, metrics<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 4 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>none of the four tags is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
   n21{"21. Step 4 · Classify each finding in this entry by what it EDITS,<br/>not by which lens found it. The per-lens routing below is only<br/>the default for a code finding - a non-code target overrides it"}
   n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The forbidden test wins"]
@@ -528,6 +538,7 @@ flowchart TD
   n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix - pass every planned title verbatim so<br/>each lands under the name the plan declared.<br/>Dispatch only get-test-sdd-dispatch-list.py output, which omits<br/>the unplanned-tests finding - left unannotated"]:::dispatch
   n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings (from the auto-review<br/>file or [auto-review]-tagged merged findings). Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
   n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings (from the refactor file<br/>or [refactor]-tagged merged findings). It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
+  n11d["11d. Dispatch by what each [metrics] fix edits (default split):<br/>size, nesting, complexity, duplication and hotspots go to refactor;<br/>coverage or CRAP fixes that are missing, vacuous or<br/>entangled tests go to tdd-coder; prose or config to<br/>direct-coder. The unplanned-tests finding is never dispatched"]:::dispatch
 
   n12["12. Step 4 · Verify the dispatch's result against the<br/>artifacts - the diff, the test run - before trusting<br/>its done. One verify per dispatch, covering every<br/>finding in the batch; a summary describes intent,<br/>only the artifact shows what actually landed"]
   n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens - a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
@@ -674,6 +685,7 @@ flowchart TD
   n11 -->|"test-sdd lens"| n11a --> n12
   n11 -->|"auto-review lens"| n11b --> n12
   n11 -->|"refactor lens"| n11c --> n12
+  n11 -->|"metrics lens"| n11d --> n12
   n12 --> n13
   n13 -->|"no"| n13a --> n15
   n13 -->|"yes"| n14

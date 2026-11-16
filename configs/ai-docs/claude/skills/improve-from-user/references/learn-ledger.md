@@ -28,12 +28,17 @@ The origin must stay stable while the source is edited, so it carries no line nu
 - Mode A: the extractor emits no message uuid, only the session file path and a timestamp per turn.
   - The pair is stable across re-runs and compactions, since compaction only appends.
 
-- Mode D: strip the status tag from the heading text before keying, keeping the number, severity and lens tags.
+- Mode D: strip the status tag from the heading text before keying, keeping the number, the lens tag (`auto-review`, `refactor`, `test-sdd` or `metrics`) and any severity tag.
+
+  - A `[metrics]` heading has no severity tag.
+
   - Status tags are `[AI!]`, `[AI!: <message>]`, `[AI! <message>]` and `[Done]`; `address-verdicts` swaps `[AI!]` for `[Done]` when it applies a finding, so the raw heading changes between runs.
 
   - `address-verdicts` writes `APPLIED (<sha>)` and `SKIPPED (<reason>)` in the finding's body, not its heading; strip them too should one appear in the heading.
 
   - Example: `### 3. [AI!: use helper X][MEDIUM][refactor] Foo` and `### 3. [Done][MEDIUM][refactor] Foo` both key as `### 3. [MEDIUM][refactor] Foo`.
+
+  - Example: `### 3. [AI!][metrics] Bar` and `### 3. [Done][metrics] Bar` both key as `### 3. [metrics] Bar`.
 
   - Why: a changed heading changes the key, so the same mark would be learned again after `address-verdicts` handled it.
 
