@@ -33,20 +33,6 @@ checker = _load_checker()
 # a commit it could not read.
 WITHHELD_VERDICT = ""
 
-GIT_ALIASES = "[alias]\n\tci = commit\n\tst = status\n"
-
-
-@pytest.fixture(autouse=True)
-def _git_aliases(tmp_path, monkeypatch):
-    """Run every case against one known set of git aliases, in
-    a directory outside any repository."""
-    config = tmp_path / "gitconfig"
-    config.write_text(GIT_ALIASES)
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    monkeypatch.setenv(checker.COMMIT_CWD_ENV, str(tmp_path))
-    return config
-
 
 def _attribution_verdict(command):
     result = subprocess.run(

@@ -16,14 +16,6 @@ bash_bin="$(command -v bash)"
 pass_count=0
 fail_count=0
 
-# One known set of git aliases, read from a directory outside
-# any repository, so no machine's own aliases leak in.
-alias_dir=$(mktemp -d)
-trap 'rm -rf "$alias_dir"' EXIT
-printf '[alias]\n\tci = commit\n' >"$alias_dir/gitconfig"
-export GIT_CONFIG_GLOBAL="$alias_dir/gitconfig"
-export GIT_CONFIG_NOSYSTEM=1
-
 assert_eq() {
   local description="$1" expected="$2" actual="$3"
   if [ "$expected" = "$actual" ]; then
@@ -39,7 +31,7 @@ assert_eq() {
 # payload; HOOK_EXIT is 0 when allowed, 2 when blocked.
 run_hook() {
   local stdin_json
-  stdin_json=$(jq -n --arg c "$1" --arg d "$alias_dir" '{tool_input: {command: $c}, cwd: $d}')
+  stdin_json=$(jq -n --arg c "$1" '{tool_input: {command: $c}}')
   printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" >/dev/null 2>&1
   HOOK_EXIT=$?
 }
