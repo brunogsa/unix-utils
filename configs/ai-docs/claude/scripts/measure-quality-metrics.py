@@ -34,6 +34,7 @@ from quality_metrics import declaration as declaring
 from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
 from quality_metrics.debt import debt_score, measured_nloc
+from quality_metrics.debt_delta import branch_debt_delta
 from quality_metrics.failures import holds_commit
 from quality_metrics.functions import is_over_limit
 from quality_metrics.measuring import (
@@ -85,16 +86,16 @@ def main(arguments):
         )
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
         measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
-        resolved = resolved_since(declaration, mode, options.diff, coverage_run.policy)
-        gate_input_violations = _gate_input_violations(
-            options, judged_against, head_ref
-        )
+        found = {
+            "gate_input_violations": _gate_input_violations(options, judged_against, head_ref),
+            "resolved": resolved_since(declaration, mode, options.diff, coverage_run.policy),
+            "unclaimed_files": unclaimed,
+        }
+        delta = branch_debt_delta(judged_against, head_ref or "HEAD", declaration)
     except (declaring.DeclarationError, ToolError, GitError) as error:
         print(f"measure-quality-metrics: {error}", file=sys.stderr)
         return EXIT_UNMEASURED
-    return _print_report(
-        measurements, unclaimed, resolved, gate_input_violations, coverage_run
-    )
+    return _print_report(measurements, found, coverage_run, delta)
 
 
 def _anchor_at_repo_root(options):
@@ -120,18 +121,21 @@ def _anchor_at_repo_root(options):
     os.chdir(root)
 
 
-def _print_report(measurements, unclaimed, resolved, gate_input_violations, coverage_run):
+def _print_report(measurements, found, coverage_run, delta):
     """Print the JSON report and return the exit code
-    it earns."""
+    it earns.
+
+    `found` holds the report keys gate_input_violations,
+    resolved and unclaimed_files.
+    """
+    gate_input_violations = found["gate_input_violations"]
     violations = [item for item in measurements if is_over_limit(item)]
     report = {
         "measurements": measurements,
         "violations": violations,
         "holds_commit": holds_commit(measurements),
-        "debt": debt_score(violations, measured_nloc(measurements)),
-        "gate_input_violations": gate_input_violations,
-        "resolved": resolved,
-        "unclaimed_files": unclaimed,
+        "debt": {**debt_score(violations, measured_nloc(measurements)), "delta": delta},
+        **found,
         "sources": coverage_run.sources,
         "asks": coverage_run.asks,
     }

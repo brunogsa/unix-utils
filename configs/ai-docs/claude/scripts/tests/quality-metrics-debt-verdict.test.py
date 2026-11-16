@@ -70,7 +70,11 @@ def test_should_carry_the_debt_in_the_json_and_leave_the_exit_code_and_holds_com
     )
 
     output = json.loads(result.stdout)
-    assert output["debt"] == {"minutes": 20, "nloc": 2, "ratio": 20 / 60, "band": "D"}
+    no_files_changed = {"computable": True, "files": [], "total_minutes": 0}
+    assert output["debt"] == {
+        "minutes": 20, "nloc": 2, "ratio": 20 / 60, "band": "D",
+        "delta": no_files_changed,
+    }
     assert result.returncode == 1
     assert output["holds_commit"] is True
     assert len(output["violations"]) == 1

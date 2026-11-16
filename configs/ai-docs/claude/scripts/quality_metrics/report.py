@@ -214,7 +214,31 @@ def _debt_section(report):
             f"{score['minutes']} min of remediation over {score['nloc']} measured lines = "
             f"{score['ratio']:.1%}, band {score['band']}"
         )
-    return _section("Debt", [text])
+    delta = report.get("debt", {}).get("delta")
+    if delta is None:
+        return _section("Debt", [text])
+    return _section("Debt", [text, _debt_delta_text(delta)])
+
+
+def _debt_delta_text(delta):
+    if not delta["computable"]:
+        return f"Debt delta: delta not computable: {delta['reason']}"
+    lines = [
+        f"- {_delta_name(entry)}: {entry['base_minutes']} -> "
+        f"{entry['head_minutes']} min ({entry['delta_minutes']:+d})"
+        for entry in delta["files"]
+    ]
+    return "\n".join([
+        "Debt delta on touched files, base ref to HEAD (static metrics only):",
+        *lines,
+        f"Total: {delta['total_minutes']:+d} min",
+    ])
+
+
+def _delta_name(entry):
+    if entry["old_file"]:
+        return f"{entry['old_file']} -> {entry['file']}"
+    return entry["file"]
 
 
 def _design_section(measurements):

@@ -100,10 +100,10 @@ def touched_files_between(base_ref, head_ref):
 
 @dataclass(frozen=True)
 class Change:
-    """A file the range changed: its path at the base, and at
-    the head (None when deleted)."""
+    """A file the range changed: its path at the base (None
+    when added), and at the head (None when deleted)."""
 
-    old_path: str
+    old_path: Optional[str]
     new_path: Optional[str]
 
 
@@ -121,6 +121,32 @@ def changes_between(base_ref, head_ref):
         else:
             changes.append(Change(paths[0], paths[-1]))
     return changes
+
+
+def all_changes_between(base_ref, head_ref):
+    """List every file `head_ref` changed against `base_ref`,
+    an added one with no base-side path and a deleted one with
+    no head-side path; git pairs renames."""
+    output = _git(*DIFF_COMMAND, "--name-status", "-M", base_ref, head_ref)
+    changes = []
+    for line in output.splitlines():
+        status, *paths = line.split("\t")
+        if status.startswith("A"):
+            changes.append(Change(None, paths[0]))
+        elif status.startswith("D"):
+            changes.append(Change(paths[0], None))
+        else:
+            changes.append(Change(paths[0], paths[-1]))
+    return changes
+
+
+def ref_exists(ref):
+    """True when `ref` names a commit in this repo."""
+    try:
+        _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    except GitError:
+        return False
+    return True
 
 
 def merge_base(base_ref, head_ref):
