@@ -24,6 +24,7 @@ from typing import Optional
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import head_tree
 from quality_metrics.failures import TimeoutPolicy, ask_or_defer
+from quality_metrics.python_test_deps import declared_test_dependency_args
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.sourcing import (
     FAILED_TESTS,
@@ -270,6 +271,14 @@ def _red_build_naming_pytest_exit(test_run):
     )
 
 
+def _with_declared_test_deps(command, repo_dir):
+    """The command plus the repo's declared test dependencies,
+    added ahead of uv's `--`; unchanged when it has none."""
+    separator = command.index("--")
+    extra = declared_test_dependency_args(repo_dir)
+    return [*command[:separator], *extra, *command[separator:]]
+
+
 def collect_python(repo_dir):
     with tempfile.TemporaryDirectory() as data_dir:
         data_file_outside_repo = Path(data_dir) / ".coverage"
@@ -282,7 +291,10 @@ def collect_python(repo_dir):
             config_file.write_text(SUBPROCESS_COVERAGE_CONFIG)
             env["COVERAGE_RCFILE"] = str(config_file)
         run_started = time.time()
-        test_run = run_command(PYTHON_TEST_COMMAND, cwd=repo_dir, env=env)
+        test_run = run_command(
+            _with_declared_test_deps(PYTHON_TEST_COMMAND, repo_dir),
+            cwd=repo_dir, env=env,
+        )
         if test_run.returncode == PYTEST_NO_TESTS_EXIT:
             return NO_COVERAGE_DATA
         if test_run.returncode != 0:
