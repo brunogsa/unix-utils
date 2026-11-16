@@ -15,25 +15,22 @@ from quality_metrics_support import (
     GIT_ENV, commit_all, head_of, make_repo, measure_report, run_measure,
 )
 
-PYTHON_DECLARATION = """\
+def declaration_for(language, extension):
+    """A declaration measuring only dependency direction for one language."""
+    return f"""\
 excluded_paths: [dist/]
 ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
 per_unit: []
 languages:
-  python:
-    extensions: [.py]
+  {language}:
+    extensions: [{extension}]
     metrics: [dependency_direction]
 """
 
-JS_DECLARATION = """\
-excluded_paths: [dist/]
-ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
-per_unit: []
-languages:
-  js:
-    extensions: [.js]
-    metrics: [dependency_direction]
-"""
+
+PYTHON_DECLARATION = declaration_for("python", ".py")
+
+JS_DECLARATION = declaration_for("js", ".js")
 
 # Layers run from the outermost to the innermost: infra may
 # import domain, and domain may never import infra.
@@ -222,15 +219,7 @@ PYTHON_DOMAIN_WITHOUT_INFRA = "ORDER_ID = 1\n"
 PYTHON_DOMAIN_READING_INFRA = "from infra import db\n\nORDER_ID = db.SAVED\n"
 PYTHON_INFRA_DB = "SAVED = 1\n"
 
-GO_DECLARATION = """\
-excluded_paths: [dist/]
-ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
-per_unit: []
-languages:
-  go:
-    extensions: [.go]
-    metrics: [dependency_direction]
-"""
+GO_DECLARATION = declaration_for("go", ".go")
 
 GO_MODULE = "module shop\n\ngo 1.25\n"
 GO_DOMAIN_WITHOUT_INFRA = "package domain\n\nconst OrderID = 1\n"
