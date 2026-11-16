@@ -29,10 +29,12 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 
 ### Refactor isolation & hunk-splitting
 
-- [Instruction] Keep a refactor commit to structure only - rename, restructure, extract, with green tests staying green.
+- [Instruction] Keep a refactor commit to structure only - rename, restructure, extract, with green tests staying green - and land an over-limit metric fix this way, before the behavior change.
   - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate substantive diff from cosmetic.
 
   - [Example] A migration (move + update refs + delete) is structure-only - keep it as one isolated refactor commit.
+
+  - [Example] `buildReport` at CRAP 11 against a limit of 8: split it in its own structure-only commit first, then commit the behavior change on top.
 
 - [Instruction] **Split entangled commits by staging with `git-hunk`, never by editing code - committed content stays byte-identical to what was authored and reviewed.**
   - [Why] Editing to stage selectively risks altering the code under review and breaks the audit trail.
