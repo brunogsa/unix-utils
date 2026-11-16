@@ -63,7 +63,27 @@ Issue every independent call in one message - the reads that open the files, the
 5. Run Verification once more and diff against step 2's red set. Anything newly red is yours to fix before committing.
    - Budget the full command at these two runs. Re-check a single repair with a targeted command - the one file, test name, or suite - never the whole thing.
 
-6. Commit, one commit per logical change, in the order the caller listed them, each under `commit-standards` including the `Co-Authored-By` trailer - the git-guard hook rejects commits without it.
+6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once before committing.
+   - Outside git, pass the edited files: `--per-unit --files <file>...`.
+
+   - Never use `--diff` here, because it cannot combine with either flag.
+
+   - Exit 0 is clean and 1 is a violation. Exit 2 means it did not measure, and never reads as a pass.
+
+   - Hold the commit until every function in the JSON `violations` is fixed or claimed as an exception.
+
+   - A claim needs the split version's diff saved to CWD through `~/.claude/scripts/write-atomically.py <path>`, with the diff on stdin. Restore the unsplit code afterward.
+
+   - Name the claim's file, function, metric, diff path and split value in the commit body and the report.
+
+   - A tooling problem never asks the human from here and holds no commit.
+
+   - Return it under the report's Ask field as an `ask` record: `tool`, `metric`, `reason`, and `choices` of `fix now` and `defer`.
+
+   - The caller raises that record and relays the answer.
+
+7. Commit, one commit per logical change, in the order the caller listed them, each under `commit-standards` including the `Co-Authored-By` trailer - the git-guard hook rejects commits without it.
+   - A refactor the per-unit check forced carries a `Gate: metrics` trailer, a value no test commit uses.
 
 ## Boundaries
 
@@ -112,4 +132,6 @@ Report back as structured text, never a silent "done":
 - **Deviations**: Drift fixes folded in, and any judgment call the Change left open.
 - **Scouts**: pre-existing, non-blocking items observed - one line each.
 - **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path and report it as its own line: which module, which task, which path took over.
+- **Ask**: present only when the per-unit metrics check hit a tooling problem - each `ask` record, verbatim.
+- **Exceptions claimed**: present only when a claim was made - file, function, metric, saved split diff path, split value.
 - **Blocked on**: present only when Status is `blocked` - the missing or unusable required input, and exactly what clears it.
