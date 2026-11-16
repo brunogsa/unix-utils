@@ -13,6 +13,7 @@
 #   one per line in file order; empty when none qualify.
 # exit: 0 success, 1 unreadable verdict file
 import argparse
+import importlib.util
 import re
 import sys
 from pathlib import Path
@@ -42,7 +43,14 @@ def is_test_sdd_finding(heading):
     tags = set(BRACKET_TAG.findall(heading["tags"]))
     return TEST_SDD_TAG in tags or not tags & LENS_TAGS
 
-FENCE_OPENER = re.compile(r"^\s*(?:```|~~~)")
+PARSE_FENCES_PATH = Path(__file__).with_name("parse-fences.py")
+
+
+def load_toggle_fence():
+    spec = importlib.util.spec_from_file_location("parse_fences", PARSE_FENCES_PATH)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.toggle_fence
 
 
 def read_verdict(path):
@@ -67,11 +75,13 @@ def is_dispatchable_heading(line):
 
 def list_dispatchable_headings(verdict_text):
     headings = []
-    is_inside_fence = False
+    toggle_fence = load_toggle_fence()
+    fence_state = (False, "", 0)
     for line in verdict_text.splitlines():
-        if FENCE_OPENER.match(line):
-            is_inside_fence = not is_inside_fence
-        elif not is_inside_fence and is_dispatchable_heading(line):
+        previous_state = fence_state
+        fence_state = toggle_fence(line, *fence_state)
+        is_inside_fence = previous_state[0] or fence_state[0]
+        if not is_inside_fence and is_dispatchable_heading(line):
             headings.append(line)
     return headings
 

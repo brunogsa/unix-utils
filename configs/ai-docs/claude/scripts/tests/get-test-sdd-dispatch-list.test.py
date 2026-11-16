@@ -153,6 +153,25 @@ class TestTestSddFindingsSentToTddCoder:
             "### 5. [AI!: do it][HIGH][test-sdd] Missing planned test - task 6",
         ]
 
+    def test_should_keep_listing_findings_after_an_indented_fence_line_since_only_a_fence_at_column_zero_opens_a_code_block(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            "- an indented fence inside a list item:\n"
+            "  ```\n\n"
+            '### 1. [HIGH] Missing planned test - task 3: "after the indent"\n',
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 1. [HIGH] Missing planned test - task 3: "after the indent"',
+        ]
+
     def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
         self, tmp_path
     ):
