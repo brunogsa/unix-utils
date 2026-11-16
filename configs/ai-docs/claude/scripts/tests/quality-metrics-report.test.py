@@ -169,6 +169,18 @@ class TestDeferredMetrics:
         assert "buildReport" in violations
         assert "mergeRows" in violations
 
+    def test_should_not_list_a_failed_test_run_as_a_deferred_metric_and_still_build_the_verdict(self):
+        failed_run = [
+            {**crap_record("src/report.py", "buildReport", 12), "pessimistic": True}
+        ]
+
+        verdict = report.build_verdict(measured(*failed_run))
+
+        deferred_section = section(verdict, "Deferred metrics")
+        assert "(0)" in deferred_section.splitlines()[0]
+        assert entry_headings(deferred_section) == []
+        assert "buildReport" in section(verdict, "Open violations")
+
 
 class TestRankedLists:
     def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):

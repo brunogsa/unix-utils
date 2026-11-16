@@ -6,12 +6,14 @@ diff saved on disk and no rejection by the judge, so a claim made
 in prose alone, or one the judge rejected, stays an open violation.
 """
 
+import collections
 import itertools
 import os
 import tempfile
 from pathlib import Path
 
 from quality_metrics import hotspots
+from quality_metrics.failures import DEFERRED_LABEL
 
 METRICS_TAG = "[metrics]"
 
@@ -106,18 +108,20 @@ def _exceptions_section(accepted, numbers):
 
 
 def _deferred_section(measurements, numbers):
-    """One entry per deferred metric, counting the records its tool could not measure."""
-    labels_by_title = {}
-    counts_by_title = {}
-    for record in measurements:
-        if record.get("pessimistic"):
-            title = _metric_name(record)
-            labels_by_title[title] = record["label"]
-            counts_by_title[title] = counts_by_title.get(title, 0) + 1
+    """One entry per deferred metric, counting the records its tool could not measure.
+
+    A failed test run is pessimistic too but carries no deferral
+    label: it is a red build, not deferred tooling.
+    """
+    counts_by_title = collections.Counter(
+        _metric_name(record)
+        for record in measurements
+        if record.get("label") == DEFERRED_LABEL
+    )
     entries = [
         _entry(
             next(numbers),
-            f"{title} - {counts_by_title[title]} measurements ({labels_by_title[title]})",
+            f"{title} - {counts_by_title[title]} measurements ({DEFERRED_LABEL})",
         )
         for title in sorted(counts_by_title)
     ]
