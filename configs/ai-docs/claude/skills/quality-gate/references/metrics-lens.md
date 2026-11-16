@@ -2,13 +2,13 @@
 
 The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. You are a fresh-context judge, not the code's author, so the rulings below are yours.
 
-You report only. Never edit a source file, the declaration `~/.claude/scripts/quality-metrics.yaml`, or a limit.
+You report only: never edit a source file, `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
-quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there, except the layer map, which section 2 writes to CWD.
+quality-gate passes you a `mktemp -d /tmp/quality-gate.XXXXXX` run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map, which section 2 writes to CWD.
 
 ## 1. Run the script
 
-Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, over the range you were given, redirecting its JSON to the run directory:
+Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, over your range, redirecting its JSON to the run directory:
 - [Why] The installed `~/.claude/scripts/` path works from any repo, while a repo-relative path resolves only inside the config repo.
 
 ```bash
@@ -18,7 +18,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 ```
 
 - `--session-id <SESSION_ID>` is the id main pushed into your prompt; omit the flag only when none was pushed.
-  - [Why] Only main's id keys the per-session tool map, so without it every metric uses global tools.
+  - [Why] Only main's id keys the per-session tool map; without it every metric uses global tools.
 
 - `--diff BASE...HEAD` measures every declared metric on the code the committed range changes, and lists the over-limit functions the range removes as resolved.
   - It cannot combine with `--files` or `--per-unit`.
@@ -33,13 +33,13 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 
 Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `asks`.
 
-Return each entry of `asks` verbatim as an `ask` record in your final message, never ask the human yourself; main raises it and relays the answer (see [`metrics-leg.md`](metrics-leg.md) §2).
+Return each `asks` entry verbatim as an `ask` record in your final message; main raises it (`metrics-leg.md` §2).
 
-The script skips `entangled_tests` by design; you judge it in section 4.
+The script skips `entangled_tests`; you judge it in section 4.
 
 ## 2. Infer a layer map when none is declared
 
-1. Look for a declared map first (the repo's own layers config or architecture doc). If one exists, convert it to the map format below with `source: declared` and skip inference.
+1. Look for a declared map first (the repo's layers config or architecture doc). If found, convert it to the map format below with `source: declared` and skip inference.
 
 2. Otherwise read the repo tree at the base ref (`git ls-tree -r --name-only <BASE>` and the imports in the files there), never the branch head.
    - [Why] A branch that adds an import must not be able to redraw the layers that judge it.

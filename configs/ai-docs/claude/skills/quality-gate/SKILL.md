@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Quality Gate
 
-Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. When asked, also apply whatever else is safely applicable.
+Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. When asked, also apply what is safe.
 
 Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in CWD, `verdict_quality-gate_<branch>_<ts>.md`:
 
@@ -25,18 +25,18 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 
 - `spec` / `plan` - paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
 
-- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) forwarded to the `test-sdd` leg; omitted, it checks every task.
+- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg; omitted, every task.
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
 - `--auto-solve` - skip the opening interview and apply the `refactor`/`auto-review` findings this run judges safe. Doesn't govern `test-sdd` or `metrics` (§5.1, §5.3).
 
 - `--report-only` - skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied.
-  - A skill caller that already asked its human passes one of the two flags, never neither, so §1 never stalls a batch on a prompt nobody is watching.
+  - A skill caller that already asked its human passes one flag, so §1 never stalls a batch on an unwatched prompt.
 
   - Both flags at once is a contradiction - stop and say so.
 
-See [`references/more-examples.md`](references/more-examples.md) for example invocations, opened only when the flags above leave a case unclear.
+See [`references/more-examples.md`](references/more-examples.md) for example invocations, only when the flags above leave a case unclear.
 
 ## 1. Ask about auto-solve - first, before anything else
 
@@ -74,7 +74,7 @@ Also resolve `<BASE_REF>`:
 ~/.claude/scripts/resolve-base-ref.sh
 ```
 
-If detection fails, ask which branch to diff against - but under either flag, stop and print what failed, since a missing base has no safe default.
+If detection fails, ask which branch to diff against; under either flag, stop and print what failed, since a missing base has no safe default.
 
 **No git repo encloses CWD** → skip this resolution and never stop: see [`references/metrics-leg.md`](references/metrics-leg.md) §3.
 
@@ -95,9 +95,9 @@ Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review 
 
   - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
 
-**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** The one carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`, spawn-depth rule).
+**Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** Carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`).
 
-Tell each leg this, since its skill describes dispatching a reviewer. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
+Tell each leg this, since its skill describes dispatching a reviewer ([`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md)).
 
 The `check-reviewer-writes.sh` hook backs report-only; its terms are in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md).
 
@@ -109,13 +109,13 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary and let the other legs stand.
   - Never retry twice - a twice-failed leg is for the human.
 
-- **Never report from a leg's return message** - messages truncate long lists; the file is the source of truth.
+- **Never report from a leg's return message** - it truncates long lists; the file is the source of truth.
 
 ### 4.1. Merge the legs' files into one verdict
 
 **No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform, on report-only and auto-solve runs alike.
 
-Record the source paths, and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review` and `test-sdd` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
+Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review` and `test-sdd` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on the rendered metrics verdict to get k (0 with none).
@@ -188,9 +188,9 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 
 - **`--test-cmd` is passed** so its inference step has nothing left to prompt for.
 
-It runs in this session, never wrapped in a subagent, because it commits and a permission prompt only renders in main.
+It runs in this session, never in a subagent, because it commits and permission prompts render only in main.
 
-It returns the ledger §7 reports from: applied findings with SHAs, skipped findings with reasons, failures with retry needs.
+It returns the ledger §7 reports from: applied findings with SHAs, skipped ones with reasons, failures with retry needs.
 
 ## 7. Close with a report
 
@@ -212,13 +212,13 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 
 - **On a report-only run, every `refactor` and `auto-review` finding, under a heading naming them as never triaged.**
   - No one judged them addressable, so "not addressable" would claim a judgment never made.
-  - Close that section by naming both ways to work them: tag the chosen headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
+  - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
 
 - The `test-sdd` `Unplanned tests added by the branch` finding, its tests listed, never dispatched, for the human to mark `[Done]`.
 
 - Findings `/address-verdicts` skipped, with the reason, and findings whose apply failed, with what it needs to retry.
-- The plain statement that unannotated findings are untouched, and that tagging them `[AI!]` for a later `/address-verdicts` run - this time with a human answering - is how they get worked.
+- The statement that unannotated findings are untouched; tagging them `[AI!]` for a later `/address-verdicts` run, with a human answering, works them.
 
 ## Flowchart (human-facing)
 
-[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it - non-authoritative, the steps above win; regenerate it whenever the flow changes.
+[`assets/flowchart.md`](assets/flowchart.md) diagrams this skill's flow for the human. Don't load it: the steps above win; regenerate it when the flow changes.
