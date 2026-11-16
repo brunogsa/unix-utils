@@ -37,10 +37,10 @@ languages:
   # python's import-linter, and go-arch-lint for go.
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
   ts:
     extensions: [.ts, .tsx]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
 
   # HTML and CSS have no functions: only size and code
   # duplication apply, the latter from token clones of 4 lines
@@ -57,7 +57,7 @@ languages:
     metrics: [size, code_duplication]
   python:
     extensions: [.py]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
 
   # Bash declares size, counted in logical lines, crap, and code
   # duplication, from token clones of 4 lines or more, with
@@ -71,6 +71,7 @@ languages:
   # - nesting: shellmetrics does not measure nesting depth.
   # - parameters: Bash has no declared parameter list.
   #
+  # - cognitive_complexity: no Bash tool measures it.
   # - dependency direction: Bash has no imports to follow.
   # - duplicated tests: Bash has no test-suite structure.
   # - entangled tests: Bash has no test-suite structure.
@@ -81,4 +82,4 @@ languages:
     metrics: [size, crap, code_duplication]
   go:
     extensions: [.go]
-    metrics: [size, nesting, parameters, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]

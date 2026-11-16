@@ -7,7 +7,10 @@ SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import make_repo, measure_report
+from quality_metrics import declaration
+from quality_metrics_support import (
+    SHIPPED_DECLARATION, make_repo, measure_report, run_measure,
+)
 
 COGNITIVE_LIMIT = 15
 
@@ -22,12 +25,15 @@ languages:
   ts:
     extensions: [.ts]
     metrics: [cognitive_complexity]
+  bash:
+    extensions: [.sh]
+    metrics: [{bash_metrics}]
 """
 
 
-def write_declaration(tmp_path):
+def write_declaration(tmp_path, bash_metrics="size"):
     path = tmp_path / "quality-metrics.yaml"
-    path.write_text(DECLARATION)
+    path.write_text(DECLARATION.format(bash_metrics=bash_metrics))
     return path
 
 
@@ -88,3 +94,30 @@ class TestCognitiveComplexityOfTouchedFunctions:
 
         assert cognitive_summary(report) == [("route_order", 15, COGNITIVE_LIMIT)]
         assert violation_names(report) == []
+
+
+class TestShippedDeclaration:
+    @pytest.mark.parametrize("language", ["js", "ts", "python", "go"])
+    def test_should_declare_cognitive_complexity_for_every_language_lizard_measures(
+        self, language
+    ):
+        loaded = declaration.load_declaration(SHIPPED_DECLARATION)
+
+        assert "cognitive_complexity" in loaded.languages[language].metrics
+
+    def test_should_not_declare_cognitive_complexity_for_bash(self):
+        loaded = declaration.load_declaration(SHIPPED_DECLARATION)
+
+        assert "cognitive_complexity" not in loaded.languages["bash"].metrics
+
+    def test_should_fail_the_run_naming_the_metric_when_a_bash_entry_declares_cognitive_complexity(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"run.sh": "#!/bin/bash\n"})
+        (repo / "run.sh").write_text("#!/bin/bash\nrun() {\n  echo 1\n}\n")
+        declaration_path = write_declaration(tmp_path, "cognitive_complexity")
+
+        result = run_measure(repo, declaration_path, "--per-unit")
+
+        assert result.returncode == 2
+        assert "cannot measure cognitive_complexity" in result.stderr
