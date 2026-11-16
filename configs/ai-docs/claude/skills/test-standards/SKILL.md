@@ -88,7 +88,7 @@ it('should filter by assignee', ...);
   - [Why] Empty-to-something only proves the filter renders/returns something - not that it changes the result meaningfully.
 
 - [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide - not the diff-scoped subset - before declaring done.
-  - [Why] A change's blast radius exceeds its diff - a rename or removed export breaks callers a scoped run never touches.
+  - [Why] A change's blast radius exceeds its diff: a rename or removed export breaks callers a scoped run skips.
 
 - [Instruction] Defer the full suite to push time or CI - running the diff-scoped tier meanwhile - when it outruns your iteration loop or the machine is saturated.
   - [Why] Deferring the full run keeps its blast-radius catch, while a bare skip ships tiers nobody ever ran.
@@ -113,8 +113,10 @@ it('should filter by assignee', ...);
 - [Instruction] Never commit test titles alone - a title needs its body in the same commit.
   - [Why] A title committed without its body rots as forever-pending TDD scaffolding that never gets its implementation.
 
-- [Instruction] Before rewriting a `.sh` script, capture its behavior with `scripts/capture-script-behavior.py` - every row's stdout/stderr/exit code and fixture post-state as golden - then replay the table against the rewrite.
-  - [Why] A script has no test suite to lean on, so capture-then-replay is the only way to prove the rewrite is equivalent.
+- [Instruction] Before refactoring or rewriting untested code, pin its current behavior with tests, then keep them green through the change.
+  - [Why] Untested code has no suite to lean on, so pinned current behavior is the only proof the change is equivalent.
+
+  - [Example] For a `.sh` script, `scripts/capture-script-behavior.py` records every row's stdout/stderr/exit code and fixture post-state as golden, then replays the table against the rewrite.
 
 ### Descriptive titles (BDD-like)
 
@@ -128,7 +130,7 @@ it('should filter by assignee', ...);
 **Anti-pattern: generic noun when multiple instances of the same kind exist**
 
 - [Instruction] When a system has multiple instances of the same kind - two search fields, two filters, two query params, two endpoints - name the specific one in the title.
-  - [Why] A generic noun invites confusion when two of the same kind exist - the reader can't tell which one is pinned.
+  - [Why] A generic noun confuses when two of the same kind exist - the reader can't tell which is pinned.
 
 [Example]
 ```
@@ -202,7 +204,7 @@ describe('with FEAT_FLAG_DELIVERY_ADDRESS_ENABLED on', () => {
 ### Tests that should not exist
 
 - [Instruction] Never write a test whose system under test is human-readable text - prose in a committed `.md`, or a `description`/`summary` field in a committed OpenAPI/AsyncAPI spec.
-  - [Why] It can only catch a wording edit, never behavior, because the reader acting on that text is a human or an LLM.
+  - [Why] It catches only a wording edit, never behavior, since the reader of that text is a human or an LLM.
   - [Example] Bad: asserting a `.md`'s heading order or frontmatter values, or `expect(schema.errorCode.description).toContain('NO_AGREEMENT_FOUND')`. Good: asserting the schema's `type`, `required` or `enum`.
 
 A fixture-driven suite is not in this class: feeding a checker a temp-dir `.md` the test itself wrote exercises the checker, and the checker is real code.
@@ -302,7 +304,7 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
   - [Example] Clone an input before passing it to a mutating function; otherwise it corrupts the shared fixture the next test inherits.
 
 - [Instruction] **No randomness in test inputs or assertions - use fixed values.**
-  - [Why] A random input means a failure may not reproduce, so the signal is unactionable and erodes trust in the suite.
+  - [Why] A random input's failure may not reproduce, so the signal is unactionable and erodes trust.
 
 - [Instruction] **Pin the clock with fake timers whenever the system under test reads it (directly or via helpers); test names like "expired", "deadline", "min", "cap" are the tell.**
   - [Why] Without a frozen clock, a time-derived test passes today and silently fails once the wall-clock crosses its threshold.
@@ -378,11 +380,11 @@ it('shows expired badge when past deadline', () => {
 
 - [Instruction] Move a test helper to a shared module only once a second test file needs it.
 
-  - [Why] A shared module with one caller moves setup out of the reader's view and couples files for no second user.
+  - [Why] A shared module with one caller hides setup from the reader and couples files needlessly.
 
 - [Instruction] Keep every value an assertion checks visible in the test body - a helper takes it as a parameter, never as a hidden default.
 
-  - [Why] A hidden asserted value forces a jump into the helper to learn what is tested, so the test stops documenting it.
+  - [Why] A hidden asserted value forces a jump into the helper, so the test stops documenting it.
 
   - [Example] Bad: `buildSaeOrder()`, then asserting the CNPJ its default supplies. Good: `buildSaeOrder({ schoolDocNumber: '12345678000195' })` before that assertion.
 
@@ -392,6 +394,8 @@ it('shows expired badge when past deadline', () => {
 
 - [Instruction] **CRITICAL: Let the system under test do the work - the test must encode an independent expectation, not recompute what the code does.**
   - [Why] If the test reproduces the logic, both move together: a production bug gets mirrored in the test and still passes.
+
+  - [Example] A test that still passes when every function under test returns nothing encodes no expectation - throw it out.
 
 [Example]
 ```ts
@@ -404,7 +408,7 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 ```
 
 - [Instruction] Hand-code regression baselines as explicit expected values - never `f(X) === f(X)`, which only proves `f` is deterministic and can never fail.
-  - [Why] A real regression guard needs a value you wrote down that the code might get wrong - self-comparison checks nothing.
+  - [Why] A real regression guard needs a value you wrote down that the code might get wrong.
 
 [Example]
 ```ts
@@ -431,7 +435,7 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
   - [Why] The failing test proves you've reproduced the real bug and turns into the guard that stops it from regressing.
 
 - [Instruction] When you move code, move its tests too (if they exist) - adapt them to the new path, don't drop the coverage.
-  - [Why] Leaving tests behind during a move is silent regression risk - the next bug in that area has no test to catch it.
+  - [Why] Tests left behind in a move leave the next bug in that area uncaught.
 
 - [Instruction] Prefer durable debugging artifacts - a failing test or committed debug script - over throwaway scratchpads.
   - [Why] A scratchpad vanishes when the session ends, leaving the next person who hits the bug no signal to find.
@@ -442,7 +446,7 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
   - [Why] Skipped tests are silent debt that grows quietly, and a tell for AI slop - scaffolding that never lands.
 
 - [Instruction] Delete dead skips - a stale one (old, no follow-up commits, referenced code gone or changed), or the whole file when 100% of its tests are skipped.
-  - [Why] A stale skip pads the count with tests mapping to no real code; a fully-skipped file adds only audit cost.
+  - [Why] A stale skip pads the count with tests mapping to no real code, adding audit cost.
 
 - [Instruction] File a `[Scout]` whenever you judge the condition justifying a skip has lifted, naming the test and why it looks un-skippable now.
   - [Why] Only a filed entry gets triaged - an un-skip judged in passing is lost and the skip goes unchallenged.
