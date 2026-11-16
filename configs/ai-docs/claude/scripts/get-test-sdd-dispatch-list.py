@@ -56,21 +56,22 @@ def read_verdict(path):
         sys.exit(1)
 
 
+def is_dispatchable_heading(line):
+    heading = FINDING_HEADING.match(line)
+    if heading is None:
+        return False
+    if heading["title"] == UNPLANNED_TESTS_FINDING_TITLE:
+        return False
+    return is_test_sdd_finding(heading)
+
+
 def list_dispatchable_headings(verdict_text):
     headings = []
     is_inside_fence = False
     for line in verdict_text.splitlines():
         if FENCE_OPENER.match(line):
             is_inside_fence = not is_inside_fence
-            continue
-        if is_inside_fence:
-            continue
-        heading = FINDING_HEADING.match(line)
-        if (
-            heading
-            and heading["title"] != UNPLANNED_TESTS_FINDING_TITLE
-            and is_test_sdd_finding(heading)
-        ):
+        elif not is_inside_fence and is_dispatchable_heading(line):
             headings.append(line)
     return headings
 
