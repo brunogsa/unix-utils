@@ -39,7 +39,3 @@ The unplanned-tests finding is one exception: it names tests the branch already 
 `[Done]` on it means the developer reviewed those tests, which only the human can do, so `/address-verdicts` never dispatches or annotates it.
 
 `get-test-sdd-dispatch-list.py` keys on the finding's exact title, so the test-sdd report schema and that script must change together.
-
-## Why base-ref resolution falls back the way it does
-
-`resolve-base-ref.sh` tries `origin/HEAD`, then local `main`, then local `master`.
