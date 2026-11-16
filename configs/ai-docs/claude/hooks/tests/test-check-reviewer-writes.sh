@@ -258,6 +258,19 @@ assert_eq "allows stderr discarded to /dev/null" \
 assert_eq "blocks a quoted /tmp target that hops out to /etc" \
   "2" "$(run_bash 'echo x > "/tmp/a/../../etc/x"')"
 
+# A quote can sit anywhere inside a target word, so a parent
+# step hidden in a quoted part must still be denied.
+assert_eq "blocks a scratch dir target whose double-quoted part hops out to source" \
+  "2" "$(run_bash 'echo x > $work_dir/"../../src/a.py"')"
+
+# A redirect after a quoted string ending in `>` is still a
+# redirect, and a single-quoted `$` is a literal dollar sign.
+assert_eq "blocks a repo source redirect that follows a quoted angle bracket" \
+  "2" "$(run_bash 'echo "a >" > "src/x"')"
+
+assert_eq "blocks a single-quoted scratch dir name, which is a literal directory" \
+  "2" "$(run_bash "echo x > '\$work_dir'/x")"
+
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
 # first scratch write. Lines are derived by grep at test time:

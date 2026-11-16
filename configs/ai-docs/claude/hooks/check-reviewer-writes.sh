@@ -136,29 +136,55 @@ bash_target_allowed() {
   [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]
 }
 
-# Matches a redirect operator or `tee` plus its flags, right
-# before a quote. Only that quote is a write target.
-REDIRECT_PREFIX='((&>>?|>>?\|?)[[:space:]]*|tee[[:space:]]+(-[A-Za-z]+[[:space:]]+)*)'
+# Stand-ins for quoted text, so a quoted space or shell
+# operator neither splits a word nor reads as a redirect.
 SPACE_PLACEHOLDER=$'\001'
+INERT_PLACEHOLDER=$'\002'
 
-# Prints the command with each quoted redirect/tee target
-# unquoted and its spaces swapped for SPACE_PLACEHOLDER, so
-# `> "/tmp/a b.txt"` is judged as one path.
-unquote_write_targets() {
-  local text="$1" quote="$2"
-  printf '%s' "$text" | sed -E -e ':a' \
-    -e "s/(${REDIRECT_PREFIX}${quote}[^${quote} ]*) ([^${quote}]*${quote})/\1${SPACE_PLACEHOLDER}\5/" \
-    -e 'ta' \
-    -e "s/${REDIRECT_PREFIX}${quote}([^${quote}]*)${quote}/\1\4/g"
+# Prints the command with every quote removed in place. One
+# pass pairs each quote with its real closing quote.
+#
+# - Quoted whitespace becomes SPACE_PLACEHOLDER.
+# - A quoted shell operator becomes INERT_PLACEHOLDER.
+# - A single-quoted dollar sign or backtick does too.
+# - The dollar sign of an ANSI-C or locale quote is dropped.
+#
+# A backslash is kept with the character it escapes.
+remove_quotes() {
+  printf '%s' "$1" | awk -v space="$SPACE_PLACEHOLDER" -v inert="$INERT_PLACEHOLDER" '
+    function quoted(c, is_single) {
+      if (c ~ /[[:space:]]/) return space
+      if (c ~ /[<>|;&()]/) return inert
+      if (is_single && (c == "$" || c == "`")) return inert
+      return c
+    }
+    { text = text (NR > 1 ? "\n" : "") $0 }
+    END {
+      n = length(text)
+      for (i = 1; i <= n; i++) {
+        c = substr(text, i, 1)
+        if (state == "single") {
+          if (c == "\047") state = ""
+          else out = out quoted(c, 1)
+        } else if (c == "\\" && i < n) {
+          i++
+          out = out c quoted(substr(text, i, 1), 0)
+        } else if (state == "double") {
+          if (c == "\"") state = ""
+          else out = out quoted(c, 0)
+        } else if (c == "\047" || c == "\"") {
+          state = (c == "\"") ? "double" : "single"
+          if (substr(out, length(out)) == "$") out = substr(out, 1, length(out) - 1)
+        } else out = out c
+      }
+      printf "%s", out
+    }'
 }
 
 if [ -n "$CMD" ]; then
-  # Quoted write targets are unquoted first. Any other quoted
-  # text is replaced by a placeholder, so `grep "a > b"` is not
-  # read as a redirect while a target that is not a literal
-  # allowed path is still denied.
-  UNQUOTED=$(unquote_write_targets "$(unquote_write_targets "$CMD" '"')" "'")
-  STRIPPED=$(printf '%s' "$UNQUOTED" | sed -E "s/\"[^\"]*\"/Q/g; s/'[^']*'/Q/g; s/[0-9]*>&[0-9-]+//g")
+  # Quotes are removed first, so a target whose quote sits
+  # anywhere in the word is judged as the path the shell uses.
+  STRIPPED=$(remove_quotes "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g')
   TARGETS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(&>>?|>>?\|?)[[:space:]]*[^[:space:]<>|;&)]*' \
     | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')
