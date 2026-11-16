@@ -202,7 +202,7 @@ def _base_ref_config_flags(repo, base_ref, config_dir):
     copies = write_base_ref_configs(repo, base_ref, config_dir)
     if not copies:
         return []
-    return ["--config", str(next(iter(copies.values()))), f"--rootDir={repo}"]
+    return ["--config", str(copies[0]), f"--rootDir={repo}"]
 
 
 def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref=None):

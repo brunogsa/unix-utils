@@ -148,15 +148,15 @@ def write_base_ref_configs(repo_dir, base_ref, directory):
 
     A tool that reads its own config at run time is pointed at
     the copy, so the branch's excludes never shape its numbers.
-    Returns the copies' paths by config file name.
+    Returns the copies' paths, in detector-rule order.
     """
-    copies = {}
+    copies = []
     for name in _jest_config_names():
         text = _text_at(repo_dir, base_ref, name)
         if text is not None:
             copy_path = Path(directory) / name
             copy_path.write_text(text)
-            copies[name] = copy_path
+            copies.append(copy_path)
     return copies
 
 
