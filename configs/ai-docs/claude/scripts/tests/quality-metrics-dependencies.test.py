@@ -43,9 +43,9 @@ layers:
     paths: [domain/**]
 """
 
-INFERRED_LAYERS = DECLARED_LAYERS.replace("declared", "inferred, not declared")
-
 INFERRED_LABEL = "inferred, not declared"
+
+INFERRED_LAYERS = DECLARED_LAYERS.replace("declared", INFERRED_LABEL)
 
 BILLING_READS_ORDERS = "from shop.orders import order\n"
 ORDER_READS_BILLING = "from shop.billing import invoice\n\nORDER_ID = 1\n"
