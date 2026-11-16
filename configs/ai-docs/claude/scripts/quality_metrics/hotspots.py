@@ -91,7 +91,7 @@ def _color(record):
     if record["value"] is None:
         return "red"
     if record["limit"] <= 0:
-        return "green"
+        return "red" if record["value"] > 0 else "green"
     if record.get("flagged_below_limit"):
         return "red" if is_over_limit(record) else "green"
     if record["value"] * 100 >= record["limit"] * RED_PERCENT:

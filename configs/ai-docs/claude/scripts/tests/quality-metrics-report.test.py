@@ -15,6 +15,7 @@ hotspots = importlib.import_module("quality_metrics.hotspots")
 is_over_limit = importlib.import_module("quality_metrics.functions").is_over_limit
 coverage = importlib.import_module("quality_metrics.coverage")
 failures = importlib.import_module("quality_metrics.failures")
+dependencies = importlib.import_module("quality_metrics.dependencies")
 FunctionMeasure = importlib.import_module("quality_metrics.functions").FunctionMeasure
 Target = importlib.import_module("quality_metrics.touched").Target
 
@@ -335,6 +336,19 @@ class TestNoValueRecords:
 
         assert "(1)" in section(verdict, "Deferred metrics").splitlines()[0]
         assert "docs/notes.weird" in verdict
+
+
+class TestDependencyDirection:
+    def test_should_draw_a_file_red_for_an_introduced_dependency_problem_and_green_for_none(self):
+        metric = dependencies.METRIC
+        run = measured(
+            file_record("src/ui.py", metric, dependencies.FLAGGED_COUNT, dependencies.LIMIT_COUNT),
+            file_record("src/core.py", metric, 0, dependencies.LIMIT_COUNT),
+        )
+
+        colors = nodes_by_file(hotspots.hotspot_view(run, []))
+
+        assert colors == {"src/ui.py": "red", "src/core.py": "green"}
 
 
 class TestNoCodeMeasured:
