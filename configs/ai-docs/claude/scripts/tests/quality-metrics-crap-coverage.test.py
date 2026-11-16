@@ -376,6 +376,42 @@ class FixedCoverageRun:
         return self.result
 
 
+class TestGoModulePathLcovNames:
+    @pytest.mark.parametrize(
+        "go_mod, source_name, expected",
+        [
+            pytest.param(
+                "module example.com/foo\n\ngo 1.22\n",
+                "example.com/foo/pkg/a.go",
+                "pkg/a.go",
+                id="under the module path",
+            ),
+            pytest.param(
+                "module example.com/foo\n",
+                "example.com/other/pkg/a.go",
+                "example.com/other/pkg/a.go",
+                id="outside the module path",
+            ),
+            pytest.param(
+                None, "example.com/foo/pkg/a.go", "example.com/foo/pkg/a.go",
+                id="no go.mod",
+            ),
+        ],
+    )
+    def test_should_strip_the_go_module_path_from_an_lcov_name_only_when_go_mod_declares_it(
+        self, tmp_path, go_mod, source_name, expected
+    ):
+        if go_mod is not None:
+            (tmp_path / "go.mod").write_text(go_mod)
+        lcov_file = tmp_path / "coverage" / "lcov.info"
+        lcov_file.parent.mkdir()
+        lcov_file.write_text(lcov_report(source_name, {1: 1, 2: 0}))
+
+        result = collection.read_fresh_lcov(tmp_path, run_started=0)
+
+        assert result.hits_by_file == {expected: {1: 1, 2: 0}}
+
+
 class TestLcovPathForms:
     def test_should_match_an_lcov_sf_path_written_absolute_to_its_repo_relative_changed_file(
         self, tmp_path

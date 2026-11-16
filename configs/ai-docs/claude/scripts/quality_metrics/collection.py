@@ -156,13 +156,35 @@ def read_fresh_lcov(repo_dir, run_started):
     if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
         return NO_COVERAGE_DATA
     hits_by_file = parse_lcov(lcov_file.read_text())
+    module_prefix = _go_module_prefix(repo_dir)
     return CoverageResult(
         hits_by_file={
-            repo_relative(repo_dir, name): hits
+            _without_prefix(repo_relative(repo_dir, name), module_prefix): hits
             for name, hits in hits_by_file.items()
         },
         has_failed_tests=False,
     )
+
+
+def _go_module_prefix(repo_dir):
+    """`<module path>/` from go.mod, or "" when there is none.
+
+    gcov2lcov writes each SF as `<module path>/<pkg>/a.go`.
+    """
+    go_mod = repo_dir / "go.mod"
+    if not go_mod.exists():
+        return ""
+    for line in go_mod.read_text().splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] == "module":
+            return parts[1].strip('"') + "/"
+    return ""
+
+
+def _without_prefix(name, prefix):
+    if prefix and name.startswith(prefix):
+        return name[len(prefix):]
+    return name
 
 
 def repo_relative(repo_dir, name):
