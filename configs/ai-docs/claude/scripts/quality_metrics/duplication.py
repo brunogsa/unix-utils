@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 from quality_metrics.collection import repo_relative
-from quality_metrics.declaration import is_test_file
+from quality_metrics.declaration import is_excluded_path, is_test_file
 from quality_metrics.functions import measurement
 from quality_metrics.tools import run_tool
 
@@ -51,7 +51,10 @@ def measure(target, metrics, declaration):
     if metric not in metrics:
         return []
     extensions = declaration.languages[target.language].extensions
-    peers = _peers_of(repo_path, is_test, extensions)
+    peers = [
+        peer for peer in _peers_of(repo_path, is_test, extensions)
+        if not is_excluded_path(declaration, peer)
+    ]
     with tempfile.TemporaryDirectory() as scan_dir:
         names = _stage_corpus(
             target, repo_path, suffix, peers, Path(scan_dir)

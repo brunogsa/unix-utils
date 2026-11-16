@@ -384,6 +384,32 @@ def measure_uncommitted_changes(tmp_path, committed, changed):
     )["violations"]
 
 
+class TestDuplicationCorpusExcludedPaths:
+    def test_should_ignore_a_tracked_clone_under_an_excluded_directory_while_flagging_the_same_clone_outside_it(
+        self, tmp_path
+    ):
+        repo = make_repo(
+            tmp_path,
+            {
+                "src/pricing.py": PRICING,
+                "dist/costing.py": COSTING,
+            },
+        )
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(DECLARATION)
+
+        excluded_peer = measure_report(
+            repo, declaration_path, "--files", "src/pricing.py"
+        )["violations"]
+        (repo / "src/costing.py").write_text(COSTING)
+        included_peer = measure_report(
+            repo, declaration_path, "--files", "src/pricing.py"
+        )["violations"]
+
+        assert excluded_peer == []
+        assert {item["other_file"] for item in included_peer} == {"src/costing.py"}
+
+
 class TestDuplicationAcrossExtensionsOfOneLanguage:
     @pytest.mark.parametrize(
         "first_name, second_name",

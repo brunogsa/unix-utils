@@ -69,6 +69,11 @@ def load_declaration(path):
     )
 
 
+def is_excluded_path(declaration, file_path):
+    """True when the path starts with a declared excluded prefix."""
+    return any(str(file_path).startswith(prefix) for prefix in declaration.excluded_paths)
+
+
 def language_for_file(declaration, file_path):
     """Return the language name, or None for an ignored or excluded file.
 
@@ -76,7 +81,7 @@ def language_for_file(declaration, file_path):
     so the caller can run its fix-now-or-defer ask.
     """
     normalized_path = str(file_path)
-    if any(normalized_path.startswith(prefix) for prefix in declaration.excluded_paths):
+    if is_excluded_path(declaration, normalized_path):
         return None
     extension = Path(normalized_path).suffix
     if extension in declaration.ignored_extensions:
