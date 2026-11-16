@@ -223,6 +223,20 @@ done
 assert_eq "blocks an in-place sed edit spelled as a shortened --in-place option" \
   "" "$allowed_prefixed_flag"
 
+# GNU sed reads options after its file operands too, and a
+# shell operator ends the option word with no blank.
+operator_flag_writes=('sed s/a/b/ src/a.py --in-place&'
+  'sed s/a/b/ src/a.py --i;' 'sed s/a/b/ src/a.py --i|cat'
+  '(sed s/a/b/ src/a.py --i)' 'sed s/a/b/ src/a.py --i>/dev/null'
+  'sed s/a/b/ src/a.py --i</dev/null')
+allowed_operator_flag=""
+for c in "${operator_flag_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_operator_flag="$allowed_operator_flag [$c]"
+done
+assert_eq "blocks an in-place sed edit whose --in-place option ends at a shell operator" \
+  "" "$allowed_operator_flag"
+
 # A quoted backslash stays in the path, so this writes the
 # repo-relative `\/tmp/x`, never /tmp/x.
 assert_eq "blocks tee into a repo path that starts with a quoted backslash before /tmp" \

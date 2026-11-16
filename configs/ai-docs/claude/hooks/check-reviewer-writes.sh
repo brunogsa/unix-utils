@@ -328,7 +328,11 @@ if [ -n "$CMD" ]; then
   # GNU sed takes any unambiguous prefix of a long option, so
   # `--i` and `--in-pl` mean --in-place, per getopt_long:
   # https://www.gnu.org/software/sed/manual/sed.html#Command_002dLine-Options
-  if printf '%s' "$UNESCAPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--i[a-z-]*(=|[[:space:]]|$))'; then
+  #
+  # --in-place is its only long option starting with --i, so
+  # `--i` needs no right edge, and a shell operator right
+  # after it, as in `--i;`, cannot hide it.
+  if printf '%s' "$UNESCAPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--i)'; then
     echo "Blocked: this reviewer may not edit files in place with sed -i" >&2
     exit 2
   fi
