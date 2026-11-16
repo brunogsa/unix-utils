@@ -9,7 +9,8 @@
 #
 # stdin: none.
 # stdout: the path of the verdict file written.
-# exit: 0 on success
+# exit: 0 on success, 2 on a missing or unparseable input
+#   file or a missing out dir (no verdict file is written)
 import argparse
 import json
 import subprocess
@@ -22,14 +23,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from quality_metrics import report as verdict_report
 
 TIMESTAMP_FORMAT = "%Y-%m-%d_%H:%M:%S"
+REQUIRED_REPORT_KEYS = ("measurements", "violations")
+
+
+def fail(message):
+    print(f"render-metrics-verdict: {message}", file=sys.stderr)
+    sys.exit(2)
 
 
 def load_json(path, description):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        fail(f"cannot read {description} {path}: {error}")
 
 
 def load_report(path):
     loaded = load_json(path, "report")
+    missing = [key for key in REQUIRED_REPORT_KEYS if not isinstance(loaded, dict) or key not in loaded]
+    if missing:
+        fail(f"report {path} lacks the keys {', '.join(missing)}")
     return loaded
 
 
@@ -37,6 +50,8 @@ def load_exceptions(path):
     if path is None:
         return []
     loaded = load_json(path, "exceptions file")
+    if not isinstance(loaded, list):
+        fail(f"exceptions file {path} must hold a JSON list")
     return loaded
 
 
@@ -63,6 +78,8 @@ def main():
 
     measure_report = load_report(arguments.report)
     exceptions = load_exceptions(arguments.exceptions)
+    if not arguments.out_dir.is_dir():
+        fail(f"out dir {arguments.out_dir} does not exist")
 
     in_git = is_inside_git_work_tree()
     text = verdict_report.build_verdict(measure_report, exceptions, in_git=in_git)

@@ -93,3 +93,55 @@ class TestRenderedVerdict:
         assert completed.returncode == 0, completed.stderr
         assert len(list(out_dir.glob("verdict_quality-gate_no-git_*.md"))) == 1
         assert list(out_dir.glob("verdict_metrics_*")) == []
+
+
+class TestBadInputWritesNoVerdict:
+    def test_should_exit_2_naming_the_report_file_when_it_is_missing(self, tmp_path):
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        missing = tmp_path / "no-such-report.json"
+
+        completed = _render(tmp_path, "--report", str(missing), "--out-dir", str(out_dir))
+
+        assert completed.returncode == 2
+        assert str(missing) in completed.stderr
+        assert list(out_dir.iterdir()) == []
+
+    def test_should_exit_2_naming_the_report_file_when_it_is_not_valid_json(self, tmp_path):
+        report_path = tmp_path / "report.json"
+        report_path.write_text("{not json", encoding="utf-8")
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(tmp_path, "--report", str(report_path), "--out-dir", str(out_dir))
+
+        assert completed.returncode == 2
+        assert str(report_path) in completed.stderr
+        assert list(out_dir.iterdir()) == []
+
+    def test_should_exit_2_naming_the_exceptions_file_when_it_holds_a_json_object_instead_of_a_list(
+        self, tmp_path
+    ):
+        report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
+        exceptions_path = _write_json(tmp_path / "exceptions.json", {"file": "src/invoice.py"})
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(
+            tmp_path, "--report", str(report_path),
+            "--exceptions", str(exceptions_path), "--out-dir", str(out_dir),
+        )
+
+        assert completed.returncode == 2
+        assert str(exceptions_path) in completed.stderr
+        assert list(out_dir.iterdir()) == []
+
+    def test_should_exit_2_naming_the_directory_when_the_out_dir_does_not_exist(self, tmp_path):
+        report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
+        missing_dir = tmp_path / "no-such-dir"
+
+        completed = _render(tmp_path, "--report", str(report_path), "--out-dir", str(missing_dir))
+
+        assert completed.returncode == 2
+        assert str(missing_dir) in completed.stderr
+        assert not missing_dir.exists()
