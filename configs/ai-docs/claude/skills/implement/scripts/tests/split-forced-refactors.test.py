@@ -1,16 +1,30 @@
+import importlib.util
 import json
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPT = Path(__file__).resolve().parent.parent / "split-forced-refactors.py"
 FEATURE_BRANCH = "feature/pr-3-metrics-gate"
 REFACTOR_BRANCH = "refactor/pr-2-forced-refactors"
 
+
+def load_script():
+    spec = importlib.util.spec_from_file_location(
+        "split_forced_refactors", SCRIPT
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+split_forced_refactors = load_script()
+
 GIT_ENV = {
-    **os.environ,
     "GIT_CONFIG_GLOBAL": "/dev/null",
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_AUTHOR_NAME": "Test Author",
@@ -20,10 +34,16 @@ GIT_ENV = {
 }
 
 
+@pytest.fixture(autouse=True)
+def isolated_git_env(monkeypatch):
+    for name, value in GIT_ENV.items():
+        monkeypatch.setenv(name, value)
+
+
 def git(repo, *args):
     result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", *args],
-        cwd=repo, env=GIT_ENV, check=True, capture_output=True, text=True,
+        cwd=repo, check=True, capture_output=True, text=True,
     )
     return result.stdout.strip()
 
@@ -57,20 +77,24 @@ def build_feature_repo(tmp_path, commits, base_files=None):
     return repo, base
 
 
-def run_split(repo, base, *extra_arguments):
-    completed = subprocess.run(
-        [
-            sys.executable, str(SCRIPT),
-            "--repo", str(repo),
-            "--base", base,
-            "--feature-branch", FEATURE_BRANCH,
-            "--refactor-branch", REFACTOR_BRANCH,
-            *extra_arguments,
-        ],
-        env=GIT_ENV, capture_output=True, text=True,
-    )
-    assert completed.returncode == 0, completed.stderr
-    return json.loads(completed.stdout)
+def get_split_arguments(repo, base, extra_arguments):
+    return [
+        "--repo", str(repo),
+        "--base", base,
+        "--feature-branch", FEATURE_BRANCH,
+        "--refactor-branch", REFACTOR_BRANCH,
+        *extra_arguments,
+    ]
+
+
+@pytest.fixture
+def run_split(capsys):
+    def run(repo, base, *extra_arguments):
+        arguments = get_split_arguments(repo, base, extra_arguments)
+        assert split_forced_refactors.main(arguments) == 0
+        return json.loads(capsys.readouterr().out)
+
+    return run
 
 
 def subjects_between(repo, older, newer):
@@ -148,8 +172,28 @@ def get_pr_entry(plan_text, label):
     return plan_text[start:end]
 
 
-def test_should_move_forced_refactors_of_2_files_and_101_changed_lines_onto_a_new_branch_from_the_base(
+def test_should_print_the_json_report_and_exit_0_when_run_as_a_command(
     tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: split parser", {"parser.py": 51}, "metrics"),
+        ("refactor: split writer", {"writer.py": 50}, "metrics"),
+    ])
+
+    completed = subprocess.run(
+        [
+            sys.executable, str(SCRIPT),
+            *get_split_arguments(repo, base, []),
+        ],
+        capture_output=True, text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout)["outcome"] == "moved"
+
+
+def test_should_move_forced_refactors_of_2_files_and_101_changed_lines_onto_a_new_branch_from_the_base(
+    tmp_path, run_split,
 ):
     repo, base = build_feature_repo(tmp_path, [
         ("refactor: split parser", {"parser.py": 51}, "metrics"),
@@ -176,7 +220,7 @@ def test_should_move_forced_refactors_of_2_files_and_101_changed_lines_onto_a_ne
 
 
 def test_should_sum_three_40_line_forced_refactors_to_120_lines_and_move_them(
-    tmp_path,
+    tmp_path, run_split,
 ):
     repo, base = build_feature_repo(tmp_path, [
         ("refactor: split parser", {"parser.py": 40}, "metrics"),
@@ -194,7 +238,7 @@ def test_should_sum_three_40_line_forced_refactors_to_120_lines_and_move_them(
 
 
 def test_should_keep_exactly_5_files_and_100_changed_lines_in_the_feature_pr(
-    tmp_path,
+    tmp_path, run_split,
 ):
     repo, base = build_feature_repo(tmp_path, [
         (
@@ -216,7 +260,7 @@ def test_should_keep_exactly_5_files_and_100_changed_lines_in_the_feature_pr(
 
 
 def test_should_append_the_refactor_prs_entry_and_make_the_feature_pr_depend_on_it(
-    tmp_path,
+    tmp_path, run_split,
 ):
     repo, base = build_feature_repo(tmp_path, [
         ("refactor: split parser", {"parser.py": 51}, "metrics"),
@@ -245,7 +289,7 @@ def test_should_append_the_refactor_prs_entry_and_make_the_feature_pr_depend_on_
 
 
 def test_should_sum_only_gate_metrics_refactor_commits_leaving_gate_forced_test_commits_out(
-    tmp_path,
+    tmp_path, run_split,
 ):
     repo, base = build_feature_repo(tmp_path, [
         ("refactor: split parser", {"parser.py": 30}, "metrics"),
@@ -265,7 +309,7 @@ def test_should_sum_only_gate_metrics_refactor_commits_leaving_gate_forced_test_
     assert report["commits"] == [refactor_sha]
 
 
-def run_split_expecting_conflict(tmp_path, repo, base):
+def run_split_expecting_conflict(run_split, tmp_path, repo, base):
     plan = tmp_path / "plan_fixture.md"
     plan.write_text(PLAN_TEXT)
     finding = tmp_path / "finding_fixture.md"
@@ -311,7 +355,7 @@ def assert_conflict_kept_the_commits_in_the_feature_pr(
 
 
 def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_cherry_pick_conflict(
-    tmp_path,
+    tmp_path, run_split,
 ):
     # The refactor rewrites parser.py, made by a feature commit,
     # so the base has no parser.py: a modify/delete conflict.
@@ -321,7 +365,9 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
     ])
     original_head = git(repo, "rev-parse", "HEAD")
 
-    report, plan, finding = run_split_expecting_conflict(tmp_path, repo, base)
+    report, plan, finding = run_split_expecting_conflict(
+        run_split, tmp_path, repo, base
+    )
 
     assert_conflict_kept_the_commits_in_the_feature_pr(
         repo, report, finding, "cherry-pick", original_head
@@ -330,7 +376,7 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
 
 
 def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_rebase_conflict(
-    tmp_path,
+    tmp_path, run_split,
 ):
     # The cherry-pick works: the refactor moves pkg/parser.py
     # to core/ and adds loader.py. The rebase then replays the
@@ -348,7 +394,9 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
     )
     original_head = git(repo, "rev-parse", "HEAD")
 
-    report, plan, finding = run_split_expecting_conflict(tmp_path, repo, base)
+    report, plan, finding = run_split_expecting_conflict(
+        run_split, tmp_path, repo, base
+    )
 
     assert_conflict_kept_the_commits_in_the_feature_pr(
         repo, report, finding, "rebase", original_head
