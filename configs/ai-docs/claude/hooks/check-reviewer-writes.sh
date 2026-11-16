@@ -132,12 +132,32 @@ SCRATCH_VAR_TARGET_REGEX='^\$(\{('"$SCRATCH_DIR_VARS"')\}|('"$SCRATCH_DIR_VARS"'
 # A backslash is denied rather than modelled, since an escape
 # such as `.\.` can still spell a `..` step.
 bash_target_allowed() {
-  local path="$1"
+  local path="$1" rest
   [[ "$path" == /dev/null ]] && return 0
   [[ "$path" == *\\* ]] && return 1
-  [[ "$path" == *..* ]] && return 1
-  [[ "$path" =~ $SCRATCH_VAR_TARGET_REGEX ]] && return 0
-  [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]
+  if [[ "$path" =~ $SCRATCH_VAR_TARGET_REGEX ]]; then
+    rest=${path#*/}
+  elif [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]; then
+    rest=${path#/*tmp/}
+  else
+    return 1
+  fi
+  has_no_parent_step "$rest"
+}
+
+# Succeeds when a path below the scratch dir cannot hop out:
+# a `..` segment is denied.
+#
+# A `..` inside a name, as in `a..b.txt`, passes only in a
+# plain literal path, since a variable, glob or brace can
+# still turn that name into a `..` step when the shell runs.
+has_no_parent_step() {
+  local rest="$1"
+  [[ "$rest" != *..* ]] && return 0
+  case "$rest" in
+    *'$'* | *'`'* | *'*'* | *'?'* | *'['* | *'{'*) return 1 ;;
+  esac
+  [[ "/$rest/" != */../* ]]
 }
 
 # Stand-ins for quoted text, so a quoted space or shell

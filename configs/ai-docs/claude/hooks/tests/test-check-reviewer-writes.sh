@@ -292,6 +292,20 @@ assert_eq "blocks a repo source redirect that follows a quoted angle bracket" \
 assert_eq "blocks a single-quoted scratch dir name, which is a literal directory" \
   "2" "$(run_bash "echo x > '\$work_dir'/x")"
 
+# `..` inside a file name is not a parent step, but only a
+# plain literal name can show that before the shell runs.
+assert_eq "allows a quoted scratch dir file whose name holds two dots" \
+  "0" "$(run_bash 'echo x > "$work_dir/a..b.txt"')"
+
+assert_eq "allows a /tmp target with a quoted part holding a space" \
+  "0" "$(run_bash 'echo x > /tmp/"x y".txt')"
+
+assert_eq "blocks a /tmp segment that starts with two dots then a variable" \
+  "2" "$(run_bash 'echo x > /tmp/..$E/x')"
+
+assert_eq "blocks a /tmp segment that starts with two dots then a glob" \
+  "2" "$(run_bash 'echo x > /tmp/..*/x')"
+
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
 # first scratch write. Lines are derived by grep at test time:
