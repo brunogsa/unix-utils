@@ -115,8 +115,8 @@ def main(arguments):
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
         dependency_run = dependencies.DependencyRun(
-            Path.cwd(), judged_against,
-            declaration.excluded_paths, layer_map, head_ref=head_ref,
+            Path.cwd(), dependencies.RefRange(judged_against, head_ref),
+            declaration.excluded_paths, layer_map,
         )
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
         measurements, unclaimed = _measure(setup, touched_by_file, head_ref)
