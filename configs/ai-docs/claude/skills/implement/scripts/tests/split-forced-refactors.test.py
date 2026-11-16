@@ -373,7 +373,7 @@ def assert_conflict_kept_the_commits_in_the_feature_pr(
     assert_finding_passes_the_body_checker(finding)
 
 
-def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_cherry_pick_conflict(
+def test_should_keep_the_forced_refactors_in_the_feature_pr_with_a_metrics_finding_when_the_cherry_pick_conflicts(
     tmp_path, run_split,
 ):
     # The refactor rewrites parser.py, made by a feature commit,
@@ -394,7 +394,7 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
     assert plan.read_text() == PLAN_TEXT
 
 
-def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_finding_on_a_rebase_conflict(
+def test_should_keep_the_forced_refactors_in_the_feature_pr_with_a_metrics_finding_when_the_rebase_conflicts(
     tmp_path, run_split,
 ):
     # The cherry-pick works: the refactor moves pkg/parser.py
