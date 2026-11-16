@@ -520,6 +520,24 @@ def test_scores_a_python_file_outside_every_package_as_a_deferred_tool_failure(t
     assert "deferred" in deferred["label"]
 
 
+def test_scores_loose_python_scripts_as_one_deferred_record_not_one_per_file(tmp_path):
+    scripts = ("a.py", "b.py", "c.py")
+    base_files = {f"tools/{name}": "X = 1\n" for name in scripts}
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {f"tools/{name}": "X = 2\n" for name in scripts},
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["metric"] == "dependency_direction"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+    assert deferred["file"].startswith("tools/")
+    assert "3 Python files" in deferred["detail"]
+
+
 def test_flags_a_cycle_in_the_first_package_a_branch_adds_to_a_tree_without_one(tmp_path):
     violations = measure_branch(
         tmp_path, PYTHON_DECLARATION, {"tools/sync.py": "SYNC = 1\n"},

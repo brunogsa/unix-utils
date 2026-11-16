@@ -92,6 +92,10 @@ class NoPythonPackageError(ToolError):
     """The tree holds no directory with an `__init__.py`."""
 
 
+class OutsidePackageError(ToolError):
+    """A Python file sits outside every package."""
+
+
 @dataclass(frozen=True)
 class Layer:
     name: str
@@ -147,6 +151,7 @@ class DependencyRun:
         self.excluded_paths = excluded_paths
         self.layer_map = layer_map
         self._problems_by_tool = {}
+        self._is_loose_python_reported = False
 
     def problems_by(self, tool):
         """The head's problems, each marked `is_introduced` or
@@ -190,7 +195,33 @@ class DependencyRun:
         if tool == IMPORT_LINTER and _is_outside_every_package(
             repo_path, self._head_package_roots
         ):
-            raise ToolError(OUTSIDE_PACKAGE_DETAIL)
+            raise OutsidePackageError(OUTSIDE_PACKAGE_DETAIL)
+
+    def claim_loose_python_report(self):
+        """True for the first caller only.
+
+        Python files outside every package share one deferred
+        record per run, not one record each.
+        """
+        if self._is_loose_python_reported:
+            return False
+        self._is_loose_python_reported = True
+        return True
+
+    def loose_python_detail(self):
+        count = self._loose_python_file_count
+        noun = "file" if count == 1 else "files"
+        return (
+            f"{count} Python {noun} sit outside any Python package, "
+            "so import-linter cannot check their imports"
+        )
+
+    @cached_property
+    def _loose_python_file_count(self):
+        with self._head_tree() as tree:
+            return _count_python_files_outside(
+                tree, self._head_package_roots
+            )
 
     @cached_property
     def _head_package_roots(self):
@@ -245,6 +276,13 @@ def measure(target, metrics, dependency_run):
     try:
         problems = dependency_run.problems_by(tool)
         dependency_run.require_checkable(tool, repo_path)
+    except (NoPythonPackageError, OutsidePackageError):
+        if not dependency_run.claim_loose_python_report():
+            return []
+        return [_deferred_tool_failure(
+            target, repo_path, dependency_run.loose_python_detail(),
+            layer_map_source,
+        )]
     except ToolError as error:
         if tool not in DEFERRABLE_TOOLS:
             raise
@@ -269,6 +307,28 @@ def _is_outside_every_package(repo_path, package_roots):
     return not any(
         repo_path.startswith(f"{package_dir}/") for package_dir in package_dirs
     )
+
+
+def _count_python_files_outside(tree, package_roots):
+    return sum(
+        1 for repo_path in _python_file_paths(tree)
+        if _is_outside_every_package(repo_path, package_roots)
+    )
+
+
+def _python_file_paths(tree):
+    for directory, subdirectories, files in os.walk(tree):
+        subdirectories[:] = _walkable(subdirectories)
+        relative_dir = Path(directory).relative_to(tree)
+        python_names = [name for name in files if name.endswith(".py")]
+        yield from ((relative_dir / name).as_posix() for name in python_names)
+
+
+def _walkable(directory_names):
+    return [
+        name for name in directory_names
+        if not name.startswith(".") and name not in SKIPPED_DIRECTORY_NAMES
+    ]
 
 
 def _problem_record(target, repo_path, layer_map_source, problem):
