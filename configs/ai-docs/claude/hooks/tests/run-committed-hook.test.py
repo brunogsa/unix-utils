@@ -7,8 +7,8 @@ to a hook would otherwise run in every live session.
 Each case builds a real git repo under tmp_path whose hook
 loads a sibling module by its own path, the way
 check-tdd-coder-commit-evidence.py does, commits it, then
-edits the working copy. Only the git binary is swapped, and
-only in the one case that needs git to fail mid-snapshot.
+edits the working copy. Only the git binary is swapped or
+removed, and only in the cases that need git to fail.
 """
 
 import json
@@ -16,6 +16,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -94,7 +95,7 @@ def stop_payload() -> dict:
 
 def run_launcher(hook: Path, payload: dict, env: dict | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["python3", str(LAUNCHER), str(hook)],
+        [sys.executable, str(LAUNCHER), str(hook)],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
@@ -136,15 +137,15 @@ class TestUncommittedEditRunsCommittedHook:
         assert output["version"] == "committed"
 
 
-def git_without_archive(tmp_path: Path) -> dict:
-    """PATH whose git fails `git archive`, so the committed
-    snapshot cannot be read, and passes every other call on."""
+def git_failing_on(tmp_path: Path, subcommand: str) -> dict:
+    """PATH whose git fails one subcommand with a generic
+    fatal error and passes every other call on."""
     shim_dir = tmp_path / "git-shim"
     shim_dir.mkdir()
     shim = shim_dir / "git"
     shim.write_text(
         "#!/bin/sh\n"
-        'case " $* " in *" archive "*) echo "fatal: archive unavailable" >&2; exit 128;; esac\n'
+        f'case " $* " in *" {subcommand} "*) echo "fatal: unable to read index" >&2; exit 128;; esac\n'
         f'exec {shutil.which("git")} "$@"\n',
         encoding="utf-8",
     )
@@ -152,12 +153,24 @@ def git_without_archive(tmp_path: Path) -> dict:
     return {**GIT_ENV, "PATH": f"{shim_dir}{os.pathsep}{GIT_ENV['PATH']}"}
 
 
+def path_without_git(tmp_path: Path) -> dict:
+    empty_dir = tmp_path / "no-git-bin"
+    empty_dir.mkdir()
+    return {**GIT_ENV, "PATH": str(empty_dir)}
+
+
+def get_deny_reason(result: subprocess.CompletedProcess) -> str:
+    decision = get_hook_output(result)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    return decision["permissionDecisionReason"]
+
+
 class TestUnreadableCommittedHook:
     def test_should_deny_the_tool_call_when_the_committed_hook_of_an_edited_dir_cannot_be_read(self, tmp_path):
         hooks_dir = commit_example_hook(tmp_path / "repo")
         (hooks_dir / HOOK_NAME).write_text(CRASHING_SOURCE, encoding="utf-8")
 
-        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload(), git_without_archive(tmp_path))
+        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload(), git_failing_on(tmp_path, "archive"))
 
         decision = get_hook_output(result)["hookSpecificOutput"]
         assert decision["permissionDecision"] == "deny"
@@ -169,11 +182,40 @@ class TestUnreadableCommittedHook:
         hooks_dir = commit_example_hook(tmp_path / "repo")
         (hooks_dir / HOOK_NAME).write_text(CRASHING_SOURCE, encoding="utf-8")
 
-        result = run_launcher(hooks_dir / HOOK_NAME, stop_payload(), git_without_archive(tmp_path))
+        result = run_launcher(hooks_dir / HOOK_NAME, stop_payload(), git_failing_on(tmp_path, "archive"))
 
         assert result.stdout == ""
         assert result.returncode != 0
         assert str(hooks_dir / HOOK_NAME) in result.stderr
+
+
+class TestGitCannotTellWhetherHeadHoldsTheHook:
+    def test_should_deny_the_tool_call_when_git_is_not_installed(self, tmp_path):
+        hooks_dir = commit_example_hook(tmp_path / "repo")
+        (hooks_dir / HOOK_NAME).write_text(CRASHING_SOURCE, encoding="utf-8")
+
+        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload(), path_without_git(tmp_path))
+
+        assert str(hooks_dir / HOOK_NAME) in get_deny_reason(result)
+
+    def test_should_deny_the_tool_call_when_git_fails_to_inspect_the_repo_holding_the_hook(self, tmp_path):
+        hooks_dir = commit_example_hook(tmp_path / "repo")
+        (hooks_dir / HOOK_NAME).write_text(CRASHING_SOURCE, encoding="utf-8")
+
+        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload(), git_failing_on(tmp_path, "rev-parse"))
+
+        assert str(hooks_dir / HOOK_NAME) in get_deny_reason(result)
+
+    def test_should_deny_the_tool_call_when_the_repo_holding_the_hook_has_no_commit_yet(self, tmp_path):
+        hooks_dir = tmp_path / "repo" / "hooks"
+        hooks_dir.mkdir(parents=True)
+        (hooks_dir / HOOK_NAME).write_text(hook_source(), encoding="utf-8")
+        (hooks_dir / HELPER_NAME).write_text(helper_source("never committed"), encoding="utf-8")
+        git(tmp_path / "repo", "init", "--quiet")
+
+        result = run_launcher(hooks_dir / HOOK_NAME, pretooluse_payload())
+
+        assert str(hooks_dir / HOOK_NAME) in get_deny_reason(result)
 
 
 class TestNoCommittedHook:
