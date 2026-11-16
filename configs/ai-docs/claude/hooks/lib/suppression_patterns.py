@@ -7,6 +7,7 @@ violation at measure time.
 """
 
 import re
+from collections import Counter
 
 SUPPRESSION_PATTERN = re.compile(
     r"eslint-disable(?:-next-line|-line)?"
@@ -25,3 +26,7 @@ SUPPRESSION_PATTERN = re.compile(
 
 # Rules and docs quote these tokens on purpose.
 PROSE_SUFFIXES = (".md", ".txt")
+
+
+def count_suppressions(text):
+    return Counter(SUPPRESSION_PATTERN.findall(text))

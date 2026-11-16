@@ -23,7 +23,7 @@ from quality_metrics.tools import run_command, run_tool
 # The edit-time hook reads the same shared pattern, so a token
 # it blocks is also listed here.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks" / "lib"))
-from suppression_patterns import PROSE_SUFFIXES, SUPPRESSION_PATTERN
+from suppression_patterns import PROSE_SUFFIXES, count_suppressions
 
 SCRIPTS_DIR = Path(__file__).resolve().parents[1]
 DETECTORS_PATH = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
@@ -165,7 +165,7 @@ def added_suppressions(repo_dir, base_ref, head_ref=None):
     )
     if head_ref is None:
         for path, text in _untracked_texts(repo_dir).items():
-            added_by_file[path] += _count_suppressions(text)
+            added_by_file[path] += count_suppressions(text)
     violations = []
     for path, added in added_by_file.items():
         if path.lower().endswith(PROSE_SUFFIXES):
@@ -205,9 +205,9 @@ def _suppression_counts_in_diff(repo_dir, base_ref, head_ref):
         if line.startswith(FILE_HEADER_PREFIX):
             current_path, is_in_hunk = None, False
         elif is_in_hunk and current_path and line[:1] == "+":
-            added_by_file[current_path] += _count_suppressions(line[1:])
+            added_by_file[current_path] += count_suppressions(line[1:])
         elif is_in_hunk and current_path and line[:1] == "-":
-            removed_by_file[current_path] += _count_suppressions(line[1:])
+            removed_by_file[current_path] += count_suppressions(line[1:])
         elif line.startswith(HUNK_HEADER):
             is_in_hunk = True
         elif line.startswith(NO_NEW_FILE):
@@ -216,10 +216,6 @@ def _suppression_counts_in_diff(repo_dir, base_ref, head_ref):
             # A name holding a space gets a trailing tab.
             current_path = line[len(NEW_FILE_HEADER):].split("\t")[0]
     return added_by_file, removed_by_file
-
-
-def _count_suppressions(text):
-    return Counter(SUPPRESSION_PATTERN.findall(text))
 
 
 def _untracked_texts(repo_dir):

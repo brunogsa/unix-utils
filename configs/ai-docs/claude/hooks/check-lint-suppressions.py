@@ -27,17 +27,12 @@
 
 import json
 import sys
-from collections import Counter
 
-from lib.suppression_patterns import PROSE_SUFFIXES, SUPPRESSION_PATTERN
+from lib.suppression_patterns import PROSE_SUFFIXES, count_suppressions
 
 FEEDBACK_EXIT = 2
 
 WRITE_CREATE_TYPE = "create"
-
-
-def count_suppressions(text):
-    return Counter(SUPPRESSION_PATTERN.findall(text))
 
 
 def get_replaced_and_new_text(tool_name, tool_input, tool_response):
