@@ -77,8 +77,6 @@ Also resolve `<BASE_REF>` for the `auto-review` leg:
 ~/.claude/scripts/resolve-base-ref.sh
 ```
 
-The script falls back from `origin/HEAD` to local `main` to local `master`.
-
 If detection fails, ask which branch to diff against rather than guessing - but under either flag, stop and print what failed, since a missing base has no safe default.
 
 `/implement`'s batch-end tail passes `BATCH_BASE_SHA` via `--base-ref`.
@@ -91,7 +89,7 @@ Spawn each leg as its own agent per role - `code-reviewer` for the refactor-lens
 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill, orchestrating from there with `<BASE_REF>` and the resolved spec/plan paths pushed in so it needs no interactive resolution.
 
-- `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the resolved plan path and any `--tasks` ids pushed in; dispatch only when a plan resolved.
+- `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the resolved plan path, `<BASE_REF>`, and any `--tasks` ids pushed in; dispatch only when a plan resolved.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**
 
@@ -142,9 +140,9 @@ Compose the whole list, and print it, before applying anything. The two groups b
 
 When §4 collected a non-empty `test-sdd` file, every finding enters the apply list - report-only and auto-solve alike.
 
-Each names a test the plan declared and the repo lacks, so the human's plan approval already answered "is this worth doing".
+One exception: take the findings to apply from `~/.claude/scripts/get-test-sdd-dispatch-list.py <verdict>`, which omits the unplanned-tests finding; §7 reports that one for the human to mark `[Done]`.
 
-One exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
+Another exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts.
 
 It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`.
 

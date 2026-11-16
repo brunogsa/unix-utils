@@ -29,3 +29,17 @@ This skill sits in `/implement`'s main session for the same reason.
 `/address-verdicts` commits the `refactor` agent's work, and a permission prompt only renders in the main session. Its per-lens apply agents are already fresh-context subagents.
 
 Wrapping it in another subagent would spend one of the three nesting levels on a layer that decides nothing.
+
+## Why every test-sdd finding applies without triage
+
+Each names a test the plan declared and the repo lacks, so the human's plan approval already answered whether it is worth doing.
+
+The unplanned-tests finding is the one exception: it names tests the branch already added, so nothing is left to write, and the human reviews it instead.
+
+`[Done]` on it means the developer reviewed those tests, which only the human can do, so `/address-verdicts` never dispatches or annotates it.
+
+`get-test-sdd-dispatch-list.py` keys on the finding's exact title, so the test-sdd report schema and that script must change together.
+
+## Why base-ref resolution falls back the way it does
+
+`resolve-base-ref.sh` tries `origin/HEAD`, then local `main`, then local `master`.
