@@ -20,8 +20,8 @@ from quality_metrics.declaration import parse_yaml
 from quality_metrics.tool_map import load_detector_rules
 from quality_metrics.tools import run_command, run_tool
 
-# The edit-time hook owns the suppression pattern, so a token it
-# blocks is also listed here.
+# The edit-time hook reads the same shared pattern, so a token
+# it blocks is also listed here.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks" / "lib"))
 from suppression_patterns import PROSE_SUFFIXES, SUPPRESSION_PATTERN
 
