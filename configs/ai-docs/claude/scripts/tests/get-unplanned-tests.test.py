@@ -436,3 +436,21 @@ describe("gate", () => {
             "skips a row",
             "each %s",
         }
+
+    def test_should_list_an_added_test_whose_line_holds_a_latin_1_byte(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        legacy_file = repo / "tests" / "legacy.test.ts"
+        legacy_file.parent.mkdir()
+        legacy_file.write_bytes(b'it("caf\xe9 au lait", () => {});\n')
+        _commit(repo, "test: add a Latin-1 encoded test")
+
+        completed = _run(repo, _plan(tmp_path), base)
+
+        assert completed.returncode == 0, completed.stderr
+        assert [row["path"] for row in json.loads(completed.stdout)] == [
+            "tests/legacy.test.ts"
+        ]

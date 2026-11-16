@@ -60,7 +60,8 @@ def run_git(*args):
     completed = subprocess.run(
         ["git", "-c", "core.quotepath=off", *args],
         capture_output=True,
-        text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     if completed.returncode != 0:
         fail(f"`git {' '.join(args)}` failed: {completed.stderr.strip()}")
