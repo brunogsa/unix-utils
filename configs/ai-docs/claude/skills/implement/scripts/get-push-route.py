@@ -24,6 +24,21 @@ GIT_GUARD = Path(__file__).resolve().parents[3] / "hooks" / "claude-git-guard.sh
 BATCH_END_PUSH = "git push -u origin HEAD"
 GUARD_ALLOWS = 0
 GUARD_BLOCKS = 2
+SYMBOLIC_REF_DETACHED = 1
+
+
+def check_branch_checked_out():
+    # why: the guard allows a push it cannot pin to a branch,
+    # so without this check a detached HEAD would read "push".
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "-q", "HEAD"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == SYMBOLIC_REF_DETACHED:
+        sys.exit("error: HEAD is detached, so no branch names the push target; check out a branch first")
+    if result.returncode != 0:
+        sys.exit(f"error: not a git repository: {os.getcwd()}")
 
 
 def get_guard_route(cwd):
@@ -50,6 +65,7 @@ def main(argv):
     if argv:
         sys.stderr.write("usage: get-push-route.py\n")
         return 2
+    check_branch_checked_out()
     print(get_guard_route(os.getcwd()))
     return 0
 
