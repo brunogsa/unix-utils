@@ -13,6 +13,7 @@ from quality_metrics_support import (
     install_global_collector,
     install_stub_tool,
     make_repo,
+    path_without_tool,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -293,7 +294,7 @@ def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_an
 ):
     repo = make_repo(tmp_path, {"jest.config.js": "module.exports = {};\n", "src/cart.js": "// covered\n"})
     target = Target(repo / "src/cart.js", "js", None, repo_path="src/cart.js")
-    monkeypatch.setenv("PATH", os.pathsep.join(["/usr/bin", "/bin"]))
+    monkeypatch.setenv("PATH", path_without_tool("jest"))
     install_global_collector(
         monkeypatch, [], error=ToolError("c8 crashed with a traceback")
     )

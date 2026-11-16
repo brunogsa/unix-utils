@@ -114,6 +114,18 @@ def assert_fell_through_to_global(tmp_path, measured, source_entry, repo_attempt
     assert len(global_calls) == 1
 
 
+def path_without_tool(tool_name, path=None):
+    """`path` (default: the current PATH) with every directory
+    that holds `tool_name` removed, so the tool is absent while
+    the other tools on those directories stay reachable."""
+    kept = [
+        directory
+        for directory in (path or os.environ["PATH"]).split(os.pathsep)
+        if not (Path(directory) / tool_name).exists()
+    ]
+    return os.pathsep.join(kept)
+
+
 def stubbed_env():
     """The environment a script subprocess needs to see stub
     tools.
