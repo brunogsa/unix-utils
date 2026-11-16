@@ -29,7 +29,8 @@ For each new function, class, or module, ask:
 - Can a first-time reader follow this without mentally unpacking dense
   expressions or decoding mechanism-based names?
 - What's the cognitive load? Gauge: function length, nesting depth,
-  branching factor, parameter count. High on any axis usually means
+  branching factor, parameter count - read from "Measured values" below
+  whenever Wave 1 measured them. High on any axis usually means
   "split or simplify".
 
 Readability beats brevity.
