@@ -488,6 +488,58 @@ class TestDashedGitCommitBinary:
         possible_commit_reason(tmp_path, "sh release.sh")
 
 
+class TestGitConfiguredPrograms:
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "core.fsmonitor",
+            "core.pager",
+            "pager.log",
+            "core.hooksPath",
+            "diff.external",
+            "diff.notebook.textconv",
+            "diff.notebook.command",
+            "filter.secrets.smudge",
+            "filter.secrets.clean",
+            "filter.secrets.process",
+        ],
+    )
+    def test_should_deny_an_allowed_subcommand_when_the_repo_config_runs_a_program(self, tmp_path, key):
+        repo = git_repo(tmp_path)
+        git(repo, "config", key, "./release.sh")
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+    def test_should_deny_an_allowed_subcommand_when_the_repo_has_an_active_hook(self, tmp_path):
+        repo = git_repo(tmp_path)
+        hook = repo / ".git" / "hooks" / "post-checkout"
+        hook.write_text("#!/bin/sh\n./release.sh\n", encoding="utf-8")
+        hook.chmod(0o755)
+
+        possible_commit_reason(tmp_path, "git checkout -- a.py", cwd=str(repo))
+
+    def test_should_let_an_allowed_subcommand_through_when_the_repo_has_only_sample_hooks(self, tmp_path):
+        repo = git_repo(tmp_path)
+
+        assert check_commit(tmp_path, command="git status --short", cwd=str(repo)) is None
+
+    def test_should_deny_an_allowed_subcommand_when_the_repo_config_cannot_be_read(self, tmp_path):
+        repo = git_repo(tmp_path)
+        (repo / ".git" / "config").write_text("[core\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+    def test_should_deny_an_allowed_subcommand_run_after_a_directory_change(self, tmp_path):
+        possible_commit_reason(tmp_path, "cd /Users/brunoagostini/other-repo && git status --short")
+
+    def test_should_deny_running_a_script_whose_allowed_git_call_meets_a_configured_program(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "core.fsmonitor", "./release.sh")
+        (repo / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "sh status.sh", cwd=str(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

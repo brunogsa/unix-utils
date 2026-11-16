@@ -19,6 +19,9 @@
 # git with anything but a fixed no-commit subcommand, or runs
 # a script file whose text does either, is a possible commit.
 #
+# So is any git call after cd or pushd, or in a repo whose git
+# config or hooks run a program of their own.
+#
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
 #
@@ -32,11 +35,13 @@
 
 import importlib.util
 import json
+import os
 import re
 import shlex
 import subprocess
 import sys
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 from types import ModuleType
 
@@ -85,6 +90,20 @@ GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)GIT_\w*=")
 # in git's exec path, so any name reaching for them counts.
 DASHED_COMMIT_BINARY = re.compile(r"git-commit|git-core|exec[-_]path", re.IGNORECASE)
 
+# Each key names a program git runs by itself, even under a
+# listed subcommand, so a planted one can run commit.
+CONFIG_PROGRAM_KEY = re.compile(
+    r"core\.fsmonitor|core\.pager|pager\..+|core\.hookspath|diff\.external"
+    r"|diff\..+\.(?:textconv|command)|filter\..+\.(?:smudge|clean|process)"
+    r"|gpg\.(?:.+\.)?program|merge\..+\.driver",
+    re.IGNORECASE,
+)
+SAMPLE_HOOK_SUFFIX = ".sample"
+
+# The program check reads the payload's cwd, so a git call
+# after a directory change runs where it never looked.
+DIRECTORY_CHANGE = re.compile(r"(?<![\w./-])(?:cd|pushd)(?![\w./-])")
+
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
 SHELL_PUNCTUATION = "();<>|&\n"
@@ -118,6 +137,7 @@ BINARY_PROBE_BYTES = 8192
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, sets a GIT_* variable, "
+    "runs git after cd/pushd or in a repo whose git config or hooks run a program, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
     "one, append the GREEN entry first"
@@ -166,6 +186,42 @@ def runs_other_git_subcommand(text: str) -> bool:
 def names_commit(text: str) -> bool:
     has_commit_name = COMMIT_WORD.search(text) or DASHED_COMMIT_BINARY.search(text)
     return has_commit_name is not None or runs_other_git_subcommand(text)
+
+
+def has_active_hook(hooks_dir: Path) -> bool:
+    try:
+        entries = list(hooks_dir.iterdir())
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    return any(
+        entry.is_file() and not entry.name.endswith(SAMPLE_HOOK_SUFFIX) and os.access(entry, os.X_OK)
+        for entry in entries
+    )
+
+
+@lru_cache(maxsize=None)
+def runs_configured_program(cwd: str | None) -> bool:
+    # git config and rev-parse run no configured program; an
+    # unreadable answer counts as one, and a non-repo has no
+    # hooks to run.
+    keys = run_git(cwd, "config", "--name-only", "--get-regexp", ".")
+    hooks = run_git(cwd, "rev-parse", "--git-path", "hooks")
+    if keys is None or hooks is None or keys.returncode not in (0, 1):
+        return True
+    has_program_key = any(CONFIG_PROGRAM_KEY.fullmatch(key) for key in keys.stdout.splitlines())
+    if has_program_key or hooks.returncode != 0:
+        return has_program_key
+    return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.strip())
+
+
+def may_commit(text: str, cwd: str | None) -> bool:
+    if names_commit(text):
+        return True
+    elif GIT_WORD.search(text) is None:
+        return False
+    return DIRECTORY_CHANGE.search(text) is not None or runs_configured_program(cwd)
 
 
 def is_separator(word: str) -> bool:
@@ -329,7 +385,7 @@ def names_commit_in_script(script: object, cwd: str | None) -> bool:
     # Joining an absolute path keeps it as it is.
     path = (Path(cwd or Path.cwd()) / Path(str(script)).expanduser()).resolve()
     text = "" if is_committed_unchanged(path) else read_script_text(path)
-    return text is None or names_commit(text)
+    return text is None or may_commit(text, cwd)
 
 
 def get_command_words(command: str) -> list[str] | None:
@@ -341,7 +397,7 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
     words = get_command_words(command)
-    if names_commit(command) or words is None:
+    if may_commit(command, cwd) or words is None:
         return True
     return any(names_commit_in_script(script, cwd) for script in get_scripts(words))
 
