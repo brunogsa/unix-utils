@@ -250,11 +250,18 @@ def _net_suppressions(path, net_added):
 def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
     violations = []
     for name in _config_names("jest"):
-        base_excludes = _coverage_excludes(_text_at(repo_dir, base_ref, name))
-        head_excludes = _coverage_excludes(_text_at(repo_dir, head_ref, name))
+        base_text = _text_at(repo_dir, base_ref, name)
+        head_text = _text_at(repo_dir, head_ref, name)
+
+        # A positive glob dropped from collectCoverageFrom
+        # narrows coverage like an added `!` entry does.
+        dropped = (
+            _positive_collect_globs(base_text) - _positive_collect_globs(head_text)
+        )
+        added = _coverage_excludes(head_text) - _coverage_excludes(base_text)
         violations += [
-            {"kind": COVERAGE_EXCLUDE_KIND, "file": name, "value": exclude}
-            for exclude in sorted(head_excludes - base_excludes)
+            {"kind": COVERAGE_EXCLUDE_KIND, "file": name, "value": value}
+            for value in sorted(added | dropped)
         ]
     return violations
 
@@ -322,6 +329,13 @@ def _coverage_excludes(config_text):
     collected = _quoted_globs(COLLECT_LIST, config_text)
     negated = {glob for glob in collected if glob.startswith(NEGATED_GLOB_MARK)}
     return excluded | negated
+
+
+def _positive_collect_globs(config_text):
+    if config_text is None:
+        return set()
+    collected = _quoted_globs(COLLECT_LIST, config_text)
+    return {glob for glob in collected if not glob.startswith(NEGATED_GLOB_MARK)}
 
 
 def _quoted_globs(list_pattern, config_text):

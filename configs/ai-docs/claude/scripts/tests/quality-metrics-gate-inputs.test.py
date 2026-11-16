@@ -111,6 +111,12 @@ JEST_CONFIG_COLLECTING_WITHOUT_REPORT = (
     "  collectCoverageFrom: ['src/[a-z]*.ts', '!src/report.ts'],\n"
     "};\n"
 )
+JEST_CONFIG_COLLECTING_FROM_ALL_SRC = (
+    "module.exports = {\n  collectCoverageFrom: ['src/**'],\n};\n"
+)
+JEST_CONFIG_COLLECTING_FROM_SRC_CORE = (
+    "module.exports = {\n  collectCoverageFrom: ['src/core/**'],\n};\n"
+)
 REPORT_SOURCE = "export function render(rows: string[]): string {\n  return rows.join('\\n');\n}\n"
 
 
@@ -258,6 +264,23 @@ class TestJestListsWithCharacterClasses:
 
         assert report["gate_input_violations"] == [
             {"kind": "coverage_exclude", "file": "jest.config.js", "value": "!src/report.ts"}
+        ]
+
+
+class TestNarrowedCollectGlob:
+    def test_should_list_a_positive_collect_glob_narrowed_from_src_to_src_core_like_an_added_negated_entry(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": JEST_CONFIG_COLLECTING_FROM_ALL_SRC,
+            "src/report.ts": REPORT_SOURCE,
+        })
+        (repo / "jest.config.js").write_text(JEST_CONFIG_COLLECTING_FROM_SRC_CORE)
+
+        report = measure_report(repo, write_declaration(tmp_path))
+
+        assert report["gate_input_violations"] == [
+            {"kind": "coverage_exclude", "file": "jest.config.js", "value": "src/**"}
         ]
 
 
