@@ -119,6 +119,45 @@ def test_flags_an_orders_billing_import_cycle_the_branch_introduces(tmp_path):
     assert "orders" in cycle["detail"] and "billing" in cycle["detail"]
 
 
+def test_flags_an_import_cycle_between_two_plain_modules_of_one_package(tmp_path):
+    base_files = {
+        "shop/__init__.py": "",
+        "shop/orders.py": "ORDER_ID = 1\n",
+        "shop/billing.py": BILLING_READS_ORDERS,
+    }
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"shop/orders.py": ORDER_READS_BILLING},
+    )
+
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "cycle"
+    assert violations[0]["file"] == "shop/orders.py"
+
+
+def test_flags_an_import_cycle_between_two_packages_below_the_top_package(tmp_path):
+    base_files = {
+        "shop/__init__.py": "",
+        "shop/sales/__init__.py": "",
+        "shop/sales/orders/__init__.py": "",
+        "shop/sales/orders/order.py": "ORDER_ID = 1\n",
+        "shop/sales/billing/__init__.py": "",
+        "shop/sales/billing/invoice.py": "from shop.sales.orders import order\n",
+    }
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"shop/sales/orders/order.py": (
+            "from shop.sales.billing import invoice\n\nORDER_ID = 1\n"
+        )},
+    )
+
+    assert len(violations) == 1
+    assert violations[0]["kind"] == "cycle"
+    assert violations[0]["file"] == "shop/sales/orders/order.py"
+
+
 def test_flags_a_domain_to_infra_import_against_a_declared_layer_map(tmp_path):
     base_files = {
         "domain/order.js": DOMAIN_ORDER_WITHOUT_DB,

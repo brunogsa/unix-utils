@@ -436,11 +436,18 @@ def _problems_from_import_linter(output, tree):
         edge_match = CONTRACT_EDGE_LINE.match(line)
         if edge_match and root:
             importer, imported = edge_match.groups()
+            package_dir = root.replace(".", "/")
             problems.append({
                 "key": (CYCLE_KIND, root, importer, imported),
                 "kind": CYCLE_KIND,
                 "detail": f"{root}.{importer} -> {root}.{imported}",
-                "paths": [f"{root}/{importer}/", f"{root}/{imported}/"],
+
+                # A sibling: package dir or module file.
+                "paths": [
+                    f"{package_dir}/{sibling}{suffix}"
+                    for sibling in (importer, imported)
+                    for suffix in ("/", ".py")
+                ],
             })
     return problems
 
