@@ -191,7 +191,9 @@ class DependencyRun:
             )
         if tool == GO_ARCH_LINT:
             return _find_with_go_arch_lint(tree, self.layer_map)
-        return _find_with_import_linter(tree, self.layer_map)
+        if tool == IMPORT_LINTER:
+            return _find_with_import_linter(tree, self.layer_map)
+        raise ValueError(f"no import finder for tool {tool!r}")
 
 
 def measure(target, metrics, dependency_run):
