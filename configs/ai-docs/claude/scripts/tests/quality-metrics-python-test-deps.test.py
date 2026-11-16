@@ -102,3 +102,41 @@ def test_should_add_nothing_to_the_pytest_command_for_a_repo_that_declares_no_te
     })
 
     assert declared_test_dependency_args(repo) == []
+
+
+PROJECT_HEADER = '[project]\nname = "demo"\nversion = "0.1.0"\nrequires-python = ">=3.9"\n'
+
+
+def test_should_run_the_tests_of_a_repo_whose_pyproject_test_extra_declares_the_plugin_its_pytest_config_loads(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    wheel = build_plugin_wheel(tmp_path)
+    repo = write_repo(tmp_path, {
+        **PLUGIN_REPO_FILES,
+        "pyproject.toml": (
+            PROJECT_HEADER
+            + "[project.optional-dependencies]\n"
+            + f'test = ["{PLUGIN_MODULE} @ {wheel.as_uri()}"]\n'
+        ),
+    })
+
+    result = collect_python(repo)
+
+    assert not result.has_failed_tests
+    assert result.hits_by_file["calc.py"][2] > 0
+
+
+def test_should_pass_one_extra_flag_per_declared_test_and_dev_extra_in_a_stable_order(tmp_path):
+    from quality_metrics.python_test_deps import declared_test_dependency_args
+
+    repo = write_repo(tmp_path, {
+        "pyproject.toml": (
+            PROJECT_HEADER
+            + "[project.optional-dependencies]\n"
+            + 'dev = ["pytest-mock"]\ndocs = ["sphinx"]\ntest = ["pytest-asyncio"]\n'
+        ),
+    })
+
+    assert declared_test_dependency_args(repo) == [
+        "--extra", "test", "--extra", "dev",
+    ]

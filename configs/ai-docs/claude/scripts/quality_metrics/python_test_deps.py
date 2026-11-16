@@ -20,15 +20,18 @@ TEST_REQUIREMENTS_FILES = [
 TEST_DEPENDENCY_GROUPS = ["test", "dev"]
 
 
-def _declared_groups(repo_dir):
+def _read_pyproject(repo_dir):
     pyproject = Path(repo_dir) / "pyproject.toml"
     if not pyproject.exists():
-        return []
+        return {}
     try:
-        declared = tomllib.loads(pyproject.read_text()).get("dependency-groups", {})
+        return tomllib.loads(pyproject.read_text())
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return []
-    return [group for group in TEST_DEPENDENCY_GROUPS if group in declared]
+        return {}
+
+
+def _declared_names(table, wanted):
+    return [name for name in wanted if name in table]
 
 
 def declared_test_dependency_args(repo_dir):
@@ -39,6 +42,13 @@ def declared_test_dependency_args(repo_dir):
     for name in TEST_REQUIREMENTS_FILES:
         if (repo_dir / name).is_file():
             args += ["--with-requirements", name]
-    for group in _declared_groups(repo_dir):
+    pyproject = _read_pyproject(repo_dir)
+    declared_groups = pyproject.get("dependency-groups", {})
+    for group in _declared_names(declared_groups, TEST_DEPENDENCY_GROUPS):
         args += ["--group", group]
+
+    # uv rejects an --extra the [project] table does not define.
+    declared_extras = pyproject.get("project", {}).get("optional-dependencies", {})
+    for extra in _declared_names(declared_extras, TEST_DEPENDENCY_GROUPS):
+        args += ["--extra", extra]
     return args
