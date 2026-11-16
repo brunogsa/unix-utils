@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-# run-committed-hook.py - Run a hook as committed while its dir has uncommitted edits
+# run-committed-hook.py - run a hook as committed while
+# its dir holds uncommitted edits.
 #
 # Usage:
 #   run-committed-hook.py <hook.py>
 #
-# stdin: the Claude Code hook payload, passed on to the hook
-# stdout: the hook's own output, or a PreToolUse deny when the
-#   committed hook of an edited dir cannot be read
-# exit: the hook's own exit code; 1 when the committed hook of
-#   an edited dir cannot be read for a non-PreToolUse event;
-#   2 on bad usage
+# stdin: the Claude Code hook payload, passed on to the hook.
+#
+# stdout: the hook's own output, or a PreToolUse deny when
+#   its committed version cannot be read.
+#
+# exit: the hook's own exit code; 1 when the committed
+#   version cannot be read for a non-PreToolUse event;
+#   2 on bad usage.
 
 import io
 import json
@@ -23,6 +26,7 @@ from pathlib import Path
 
 USAGE = "usage: run-committed-hook.py <hook.py>"
 GIT_TIMEOUT_SECONDS = 10
+
 # Optional locks off: a read here must never take index.lock
 # from an agent committing in the same repo.
 GIT_ENV = {**os.environ, "GIT_OPTIONAL_LOCKS": "0"}
@@ -70,6 +74,7 @@ def read_git_output(hook_dir: Path, *args: str) -> bytes:
 def extract_committed_hook_dir(hook_dir: Path, snapshot_dir: Path) -> None:
     lines = read_git_output(hook_dir, "rev-parse", "--show-toplevel", "--show-prefix").decode().splitlines()
     top_level, dir_prefix = (lines + [""])[:2]
+
     # Run from the top level: from a subdir, git archive also
     # filters the tree by that subdir's path and finds nothing.
     tar_bytes = read_git_output(Path(top_level), "archive", "--format=tar", f"HEAD:{dir_prefix}")
@@ -97,6 +102,7 @@ def get_event_name(payload_text: str) -> str | None:
 
 def report_unreadable_hook(payload_text: str, hook: Path, error: Exception) -> int:
     problem = f"the committed {hook} could not be run while its dir has uncommitted edits ({error})"
+
     # A PreToolUse hook guards a call, so failing to run it must
     # deny; any other event keeps the crashed-hook outcome.
     if get_event_name(payload_text) != "PreToolUse":
