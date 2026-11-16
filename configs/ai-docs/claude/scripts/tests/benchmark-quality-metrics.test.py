@@ -82,6 +82,11 @@ sys.exit(1)
 """
 
 
+class TestMetricsTimed:
+    def test_should_time_every_metric_the_measure_script_can_run_including_dependency_direction(self):
+        assert "dependency_direction" in benchmark.metrics_with_a_module()
+
+
 class TestPessimisticMetric:
     def test_should_keep_a_quick_metric_in_per_unit_and_not_exit_2_when_its_run_reads_pessimistic(
         self, declaration_path, tmp_path, monkeypatch

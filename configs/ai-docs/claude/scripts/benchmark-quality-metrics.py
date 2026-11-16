@@ -53,6 +53,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from quality_metrics import declaration as declaring
 from quality_metrics.atomic_write import write_text_atomically
+from quality_metrics.measuring import METRIC_MODULES
 
 REPO_ROOT = SCRIPTS_DIR.parents[3]
 
@@ -122,7 +123,7 @@ def write_per_unit(declaration_path, metrics):
 def metrics_with_a_module():
     """The metrics the measure script can run, in declaration
     order."""
-    return [metric for metric in declaring.METRIC_NAMES if metric in measuring.METRIC_MODULES]
+    return [metric for metric in declaring.METRIC_NAMES if metric in METRIC_MODULES]
 
 
 def metrics_declared_for(metric):
