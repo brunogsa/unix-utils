@@ -189,7 +189,31 @@ PHASE GREEN:
   - Cap exhausted on any unit: stop repairing. Commit every unit that IS green (PHASE COMMIT, scoped to those), then report `blocked` naming only the units that never went green.
     - The working tree holds real work at that point, and discarding it would be the wrong default.
 
+PHASE METRICS, after GREEN and before any commit:
+
+- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once per unit, after that unit's code is edited.
+  - Outside git it measures nothing without a file list, so pass the unit's edited files: `--per-unit --files <file>...`.
+  - `--diff` cannot combine with `--per-unit` or `--files`, so never use it here.
+  - Exit 0 is clean, 1 is a violation (the JSON is still valid), 2 means it did not measure: read stderr and never treat it as a pass.
+
+- Hold that unit's commit until every function in the JSON `violations` is fixed, then re-run the check on that unit.
+  - Only functions the unit touched can appear, so never fix an untouched one.
+
+- Claim an exception only when splitting the function reads worse than leaving it whole.
+  - Write the split version's diff to CWD through `~/.claude/scripts/write-atomically.py <path>` with the diff on stdin, then restore the unsplit code.
+  - Name the claim in the report and the commit body: file, function, metric, saved diff path, and the metric value after the split.
+  - A claim with no saved diff is no claim: a fresh-context judge rules on it, never you.
+
+- A tooling problem (a missing or crashed global tool, a changed file whose language has no declaration entry) never asks the human from here.
+  - It holds no commit, because a deferred metric reads pessimistic and never as passing.
+  - Return it as an `ask` record under the report's Ask field: `tool`, `metric`, `reason`, and `choices` of `fix now` and `defer`. The caller raises it and relays the answer.
+
 PHASE COMMIT:
+
+- A commit forced by a gate carries a `Gate:` trailer above `Co-Authored-By`, which the unplanned-tests script reads back.
+  - A test written because a gate demanded it, such as changed-line coverage, carries that gate's name, e.g. `Gate: changed-line coverage`.
+  - A refactor written because the per-unit metrics check demanded it carries `Gate: metrics`, a value no test commit uses.
+  - A commit no gate forced carries no `Gate:` trailer.
 
 - One commit per unit, in unit order, **never one combined commit for the batch** - N units always produce N commits, each bundling only that unit's own tests, implementation, and docs per `commit-standards`, including the `Co-Authored-By` trailer - the git-guard hook rejects commits without it.
   - "All-or-nothing" below gates *when* committing starts, not *how many* commits result - it never collapses N units into one commit.
@@ -274,6 +298,8 @@ Report back - structured text, never a silent "done":
 - **Deviations**: sub-steps inserted mid-flight, soft forks resolved (with the choice made), Drift fixes folded in, and any wrong-test correction (unit + what changed).
 - **Scouts**: `[Scout]` items observed - pre-existing, non-blocking - one line each.
 - **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path and report it as its own line: which module, which task, which path took over.
+- **Ask**: present only when PHASE METRICS hit a tooling problem - each `ask` record, verbatim, for the caller to raise.
+- **Exceptions claimed**: present only when a unit claimed one - file, function, metric, saved split diff path, split value.
 - **Blocked on**: present only when Status is `blocked` - the units that never went green, or the missing/unusable required input, and exactly what's needed to clear it.
 
 - **Evidence**: path to `/tmp/tdd-coder_evidences_<run-label>.txt`, for the caller to open or not.
