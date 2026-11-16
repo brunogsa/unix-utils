@@ -510,6 +510,9 @@ def _skip_wrapper_options(words, index, options):
             index += 1
         elif text in options.valued:
             index += 2
+        elif text[:2] in options.valued:
+            # getopt reads -n1 as -n 1, its value glued on.
+            index += 1
         else:
             raise UnknownWrapperOption(text)
     return index + options.positionals

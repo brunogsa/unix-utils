@@ -60,9 +60,25 @@ it_should_block_a_git_alias_run_through_a_wrapper_given_its_options() {
     'sudo -u root git ci -m x' \
     'timeout 5 git ci -m x' \
     'nice -n 5 git ci -m x' \
-    'xargs -0 git ci -m x'; do
+    'xargs -0 git ci -m x' \
+    'xargs -n1 git ci -m x' \
+    'git log -3 | xargs -n1 git commit -m x' \
+    'git log -3 | xargs -n 1 git commit -m x'; do
     run_hook "$cmd"
     assert_eq "should block a git alias run through a wrapper given its options: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+# xargs reads -n1 as -n 1, so the word after it is the command
+# it runs, here no git at all.
+it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_command() {
+  local cmd
+  for cmd in \
+    'git status --short | xargs -n1 dirname' \
+    'git log --format=%h -3 | xargs -n1 basename' \
+    'git status --short | xargs -n 1 dirname'; do
+    run_hook "$cmd"
+    assert_eq "should allow read-only git output piped into xargs -n1 running a non-git command: $cmd" "0" "$HOOK_EXIT"
   done
 }
 
@@ -180,6 +196,7 @@ it_should_allow_a_wrapper_running_no_git_alias() {
 
 it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
+it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_command
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
