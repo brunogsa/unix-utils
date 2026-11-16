@@ -8,6 +8,11 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "split-forced-refactors.py"
+SKILLS_DIR = Path(__file__).resolve().parents[3]
+SDD_SCRIPTS = SKILLS_DIR / "spec-driven-development/scripts"
+FINDING_CHECKER = (
+    SKILLS_DIR / "code-review-pipeline/scripts/check-finding-bodies.py"
+)
 FEATURE_BRANCH = "feature/pr-3-metrics-gate"
 REFACTOR_BRANCH = "refactor/pr-2-forced-refactors"
 
@@ -101,12 +106,6 @@ def subjects_between(repo, older, newer):
     log = git(repo, "log", "--format=%s", f"{older}..{newer}")
     return log.splitlines()
 
-
-SDD_SCRIPTS = Path.home() / ".claude/skills/spec-driven-development/scripts"
-FINDING_CHECKER = (
-    Path(__file__).resolve().parents[3]
-    / "code-review-pipeline/scripts/check-finding-bodies.py"
-)
 
 PLAN_TEXT = """\
 ## Task Breakdown
