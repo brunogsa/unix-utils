@@ -10,6 +10,7 @@ Usage:
 """
 
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -34,12 +35,20 @@ checker = _load_checker()
 WITHHELD_VERDICT = ""
 
 
-def _attribution_verdict(command):
+# rg reads its config file from here, so each run starts
+# without it and a test sets it only on purpose.
+RIPGREP_CONFIG_ENV = "RIPGREP_CONFIG_PATH"
+
+
+def _attribution_verdict(command, environment=None):
+    run_environment = {key: value for key, value in os.environ.items() if key != RIPGREP_CONFIG_ENV}
+    run_environment.update(environment or {})
     result = subprocess.run(
         [sys.executable, str(CHECKER), checker.ATTRIBUTED_FLAG, command],
         capture_output=True,
         text=True,
         check=False,
+        env=run_environment,
     )
     assert result.returncode == 0, result.stderr
     return result.stdout
@@ -138,6 +147,31 @@ def test_should_report_no_commit_for_a_later_git_word_read_as_data_by_a_command_
 )
 def test_should_screen_a_later_git_word_after_grep_when_the_command_redefines_a_name(command):
     assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+# A new PATH may find another grep, and an rg config file may
+# set --pre, the program rg runs on each file.
+@pytest.mark.parametrize(
+    "command",
+    [
+        "RIPGREP_CONFIG_PATH=/tmp/c rg git zz",
+        "export RIPGREP_CONFIG_PATH=/tmp/c; rg git zz",
+        "PATH=/tmp/e:$PATH grep git zz -m x",
+        "export PATH=/tmp/e; grep git zz -m x",
+    ],
+)
+def test_should_screen_a_later_git_word_after_a_search_command_when_the_command_changes_its_lookup(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+def test_should_screen_a_later_git_word_after_rg_when_the_environment_names_an_rg_config():
+    environment = {RIPGREP_CONFIG_ENV: "/tmp/c"}
+    assert _attribution_verdict("rg git zz", environment) == WITHHELD_VERDICT
+
+
+def test_should_report_no_commit_for_grep_when_the_environment_names_an_rg_config():
+    environment = {RIPGREP_CONFIG_ENV: "/tmp/c"}
+    assert _attribution_verdict("grep git configs/x.md", environment) == checker.NO_COMMIT_VERDICT
 
 
 # The guard reads no git config: an earlier stage may write

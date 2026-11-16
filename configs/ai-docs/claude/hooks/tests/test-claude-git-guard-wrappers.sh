@@ -13,6 +13,10 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT="$script_dir/claude-git-guard.sh"
 bash_bin="$(command -v bash)"
 
+# rg reads its config file from here, so each run starts
+# without it and a test sets it only on purpose.
+unset RIPGREP_CONFIG_PATH
+
 pass_count=0
 fail_count=0
 
@@ -112,6 +116,25 @@ it_should_block_a_later_git_word_after_grep_when_the_command_redefines_a_name() 
   done
 }
 
+# A new PATH may find another grep, and an rg config file may
+# set --pre, the program rg runs on each file.
+it_should_block_a_later_git_word_after_a_search_command_when_the_command_changes_its_lookup() {
+  local cmd
+  for cmd in \
+    'RIPGREP_CONFIG_PATH=/tmp/c rg git zz' \
+    'export RIPGREP_CONFIG_PATH=/tmp/c; rg git zz' \
+    'PATH=/tmp/e:$PATH grep git zz -m x' \
+    'export PATH=/tmp/e; grep git zz -m x'; do
+    run_hook "$cmd"
+    assert_eq "should block a later git word after a search command when the command changes its lookup: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_block_a_later_git_word_after_rg_when_the_environment_names_an_rg_config() {
+  RIPGREP_CONFIG_PATH=/tmp/c run_hook 'rg git zz'
+  assert_eq "should block a later git word after rg when the environment names an rg config" "2" "$HOOK_EXIT"
+}
+
 # The guard reads no git config: an earlier stage may write
 # one, and sudo, find -exec or ssh may run git under another
 # user, directory or host, so any name may be an alias there.
@@ -148,6 +171,8 @@ it_should_block_an_xargs_that_rewrites_its_git_words
 it_should_block_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word
 it_should_allow_a_later_git_word_read_as_data_by_a_command_that_runs_no_argument
 it_should_block_a_later_git_word_after_grep_when_the_command_redefines_a_name
+it_should_block_a_later_git_word_after_a_search_command_when_the_command_changes_its_lookup
+it_should_block_a_later_git_word_after_rg_when_the_environment_names_an_rg_config
 it_should_block_a_later_git_word_naming_no_git_builtin_after_a_command_that_may_run_it
 it_should_allow_a_wrapper_running_no_git_alias
 

@@ -113,6 +113,11 @@ TEXT_READING_COMMANDS = frozenset({"grep", "egrep", "fgrep", RIPGREP})
 # runs its arguments.
 COMMAND_DEFINITION_TEXT = re.compile(r"(?<![\w.-])(?:alias|function)(?![\w.-])|\(\s*\)")
 
+# A new PATH may find another program under a search command's
+# name, and an rg config file may set --pre.
+RIPGREP_CONFIG_ENV = "RIPGREP_CONFIG_PATH"
+COMMAND_LOOKUP_SETTING_TEXT = re.compile(r"(?<![\w.-])(?:PATH|" + RIPGREP_CONFIG_ENV + r")\+?=")
+
 # git, its global options, then the name it runs, read from
 # the raw text of a command the lexer cannot split.
 GIT_SUBCOMMAND_TEXT = re.compile(r"(?<![\w.-])git(?:\s+-\S+(?:\s+[^\s-]\S*)?)*?\s+([^\s-]\S*)")
@@ -859,21 +864,27 @@ def _may_run_commit(stage, is_text_reader_trusted):
 
 
 def _is_text_reader_trusted(command):
-    """True when the raw command text defines no function or
-    alias."""
-    return COMMAND_DEFINITION_TEXT.search(command) is None
+    """True when the raw command text neither defines a function
+    or alias nor sets where a search command is found."""
+    is_name_redefined = COMMAND_DEFINITION_TEXT.search(command) is not None
+    return not is_name_redefined and COMMAND_LOOKUP_SETTING_TEXT.search(command) is None
 
 
 def _reads_arguments_as_text(command, words):
     """True when the command word never runs its arguments, so
     a git word there is a pattern or a path: grep git file.
 
-    rg runs a program given by --pre, and a word read only at
-    run time may turn into that option.
+    rg runs a program given by --pre, which a config file named
+    in the environment may set, and a word read only at run
+    time may turn into that option.
     """
     if command not in TEXT_READING_COMMANDS:
         return False
-    return command != RIPGREP or not any(_may_set_preprocessor(word) for word in words)
+    if command != RIPGREP:
+        return True
+    if RIPGREP_CONFIG_ENV in os.environ:
+        return False
+    return not any(_may_set_preprocessor(word) for word in words)
 
 
 def _may_set_preprocessor(word):
