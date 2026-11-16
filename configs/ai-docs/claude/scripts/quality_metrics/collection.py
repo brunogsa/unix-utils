@@ -51,7 +51,14 @@ PYTHON_COVERAGE_WITH = [
     "coverage",
 ]
 PYTHON_TEST_COMMAND = [*PYTHON_COVERAGE_WITH, "run", "-m", "pytest"]
+PYTHON_COMBINE_COMMAND = [*PYTHON_COVERAGE_WITH, "combine"]
 PYTHON_LCOV_COMMAND = [*PYTHON_COVERAGE_WITH, "lcov", "-o"]
+
+# `patch = subprocess` measures Python subprocesses a test
+# starts; `parallel` gives each process its own data file for
+# `combine`. The config lives outside the repo. Documented at
+# coverage.readthedocs.io/en/latest/subprocess.html
+SUBPROCESS_COVERAGE_CONFIG = "[run]\nparallel = True\npatch = subprocess\n"
 
 JAVASCRIPT_TEST_COMMAND = [
     "c8", "--reporter=lcov", "--reports-dir=coverage", "npm", "test",
@@ -201,13 +208,20 @@ def _source_entry(language, measured):
 def collect_python(repo_dir):
     with tempfile.TemporaryDirectory() as data_dir:
         data_file_outside_repo = Path(data_dir) / ".coverage"
-        env = {**os.environ, "COVERAGE_FILE": str(data_file_outside_repo)}
+        config_file = Path(data_dir) / "coveragerc"
+        config_file.write_text(SUBPROCESS_COVERAGE_CONFIG)
+        env = {
+            **os.environ,
+            "COVERAGE_FILE": str(data_file_outside_repo),
+            "COVERAGE_RCFILE": str(config_file),
+        }
         run_started = time.time()
         test_run = run_command(PYTHON_TEST_COMMAND, cwd=repo_dir, env=env)
         if test_run.returncode == PYTEST_NO_TESTS_EXIT:
             return NO_COVERAGE_DATA
         if test_run.returncode != 0:
             return RED_BUILD
+        run_command(PYTHON_COMBINE_COMMAND, cwd=repo_dir, env=env)
         report_file = Path(data_dir) / "lcov.info"
         report_run = run_command(
             [*PYTHON_LCOV_COMMAND, str(report_file)], cwd=repo_dir, env=env

@@ -300,6 +300,17 @@ YAML_REPO_FILES = {
     ),
 }
 
+SUBPROCESS_REPO_FILES = {
+    "tool.py": "print('tool ran')\n",
+    "test_tool.py": (
+        "import subprocess\nimport sys\nfrom pathlib import Path\n\n\n"
+        "def test_runs_the_tool_as_a_subprocess():\n"
+        "    script = Path(__file__).parent / 'tool.py'\n"
+        "    done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)\n"
+        "    assert done.stdout == 'tool ran\\n'\n"
+    ),
+}
+
 
 def write_repo(tmp_path, files):
     repo = tmp_path / "repo"
@@ -318,3 +329,13 @@ def test_should_measure_the_coverage_of_a_repo_test_that_imports_yaml(tmp_path):
 
     assert not result.has_failed_tests
     assert result.hits_by_file["settings_reader.py"][5] > 0
+
+
+def test_should_count_lines_of_a_script_run_as_a_subprocess_by_a_test_as_covered(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    repo = write_repo(tmp_path, SUBPROCESS_REPO_FILES)
+
+    result = collect_python(repo)
+
+    assert result.hits_by_file["tool.py"][1] > 0
