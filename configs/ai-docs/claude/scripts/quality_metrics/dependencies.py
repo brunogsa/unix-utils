@@ -60,6 +60,10 @@ LAYER_MAP_SOURCES = (DECLARED_SOURCE, INFERRED_SOURCE)
 FLAGGED_COUNT = 1
 LIMIT_COUNT = 0
 
+# The line patterns below read its output, so a release that
+# rewords it is adopted by bumping this pin, never unseen.
+IMPORT_LINTER_VERSION = "2.16"
+
 IMPORT_LINTER_EXIT_KEPT, IMPORT_LINTER_EXIT_BROKEN = 0, 1
 IMPORT_LINTER_CONTRACTS_SUMMARY = "Contracts:"
 CONTRACT_ROOT_LINE = re.compile(r"^No cycles are allowed in (\S+)\.$")
@@ -359,7 +363,8 @@ def _find_with_import_linter(tree, layer_map):
         # --no-project: uv must not sync the repo's own project.
         # --no-cache: lint-imports must not write into the tree.
         result = run_command(
-            ["uv", "run", "--no-project", "--with", "import-linter", "--",
+            ["uv", "run", "--no-project",
+             "--with", f"{IMPORT_LINTER}=={IMPORT_LINTER_VERSION}", "--",
              "lint-imports", "--config", str(config_path),
              "--no-cache", "--no-logo"],
             cwd=tree,
@@ -374,7 +379,15 @@ def _find_with_import_linter(tree, layer_map):
     )
     if not (has_known_exit and has_checked_contracts):
         raise ToolError(f"lint-imports failed: {(result.stdout + result.stderr).strip()}")
-    return _problems_from_import_linter(result.stdout, tree, package_roots)
+    problems = _problems_from_import_linter(result.stdout, tree, package_roots)
+
+    # A broken contract no pattern read is a reworded report;
+    # reading it as no problems would pass a failing gate.
+    if result.returncode == IMPORT_LINTER_EXIT_BROKEN and not problems:
+        raise ToolError(
+            f"lint-imports broke a contract in an unread format: {result.stdout.strip()}"
+        )
+    return problems
 
 
 def _importable_layers(tree, package_roots, layer_map):

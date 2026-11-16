@@ -510,6 +510,70 @@ def test_flags_a_cycle_in_the_first_package_a_branch_adds_to_a_tree_without_one(
     }
 
 
+# Stands in for uv: it records its arguments, then reports
+# one contract kept, as a run with nothing to flag does.
+UV_STUB_RECORDING_ARGUMENTS = """#!/bin/sh
+echo "$@" > "{capture_path}"
+echo "Contracts: 1 kept, 0 broken."
+exit 0
+"""
+
+# A broken-contract exit whose report no line pattern reads, as
+# a reworded release of import-linter would print.
+UV_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT = """#!/bin/sh
+echo "Contracts: 0 kept, 1 broken."
+echo "Contract failed: cycles-shop. shop.orders and shop.billing import each other."
+exit 1
+"""
+
+PYTHON_CYCLE_BASE_FILES = {
+    "shop/__init__.py": "",
+    "shop/orders/__init__.py": "",
+    "shop/orders/order.py": "ORDER_ID = 1\n",
+    "shop/billing/__init__.py": "",
+    "shop/billing/invoice.py": BILLING_READS_ORDERS,
+}
+
+
+def env_with_uv_stub(tmp_path, script):
+    stub_dir = tmp_path / "uv-stub-bin"
+    stub_dir.mkdir()
+    stub = stub_dir / "uv"
+    stub.write_text(script)
+    stub.chmod(0o755)
+    return {**GIT_ENV, "PATH": f"{stub_dir}{os.pathsep}{GIT_ENV['PATH']}"}
+
+
+def test_runs_import_linter_pinned_to_one_exact_version(tmp_path):
+    capture_path = tmp_path / "uv.arguments"
+
+    measure_branch(
+        tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
+        {"shop/orders/order.py": ORDER_READS_BILLING},
+        env=env_with_uv_stub(
+            tmp_path, UV_STUB_RECORDING_ARGUMENTS.format(capture_path=capture_path)
+        ),
+    )
+
+    assert re.search(
+        r"--with import-linter==\d+\.\d+(\.\d+)? ", capture_path.read_text()
+    )
+
+
+def test_scores_a_python_file_as_a_deferred_violation_when_import_linter_breaks_a_contract_in_a_format_no_line_pattern_reads(tmp_path):
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, PYTHON_CYCLE_BASE_FILES,
+        {"shop/orders/order.py": ORDER_READS_BILLING},
+        env=env_with_uv_stub(tmp_path, UV_STUB_BREAKING_IN_AN_UNKNOWN_FORMAT),
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["file"] == "shop/orders/order.py"
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
 def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_on_itself_and_the_layers_after_it(tmp_path):
     capture_path = tmp_path / "captured-archfile.yaml"
 
