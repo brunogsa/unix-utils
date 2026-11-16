@@ -456,6 +456,19 @@ class TestInternalRuleCitations:
         )
         _assert_passes(_check(tmp_path, _verdict(finding)))
 
+    def test_finding_on_a_hook_may_cite_its_installed_path_under_home_claude(self, tmp_path):
+        body = _body(summary="Fees come out 100x too high in ~/.claude/hooks/x.sh when the rate is read.")
+        finding = _finding(body=body, location="configs/ai-docs/claude/hooks/x.sh:12-14")
+        _assert_passes(_check(tmp_path, _verdict(finding)))
+
+    def test_finding_on_a_hook_citing_a_different_home_claude_rule_file_is_flagged(
+        self, tmp_path,
+    ):
+        body = _body(summary="Fees come out 100x too high per ~/.claude/skills/code-standards/SKILL.md.")
+        finding = _finding(body=body, location="configs/ai-docs/claude/hooks/x.sh:12-14")
+        lines = _violations(_check(tmp_path, _verdict(finding)))
+        assert any("internal rule source" in line for line in lines)
+
     def test_body_stating_the_principle_without_citing_a_source_passes(self, tmp_path):
         summary = (
             "resolveLargeMessageBody usa o verbo vago resolve: quem lê precisa abrir o corpo"

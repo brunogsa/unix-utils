@@ -75,9 +75,11 @@ INTERNAL_RULE_SOURCE = re.compile(
     r"\b[a-z]+-standards\b"
     r"|\b(?:CLAUDE|AGENTS)\.md\b"
     r"|\b(?:review-principles|review-checklists|common-preamble)\b"
-    r"|~/\.claude/",
+    r"|~/\.claude/[^\s`'\")\]]*",
     re.IGNORECASE,
 )
+HOME_CLAUDE_PREFIX = "~/.claude/"
+TRAILING_PUNCTUATION = ".,;:"
 
 
 class Finding:
@@ -219,18 +221,25 @@ def _check_budget(prose, tag):
     return reasons
 
 
+def _is_finding_own_file(token, path_lower):
+    if not token.lower().startswith(HOME_CLAUDE_PREFIX):
+        return token.lower() in path_lower
+    installed_rest = token[len(HOME_CLAUDE_PREFIX):].lower()
+    return bool(installed_rest) and path_lower.endswith(installed_rest)
+
+
 def _check_citations(prose, path):
     """Flag each distinct internal rule source the prose names,
     unless the finding is about that very file (its path
-    contains the name)."""
+    contains the name, or ends with the installed path
+    `~/.claude/<rest>` the body cites)."""
     path_lower = path.lower()
+    matches = INTERNAL_RULE_SOURCE.finditer("\n".join(prose))
+    tokens = [match.group(0).rstrip(TRAILING_PUNCTUATION) for match in matches]
     cited = {}
-    for line in prose:
-        for match in INTERNAL_RULE_SOURCE.finditer(line):
-            token = match.group(0)
-            is_finding_own_file = token.lower() in path_lower
-            if not is_finding_own_file:
-                cited.setdefault(token.lower(), token)
+    for token in tokens:
+        if not _is_finding_own_file(token, path_lower):
+            cited.setdefault(token.lower(), token)
     return [
         f'body cites internal rule source "{token}";'
         " state the principle and why it matters for this code instead"
