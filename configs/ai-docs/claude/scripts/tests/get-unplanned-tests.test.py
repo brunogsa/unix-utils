@@ -454,3 +454,31 @@ describe("gate", () => {
         assert [row["path"] for row in json.loads(completed.stdout)] == [
             "tests/legacy.test.ts"
         ]
+
+
+class TestUnresolvableInputsExitTwo:
+    def test_should_exit_2_naming_the_base_ref_on_stderr_when_the_base_ref_does_not_resolve(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _init_repo(repo)
+
+        completed = _run(repo, _plan(tmp_path), "no-such-branch-2026")
+
+        assert completed.returncode == 2
+        assert "no-such-branch-2026" in completed.stderr
+        assert completed.stdout == ""
+
+    def test_should_exit_2_with_empty_stdout_when_the_plan_names_no_test_titles(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        plan = _plan(tmp_path, "# Plan\n\n## Tasks\n\n- build it\n")
+
+        completed = _run(repo, plan, base)
+
+        assert completed.returncode == 2
+        assert completed.stdout == ""
