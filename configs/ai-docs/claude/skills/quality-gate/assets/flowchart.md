@@ -100,7 +100,7 @@ def quality_gate(arg):
     # ---- 10 · Step 4.1 - merge the four legs' files into ONE verdict.
     #      Runs on report-only and auto-solve alike, and over a single
     #      surviving file too, so the shape and lens tags are uniform. ----
-    rendered = first(run_dir, "verdict_metrics_*.md")        # copied verbatim and FIRST: entries 1..k, no severity tag
+    rendered = first(run_dir, "verdict_metrics_*.md", "verdict_quality-gate_no-git_*.md")        # copied verbatim and FIRST: entries 1..k, no severity tag
     sources = [l.verdict_path for l in (refactor_leg, auto_review_leg, test_sdd_leg, judge_file)
                if present_and_non_empty(l.verdict_path)]     # + run_dir/detector-edits.md when main committed one
     merged = None
