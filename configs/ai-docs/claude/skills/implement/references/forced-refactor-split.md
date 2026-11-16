@@ -44,6 +44,8 @@ Read `outcome` in the JSON.
 
   - That push replaces the next step's plain re-push for the feature branch.
 
+  - A `moved` outcome always refreshes the feature PR description, whatever that step's `@{u}..HEAD` count says, because the force push leaves it at 0 while the moved commits left the PR.
+
   - Open the refactor branch's draft PR through the same `pr-creator` dispatch [`batch-end-pr.md`](batch-end-pr.md) owns.
 
   - Have the package list the moved commits and the new PR, so the human reviews what left the feature PR.
