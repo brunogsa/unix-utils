@@ -1,11 +1,11 @@
 # Metrics Lens
 
-The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. You are a fresh-context judge, not the code's author, so the rulings below are yours and never the author's.
+The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. You are a fresh-context judge, not the code's author, so the rulings below are yours.
 
 You report only. Never edit a source file, the declaration `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
 quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there.
-- [Why] The scripts live in the global config, so the installed `~/.claude/scripts/` path works from any repo, while a repo-relative path only resolves inside the config repo.
+- [Why] The installed `~/.claude/scripts/` path works from any repo, while a repo-relative path resolves only inside the config repo.
 
 ## 1. Run the script
 
@@ -19,11 +19,9 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 - `--diff BASE...HEAD` measures every declared metric on the code the committed range changes, and lists the over-limit functions the range removes as resolved.
   - It cannot combine with `--files` or `--per-unit`.
 
-- `--files FILE...` measures whole files with no git diff; use it only when you were handed files and no range.
+- `--files FILE...` measures whole files with no git diff; use it only when you were handed no range.
 
 - `--layers FILE` is the layer map the dependency check reads. Without it only import cycles are checked, so always pass one (section 2).
-
-- `--declaration FILE` names another declaration; leave it at the default.
 
 - Exit 0 is clean.
   - Exit 1 is a violation: the JSON is still valid and you still render it (section 3).
@@ -77,7 +75,7 @@ git diff <BASE>...<HEAD> -- <file> | ~/.claude/scripts/write-atomically.py split
    - Worse: the exception stands. List it as an exception, not a violation.
    - Better: the claim is rejected. List the function as an unfixed violation.
 
-3. Give the evidence for the ruling: the helper names, what each hides, and what a reader must jump between.
+3. Give the evidence: the helper names, what each hides, and what a reader must jump between.
 
 4. Write the rulings as a JSON list to `<RUN_DIR>/metrics-exceptions.json`, one object per claim with the keys `file`, `function`, `metric`, `diff_path`, `split_value`, `rejected`.
    - `rejected` is true when you ruled the claim rejected, false when the exception stands.
@@ -91,7 +89,7 @@ git diff <BASE>...<HEAD> -- <file> | ~/.claude/scripts/write-atomically.py split
 ```
 
    - It prints the path of the rendered metrics verdict file. Exit 2 means bad input and nothing was written: report a failed run.
-   - Never hand-write that verdict. It carries the exceptions, open violations, deferred metrics, ranked lists and hotspot view.
+   - Never hand-write that verdict.
 
 ## 4. Judgments whatever the exception count
 
@@ -103,11 +101,9 @@ Run these on every function the branch touches and every test it adds, even when
 - **Vacuous test**: a test that asserts nothing about the code under test's output or effect, so it passes whatever the code does.
 
 - **Entangled test**: a test holding 2 or more act-then-assert pairs on one test case. Count it by these rules:
-  - A parametrized or table-driven test counts each case as its own test, so 3 cases each calling once then asserting is 3 clean tests.
-  - A hand-written `for` loop over a table counts the same way, one test per row.
   - A pair is one call to the code under test followed by an assertion on it.
-  - A guard assertion that follows no call, such as a fixture being non-empty, forms no pair.
-  - A plain test calling twice and asserting after each call has 2 pairs and is entangled.
+  - A guard assertion that follows no call forms no pair.
+  - A parametrized test, or a `for` loop over a table, counts each case or row as its own test.
 
 ## 5. Opt-outs are proposals
 
@@ -125,10 +121,5 @@ Write each finding under the heading shape the merge step routes on:
 ```
 
 Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires: a `**[TAG]**` severity line matching the heading ordinal, the file, function and evidence (script record, diff, or quoted lines), a `**Suggestion**` line with the fix or opt-out, and a `**Trade-off of not doing it**` line.
-
-The findings are:
-- hollow splits, vacuous tests and entangled tests
-- proposed opt-outs, marked as proposals
-- the saved layer map link labelled "inferred, not declared", when you inferred one
 
 Name both file paths, the rendered metrics verdict and the judge findings, in your return message.
