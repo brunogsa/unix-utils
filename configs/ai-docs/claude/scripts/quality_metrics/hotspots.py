@@ -1,9 +1,7 @@
-"""Draws the Mermaid hotspot view: touched files plus one import
-hop.
+"""Draws the Mermaid hotspot view of the touched files.
 
 Each touched file takes the color of its worst metric's share of
-that metric's limit. Files one hop away are drawn uncolored,
-since the change did not measure them.
+that metric's limit.
 """
 
 import math
@@ -19,29 +17,21 @@ COLOR_CLASSES = {
     "green": "fill:#c8e6c9,stroke:#2e7d32",
     "amber": "fill:#ffe0b2,stroke:#ef6c00",
     "red": "fill:#ffcdd2,stroke:#c62828",
-    "context": "fill:#eeeeee,stroke:#757575",
 }
 
 # In a quoted Mermaid label, only a quote ends the text.
 QUOTE_ENTITY = "#quot;"
 
 
-def hotspot_view(measurements, import_edges):
-    """A fenced Mermaid flowchart; `import_edges` are
-    (importer, imported) paths."""
+def hotspot_view(measurements):
+    """A fenced Mermaid flowchart of the touched files."""
     colors_by_file = _colors_by_touched_file(measurements)
     touched = sorted(colors_by_file)
-    edges = _edges_touching(touched, import_edges)
-    context = sorted({path for edge in edges for path in edge} - set(touched))
-    ids = {path: f"n{index}" for index, path in enumerate([*touched, *context])}
+    ids = {path: f"n{index}" for index, path in enumerate(touched)}
     lines = ["```mermaid", "flowchart LR"]
     for path in touched:
         color, label = colors_by_file[path]
         lines.append(f'  {ids[path]}["{_escape(path)}<br/>{label}"]:::{color}')
-    lines += [
-        f'  {ids[path]}["{_escape(path)}"]:::context' for path in context
-    ]
-    lines += [f"  {ids[importer]} --> {ids[imported]}" for importer, imported in edges]
     lines += [f"  classDef {name} {style}" for name, style in COLOR_CLASSES.items()]
     lines.append("```")
     return "\n".join(lines)
@@ -115,15 +105,6 @@ def _color_and_label(record):
         return color, f"{record['metric']} {display_value(record)}%"
     percent = int(record["value"] * 100 / record["limit"])
     return color, f"{record['metric']} {percent}%"
-
-
-def _edges_touching(touched, import_edges):
-    touched_files = set(touched)
-    edges = []
-    for edge in import_edges:
-        if touched_files & set(edge) and edge not in edges:
-            edges.append(edge)
-    return edges
 
 
 def _escape(path):

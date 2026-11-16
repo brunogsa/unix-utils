@@ -31,7 +31,6 @@ FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 
 NODE_LINE = re.compile(r'^\s*(n\d+)\["(.*)"\]:::(\w+)$', re.M)
-EDGE_LINE = re.compile(r"^\s*(n\d+) --> (n\d+)$", re.M)
 
 
 def function_record(file, function, metric, value, limit):
@@ -231,11 +230,6 @@ HOTSPOT_RUN = measured(
     file_record("src/edge70.py", "size", 210, FILE_LINES_LIMIT),
     file_record("src/under70.py", "size", 209, FILE_LINES_LIMIT),
 )
-IMPORT_EDGES = [
-    ("src/red.py", "lib/util.py"),
-    ("tools/caller.py", "src/amber.py"),
-    ("far/away.py", "lib/util.py"),
-]
 
 
 def nodes_by_file(view):
@@ -248,7 +242,7 @@ def nodes_by_file(view):
 
 class TestHotspotView:
     def test_should_show_every_touched_file_in_the_hotspot_view_colored_by_its_worst_metrics_ratio_to_its_limit(self):
-        view = hotspots.hotspot_view(HOTSPOT_RUN["measurements"], IMPORT_EDGES)
+        view = hotspots.hotspot_view(HOTSPOT_RUN["measurements"])
 
         colors = nodes_by_file(view)
         assert colors["src/red.py"] == "red"
@@ -258,21 +252,8 @@ class TestHotspotView:
         assert colors["src/green.py"] == "green"
         assert colors["src/under70.py"] == "green"
 
-    def test_should_draw_the_files_one_import_hop_away_but_no_further(self):
-        view = hotspots.hotspot_view(HOTSPOT_RUN["measurements"], IMPORT_EDGES)
-
-        colors = nodes_by_file(view)
-        assert colors["lib/util.py"] == "context"
-        assert colors["tools/caller.py"] == "context"
-        assert "far/away.py" not in colors
-        ids = {label.split("<br/>")[0]: id_ for id_, label, _ in NODE_LINE.findall(view)}
-        assert set(EDGE_LINE.findall(view)) == {
-            (ids["src/red.py"], ids["lib/util.py"]),
-            (ids["tools/caller.py"], ids["src/amber.py"]),
-        }
-
     def test_should_embed_the_hotspot_view_in_the_verdict_within_the_code_design(self):
-        verdict = report.build_verdict(HOTSPOT_RUN, import_edges=IMPORT_EDGES)
+        verdict = report.build_verdict(HOTSPOT_RUN)
 
         assert "```mermaid" in section(verdict, "Code design")
 
@@ -325,7 +306,7 @@ class TestCoverageDirection:
             crap_record("src/mixed.py", "branchy", 6),
         )
 
-        view = hotspots.hotspot_view(run["measurements"], [])
+        view = hotspots.hotspot_view(run["measurements"])
 
         [(_, label, color)] = NODE_LINE.findall(view)
         assert color == "amber"
@@ -378,7 +359,7 @@ class TestDependencyDirection:
             file_record("src/core.py", metric, 0, dependencies.LIMIT_COUNT),
         )
 
-        colors = nodes_by_file(hotspots.hotspot_view(run["measurements"], []))
+        colors = nodes_by_file(hotspots.hotspot_view(run["measurements"]))
 
         assert colors == {"src/ui.py": "red", "src/core.py": "green"}
 
@@ -462,7 +443,7 @@ class TestHotspotCoverageLabel:
     def test_should_label_a_file_with_coverage_of_89_996_percent_as_coverage_89_99_percent(self):
         run = measured(coverage.coverage_record(target("src/untested.py"), 89.996))
 
-        view = hotspots.hotspot_view(run["measurements"], [])
+        view = hotspots.hotspot_view(run["measurements"])
 
         [(_, label, _)] = NODE_LINE.findall(view)
         assert "coverage 89.99%" in label

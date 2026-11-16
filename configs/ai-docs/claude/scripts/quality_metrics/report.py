@@ -58,14 +58,13 @@ def write_verdict(directory, timestamp, text, in_git=True):
     return target
 
 
-def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
+def build_verdict(report, exceptions=(), in_git=True):
     """Verdict markdown.
 
     `exceptions` are claims with a saved split diff path, marked
     `rejected` once the judge ruled the split does not read
-    worse; `import_edges` are (importer, imported) file pairs;
-    `in_git` is False when no git repo encloses the working
-    directory.
+    worse; `in_git` is False when no git repo encloses the
+    working directory.
     """
     numbers = itertools.count(1)
     claims_by_key = {_key(claim): claim for claim in exceptions}
@@ -85,7 +84,7 @@ def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
         _violations_section(open_violations, numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
-        _design_section(report["measurements"], import_edges),
+        _design_section(report["measurements"]),
     ]
     if not in_git:
         sections.append(_section("Skipped checks", [NO_GIT_SKIPPED]))
@@ -187,10 +186,10 @@ def _is_rankable(record):
     return bool(record["limit"]) and record["limit"] > 0 and not hotspots.is_neutral(record)
 
 
-def _design_section(measurements, import_edges):
+def _design_section(measurements):
     if not measurements:
         return _section("Code design", [NO_CODE_MEASURED])
-    view = hotspots.hotspot_view(measurements, import_edges)
+    view = hotspots.hotspot_view(measurements)
     return _section("Code design", [view])
 
 
