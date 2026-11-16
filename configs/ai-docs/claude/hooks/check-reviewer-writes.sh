@@ -167,6 +167,10 @@ is_literal_path_below() {
 SPACE_PLACEHOLDER=$'\001'
 INERT_PLACEHOLDER=$'\002'
 
+# Marks a spot where the hook's quote pairing may differ from
+# the shell's, so a command that writes is denied there.
+UNREADABLE_MARKER=$'\003'
+
 # Prints the command with every quote removed in place. One
 # pass pairs each quote with its real closing quote.
 #
@@ -176,8 +180,12 @@ INERT_PLACEHOLDER=$'\002'
 # - The dollar sign of an ANSI-C or locale quote is dropped.
 #
 # A backslash is kept with the character it escapes.
+#
+# UNREADABLE_MARKER is added for a substitution inside double
+# quotes.
 remove_quotes() {
-  printf '%s' "$1" | awk -v space="$SPACE_PLACEHOLDER" -v inert="$INERT_PLACEHOLDER" '
+  printf '%s' "$1" | awk -v space="$SPACE_PLACEHOLDER" -v inert="$INERT_PLACEHOLDER" \
+    -v unreadable="$UNREADABLE_MARKER" '
     function quoted(c, is_single) {
       if (c ~ /[[:space:]]/) return space
       if (c ~ /[<>|;&()]/) return inert
@@ -189,6 +197,8 @@ remove_quotes() {
       n = length(text)
       for (i = 1; i <= n; i++) {
         c = substr(text, i, 1)
+        if (state == "double" && (c == "`" || (c == "$" && substr(text, i + 1, 1) == "(")))
+          out = out unreadable
         if (state == "single") {
           if (c == "\047") state = ""
           else out = out quoted(c, 1)
@@ -211,6 +221,17 @@ if [ -n "$CMD" ]; then
   # Quotes are removed first, so a target whose quote sits
   # anywhere in the word is judged as the path the shell uses.
   STRIPPED=$(remove_quotes "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g')
+  # The write form is read from the raw command, so a quote
+  # paired wrongly cannot hide it.
+  #
+  # An ANSI-C quote or an UNREADABLE_MARKER spot in a command
+  # that writes is denied rather than modelled.
+  if printf '%s' "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g' \
+      | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|g?sed)([[:space:]]|$)' \
+    && [[ "$CMD" == *"\$'"* || "$STRIPPED" == *"$UNREADABLE_MARKER"* ]]; then
+    echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote or a substitution inside double quotes); write with a plain one-line command instead" >&2
+    exit 2
+  fi
   TARGETS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(&>>?|>>?\|?)[[:space:]]*[^[:space:]<>|;&)]*' \
     | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')

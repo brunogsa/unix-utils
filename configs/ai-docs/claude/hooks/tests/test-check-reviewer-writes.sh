@@ -328,6 +328,18 @@ assert_eq "blocks a scratch dir target holding a glob" \
 assert_eq "blocks a /tmp target holding an extended glob that can spell a parent step" \
   "2" "$(run_bash 'echo x > /tmp/@(..)/x')"
 
+# Escapes and nested quotes can pair a quote differently from
+# the hook's reading, so a command that writes is denied when
+# it holds either.
+assert_eq "blocks a write in a command holding an ANSI-C quoted string" \
+  "2" "$(run_bash "echo \$'\\x41' > /tmp/x.txt")"
+
+assert_eq "blocks a write in a command holding a command substitution inside double quotes" \
+  "2" "$(run_bash 'echo "$(id)" > /tmp/x.txt')"
+
+assert_eq "blocks a write in a command holding a backtick substitution inside double quotes" \
+  "2" "$(run_bash 'echo "`id`" > /tmp/x.txt')"
+
 # Every redirect or tee line in the review pipeline's own
 # references must pass the hook, or the pipeline breaks on its
 # first scratch write. Lines are derived by grep at test time:

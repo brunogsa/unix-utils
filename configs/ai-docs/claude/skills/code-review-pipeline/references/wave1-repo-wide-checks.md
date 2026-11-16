@@ -35,7 +35,7 @@ Run independent commands in parallel.
 
 ## Measured quality metrics
 
-Run `~/.claude/scripts/measure-quality-metrics.py --diff "$(cat "$work_dir/base-rev.txt")...HEAD" --session-id <session id> > $work_dir/quality-metrics.json`, once, from the repo root (`prep-local-context.sh` writes that file).
+Run `base_rev=$(cat "$work_dir/base-rev.txt") && ~/.claude/scripts/measure-quality-metrics.py --diff "$base_rev...HEAD" --session-id <session id> > $work_dir/quality-metrics.json`, once, from the repo root (`prep-local-context.sh` writes that file).
 
 - `<session id>` is the header's `Session id`; omit the flag when the header has none.
   - [Why] Only the main session's id keys the per-session tool map, so without it every metric uses global tools.
