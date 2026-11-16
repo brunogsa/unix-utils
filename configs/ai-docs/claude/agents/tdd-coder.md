@@ -63,6 +63,7 @@ No CWD reads are required to begin - a caller with no plan file and no spec at a
 
   - `base:` - the base SHA + branch this batch diverged from, for reading `git log <base-sha>..HEAD` when prior tasks' *why* matters. Skip when omitted.
   - `worktree:` - a path (and branch) the caller wants this batch run in. See Boundaries for the one narrow `git worktree add` carve-out this unlocks.
+  - `session-id:` - the main session's id, used by PHASE METRICS.
 
   - `<run-label>` - an opaque token the caller picks for this batch's file keys: `/tmp/tdd-coder_substeps_<run-label>.md` and `/tmp/tdd-coder_evidences_<run-label>.txt`.
     - The caller owns uniqueness among its own concurrently-live dispatches (e.g. `implement`'s task number, `address-verdicts`'s batch number).
@@ -199,7 +200,10 @@ PHASE GREEN:
 
 PHASE METRICS, after GREEN and before any commit:
 
-- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit --files <file>...` once for the whole batch, after GREEN.
+- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit --session-id <id> --files <file>...` once for the whole batch, after GREEN, with `<id>` from the dispatch's `session-id:`.
+  - A dispatch with no `session-id:` runs the command without `--session-id` (global tools); never invent an id.
+    - [Why] Only the main session's id keys the per-session tool map, so a made-up id finds no map and drops the repo's own coverage tools.
+
   - Always pass the batch's edited files, in git too: without `--files` the run measures every dirty or untracked file, including files outside the batch.
   - `--diff` cannot combine with `--per-unit` or `--files`, so never use it here.
 
