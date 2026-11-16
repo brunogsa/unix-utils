@@ -37,44 +37,34 @@ classify() {
 """
 
 COMPLETE_VERDICT_DIFF = "diff --git a/report.go b/report.go\n+complete earlier write\n"
-PARTIAL_CHUNK = b"diff --git a/report.go b/report.go\n+half of a later wri"
+LATER_VERDICT_DIFF = "diff --git a/report.go b/report.go\n+a later write the kill interrupts\n"
+
+# The temp file is fully written; the process dies before
+# the rename.
+KILL_BEFORE_RENAME = """
+import importlib.util
+import os
+import signal
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from quality_metrics import atomic_write
+
+atomic_write.os.replace = lambda *_: os.kill(os.getpid(), signal.SIGKILL)
+spec = importlib.util.spec_from_file_location("write_atomically", sys.argv[2])
+writer = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(writer)
+sys.argv = [sys.argv[2], sys.argv[3]]
+sys.exit(writer.main())
+"""
 
 
-WRITER_MODULE_MARKER = b"quality_metrics.atomic_write"
-
-
-def start_write(target):
-    """The write-atomically CLI, stdin held open so the caller can kill it.
-
-    Returns once the CLI has imported the shared writer, so a later
-    kill lands while it waits on stdin, not during interpreter start.
-    `-X importtime` reports each import on stderr as it finishes.
-    """
-    process = subprocess.Popen(
-        [sys.executable, "-X", "importtime", str(WRITE_SCRIPT), str(target)],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    )
-    for import_line in process.stderr:
-        if WRITER_MODULE_MARKER in import_line:
-            break
-    return process
-
-
-def write_completely(target, text):
+def write_killed_before_rename(target, text):
+    """Run the write-atomically CLI on `text`, killed just before its rename."""
     return subprocess.run(
-        [sys.executable, str(WRITE_SCRIPT), str(target)],
+        [sys.executable, "-c", KILL_BEFORE_RENAME, str(SCRIPTS_DIR), str(WRITE_SCRIPT), str(target)],
         input=text, capture_output=True, text=True,
     )
-
-
-def kill_mid_write(target, partial_bytes):
-    """Send part of the content, then SIGKILL before stdin closes."""
-    process = start_write(target)
-    process.stdin.write(partial_bytes)
-    process.stdin.flush()
-    process.kill()
-    process.communicate()
-    return process.returncode
 
 
 class TestMetricsLegIsReadOnly:
@@ -98,20 +88,21 @@ class TestKilledAtomicWrite:
     ):
         verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_00:07.md"
 
-        returncode = kill_mid_write(verdict, PARTIAL_CHUNK)
+        killed = write_killed_before_rename(verdict, COMPLETE_VERDICT_DIFF)
 
-        assert returncode == -signal.SIGKILL
+        assert killed.returncode == -signal.SIGKILL
         assert list(tmp_path.glob("verdict_quality-gate_*")) == []
+        leftovers = list(tmp_path.iterdir())
+        assert leftovers, "the kill must have landed after the temp write began"
 
     def test_should_keep_a_split_diffs_last_complete_write_when_a_later_write_of_it_is_killed_mid_way(
         self, tmp_path
     ):
         split_diff = tmp_path / "diff_quality-gate_part-1.patch"
-        first_write = write_completely(split_diff, COMPLETE_VERDICT_DIFF)
-        assert first_write.returncode == 0, first_write.stderr
+        split_diff.write_text(COMPLETE_VERDICT_DIFF)
 
-        returncode = kill_mid_write(split_diff, PARTIAL_CHUNK)
+        killed = write_killed_before_rename(split_diff, LATER_VERDICT_DIFF)
 
-        assert returncode == -signal.SIGKILL
+        assert killed.returncode == -signal.SIGKILL
         assert split_diff.read_text() == COMPLETE_VERDICT_DIFF
         assert list(tmp_path.glob("diff_quality-gate_*")) == [split_diff]
