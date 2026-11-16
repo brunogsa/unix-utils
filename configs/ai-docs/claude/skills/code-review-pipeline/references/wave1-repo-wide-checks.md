@@ -30,7 +30,28 @@ Run independent commands in parallel.
 | `tests-integration.txt` | Every integration tier (router/API, service, contract, ...) |
 | `tests-e2e.txt` | Browser / e2e tests **if** the diff touches UI, hooks, or anything rendered |
 | `coverage.txt` | Branch + line coverage on the changed files if the runner emits it |
+| `quality-metrics.json` | `measure-quality-metrics.py --diff` on the diff only (see "Measured quality metrics") |
 | `discovered-commands.txt` | One line per check: `<name>: <command-used>` or `<name>: not-available` |
+
+## Measured quality metrics
+
+Run `~/.claude/scripts/measure-quality-metrics.py --diff <base>...HEAD > $work_dir/quality-metrics.json`, once, from the repo root.
+
+- `--diff` measures only the code the diff changes, adds or removes, so an untouched over-limit function never appears.
+
+- A function the diff removes is listed under `resolved` with its last score; no limit applies to removed code, so it is never a violation.
+
+- Exit 0 is clean and exit 1 is a violation with valid JSON. On exit 2 or any other failure, write `not-available: <reason>` to `quality-metrics.json`, per "What runs".
+
+Wave 2's `code-design-clarity` lens reads this file and cites its values.
+
+### Tool map
+
+The first check that needs the per-session tool map builds it, and the `code-reviewer` orchestrator running this wave does that itself, since every wave runs inside it and it can dispatch agents.
+
+Follow section 1 of [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md): dispatch the read-only inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
+
+Raise tooling problems as that file's section 2 and [`coder-metrics-check.md`](../../implement/references/coder-metrics-check.md) describe.
 
 ## Mode scope
 

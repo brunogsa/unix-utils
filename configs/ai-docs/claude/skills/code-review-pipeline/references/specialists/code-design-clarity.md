@@ -35,6 +35,20 @@ For each new function, class, or module, ask:
 Readability beats brevity. Name by purpose (what the caller gets), not by
 mechanism (how it works internally).
 
+CRITICAL - naming and intent: a name that describes mechanism hides what
+the code is for, so check every new or renamed name against its purpose.
+`loopRowsAndSum`, which totals an invoice, names mechanism; flag it and
+suggest the purpose (`totalInvoice`).
+
+## Measured values
+
+Wave 1 saved `quality-metrics.json` (see wave1-repo-wide-checks.md).
+For size, nesting, complexity and duplication, cite the measured value
+with its label, never an estimate: "`loadUser` is 42 lines (measured)".
+A deferred metric is cited as labelled, e.g. "pessimistic, tooling
+deferred". When the file reads `not-available`, say the value was not
+measured and estimate nothing as fact.
+
 ## Signals you should flag
 
 Structure:
