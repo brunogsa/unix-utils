@@ -188,9 +188,14 @@ UNREADABLE_MARKER=$'\003'
 # bash joins the two lines before it splits words, so
 # `te\<newline>e` runs tee.
 #
+# A comment is kept as raw text up to its line break, since
+# bash ends it there and reads no quote or backslash inside,
+# so `#x\<newline>tee f` runs tee.
+#
 # UNREADABLE_MARKER is added for a substitution inside double
-# quotes, a quote open at a line break, and a quote never
-# closed.
+# quotes, a quote open at a line break, a quote never closed,
+# and a quote or line-ending backslash inside a comment, in
+# case the hook and the shell disagree on where a word starts.
 remove_quotes() {
   printf '%s' "$1" | awk -v space="$SPACE_PLACEHOLDER" -v inert="$INERT_PLACEHOLDER" \
     -v unreadable="$UNREADABLE_MARKER" '
@@ -214,6 +219,13 @@ remove_quotes() {
       n = length(text)
       for (i = 1; i <= n; i++) {
         c = substr(text, i, 1)
+        if (comment) {
+          if (c == "\n") comment = 0
+          else if (c == "\047" || c == "\"" || (c == "\\" && substr(text, i + 1, 1) == "\n"))
+            out = out unreadable
+          out = out c
+          continue
+        }
         if (state != "" && c == "\n") out = out unreadable
         if (state == "double" && (c == "`" || (c == "$" && substr(text, i + 1, 1) == "(")))
           out = out unreadable
@@ -232,7 +244,11 @@ remove_quotes() {
           state = (c == "\"") ? "double" : "single"
           if (substr(out, length(out)) == "$") out = substr(out, 1, length(out) - 1)
           out = out name_break(i)
-        } else out = out c
+        } else {
+          if (c == "#" && (out == "" || substr(out, length(out)) ~ /[ \t\n;&|()<>`]/))
+            comment = 1
+          out = out c
+        }
       }
       if (state != "") out = out unreadable
       printf "%s", out

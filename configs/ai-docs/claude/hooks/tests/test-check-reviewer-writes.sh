@@ -197,6 +197,19 @@ assert_eq "blocks tee, sed -i or a redirect into a repo file when a backslash-ne
 assert_eq "blocks a write whose single-quoted text holds a backslash before a line break" \
   "2" "$(run_bash $'echo \'x\\\n\' > /tmp/y')"
 
+# A comment ends at the line break and a backslash inside it
+# is literal, so bash runs the next line as its own command.
+commented_line_writes=($'echo ok #x\\\ntee src/a.py'
+  $'echo ok #x\\\nsed -i s/a/b/ src/a.py'
+  $'echo ok # note\\\necho x > src/a.py')
+allowed_commented_line=""
+for c in "${commented_line_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_commented_line="$allowed_commented_line [$(printf '%q' "$c")]"
+done
+assert_eq "blocks a write on the line after a comment that ends in a backslash" \
+  "" "$allowed_commented_line"
+
 # GNU sed takes any unambiguous prefix of a long option, so
 # `--i`, `--in` and `--in-pl` all mean --in-place.
 prefixed_flag_writes=('gsed --in-pl s/a/b/ src/a.py'
