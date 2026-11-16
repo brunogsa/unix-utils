@@ -194,14 +194,15 @@ PHASE GREEN:
 
 PHASE METRICS, after GREEN and before any commit:
 
-- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once for the whole batch, after GREEN.
-  - All N units are still uncommitted then, and the run diffs the whole working tree, so one run reports every unit's touched functions.
-  - Outside git it measures nothing without a file list, so pass the batch's edited files: `--per-unit --files <file>...`.
+- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit --files <file>...` once for the whole batch, after GREEN.
+  - Always pass the batch's edited files, in git too: without `--files` the run measures every dirty or untracked file, including files outside the batch.
   - `--diff` cannot combine with `--per-unit` or `--files`, so never use it here.
-  - Exit 0 is clean, 1 is a violation (the JSON is still valid), 2 means it did not measure: read stderr and never treat it as a pass.
 
-- Assign each function in the JSON `violations` to the unit whose files hold it, and hold that unit's commit until its violations are fixed, then re-run the check once.
-  - Every function in the JSON belongs to some unit in this batch, so fix it under the unit whose files hold it - never a function outside the batch's diff.
+  - Exit 0 is clean, 1 is a violation or a pending ask (the JSON is still valid), 2 means it did not measure.
+
+  - Exit 2, or JSON with no `holds_commit` field, holds the commit: read stderr and never treat it as a pass.
+
+- Hold a unit's commit only when the JSON's `holds_commit` is true: fix the over-limit function-scope `violations` in that unit's files, or claim an exception, then re-run the check once.
 
 - Claim an exception only when splitting the function reads worse than leaving it whole.
   - Write the split version's diff to CWD through `~/.claude/scripts/write-atomically.py <path>` with the diff on stdin, then restore the unsplit code.
@@ -210,6 +211,11 @@ PHASE METRICS, after GREEN and before any commit:
 
 - A tooling problem (a missing or crashed global tool, a changed file whose language has no declaration entry) never asks the human from here.
   - It holds no commit, because a deferred metric reads pessimistic and never as passing.
+
+  - Read pending tooling asks from the JSON's `asks` list, never from the exit code.
+
+  - Exit 1 with `holds_commit` false and no `asks` is a pessimistic or deferred record that holds nothing.
+
   - Return it as an `ask` record under the report's Ask field: `tool`, `metric`, `reason`, and `choices` of `fix now` and `defer`. The caller raises it and relays the answer.
 
 PHASE COMMIT:

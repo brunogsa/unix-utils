@@ -63,14 +63,18 @@ Issue every independent call in one message - the reads that open the files, the
 5. Run Verification once more and diff against step 2's red set. Anything newly red is yours to fix before committing.
    - Budget the full command at these two runs. Re-check a single repair with a targeted command - the one file, test name, or suite - never the whole thing.
 
-6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once before committing.
-   - Outside git, pass the edited files: `--per-unit --files <file>...`.
+6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit --files <file>...` once before committing.
+   - Always pass the edited files, in git too: without `--files` the run measures every dirty or untracked file, including files outside your change.
 
    - Never use `--diff` here, because it cannot combine with either flag.
 
-   - Exit 0 is clean and 1 is a violation. Exit 2 means it did not measure, and never reads as a pass.
+   - Exit 0 is clean and 1 is a violation or a pending ask. Exit 2 means it did not measure, and never reads as a pass.
 
-   - Hold the commit until every function in the JSON `violations` is fixed or claimed as an exception.
+   - Exit 2, or JSON with no `holds_commit` field, holds the commit.
+
+   - Hold the commit only when the JSON's `holds_commit` is true: fix the over-limit function-scope `violations` or claim an exception, then re-run once.
+
+   - Read pending tooling asks from the JSON's `asks` list, never from the exit code. Exit 1 with `holds_commit` false and no `asks` is a pessimistic or deferred record that holds nothing.
 
    - A claim needs the split version's diff saved to CWD through `~/.claude/scripts/write-atomically.py <path>`, with the diff on stdin. Restore the unsplit code afterward.
 
