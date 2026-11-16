@@ -234,6 +234,49 @@ def test_{name}():
     assert calculator.history == []
 """
 
+SEVEN_LINE_TEST = """\
+def test_{name}():
+    calculator = Calculator()
+    calculator.reset()
+    result = calculator.add({first}, {second})
+    assert result == {total}
+    assert calculator.history == [{total}]
+    calculator.clear()
+"""
+
+
+# An exact clone is `line_count` identical statements at module
+# level, each long enough that 3 of them already pass jscpd's
+# 50-token minimum, so only the line floor decides.
+#
+# The text around the block differs between the two files, so
+# the clone stops at the block's first and last line.
+def exact_clone_files(folder, line_count):
+    block = "".join(
+        f"step_{index} = combine(first, second, third, fourth, fifth, sixth, seventh)\n"
+        for index in range(line_count)
+    )
+    return {
+        f"{folder}/first.py": "import os\n" + block + "class Marker:\n    pass\n",
+        f"{folder}/second.py": "def other():\n    return 3\n" + block + "for key in keys:\n    seen[key] = 1\n",
+    }
+
+
+class TestExactClonesInPython:
+    @pytest.mark.parametrize(
+        "folder, line_count, flagged_metrics",
+        [
+            pytest.param("src", 4, {"code_duplication"}, id="4 lines in source"),
+            pytest.param("src", 3, set(), id="3 lines in source"),
+        ],
+    )
+    def test_should_flag_an_exact_clone_from_4_lines_in_source(
+        self, tmp_path, folder, line_count, flagged_metrics
+    ):
+        violations = measure_files(tmp_path, exact_clone_files(folder, line_count))
+
+        assert {item["metric"] for item in violations} == flagged_metrics
+
 
 class TestDuplicatedTests:
     def test_should_flag_two_tests_sharing_a_9_line_block_as_duplicated_tests(self, tmp_path):

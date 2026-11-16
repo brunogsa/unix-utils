@@ -25,19 +25,28 @@ TEST_METRIC = "test_duplication"
 
 SIMILARITY_LIMIT = 0.82
 
-# jscpd flags a block of --min-lines or more identical lines
-# and reports it one line longer: 3 flags 3 identical lines,
-# reported as 4.
-JSCPD_MIN_LINES = "3"
+# A duplicate is flagged from MIN_LINES lines, in both jscpd
+# detectors.
+#
+# An exact token clone is flagged from --min-lines identical
+# lines, and only when it also reaches jscpd's 50-token default.
+#
+# A similar function pair (--similarity) is flagged only when
+# each function has --min-lines + 1 lines.
+#
+# So jscpd scans at MIN_LINES - 1, and an exact clone, which
+# carries no similarity, is kept only when it spans MIN_LINES
+# identical lines.
+MIN_LINES = 4
 
-# Tests repeat their arrange steps on purpose, so a test clone
-# is flagged only from 8 identical lines up (reported as 9).
-TEST_JSCPD_MIN_LINES = "8"
+# Tests repeat their arrange steps on purpose, so a test
+# duplicate is flagged only from 9 lines up.
+TEST_MIN_LINES = 9
 
 # --similarity does not read Bash, HTML or CSS, so only exact
-# token clones are found there. jscpd's default token minimum
-# would hide a clone of 4 short lines, so the line minimum alone
-# decides.
+# token clones are found there. The 50-token default would hide
+# a clone of 4 short lines, so --min-tokens 1 lets the line
+# minimum alone decide.
 TOKEN_ONLY_SUFFIXES = (".sh", ".bash", ".html", ".htm", ".css", ".scss")
 JSCPD_TOKEN_ONLY_MIN_TOKENS = "1"
 
@@ -55,14 +64,14 @@ def measure(target, metrics, declaration):
     metric = TEST_METRIC if is_test else CODE_METRIC
     if metric not in metrics:
         return []
-    min_lines = TEST_JSCPD_MIN_LINES if is_test else JSCPD_MIN_LINES
+    min_lines = TEST_MIN_LINES if is_test else MIN_LINES
     extensions = declaration.languages[target.language].extensions
     peers = _scannable_peers(repo_path, is_test, extensions, declaration)
     with tempfile.TemporaryDirectory() as scan_dir:
         names = _stage_corpus(
             target, repo_path, suffix, peers, Path(scan_dir)
         )
-        clones = _scan(Path(scan_dir), suffix, min_lines)
+        clones = _scan_both_kinds(Path(scan_dir), suffix, min_lines)
     return _flagged_records(target, metric, repo_path, names, clones)
 
 
@@ -101,6 +110,34 @@ def _peers_of(repo_path, is_test, extensions):
     ]
 
 
+def _scan_both_kinds(scan_dir, suffix, min_lines):
+    """Similar pairs of `min_lines` lines plus exact clones of as many."""
+    clones = _scan(scan_dir, suffix, min_lines - 1)
+    return [
+        clone for clone in clones
+        if "similarity" in clone
+        or _longest_identical_run(scan_dir, clone) >= min_lines
+    ]
+
+
+def _longest_identical_run(scan_dir, clone):
+    """Most consecutive identical lines the two sides of a clone share."""
+    first, second = clone["firstFile"], clone["secondFile"]
+    first_lines = (scan_dir / Path(first["name"]).name).read_text().splitlines()
+    second_lines = (scan_dir / Path(second["name"]).name).read_text().splitlines()
+    longest = run = 0
+    for offset in range(first["end"] - first["start"] + 1):
+        first_index = first["start"] - 1 + offset
+        second_index = second["start"] - 1 + offset
+        is_same = (
+            first_index < len(first_lines) and second_index < len(second_lines)
+            and first_lines[first_index].strip() == second_lines[second_index].strip()
+        )
+        run = run + 1 if is_same else 0
+        longest = max(longest, run)
+    return longest
+
+
 def _scan(scan_dir, suffix, min_lines):
     token_options = (
         ["--min-tokens", JSCPD_TOKEN_ONLY_MIN_TOKENS]
@@ -112,7 +149,7 @@ def _scan(scan_dir, suffix, min_lines):
         # apply.
         run_tool([
             "jscpd", f"--similarity={SIMILARITY_LIMIT}",
-            "--min-lines", min_lines, *token_options,
+            "--min-lines", str(min_lines), *token_options,
             "--reporters", "json", "--output", report_dir,
             "--no-gitignore", "--no-tips", "--silent", str(scan_dir),
         ], cwd=report_dir)
