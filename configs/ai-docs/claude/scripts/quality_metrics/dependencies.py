@@ -17,7 +17,9 @@ import posixpath
 import re
 import tarfile
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from quality_metrics.collection import repo_relative
@@ -75,6 +77,11 @@ GO_ARCH_LINT_MAX_WARNINGS = "32768"
 # not read as clean then, so a failure scores as a deferred
 # violation.
 DEFERRABLE_TOOLS = (GO_ARCH_LINT, IMPORT_LINTER)
+
+OUTSIDE_PACKAGE_DETAIL = (
+    "file sits outside any Python package, so import-linter "
+    "cannot check its imports"
+)
 
 PYTHON_PACKAGE_MARKER = "__init__.py"
 SKIPPED_DIRECTORY_NAMES = ("node_modules",)
@@ -167,17 +174,39 @@ class DependencyRun:
             for problem in head
         ]
 
-    def _find_in_head(self, tool):
-        """With a head ref, read its tree, not the working tree.
+    def require_checkable(self, tool, repo_path):
+        """Raise ToolError for a Python file outside every package.
+
+        import-linter sees only packages, so such a file would
+        read as clean without having been checked.
+        """
+        if tool == IMPORT_LINTER and _is_outside_every_package(
+            repo_path, self._head_package_roots
+        ):
+            raise ToolError(OUTSIDE_PACKAGE_DETAIL)
+
+    @cached_property
+    def _head_package_roots(self):
+        with self._head_tree() as tree:
+            return _python_package_roots(tree)
+
+    @contextmanager
+    def _head_tree(self):
+        """With a head ref, its tree, not the working tree.
 
         An uncommitted edit to any file must not change what
         the range is judged on.
         """
         if not self.head_ref:
-            return self._find_in(tool, self.repo_dir)
+            yield self.repo_dir
+            return
         with tempfile.TemporaryDirectory() as head_dir:
             _extract_tree_at(self.repo_dir, self.head_ref, Path(head_dir))
-            return self._find_in(tool, Path(head_dir))
+            yield Path(head_dir)
+
+    def _find_in_head(self, tool):
+        with self._head_tree() as tree:
+            return self._find_in(tool, tree)
 
     def _find_in(self, tool, tree):
         if tool == DEPENDENCY_CRUISER:
@@ -207,36 +236,57 @@ def measure(target, metrics, dependency_run):
     layer_map_source = layer_map.source if layer_map else None
     try:
         problems = dependency_run.problems_by(tool)
+        dependency_run.require_checkable(tool, repo_path)
     except ToolError as error:
         if tool not in DEFERRABLE_TOOLS:
             raise
-        return [{
-            **deferred_flagged_measurement(
-                target, METRIC, FLAGGED_COUNT, LIMIT_COUNT
-            ),
-            "file": repo_path,
-            "kind": TOOL_FAILURE_KIND,
-            "detail": str(error),
-            "other_file": None,
-            "layer_map_source": layer_map_source,
-        }]
+        return [_deferred_tool_failure(
+            target, repo_path, str(error), layer_map_source
+        )]
+    return _problem_records(target, repo_path, layer_map_source, problems)
+
+
+def _problem_records(target, repo_path, layer_map_source, problems):
     return [
-        {
-            **measurement(
-                target, METRIC,
-                FLAGGED_COUNT if problem["is_introduced"] else LIMIT_COUNT,
-                LIMIT_COUNT,
-            ),
-            "file": repo_path,
-            "kind": problem["kind"],
-            "detail": problem["detail"],
-            "other_file": problem.get("other_file"),
-            "layer_map_source": layer_map_source,
-            "hotspot": not problem["is_introduced"],
-        }
+        _problem_record(target, repo_path, layer_map_source, problem)
         for problem in problems
         if _covers(problem["paths"], repo_path)
     ]
+
+
+def _is_outside_every_package(repo_path, package_roots):
+    package_dirs = [
+        posixpath.join(parent, name) for name, parent in package_roots.items()
+    ]
+    return not any(
+        repo_path.startswith(f"{package_dir}/") for package_dir in package_dirs
+    )
+
+
+def _problem_record(target, repo_path, layer_map_source, problem):
+    flagged_count = FLAGGED_COUNT if problem["is_introduced"] else LIMIT_COUNT
+    return {
+        **measurement(target, METRIC, flagged_count, LIMIT_COUNT),
+        "file": repo_path,
+        "kind": problem["kind"],
+        "detail": problem["detail"],
+        "other_file": problem.get("other_file"),
+        "layer_map_source": layer_map_source,
+        "hotspot": not problem["is_introduced"],
+    }
+
+
+def _deferred_tool_failure(target, repo_path, detail, layer_map_source):
+    return {
+        **deferred_flagged_measurement(
+            target, METRIC, FLAGGED_COUNT, LIMIT_COUNT
+        ),
+        "file": repo_path,
+        "kind": TOOL_FAILURE_KIND,
+        "detail": detail,
+        "other_file": None,
+        "layer_map_source": layer_map_source,
+    }
 
 
 def _covers(paths, repo_path):

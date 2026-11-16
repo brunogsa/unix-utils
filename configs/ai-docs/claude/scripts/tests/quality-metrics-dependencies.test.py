@@ -495,6 +495,26 @@ def test_scores_a_python_file_as_a_deferred_violation_when_the_tree_has_no_packa
     assert "deferred" in deferred["label"]
 
 
+def test_scores_a_python_file_outside_every_package_as_a_deferred_tool_failure(tmp_path):
+    base_files = {**PYTHON_CYCLE_BASE_FILES, "tools/sync.py": "SYNC = 1\n"}
+
+    violations = measure_branch(
+        tmp_path, PYTHON_DECLARATION, base_files,
+        {"tools/sync.py": "SYNC = 2\n"},
+    )
+
+    assert len(violations) == 1
+    deferred = violations[0]
+    assert deferred["metric"] == "dependency_direction"
+    assert deferred["file"] == "tools/sync.py"
+    assert deferred["kind"] == "tool-failure"
+    assert "outside any Python package" in deferred["detail"]
+    assert deferred["other_file"] is None
+    assert deferred["layer_map_source"] is None
+    assert deferred["pessimistic"] is True
+    assert "deferred" in deferred["label"]
+
+
 def test_flags_a_cycle_in_the_first_package_a_branch_adds_to_a_tree_without_one(tmp_path):
     violations = measure_branch(
         tmp_path, PYTHON_DECLARATION, {"tools/sync.py": "SYNC = 1\n"},
