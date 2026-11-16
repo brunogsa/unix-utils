@@ -30,8 +30,10 @@ PYTHON_TEST = re.compile(
 
 GO_TEST = re.compile(r"^func\s+(?P<title>Test\w*)\s*\(")
 
+# The lookbehind rejects a member call like `/^a/.test("abc")`.
 JS_TEST = re.compile(
-    r"""\b(?:it|test)\s*\(\s*(?P<quote>["'`])(?P<title>.*?)(?P=quote)"""
+    r"(?<![.\w$])(?:it|test)(?:\.(?:only|skip))?(?:\.each\(.*\))?"
+    r"""\s*\(\s*(?P<quote>["'`])(?P<title>.*?)(?P=quote)"""
 )
 
 # A file declares tests only in its own language's form, so

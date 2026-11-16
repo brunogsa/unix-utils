@@ -396,3 +396,43 @@ describe("gate", () => {
         assert [(row["title"], row["gate"]) for row in listed] == [
             ("rejects an empty row", "changed-line coverage")
         ]
+
+    def test_should_not_list_a_regex_test_method_call_as_a_test_declaration(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "src/matcher.js",
+            'const startsWithA = /^a/.test("abc");\n',
+        )
+        _commit(repo, "feat: match a leading letter")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert listed == []
+
+    def test_should_list_tests_declared_through_only_skip_and_each_modifiers(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/modifiers.test.js",
+            'it.only("focuses a row", () => {});\n'
+            'test.skip("skips a row", () => {});\n'
+            'it.each([1])("each %s", () => {});\n',
+        )
+        _commit(repo, "test: add modifier forms")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert {row["title"] for row in listed} == {
+            "focuses a row",
+            "skips a row",
+            "each %s",
+        }
