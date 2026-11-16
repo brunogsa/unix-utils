@@ -35,6 +35,20 @@ VERDICT_BODY = """# test-sdd verdict
 """
 
 
+MERGED_VERDICT_BODY = """# quality-gate verdict
+
+## Findings
+
+### 1. [HIGH][auto-review] Null dereference in parser
+
+### 2. [MEDIUM][refactor][LINTER GAP] Split the long function
+
+### 3. [LOW][metrics] CRAP score over the limit
+
+### 4. [LOW][test-sdd] Missing planned test - task 2: "x"
+"""
+
+
 def _run(verdict):
     return subprocess.run(
         [sys.executable, str(SCRIPT), str(verdict)],
@@ -93,6 +107,53 @@ class TestTestSddFindingsSentToTddCoder:
 
         assert completed.returncode == 0, completed.stderr
         assert completed.stdout == ""
+
+    def test_should_list_only_the_test_sdd_finding_from_a_merged_verdict_holding_one_finding_per_review_source(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_10:00.md"
+        verdict.write_text(MERGED_VERDICT_BODY, encoding="utf-8")
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 4. [LOW][test-sdd] Missing planned test - task 2: "x"',
+        ]
+
+    def test_should_keep_the_unplanned_tests_finding_off_the_list_when_the_merged_verdict_tags_it_test_sdd(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            "### 2. [LOW][test-sdd] Unplanned tests added by the branch\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout == ""
+
+    def test_should_list_a_merged_test_sdd_finding_the_human_marked_done_or_marked_for_address_verdicts(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            "### 4. [Done][HIGH][test-sdd] Missing planned test - task 5\n\n"
+            "### 5. [AI!: do it][HIGH][test-sdd] Missing planned test - task 6\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            "### 4. [Done][HIGH][test-sdd] Missing planned test - task 5",
+            "### 5. [AI!: do it][HIGH][test-sdd] Missing planned test - task 6",
+        ]
 
     def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
         self, tmp_path

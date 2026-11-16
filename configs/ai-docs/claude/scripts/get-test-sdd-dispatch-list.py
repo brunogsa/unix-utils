@@ -3,7 +3,10 @@
 #   tdd-coder.
 #
 # Usage:
-#   get-test-sdd-dispatch-list.py <test-sdd-verdict-path>
+#   get-test-sdd-dispatch-list.py <verdict-path>
+#
+# verdict-path: a verdict_test-sdd_*.md, or a merged
+#   verdict_quality-gate_*.md (only [test-sdd] findings listed).
 #
 # stdin: none.
 # stdout: heading line of each finding to dispatch, verbatim,
@@ -16,12 +19,24 @@ from pathlib import Path
 
 UNPLANNED_TESTS_FINDING_TITLE = "Unplanned tests added by the branch"
 
+TEST_SDD_TAG = "test-sdd"
+LENS_TAGS = {"auto-review", "refactor", "metrics", TEST_SDD_TAG}
+
 # Optional mark before the severity tag: [Done], or the
 # selection mark [AI!], [AI!: <message>] or [AI! <message>].
+# Further bracket tags may follow the severity, as in a merged
+# verdict: [MEDIUM][refactor][LINTER GAP].
 FINDING_HEADING = re.compile(
     r"^### \d+\. (?:\[Done\]|\[AI!(?:[: ][^\]]*)?\])?"
-    r"\[[A-Z]+\] (?P<title>.*?)\s*$"
+    r"\[[A-Z]+\](?P<tags>(?:\[[^\]]*\])*) (?P<title>.*?)\s*$"
 )
+
+BRACKET_TAG = re.compile(r"\[([^\]]*)\]")
+
+
+def is_test_sdd_finding(heading):
+    tags = set(BRACKET_TAG.findall(heading["tags"]))
+    return TEST_SDD_TAG in tags or not tags & LENS_TAGS
 
 FENCE_OPENER = re.compile(r"^\s*(?:```|~~~)")
 
@@ -47,7 +62,11 @@ def list_dispatchable_headings(verdict_text):
         if is_inside_fence:
             continue
         heading = FINDING_HEADING.match(line)
-        if heading and heading["title"] != UNPLANNED_TESTS_FINDING_TITLE:
+        if (
+            heading
+            and heading["title"] != UNPLANNED_TESTS_FINDING_TITLE
+            and is_test_sdd_finding(heading)
+        ):
             headings.append(line)
     return headings
 
@@ -57,7 +76,11 @@ def main():
         description="Print the test-sdd finding headings that go to "
         "tdd-coder, leaving out the unplanned-tests finding."
     )
-    parser.add_argument("verdict", help="path to a verdict_test-sdd_*.md")
+    parser.add_argument(
+        "verdict",
+        help="path to a verdict_test-sdd_*.md or a merged "
+        "verdict_quality-gate_*.md",
+    )
     arguments = parser.parse_args()
     for heading in list_dispatchable_headings(read_verdict(arguments.verdict)):
         print(heading)
