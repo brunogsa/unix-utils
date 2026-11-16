@@ -6,7 +6,7 @@ The reasoning behind the routing and assembly rules in `SKILL.md`. The rules the
 
 Each leg already is the fresh-context reviewer that the `refactor`, `auto-review`, and `test-sdd` skills would otherwise dispatch.
 
-Nesting a reviewer inside it would spend one of the harness's three nesting levels on a second opinion nobody asked for.
+Nesting a reviewer inside it would spend one of the harness's four spawn-depth levels (main, leg, pipeline, lens) on a second opinion nobody asked for.
 
 The skills a leg invokes describe dispatching a reviewer, so without the explicit override the leg would follow that text literally. That is why `SKILL.md` tells the dispatcher to state the override in every leg's prompt.
 
@@ -28,7 +28,7 @@ This skill sits in `/implement`'s main session for the same reason.
 
 `/address-verdicts` commits the `refactor` agent's work, and a permission prompt only renders in the main session. Its per-lens apply agents are already fresh-context subagents.
 
-Wrapping it in another subagent would spend one of the three nesting levels on a layer that decides nothing.
+Wrapping it in another subagent would spend one of the four spawn-depth levels on a layer that decides nothing.
 
 ## Why every missing-planned-test finding applies without triage
 

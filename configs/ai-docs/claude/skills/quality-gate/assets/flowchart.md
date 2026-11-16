@@ -186,7 +186,7 @@ def quality_gate(arg):
     #      it commits the refactor agent's work (permission prompts only
     #      render in the main session), and its per-finding apply agents
     #      are already fresh-context subagents, so wrapping it would spend
-    #      one of three nesting levels on a layer that decides nothing. ----
+    #      one of four spawn-depth levels on a layer that decides nothing. ----
     test_cmd = resolve_test_command()                        # 13a · nothing left for the callee to guess
     ledger = skill("address-verdicts",                       # 13b · invoked in this session
                    findings=apply_list,                       # 13c · explicit ids plus file paths (the merged file's for merged findings), never a severity floor
@@ -283,7 +283,7 @@ flowchart TD
   subgraph delegate["13. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
     direction TB
     n13a["13a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
-    n13b["13b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>three nesting levels on nothing"]:::skill
+    n13b["13b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>four spawn-depth levels on nothing"]:::skill
     n13c["13c. Pass the apply list as EXPLICIT ids with their<br/>verdict file paths (the merged file's for merged findings),<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
     n13d["13d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
     n13e["13e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
