@@ -138,7 +138,9 @@ def address_verdicts(arg):
                 # 11a · A test-sdd finding names a planned test the repo
                 #       lacks, so writing that test IS the fix. Every
                 #       planned title is passed verbatim so each test lands
-                #       under the name the plan declared.
+                #       under the name the plan declared. Only the output of
+                #       get-test-sdd-dispatch-list.py is dispatched: it omits the
+                #       unplanned-tests finding, which stays unannotated.
                 result = agent("tdd-coder", title="Apply all test-sdd findings",
                                 findings=code, test_cmd=test_cmd)  # 11a
             case "auto-review":
@@ -525,7 +527,7 @@ flowchart TD
   n23["23. Dispatch direct-coder (agent-pinned, background, serial) for a<br/>doc, spec, plan, prompt-markdown, SKILL.md, agent file, comment,<br/>rename, file move, config or frontmatter value, whichever lens<br/>reported it. A test over prose costs more to author and maintain<br/>than the regressions it would catch. A lens with only non-code<br/>findings dispatches its own agent zero times - correct, not a failure"]:::dispatch
   n11{"11. Step 4 · Which lens does this seeded entry dispatch?<br/>Each dispatch carries ALL of that lens's selected<br/>findings at once, serially in the seeded order - NEVER<br/>in parallel, since every dispatch commits to the same<br/>branch. The refactor agent refuses any behavior change<br/>BY DESIGN, so a correctness fix or a missing test cannot<br/>route through it - both need tdd-coder's test-first<br/>discipline instead"}
 
-  n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix - pass every planned title verbatim so<br/>each lands under the name the plan declared"]:::dispatch
+  n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix - pass every planned title verbatim so<br/>each lands under the name the plan declared.<br/>Dispatch only get-test-sdd-dispatch-list.py output, which omits<br/>the unplanned-tests finding - left unannotated"]:::dispatch
   n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings (from the auto-review<br/>file or [auto-review]-tagged merged findings). Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
   n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings (from the refactor file<br/>or [refactor]-tagged merged findings). It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
 

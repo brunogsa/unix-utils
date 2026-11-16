@@ -121,7 +121,10 @@ def quality_gate(arg):
         #       on a report-only run exactly as on an auto-solve one. No
         #       triage runs: the plan already declared the test, and the
         #       human already approved the plan.
-        apply_list += read_in_full(test_sdd_leg.verdict_path)
+        #       Exception: take them from get-test-sdd-dispatch-list.py, which
+        #       omits the unplanned-tests finding; the report step lists that
+        #       one for the human to mark [Done].
+        apply_list += get_test_sdd_dispatch_list(test_sdd_leg.verdict_path)
 
     if mode == "auto-solve":                                 # 11b · Step 5.2
         # 11b2 · Read the MERGED file IN FULL (the two source files on the
@@ -222,7 +225,7 @@ flowchart TD
 
   subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
     direction TB
-    n11a["11a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty -<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan"]
+    n11a["11a. Step 5.1 · Every test-sdd finding enters the apply<br/>list UNCONDITIONALLY, whenever that leg was dispatched<br/>(a plan resolved) and its verdict file is non-empty -<br/>report-only exactly as auto-solve. No triage: the plan<br/>already declared it, the human already approved the plan.<br/>Taken from get-test-sdd-dispatch-list.py, which omits the<br/>unplanned-tests finding - it is reported for the human<br/>to mark Done, never applied"]
     n11b{"11b. Step 5.2 · Mode == auto-solve?"}
     n11b1["11b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
     n11b2["11b2. Auto-solve - read the MERGED file IN FULL (the two source<br/>files on the fallback path), never the legs' return summaries;<br/>sort every finding addressable vs not; print both lists with<br/>reasons BEFORE applying, each finding as<br/>quality-gate#N [lens] (file:lines), or lens#N (...) for<br/>test-sdd and on the fallback path"]

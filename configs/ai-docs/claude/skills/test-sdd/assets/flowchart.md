@@ -53,15 +53,25 @@ def test_sdd(arg):
                 hit = semantic_pass(title, require="path:line")
             classify(title, found_at=hit)                  # 13 · found (path:line) or missing
 
+    # 13a · Step 5 - once per run, over the WHOLE plan whatever --tasks narrows.
+    unplanned, exit_code = get_unplanned_tests(plan, base=base_ref)
+    if exit_code == 2:                                     # 13b · bad ref, unreadable plan, no titles
+        record_failure_and_mark_run_inconclusive()
+    else:
+        # 13c · drop a test whose name is a reworded planned title
+        #       (semantic pass), then write a one-line design per remaining test.
+        unplanned = drop_reworded_planned_titles(unplanned)
+
     # 14 · Step 6 - the reviewer writes the COMPLETE report to VERDICT_PATH:
-    #      summary table, N/A list, opt-out list, one "### N. [HIGH]" per missing title.
+    #      summary table, N/A list, opt-out list, one "### N. [HIGH]" per missing title,
+    #      and one "[LOW] Unplanned tests added by the branch" listing every unplanned test.
     reviewer.write(verdict_path)
 
     while not present_and_non_empty(verdict_path):         # 15 · Step 7
         redispatch_once("test-reviewer")   # 15a · never report from the truncated return
 
     read_end_to_end(verdict_path)                          # 16 · Step 7
-    print(plan, checked_ids, found_and_missing_counts, one_line_per_finding)
+    print(plan, checked_ids, found_missing_unplanned_counts, one_line_per_finding)
 
     return  # 17 · Stop - report only. Writing the missing tests is
             #      /quality-gate, or a direct ask.
@@ -97,10 +107,15 @@ flowchart TD
     n13["13. Classify each title found (path:line)<br/>or missing"]
   end
 
-  n14["14. Step 6 · Reviewer writes the COMPLETE report<br/>to VERDICT_PATH: summary table, N/A list,<br/>opt-out list, one ### N. [HIGH] finding<br/>per missing title"]:::state
+  n13a["13a. Step 5 · Once per run, over the whole plan:<br/>get-unplanned-tests.py &lt;plan&gt; --base &lt;base-ref&gt;"]:::hook
+  n13b{"13b. Script exit code?"}
+  n13c["13c. Exit 2 · record the failure;<br/>mark the whole run inconclusive"]
+  n13d["13d. Otherwise · drop reworded planned titles<br/>(semantic pass), one-line design per remaining test"]
+
+  n14["14. Step 6 · Reviewer writes the COMPLETE report<br/>to VERDICT_PATH: summary table, N/A list,<br/>opt-out list, one ### N. [HIGH] finding<br/>per missing title, one [LOW] Unplanned tests<br/>added by the branch finding"]:::state
   n15{"15. Step 7 · VERDICT_PATH present and non-empty?"}
   n15a["15a. Re-dispatch the reviewer once;<br/>never report from the truncated return"]:::dispatch
-  n16["16. Step 7 · Read VERDICT_PATH end-to-end,<br/>then print the plan, the checked ids,<br/>found/missing counts, one line per finding"]
+  n16["16. Step 7 · Read VERDICT_PATH end-to-end,<br/>then print the plan, the checked ids,<br/>found/missing/unplanned counts, one line per finding"]
   n17(["17. Stop - report only.<br/>Writing the missing tests is<br/>/quality-gate, or a direct ask"])
 
   n1 --> n2 --> n3
@@ -119,10 +134,13 @@ flowchart TD
   n10 -->|"0, titles"| n11 --> n12
   n12 -->|"no"| n12a --> n13
   n12 -->|"yes"| n13
-  n13 --> n14
-  n8a --> n14
-  n10a --> n14
-  n10b --> n14
+  n13 --> n13a
+  n8a --> n13a
+  n10a --> n13a
+  n10b --> n13a
+  n13a --> n13b
+  n13b -->|"2"| n13c --> n14
+  n13b -->|"otherwise"| n13d --> n14
   n14 --> n15
   n15 -->|"no"| n15a --> n15
   n15 -->|"yes"| n16 --> n17
