@@ -4,7 +4,7 @@ The prompt for a read-only `Explore` dispatch. You find repo measuring tools tha
 
 ## What the detectors match
 
-Detection lives in `configs/ai-docs/claude/scripts/quality_metrics/tool_map.py` and reads the rules in `configs/ai-docs/claude/scripts/quality-metrics-detectors.yaml`.
+Detection lives in `~/.claude/scripts/quality_metrics/tool_map.py` and reads the rules in `~/.claude/scripts/quality-metrics-detectors.yaml`.
 
 - A rule matches when one of its config file names sits at the repo root at the base ref.
 - Read the rules file now. It names every matched tool, the metric it measures, and its config file names. Do not rely on a list in this prompt.

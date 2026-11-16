@@ -2,15 +2,18 @@
 
 The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. You are a fresh-context judge, not the code's author, so the rulings below are yours and never the author's.
 
-You report only. Never edit a source file, the declaration `configs/ai-docs/claude/scripts/quality-metrics.yaml`, or a limit.
+You report only. Never edit a source file, the declaration `~/.claude/scripts/quality-metrics.yaml`, or a limit.
+
+quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there.
+- [Why] The scripts live in the global config, so the installed `~/.claude/scripts/` path works from any repo, while a repo-relative path only resolves inside the config repo.
 
 ## 1. Run the script
 
-Run `configs/ai-docs/claude/scripts/measure-quality-metrics.py` once, from the repo root, over the range you were given:
+Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, over the range you were given, redirecting its JSON to the run directory:
 
 ```bash
-configs/ai-docs/claude/scripts/measure-quality-metrics.py \
-  --diff <BASE>...<HEAD> --layers <layer-map-file>
+~/.claude/scripts/measure-quality-metrics.py \
+  --diff <BASE>...<HEAD> --layers <layer-map-file> > <RUN_DIR>/metrics-report.json
 ```
 
 - `--diff BASE...HEAD` measures every declared metric on the code the committed range changes, and lists the over-limit functions the range removes as resolved.
@@ -22,9 +25,11 @@ configs/ai-docs/claude/scripts/measure-quality-metrics.py \
 
 - `--declaration FILE` names another declaration; leave it at the default.
 
-- Exit 0 is clean, 1 is a violation, 2 means the run did not measure: read stderr, report the failure, and never read exit 2 as a pass.
+- Exit 0 is clean.
+  - Exit 1 is a violation: the JSON is still valid and you still render it (section 3).
+  - Exit 2 means the run did not measure: read stderr, report the failure, and never read it as a pass.
 
-Read the JSON it prints: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`.
+Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`.
 
 The script skips `entangled_tests` by design, so its absence from the output means nothing. You judge it in section 4.
 
@@ -39,10 +44,10 @@ A repo with no declared layers still gets layer checks, because you infer the ma
 
 3. List the layers from outermost to innermost, as path globs. A layer may import itself and any layer after it, never one before it.
 
-4. Save the map in CWD, never under `/tmp`, as `layers_inferred_<timestamp>.yaml`, through `configs/ai-docs/claude/scripts/write-atomically.py` (the reviewer write guard denies a direct Write of this name):
+4. Save the map in CWD, never under `/tmp`, as `layers_inferred_<timestamp>.yaml`, through `~/.claude/scripts/write-atomically.py` (the reviewer write guard denies a direct Write of this name):
 
 ```bash
-configs/ai-docs/claude/scripts/write-atomically.py layers_inferred_<timestamp>.yaml <<'EOF'
+~/.claude/scripts/write-atomically.py layers_inferred_<timestamp>.yaml <<'EOF'
 source: inferred, not declared
 layers:
   - name: infra
@@ -52,7 +57,7 @@ layers:
 EOF
 ```
 
-5. Pass that file to `--layers`. The `source` line must read exactly `inferred, not declared`; the script rejects any other label.
+5. Pass that file to `--layers`. An inferred map's `source` line reads `inferred, not declared`, a converted declared map's reads `declared`, and the script rejects any other value.
 
 6. Link the saved file in your report, labelled "inferred, not declared".
 
@@ -65,7 +70,7 @@ For each claim you were given:
 1. Save the split the author tried as `split_<function>_<timestamp>.diff` in CWD, linked from your report, never under `/tmp`:
 
 ```bash
-git diff <BASE>...<HEAD> -- <file> | configs/ai-docs/claude/scripts/write-atomically.py split_<function>_<timestamp>.diff
+git diff <BASE>...<HEAD> -- <file> | ~/.claude/scripts/write-atomically.py split_<function>_<timestamp>.diff
 ```
 
 2. Read the split and rule whether it reads worse than the unsplit function.
@@ -73,6 +78,20 @@ git diff <BASE>...<HEAD> -- <file> | configs/ai-docs/claude/scripts/write-atomic
    - Better: the claim is rejected. List the function as an unfixed violation.
 
 3. Give the evidence for the ruling: the helper names, what each hides, and what a reader must jump between.
+
+4. Write the rulings as a JSON list to `<RUN_DIR>/metrics-exceptions.json`, one object per claim with the keys `file`, `function`, `metric`, `diff_path`, `split_value`, `rejected`.
+   - `rejected` is true when you ruled the claim rejected, false when the exception stands.
+   - [Why] `build_verdict` in `quality_metrics/report.py` reads exactly these keys, so a differently named key drops the claim from the verdict.
+
+5. Render the verdict, passing `--exceptions` only when you wrote that file:
+
+```bash
+~/.claude/scripts/render-metrics-verdict.py --report <RUN_DIR>/metrics-report.json \
+  [--exceptions <RUN_DIR>/metrics-exceptions.json] --out-dir <RUN_DIR>
+```
+
+   - It prints the path of the rendered metrics verdict file. Exit 2 means bad input and nothing was written: report a failed run.
+   - Never hand-write that verdict. It carries the exceptions, open violations, deferred metrics, ranked lists and hotspot view.
 
 ## 4. Judgments whatever the exception count
 
@@ -97,17 +116,19 @@ When a metric fits a language badly, propose the opt-out in your report with the
 
 ## 6. Finding schema
 
+Your own judge findings go to `<RUN_DIR>/metrics-judge_<timestamp>.md`. The rendered verdict owns exception rulings and script violations, so list neither here.
+
 Write each finding under the heading shape the merge step routes on:
 
 ```
 ### N. [SEVERITY][metrics] <title>
 ```
 
-Under it, give the file and function, the evidence (script record, diff, or quoted lines), and the proposed fix or opt-out.
+Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires: a `**[TAG]**` severity line matching the heading ordinal, the file, function and evidence (script record, diff, or quoted lines), a `**Suggestion**` line with the fix or opt-out, and a `**Trade-off of not doing it**` line.
 
-Report in this order:
-- the saved layer map link labelled "inferred, not declared", when you inferred one
-- exception rulings, each with its split diff link
-- script violations, worst first
+The findings are:
 - hollow splits, vacuous tests and entangled tests
 - proposed opt-outs, marked as proposals
+- the saved layer map link labelled "inferred, not declared", when you inferred one
+
+Name both file paths, the rendered metrics verdict and the judge findings, in your return message.
