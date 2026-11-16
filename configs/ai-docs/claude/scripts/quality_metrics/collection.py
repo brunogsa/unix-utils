@@ -46,8 +46,12 @@ LCOV_PATH = Path("coverage") / "lcov.info"
 # pyyaml joins it too: a repo's tests that import yaml fail
 # collection without it. A fixed package is simpler than reading
 # each repo's requirements and pyproject.
+#
+# pytest-xdist joins it so a repo whose pytest config passes
+# `-n <N>` does not exit 4 with "unrecognized arguments: -n".
 PYTHON_COVERAGE_WITH = [
-    "uv", "run", "--with", "coverage", "--with", "pytest", "--with", "pyyaml", "--",
+    "uv", "run", "--with", "coverage", "--with", "pytest", "--with", "pyyaml",
+    "--with", "pytest-xdist", "--",
     "coverage",
 ]
 PYTHON_TEST_COMMAND = [*PYTHON_COVERAGE_WITH, "run", "-m", "pytest"]
@@ -91,12 +95,17 @@ class CoverageResult:
 
     `has_failed_tests` marks a red build; `is_deferred` marks a
     global tool that could not run and was deferred.
+    `failure_reason` says why a global test run failed.
     """
 
     hits_by_file: dict
     has_failed_tests: bool
     is_deferred: bool = False
+    failure_reason: Optional[str] = None
 
+
+FAILURE_REASON_MAX_CHARS = 200
+USAGE_ERROR_MARKER = ": error: "
 
 NO_COVERAGE_DATA = CoverageResult(hits_by_file={}, has_failed_tests=False)
 RED_BUILD = CoverageResult(hits_by_file={}, has_failed_tests=True)
@@ -190,7 +199,8 @@ class CoverageRun:
         tool = global_tool_for("coverage", language)
         source = {"kind": "global", "tool": tool}
         collector = COLLECTORS[language]
-        return _Measured(self._collect_globally(collector, tool, tree), exit_class, source, side_pr_candidate)
+        result = self._collect_globally(collector, tool, tree)
+        return _Measured(result, result.failure_reason or exit_class, source, side_pr_candidate)
 
     def _collect_globally(self, collector, tool, tree):
         if self.tool_map is not None and tool in self.tool_map.entry()["deferred"]:
@@ -243,6 +253,23 @@ def repo_has_coverage_config(repo_dir):
     return False
 
 
+def _red_build_naming_pytest_exit(test_run):
+    """A red build that says which exit code and which output
+    line made it red, so a pessimistic 0 explains itself.
+
+    A pytest usage error carries an `error:` line, followed by
+    context lines and coverage warnings; any other failure
+    ends on its summary line."""
+    lines = (test_run.stderr.strip() or test_run.stdout.strip()).splitlines()
+    usage_errors = [line for line in lines if USAGE_ERROR_MARKER in line]
+    candidates = usage_errors[:1] or lines[-1:] or [""]
+    reason = f"pytest exited {test_run.returncode}: {candidates[0].strip()}"
+    return CoverageResult(
+        hits_by_file={}, has_failed_tests=True,
+        failure_reason=reason[:FAILURE_REASON_MAX_CHARS],
+    )
+
+
 def collect_python(repo_dir):
     with tempfile.TemporaryDirectory() as data_dir:
         data_file_outside_repo = Path(data_dir) / ".coverage"
@@ -256,7 +283,7 @@ def collect_python(repo_dir):
         if test_run.returncode == PYTEST_NO_TESTS_EXIT:
             return NO_COVERAGE_DATA
         if test_run.returncode != 0:
-            return RED_BUILD
+            return _red_build_naming_pytest_exit(test_run)
         run_command(PYTHON_COMBINE_COMMAND, cwd=repo_dir, env=env)
         report_file = Path(data_dir) / "lcov.info"
         report_run = run_command(
