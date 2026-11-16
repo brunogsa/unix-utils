@@ -67,16 +67,7 @@ def build_verdict(report, exceptions=(), in_git=True):
     working directory.
     """
     numbers = itertools.count(1)
-    claims_by_key = {_key(claim): claim for claim in exceptions}
-    accepted = []
-    open_violations = []
-    for violation in report["violations"]:
-        claim = claims_by_key.get(_key(violation))
-        is_rejected = bool(claim and claim.get("rejected"))
-        if claim and not is_rejected and Path(claim["diff_path"]).is_file():
-            accepted.append((violation, claim))
-        else:
-            open_violations.append((violation, is_rejected))
+    accepted, open_violations = _partition_claims(report["violations"], exceptions)
     sections = [
         _deferred_section(report["measurements"], numbers),
         _asks_section(report.get("asks", []), numbers),
@@ -91,6 +82,24 @@ def build_verdict(report, exceptions=(), in_git=True):
     if not in_git:
         sections.append(_section("Skipped checks", [NO_GIT_SKIPPED]))
     return "\n\n".join(sections) + "\n"
+
+
+def _partition_claims(violations, exceptions):
+    """Split violations into accepted ones (a claim whose
+    diff file exists, not rejected) and open ones, each
+    paired with whether its claim was rejected.
+    """
+    claims_by_key = {_key(claim): claim for claim in exceptions}
+    accepted = []
+    open_violations = []
+    for violation in violations:
+        claim = claims_by_key.get(_key(violation))
+        is_rejected = bool(claim and claim.get("rejected"))
+        if claim and not is_rejected and Path(claim["diff_path"]).is_file():
+            accepted.append((violation, claim))
+        else:
+            open_violations.append((violation, is_rejected))
+    return accepted, open_violations
 
 
 def _key(item):
