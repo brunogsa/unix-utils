@@ -13,13 +13,15 @@ SKILL.md's `§8.1 → §8.2 → §8.3 → §8.4` is the running order and the on
 
 ## Push, branch record & the draft PR (§8.1)
 
-**Entry: unconditional - this is the first thing batch end does, before either gate.**
+**Entry: unconditional - batch end's first step, before either gate.**
 
 Delivered work reaches the remote before anything that can stall gets a turn - two audited batches once stalled unpushed for ~40 hours on this gap.
 
-1. **Push the branch - always, on every batch end, regardless of `pr.wanted`.**
-   - Use `git push -u origin HEAD`, covering both a fresh PR branch with no upstream and a plain run's branch that already has one.
-   - A pushed branch with no PR is this skill's ordinary outcome, not half-finished.
+1. **Push the branch on every batch end, regardless of `pr.wanted`.**
+   - Use `git push -u origin HEAD`, with or without an upstream.
+   - **`scripts/get-push-route.py` printing `by-hand` (main/master, which `hooks/claude-git-guard.sh` blocks) skips every §8 push, never halting.** The package prints `git rev-list --count @{u}..HEAD` and `git push -u origin HEAD`.
+
+   - A pushed branch with no PR is an ordinary outcome.
    - **On a stacked run**, [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) replaces this step.
    - **Any push failure is a [`failure-and-halt.md`](failure-and-halt.md) §5.5 halt** - no remote, a rejected non-fast-forward, missing credentials.
      - Name the failure, keep the state file, print nothing further.
@@ -171,7 +173,7 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 - The label is this unit's `<this-PR-label>`, or `this batch` on a plain `<task-ids>` run that has none.
 - The count comes from `git rev-list --count <BATCH_BASE_SHA>..HEAD` - run it, never estimate it from the per-task outcomes.
 - The URL appears only when §8.1's opt-in PR-creation step opened or updated a draft PR.
-  - A push-only run ends the line at the commit count: the branch is on the remote - review it there or locally.
+  - A run with no PR ends the line at the commit count.
 
 ## Finalize - the step order inside §8.4
 
@@ -181,7 +183,7 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
    - **Nothing landed → skip both halves outright.** Never re-push an unmoved branch, and never rewrite a description whose diff is unchanged.
 
    - **Something landed → `git push` first**, so the remote carries the gate fixes before anything describes them.
-     - Any push failure here is a §5.5 halt, on §8.1's terms.
+     - Any push failure here is a §5.5 halt, and `by-hand` skips it, both on §8.1's terms.
 
    - **Then update the PR body**, only when `pr.wanted: true` and §8.1 opened one - via the `pr-creator` dispatch and REST-API path [`batch-end-pr.md`](batch-end-pr.md) owns.
      - The gate commits belong under its **"Unexpected extras"** section.

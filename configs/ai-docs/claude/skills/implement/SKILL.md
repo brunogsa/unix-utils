@@ -458,7 +458,8 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the batch for
 
 **Stage order: §8.1 → §8.2 → §8.3 → §8.4**, strictly serial, each waiting for the previous to land:
 
-- **§8.1 - push the branch, record it, open the draft PR via the pr-creator agent.** The push is unconditional; only the PR is opt-in.
+- **§8.1 - push the branch, record it, open the draft PR via the pr-creator agent.** The push is unconditional unless `scripts/get-push-route.py` prints `by-hand` (main/master); only the PR is opt-in.
+
 - **§8.2 - the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, always `--report-only`. Skipped entirely when §1.2's toggle said no.
   - The human applies its verdicts afterward, via `/address-verdicts` - never this run.
 
