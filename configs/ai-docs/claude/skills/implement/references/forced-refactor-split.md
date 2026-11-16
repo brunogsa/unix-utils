@@ -48,6 +48,8 @@ Read `outcome` in the JSON.
 
   - Open the refactor branch's draft PR through the same `pr-creator` dispatch [`batch-end-pr.md`](batch-end-pr.md) owns.
 
+  - Retarget the feature PR's base to the refactor branch, so its diff drops the moved commits: base rule in [`batch-end-pr.md`](batch-end-pr.md), REST retarget in [`stacked-prs.md`](stacked-prs.md).
+
   - Have the package list the moved commits and the new PR, so the human reviews what left the feature PR.
 
 - **`conflict`** - the script aborted the cherry-pick or rebase (`conflict_operation` names it), so nothing moved and nothing needs a push.
