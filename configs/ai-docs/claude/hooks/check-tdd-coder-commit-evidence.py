@@ -48,9 +48,19 @@ SAFE_AGENT_ID = re.compile(r"[A-Za-z0-9_-]+")
 
 GIT_OPTIONS_TAKING_A_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
 
-# Unbalanced quotes stop shlex, so the gate falls back to a
-# plain match that errs toward reading a commit.
-UNPARSED_GIT_COMMIT = re.compile(r"\bgit\b[^;&|\n]*\bcommit\b")
+# The gated agent is the adversary, so a command that hands
+# its script to a shell or to eval is read through to that
+# script; the POSIX shells that run a -c string are a fixed
+# set, not a ledger of seen commands.
+SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
+SHELL_OPTIONS_TAKING_A_VALUE = {"-o", "+o", "-O", "+O"}
+SHELL_READS_STDIN = ""
+MAX_NESTED_SCRIPTS = 8
+
+# A shell reading its script from stdin gets it from a pipe or
+# a heredoc body, so only a plain match over the raw command
+# can see that script.
+RAW_GIT_COMMIT = re.compile(r"\bgit\b[^;&|\n]*\bcommit\b")
 
 
 def read_payload() -> dict | None:
@@ -83,17 +93,84 @@ def get_shell_words(text: str) -> list[str] | None:
         return None
 
 
-def runs_git_commit(command: str) -> bool:
+def is_separator(word: str) -> bool:
+    return word != "" and set(word) <= set("();<>|&")
+
+
+def get_shell_script(words: list[str], shell_index: int) -> str | None:
+    # Returns the -c string, SHELL_READS_STDIN, or None when the
+    # shell runs a script file.
+    index = shell_index + 1
+    while index < len(words) and not is_separator(words[index]):
+        option = words[index]
+        if option in SHELL_OPTIONS_TAKING_A_VALUE:
+            index += 2
+        elif option.startswith("-") and not option.startswith("--") and "c" in option:
+            return words[index + 1] if index + 1 < len(words) else SHELL_READS_STDIN
+        elif option.startswith(("-", "+")):
+            index += 1
+        else:
+            return None
+    return SHELL_READS_STDIN
+
+
+def get_eval_script(words: list[str], eval_index: int) -> str:
+    arguments = []
+    for word in words[eval_index + 1 :]:
+        if is_separator(word):
+            break
+        arguments.append(word)
+    return " ".join(arguments)
+
+
+def get_substituted_script(word: str) -> str | None:
+    # A quoted $(...) or `...` stays one shell word, so its
+    # command is read back out of that word.
+    if "$(" not in word and "`" not in word:
+        return None
+    return word.replace("$(", ";").replace("`", ";").replace(")", ";")
+
+
+def get_handed_script(words: list[str], index: int) -> str | None:
+    if Path(words[index]).name in SHELLS:
+        return get_shell_script(words, index)
+    if words[index] == "eval":
+        return get_eval_script(words, index)
+    return None
+
+
+def get_handed_scripts(words: list[str]) -> list[str | None]:
+    return [get_handed_script(words, index) for index in range(len(words))]
+
+
+def get_nested_scripts(words: list[str], text: str) -> list[str]:
+    whole_text = [text.replace("`", ";")] if "`" in text else []
+    scripts = [*map(get_substituted_script, words), *get_handed_scripts(words), *whole_text]
+    return [script for script in scripts if script is not None]
+
+
+def names_git_commit(words: list[str]) -> bool:
+    subcommands = [get_git_subcommand(words, index) for index, word in enumerate(words) if Path(word).name == "git"]
+    return "commit" in subcommands
+
+
+def runs_git_commit(command: str, depth: int = 0) -> bool:
     # A heredoc body or a quoted argument is data, so the
     # call that appends "git commit" text to the evidence
     # file is never read as a commit.
     text = parse_shell_command.strip_heredoc_bodies(command)
     words = get_shell_words(text)
-    if words is None:
-        return UNPARSED_GIT_COMMIT.search(text) is not None
+    if words is None or depth > MAX_NESTED_SCRIPTS:
+        return True
 
-    subcommands = [get_git_subcommand(words, index) for index, word in enumerate(words) if Path(word).name == "git"]
-    return "commit" in subcommands
+    nested_scripts = get_nested_scripts(words, text)
+    return names_git_commit(words) or any(runs_nested_commit(script, command, depth) for script in nested_scripts)
+
+
+def runs_nested_commit(script: str, command: str, depth: int) -> bool:
+    if script == SHELL_READS_STDIN:
+        return RAW_GIT_COMMIT.search(command) is not None
+    return runs_git_commit(script, depth + 1)
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:

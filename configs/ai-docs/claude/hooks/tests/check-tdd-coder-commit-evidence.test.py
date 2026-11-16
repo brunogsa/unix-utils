@@ -284,6 +284,46 @@ class TestCallsLetThrough:
         assert deny_reason(run_hook(stdin_text)) is None
 
 
+class TestCommitWrappedInAnotherCommand:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "bash -c 'git commit -m x -- a.py'",
+            'sh -c "git commit -m x -- a.py"',
+            "zsh -lc 'cd /Users/brunoagostini/unix-utils && git commit -m x -- a.py'",
+            "/bin/bash -c \"sh -c 'git commit -m x -- a.py'\"",
+            'eval "git commit -m x -- a.py"',
+            'echo "$(git commit -m x -- a.py)"',
+            "echo `git commit -m x -- a.py`",
+            "bash <<'EOF'\ngit commit -m x -- a.py\nEOF",
+        ],
+        ids=[
+            "bash-dash-c",
+            "sh-dash-c",
+            "zsh-dash-lc",
+            "shell-inside-shell",
+            "eval",
+            "command-substitution",
+            "backticks",
+            "shell-reading-a-heredoc",
+        ],
+    )
+    def test_should_deny_a_commit_that_another_command_runs(self, tmp_path, command):
+        reason = check_commit(tmp_path, command=command)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_deny_a_command_its_unbalanced_quotes_leave_unreadable(self, tmp_path):
+        reason = check_commit(tmp_path, command="git status 'unterminated")
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+
+    def test_should_let_a_wrapped_command_through_when_it_runs_no_git_commit(self, tmp_path):
+        assert check_commit(tmp_path, command="bash -c 'git status --short && echo commit'") is None
+
+
 def frontmatter_pretooluse_command():
     """The command wired under hooks: PreToolUse: in tdd-coder.md's frontmatter."""
     frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
