@@ -232,13 +232,22 @@ def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | N
         return None
 
 
+def has_dot_git_dir(repo: str) -> bool:
+    # A non-repo or bare dir turns into a repo when a call
+    # writes config, HEAD, objects and refs, none named .git.
+    common = run_git(repo, "rev-parse", "--git-common-dir")
+    if common is None or common.returncode != 0:
+        return False
+    return (Path(repo) / common.stdout.removesuffix("\n")).resolve().name == ".git"
+
+
 def reads_in_safe_repo(text: str, end: int, cwd: str | None) -> bool:
     match = READ_ONLY_DIR_CALL.match(text, end)
     if match is None:
         return False
     repo = str(Path(cwd or Path.cwd()) / match.group(1))
     entries = get_config_entries(repo)
-    if entries is None or runs_configured_program(repo):
+    if entries is None or not has_dot_git_dir(repo) or runs_configured_program(repo):
         return False
     return not any(DIR_CALL_PROGRAM_KEY.fullmatch(key) for key, _ in entries)
 

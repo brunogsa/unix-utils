@@ -882,6 +882,17 @@ class TestReadOnlyGitInAnotherRepo:
 
         possible_commit_reason(tmp_path, command_for(repo))
 
+    @pytest.mark.parametrize("init_arguments", [None, ["--bare"]], ids=["plain-dir", "bare-repo"])
+    def test_should_deny_a_read_in_a_dir_whose_config_needs_no_dot_git_path(self, tmp_path, init_arguments):
+        # The same call could write <dir>/config, HEAD, objects
+        # and refs, and none of those names .git.
+        target = tmp_path / "target"
+        target.mkdir()
+        if init_arguments is not None:
+            git(target, "init", "-q", *init_arguments)
+
+        possible_commit_reason(tmp_path, f"git -C {target} status")
+
 
 class TestScriptFileScreen:
     @pytest.fixture
