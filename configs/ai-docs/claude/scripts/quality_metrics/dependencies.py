@@ -111,7 +111,7 @@ class LayerMap:
 def load_layer_map(path):
     try:
         raw = read_yaml(Path(path))
-    except OSError as error:
+    except (OSError, DeclarationError) as error:
         raise DeclarationError(f"layer map '{path}': {error}") from error
     if not isinstance(raw, dict):
         raise DeclarationError(

@@ -772,6 +772,19 @@ def test_exits_not_measured_with_a_message_when_the_layer_map_is_a_list_not_a_ma
     assert "Traceback" not in result.stderr
 
 
+def test_exits_not_measured_naming_the_layer_map_file_when_it_is_not_valid_yaml(tmp_path):
+    repo = make_repo(tmp_path, {"tools/sync.py": "SYNC = 1\n"})
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(PYTHON_DECLARATION)
+    broken_layers = write_layers(tmp_path, "source: declared\nlayers: [\n")
+
+    result = run_measure(repo, declaration_path, "--layers", broken_layers)
+
+    assert result.returncode == 2
+    assert "layers.yaml" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_flags_a_cycle_the_range_adds_when_an_uncommitted_edit_to_an_untouched_file_breaks_it(tmp_path):
     repo = make_repo(tmp_path, PYTHON_CYCLE_BASE_FILES)
     base_sha = head_of(repo)
