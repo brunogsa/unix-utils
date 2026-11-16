@@ -92,11 +92,12 @@ Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review 
 
 - `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool).
 
-- `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>` and the resolved spec/plan paths pushed in.
+- `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>`, the resolved spec/plan paths and `<SESSION_ID>` pushed in.
 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
-- `agent(subAgent=code-reviewer, title=Metrics-lens review)` - follows [`references/metrics-lens.md`](references/metrics-lens.md), with `<RUN_DIR>`, `<BASE_REF>` and HEAD pushed in; dispatch whether or not a plan resolved.
+- `agent(subAgent=code-reviewer, title=Metrics-lens review)` - follows [`references/metrics-lens.md`](references/metrics-lens.md), with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
+  - `<SESSION_ID>` is main's own, the last segment of its scratchpad path.
   - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.**

@@ -13,8 +13,12 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 
 ```bash
 ~/.claude/scripts/measure-quality-metrics.py \
-  --diff <BASE>...<HEAD> --layers <layer-map-file> > <RUN_DIR>/metrics-report.json
+  --diff <BASE>...<HEAD> --layers <layer-map-file> \
+  --session-id <SESSION_ID> > <RUN_DIR>/metrics-report.json
 ```
+
+- `--session-id <SESSION_ID>` is the id main pushed into your prompt; omit the flag only when none was pushed.
+  - [Why] Only main's id keys the per-session tool map, so without it every metric uses global tools.
 
 - `--diff BASE...HEAD` measures every declared metric on the code the committed range changes, and lists the over-limit functions the range removes as resolved.
   - It cannot combine with `--files` or `--per-unit`.

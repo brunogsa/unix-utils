@@ -8,6 +8,12 @@ Coders cannot spawn the inspector, so the orchestrator builds the per-session to
 
 The trigger and the dispatch are the ones in [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md) section 1: dispatch the inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
 
+Push `session-id: <your own session id>` into the Optional block of every coder dispatch, in either lane.
+
+- [Why] The map is keyed by the orchestrator's id and a coder has another, so without it the coder's run falls back to global tools.
+
+The orchestrator's id is the last path segment of its scratchpad directory.
+
 Read the map once per run, never per task. Follow that file for double-checking the inspector's report and for detector edits.
 
 ## 2. Asks

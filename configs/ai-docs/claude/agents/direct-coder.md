@@ -33,6 +33,8 @@ The caller embeds these directly in the dispatch prompt. No CWD reads are requir
 
 - **Optional**: `Context` - free-text framing. `base:` - the base SHA for reading prior commits' why. Thin or absent Context is never by itself a reason to report `blocked`.
 
+- **Session id**: `session-id:` - the main session's id, used by Procedure step 6.
+
 ## Sources and tools
 
 Nothing is preloaded. Load each standard via the Skill tool when its trigger fires, once per dispatch, never ahead of the trigger:
@@ -63,7 +65,10 @@ Issue every independent call in one message - the reads that open the files, the
 5. Run Verification once more and diff against step 2's red set. Anything newly red is yours to fix before committing.
    - Budget the full command at these two runs. Re-check a single repair with a targeted command - the one file, test name, or suite - never the whole thing.
 
-6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit --files <file>...` once before committing.
+6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit --session-id <id> --files <file>...` once before committing, with `<id>` from the dispatch's `session-id:`.
+   - A dispatch with no `session-id:` runs the command without `--session-id` (global tools); never invent an id.
+     - [Why] Only the main session's id keys the per-session tool map, so a made-up id finds no map and drops the repo's own coverage tools.
+
    - Always pass the edited files, in git too: without `--files` the run measures every dirty or untracked file, including files outside your change.
 
    - Never use `--diff` here, because it cannot combine with either flag.

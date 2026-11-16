@@ -43,6 +43,7 @@ Both callers also need the pipeline's reads - diff, rubrics, standards - kept ou
 - `Issue ref` (github, optional): a Jira or Linear URL or key; replaces automatic extraction.
 - `Base ref` (local only; a branch name, commit SHA, or `HEAD~N` - defaults to the repo's detected default branch)
 - `Language`: `Portuguese (Brazil)` (github) or `English` (local)
+- `Session id` (optional): the calling main session's id; Wave 1's metrics run passes it as `--session-id`, and absent means run without it.
 - `Design sections` (github only, optional): `on` or `off`; absent reads as `off`. `on` adds the Arquitetura, Fluxo and Design de testes sections to the Review Guide - `/pr-review` passes `on`.
 
 **Load lazily, by wave; keep afterward** - they ground your validation and decisions:

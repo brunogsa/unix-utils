@@ -103,6 +103,9 @@ The code-review-pipeline expects these inputs:
 - **Mode:** `local`
 - **Base ref:** `<BASE_REF>` (resolved above)
 - **Language:** English
+- **Session id:** your own session id, or the `<SESSION_ID>` a dispatch pushed into you.
+  - Why: the metrics tool map is keyed by the main session's id, and the pipeline's subagent has another.
+
 - **Spec/plan files for `{pr_context}`:** `<SPEC_PLAN_PATHS>` (resolved above)
   - If `<none>`, no spec/plan is available - proceed with commit messages +
     diff only.
