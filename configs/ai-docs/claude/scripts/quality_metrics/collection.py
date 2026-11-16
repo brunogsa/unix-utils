@@ -42,13 +42,17 @@ LCOV_PATH = Path("coverage") / "lcov.info"
 
 # pytest joins the ephemeral environment: `coverage run -m
 # pytest` fails without it when the repo manages no environment.
-PYTHON_TEST_COMMAND = [
-    "uv", "run", "--with", "coverage", "--with", "pytest",
-    "--", "coverage", "run", "-m", "pytest",
+#
+# pyyaml joins it too: a repo's tests that import yaml fail
+# collection without it. A fixed package is simpler than reading
+# each repo's requirements and pyproject.
+PYTHON_COVERAGE_WITH = [
+    "uv", "run", "--with", "coverage", "--with", "pytest", "--with", "pyyaml", "--",
+    "coverage",
 ]
-PYTHON_LCOV_COMMAND = [
-    "uv", "run", "--with", "coverage", "--", "coverage", "lcov", "-o",
-]
+PYTHON_TEST_COMMAND = [*PYTHON_COVERAGE_WITH, "run", "-m", "pytest"]
+PYTHON_LCOV_COMMAND = [*PYTHON_COVERAGE_WITH, "lcov", "-o"]
+
 JAVASCRIPT_TEST_COMMAND = [
     "c8", "--reporter=lcov", "--reports-dir=coverage", "npm", "test",
 ]

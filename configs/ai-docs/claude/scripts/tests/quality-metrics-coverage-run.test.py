@@ -289,3 +289,32 @@ def test_should_create_no_config_directory_in_the_repo_when_no_base_ref_is_given
     assert sorted(listing_log.read_text().split()) == sorted(
         [".git", "jest.config.js", "src"]
     )
+
+
+YAML_REPO_FILES = {
+    "settings_reader.py": "import yaml\n\n\ndef read(text):\n    return yaml.safe_load(text)\n",
+    "test_settings_reader.py": (
+        "from settings_reader import read\n\n\n"
+        "def test_reads_a_mapping():\n"
+        "    assert read('retries: 3') == {'retries': 3}\n"
+    ),
+}
+
+
+def write_repo(tmp_path, files):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for name, text in files.items():
+        (repo / name).write_text(text)
+    return repo
+
+
+def test_should_measure_the_coverage_of_a_repo_test_that_imports_yaml(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    repo = write_repo(tmp_path, YAML_REPO_FILES)
+
+    result = collect_python(repo)
+
+    assert not result.has_failed_tests
+    assert result.hits_by_file["settings_reader.py"][5] > 0
