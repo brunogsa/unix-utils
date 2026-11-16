@@ -30,6 +30,10 @@ EXIT_CLASS_PATTERNS = (
 # Failures that are not exits of a finished run.
 TIMEOUT, WROTE_NO_COVERAGE = "timeout", "no_coverage_data"
 
+# pytest exits 5 when it collected no tests.
+PYTEST_NO_TESTS_EXIT = 5
+NO_TESTS = "no_tests"
+
 # Exit classes whose measurements are valid.
 MEASURING_EXIT_CLASSES = (PASSED, REPO_THRESHOLD)
 
@@ -42,8 +46,14 @@ FALL_THROUGH_REASONS = {
     UNCLASSIFIED: "exited non-zero with no recognized cause",
 }
 
-JEST = "jest"
+JEST, PYTEST_COV = "jest", "pytest-cov"
 REPO_COVERAGE_SOURCE = {"kind": "repo", "tool": JEST}
+PYTEST_COV_SOURCE = {"kind": "repo", "tool": PYTEST_COV}
+
+# The repo's own pytest under pytest-cov, which uv adds with no
+# install step. Flags are documented at
+# pytest-cov.readthedocs.io/en/latest/config.html
+PYTEST_COV_COMMAND = ["uv", "run", "--with", "pytest-cov", "--", "pytest", "--cov"]
 
 LIZARD, SHELLMETRICS, LINE_COUNT = "lizard", "shellmetrics", "line count"
 COVERAGE_PY, C8, GCOV2LCOV = "coverage.py", "c8", "gcov2lcov"
@@ -162,6 +172,51 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
         report = Path(report_dir) / "lcov.info"
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
+        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
+
+
+def run_repo_pytest_cov_under_policy(repo, policy, base_ref=None):
+    """The repo pytest-cov's coverage run, bounded by `policy`'s timeout.
+
+    Raises RepoToolFailure the way run_repo_jest_under_policy does.
+    """
+    try:
+        return policy.run(lambda timeout_seconds: run_repo_pytest_cov(repo, timeout_seconds, base_ref))
+    except ToolTimedOutTwice as error:
+        raise RepoToolFailure(TIMEOUT, str(error)) from error
+    except RepoToolFailure:
+        raise
+    except ToolError as error:
+        raise RepoToolFailure(CRASH, str(error)) from error
+
+
+def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
+    """One coverage run of the repo's pytest: how it exited, and every file's line hits.
+
+    With a `base_ref`, coverage reads the `.coveragerc` that ref
+    committed, so a branch's own omits never shape the number.
+    Without a copy it reads the repo's own file, as pytest-cov does.
+
+    A run that collected no tests reads as no hits. Otherwise the
+    hits read valid on the same exit classes as the repo jest's.
+    """
+    with tempfile.TemporaryDirectory() as work_dir:
+        report = Path(work_dir) / "lcov.info"
+        config_flags = [
+            f"--cov-config={copy}"
+            for copy in (write_base_ref_configs(repo, base_ref, work_dir, PYTEST_COV) if base_ref else [])
+        ]
+        result = run_command(
+            [*PYTEST_COV_COMMAND, f"--cov-report=lcov:{report}", *config_flags],
+            cwd=repo, timeout=timeout_seconds,
+        )
+        if result.returncode == PYTEST_NO_TESTS_EXIT:
+            return {"exit_class": NO_TESTS, "hits_by_file": {}}
+        exit_class = classify_exit(result)
+        if exit_class not in MEASURING_EXIT_CLASSES:
+            raise RepoToolFailure(exit_class, f"pytest exited {result.returncode}: {result.stderr.strip()}")
+        if not report.exists():
+            raise RepoToolFailure(WROTE_NO_COVERAGE, "pytest-cov wrote no lcov report")
         return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
 
 

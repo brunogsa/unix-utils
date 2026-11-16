@@ -96,23 +96,41 @@ def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
     if base_text is None or head_text is None or base_text == head_text:
         return []
     base, head = parse_yaml(base_text), parse_yaml(head_text)
+    changes = _changed_keys(base, head)
+    base_languages = base.get(LANGUAGES_KEY) or {}
+    head_languages = head.get(LANGUAGES_KEY) or {}
+    for language, entry in base_languages.items():
+        changes += _language_changes(language, entry, head_languages.get(language))
+    return [{"kind": kind, "file": name, "value": value} for kind, value in changes]
+
+
+def _changed_keys(base, head):
+    """The top-level keys, apart from languages, whose value changed."""
     changes = []
     for key in sorted(set(base) | set(head)):
         if key != LANGUAGES_KEY and base.get(key) != head.get(key):
             changes.append((DECLARATION_CHANGE_KIND, key))
-    base_languages = base.get(LANGUAGES_KEY) or {}
-    head_languages = head.get(LANGUAGES_KEY) or {}
-    for language, entry in base_languages.items():
-        head_entry = head_languages.get(language)
-        if head_entry is None:
-            changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}"))
-            continue
-        dropped = set(entry.get(METRICS_KEY) or ()) - set(head_entry.get(METRICS_KEY) or ())
-        changes += [(OPT_OUT_KIND, f"{language}.{metric}") for metric in sorted(dropped)]
-        for field in sorted(set(entry) | set(head_entry)):
-            if field != METRICS_KEY and entry.get(field) != head_entry.get(field):
-                changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}.{field}"))
-    return [{"kind": kind, "file": name, "value": value} for kind, value in changes]
+    return changes
+
+
+def _language_changes(language, entry, head_entry):
+    """The (kind, value) changes one language's declaration shows."""
+    if head_entry is None:
+        return [(DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}")]
+    dropped = set(entry.get(METRICS_KEY) or ()) - set(head_entry.get(METRICS_KEY) or ())
+    changes = [(OPT_OUT_KIND, f"{language}.{metric}") for metric in sorted(dropped)]
+    for field in _changed_fields(entry, head_entry):
+        changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}.{field}"))
+    return changes
+
+
+def _changed_fields(entry, head_entry):
+    """The fields, apart from metrics, whose value differs."""
+    changed = []
+    for field in sorted(set(entry) | set(head_entry)):
+        if field != METRICS_KEY and entry.get(field) != head_entry.get(field):
+            changed.append(field)
+    return changed
 
 
 def _declaration_texts(repo_dir, base_ref, head_ref, declaration_path):
@@ -143,15 +161,15 @@ def _repo_relative_name(repo_dir, path):
         return None
 
 
-def write_base_ref_configs(repo_dir, base_ref, directory):
-    """Copy the repo's jest configs as `base_ref` committed them.
+def write_base_ref_configs(repo_dir, base_ref, directory, tool="jest"):
+    """Copy the repo's `tool` configs as `base_ref` committed them.
 
     A tool that reads its own config at run time is pointed at
     the copy, so the branch's excludes never shape its numbers.
     Returns the copies' paths, in detector-rule order.
     """
     copies = []
-    for name in _jest_config_names():
+    for name in _config_names(tool):
         text = _text_at(repo_dir, base_ref, name)
         if text is not None:
             copy_path = Path(directory) / name
@@ -165,23 +183,29 @@ def added_suppressions(repo_dir, base_ref, head_ref=None):
         repo_dir, base_ref, head_ref
     )
     if head_ref is None:
-        for path, text in _untracked_texts(repo_dir).items():
-            added_by_file[path] += count_suppressions(text)
+        _add_untracked_suppressions(repo_dir, added_by_file)
     violations = []
     for path, added in added_by_file.items():
-        if path.lower().endswith(PROSE_SUFFIXES):
-            continue
-        net_added = added - removed_by_file[path]
-        violations += [
-            {"kind": SUPPRESSION_KIND, "file": path, "value": token}
-            for token in sorted(net_added.elements())
-        ]
+        if not path.lower().endswith(PROSE_SUFFIXES):
+            violations += _net_suppressions(path, added - removed_by_file[path])
     return violations
+
+
+def _add_untracked_suppressions(repo_dir, added_by_file):
+    for path, text in _untracked_texts(repo_dir).items():
+        added_by_file[path] += count_suppressions(text)
+
+
+def _net_suppressions(path, net_added):
+    return [
+        {"kind": SUPPRESSION_KIND, "file": path, "value": token}
+        for token in sorted(net_added.elements())
+    ]
 
 
 def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
     violations = []
-    for name in _jest_config_names():
+    for name in _config_names("jest"):
         base_excludes = _coverage_excludes(_text_at(repo_dir, base_ref, name))
         head_excludes = _coverage_excludes(_text_at(repo_dir, head_ref, name))
         violations += [
@@ -229,9 +253,9 @@ def _untracked_texts(repo_dir):
     return texts
 
 
-def _jest_config_names():
+def _config_names(tool):
     rules = load_detector_rules(DETECTOR_RULES_PATH)
-    return next(rule["configs"] for rule in rules if rule["tool"] == "jest")
+    return next(rule["configs"] for rule in rules if rule["tool"] == tool)
 
 
 def _text_at(repo_dir, ref, path):
@@ -249,12 +273,14 @@ def _text_at(repo_dir, ref, path):
 def _coverage_excludes(config_text):
     if config_text is None:
         return set()
-    excludes = set()
-    for list_text in EXCLUDE_LIST.findall(config_text):
-        excludes.update(QUOTED_STRING.findall(list_text))
-    for list_text in COLLECT_LIST.findall(config_text):
-        excludes.update(
-            glob for glob in QUOTED_STRING.findall(list_text)
-            if glob.startswith(NEGATED_GLOB_MARK)
-        )
-    return excludes
+    excluded = _quoted_globs(EXCLUDE_LIST, config_text)
+    collected = _quoted_globs(COLLECT_LIST, config_text)
+    negated = {glob for glob in collected if glob.startswith(NEGATED_GLOB_MARK)}
+    return excluded | negated
+
+
+def _quoted_globs(list_pattern, config_text):
+    globs = set()
+    for list_text in list_pattern.findall(config_text):
+        globs.update(QUOTED_STRING.findall(list_text))
+    return globs

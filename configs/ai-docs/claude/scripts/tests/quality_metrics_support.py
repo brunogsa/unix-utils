@@ -74,6 +74,23 @@ def attempts_in(tmp_path):
     return len(attempt_log.read_text().splitlines()) if attempt_log.exists() else 0
 
 
+# What the stubbed global collector reports: 2 of 2 lines run.
+GLOBAL_COVERAGE_PERCENT = 100
+
+
+def assert_fell_through_to_global(tmp_path, measured, source_entry, repo_attempts):
+    """The repo tool failed, so the global collector measured once.
+
+    `measured` is (coverage_run, records, global_calls); the repo
+    tool ran `repo_attempts` times before the fall-through.
+    """
+    coverage_run, records, global_calls = measured
+    assert coverage_run.sources == [source_entry]
+    assert [record["value"] for record in records] == [GLOBAL_COVERAGE_PERCENT]
+    assert attempts_in(tmp_path) == repo_attempts
+    assert len(global_calls) == 1
+
+
 def stubbed_env():
     """The environment a script subprocess needs to see stub tools.
 
@@ -175,6 +192,21 @@ def coverage_records_of(tmp_path, target, coverage_run):
     return crap_coverage.measure(
         target, ["coverage"], load_declaration(declaration_path), coverage_run
     )
+
+
+def coverage_run_for(repo, tmp_path, **options):
+    """A CoverageRun whose tool map reads the repo's committed HEAD.
+
+    Imports sit inside the function for the same reason as
+    `coverage_records_of`.
+    """
+    from quality_metrics.collection import CoverageRun
+    from quality_metrics.sourcing import lazy_tool_map_for
+    from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
+
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
+    tool_map = lazy_tool_map_for(repo, rules, "session-5e8a17", tmp_path, base_ref="HEAD")
+    return CoverageRun(repo, tool_map, **options)
 
 
 def install_global_collector(monkeypatch, calls, hits_by_file=None, error=None):

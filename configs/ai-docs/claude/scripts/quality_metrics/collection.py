@@ -25,19 +25,20 @@ from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
     JEST,
+    PYTEST_COV,
+    PYTEST_COV_SOURCE,
+    PYTEST_NO_TESTS_EXIT,
     REPO_COVERAGE_SOURCE,
     RepoToolFailure,
     global_tool_for,
     run_repo_jest_under_policy,
+    run_repo_pytest_cov_under_policy,
     source_for,
 )
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import run_command, ToolError
 
 LCOV_PATH = Path("coverage") / "lcov.info"
-
-# pytest exits 5 when it collected no tests.
-PYTEST_NO_TESTS_EXIT = 5
 
 # pytest joins the ephemeral environment: `coverage run -m
 # pytest` fails without it when the repo manages no environment.
@@ -134,7 +135,18 @@ class CoverageRun:
         choice = source_for("coverage", self.tool_map, language)
         if choice["source"]["tool"] == JEST:
             return self._measure_with_repo_jest(language, collector)
+        if choice["source"]["tool"] == PYTEST_COV:
+            return self._measure_with_repo_pytest_cov(language, collector)
         return self._measure_globally(language, collector, choice["side_pr_candidate"])
+
+    def _measure_with_repo_pytest_cov(self, language, collector):
+        try:
+            run = run_repo_pytest_cov_under_policy(self.repo_dir, self.policy, self.base_ref)
+        except RepoToolFailure as failure:
+            reason = FALL_THROUGH_REASONS[failure.exit_class]
+            return self._measure_globally(language, collector, f"repo pytest-cov {reason}", failure.exit_class)
+        result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)
+        return _Measured(result, run["exit_class"], PYTEST_COV_SOURCE, None)
 
     def _measure_with_repo_jest(self, language, collector):
         try:
