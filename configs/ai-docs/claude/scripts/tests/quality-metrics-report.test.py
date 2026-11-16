@@ -252,7 +252,7 @@ def nodes_by_file(view):
 
 class TestHotspotView:
     def test_should_show_every_touched_file_in_the_hotspot_view_colored_by_its_worst_metrics_ratio_to_its_limit(self):
-        view = hotspots.hotspot_view(HOTSPOT_RUN, IMPORT_EDGES)
+        view = hotspots.hotspot_view(HOTSPOT_RUN["measurements"], IMPORT_EDGES)
 
         colors = nodes_by_file(view)
         assert colors["src/red.py"] == "red"
@@ -263,7 +263,7 @@ class TestHotspotView:
         assert colors["src/under70.py"] == "green"
 
     def test_should_draw_the_files_one_import_hop_away_but_no_further(self):
-        view = hotspots.hotspot_view(HOTSPOT_RUN, IMPORT_EDGES)
+        view = hotspots.hotspot_view(HOTSPOT_RUN["measurements"], IMPORT_EDGES)
 
         colors = nodes_by_file(view)
         assert colors["lib/util.py"] == "context"
@@ -329,7 +329,7 @@ class TestCoverageDirection:
             crap_record("src/mixed.py", "branchy", 6),
         )
 
-        view = hotspots.hotspot_view(run, [])
+        view = hotspots.hotspot_view(run["measurements"], [])
 
         [(_, label, color)] = NODE_LINE.findall(view)
         assert color == "amber"
@@ -382,7 +382,7 @@ class TestDependencyDirection:
             file_record("src/core.py", metric, 0, dependencies.LIMIT_COUNT),
         )
 
-        colors = nodes_by_file(hotspots.hotspot_view(run, []))
+        colors = nodes_by_file(hotspots.hotspot_view(run["measurements"], []))
 
         assert colors == {"src/ui.py": "red", "src/core.py": "green"}
 

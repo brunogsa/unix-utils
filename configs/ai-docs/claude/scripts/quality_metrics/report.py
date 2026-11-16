@@ -152,9 +152,9 @@ def _ranked_sections(measurements, numbers):
 
 def _design_section(measurements, import_edges):
     if not measurements:
-        return f"## Code design\n\n{NO_CODE_MEASURED}"
-    view = hotspots.hotspot_view({"measurements": measurements}, import_edges)
-    return f"## Code design\n\n{view}"
+        return _section("Code design", [NO_CODE_MEASURED])
+    view = hotspots.hotspot_view(measurements, import_edges)
+    return _section("Code design", [view])
 
 
 def _section(title, entries):

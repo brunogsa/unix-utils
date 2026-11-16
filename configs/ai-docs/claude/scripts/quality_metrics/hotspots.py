@@ -25,9 +25,9 @@ COLOR_CLASSES = {
 QUOTE_ENTITY = "#quot;"
 
 
-def hotspot_view(report, import_edges):
+def hotspot_view(measurements, import_edges):
     """A fenced Mermaid flowchart; `import_edges` are (importer, imported) paths."""
-    colors_by_file = _colors_by_touched_file(report["measurements"])
+    colors_by_file = _colors_by_touched_file(measurements)
     touched = sorted(colors_by_file)
     edges = _edges_touching(touched, import_edges)
     context = sorted({path for edge in edges for path in edge} - set(touched))
