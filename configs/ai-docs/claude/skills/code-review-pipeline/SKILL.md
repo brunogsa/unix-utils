@@ -160,7 +160,7 @@ Before emitting, re-read each finding against its actual file. One pass catches 
 
 On the fan-out path, check each finding by reading only its anchored range (`sed -n '<start>,<end>p'` with a few lines around it), never the whole diff or the whole file - that path exists to keep the diff out of this window.
 
-It authors the cross-lens dedup pre-pass, both per-finding checks - false positive, then line range - the conservative-keep threshold, and the hard rules, so nothing restates them here.
+`references/validator.md` authors the cross-lens dedup pre-pass, both per-finding checks - false positive, then line range - the conservative-keep threshold, and the hard rules, so nothing restates them here.
 
 Artifact: a reduced, range-tightened findings list + a drop log. **Persist**: write both to `$work_dir/wave3-findings.json` and `$work_dir/wave3-drop-log.txt` before moving to Wave 4.
 
