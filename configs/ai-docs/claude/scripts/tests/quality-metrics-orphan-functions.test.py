@@ -1,13 +1,13 @@
 """Every public quality_metrics function has a production caller.
 
 A public module-level function whose only callers live in tests/
-ships as dead code that still looks covered: `display_value` once
-did. A caller is a name or attribute reference to the function in
-any quality_metrics module, outside its own definition, or in any
-script beside the package. An import alone is not a caller.
+ships as dead code that still looks covered. A caller is a name
+or attribute reference to the function in any quality_metrics
+module, outside its own definition, or in any script beside the
+package. An import alone is not a caller.
 
-Usage:
-  pytest configs/ai-docs/claude/scripts/tests/quality-metrics-orphan-functions.test.py
+Usage, from the scripts directory:
+  pytest tests/quality-metrics-orphan-functions.test.py
 """
 
 import ast
