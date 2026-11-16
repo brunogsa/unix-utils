@@ -288,16 +288,3 @@ class TimeoutPolicy:
             self.sleep(HEADROOM_POLL_SECONDS)
             waited_seconds += HEADROOM_POLL_SECONDS
         return waited_seconds
-
-
-def run_or_ask(policy, attempt, tool_map, tool, metric, environ=None):
-    """`{"value", "ask"}`: the attempt's value, or an ask when it timed out twice.
-
-    No third attempt runs. `ask` is None when `tool` was already
-    deferred in this batch, or when no session can ask (see
-    `session_can_ask`), so the metric is scored without asking.
-    """
-    try:
-        return {"value": policy.run(attempt), "ask": None}
-    except ToolTimedOutTwice as error:
-        return {"value": None, "ask": ask_or_defer(tool_map, tool, metric, str(error), environ)}

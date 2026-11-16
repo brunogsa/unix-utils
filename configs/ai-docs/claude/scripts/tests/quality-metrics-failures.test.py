@@ -27,7 +27,6 @@ from quality_metrics.failures import (
     ToolTimedOutTwice,
     ask_unless_deferred,
     deferred_crap_measurements,
-    run_or_ask,
     deferred_measurement,
     holds_commit,
     machine_has_headroom,
@@ -223,43 +222,14 @@ def test_should_emit_no_second_ask_for_a_tool_already_deferred_in_this_batch(tmp
     assert other_tool_ask["tool"] == "jscpd"
 
 
-def test_should_emit_one_ask_and_run_no_third_attempt_when_both_attempts_time_out(tmp_path):
-    repo = make_repo(tmp_path, {"calc.py": "def add(first, second):\n    return first + second\n"})
-    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+def test_should_give_up_and_run_no_third_attempt_when_both_attempts_time_out():
     timeouts_seen = []
     policy = TimeoutPolicy(headroom_is_go=lambda: True, sleep=lambda seconds: None)
 
-    outcome = run_or_ask(
-        policy,
-        timing_out_then([None, None, MEASURED_COMPLEXITY], timeouts_seen),
-        tool_map,
-        "lizard",
-        "complexity",
-        environ=INTERACTIVE_SESSION,
-    )
+    with pytest.raises(ToolTimedOutTwice):
+        policy.run(timing_out_then([None, None, MEASURED_COMPLEXITY], timeouts_seen))
 
-    assert outcome["value"] is None
-    assert outcome["ask"]["tool"] == "lizard"
-    assert outcome["ask"]["metric"] == "complexity"
-    assert outcome["ask"]["choices"] == ["fix now", "defer"]
-    assert len(timeouts_seen) == 2
-
-
-def test_should_defer_without_asking_when_both_attempts_time_out_in_a_headless_session(tmp_path):
-    repo = make_repo(tmp_path, {"calc.py": "def add(first, second):\n    return first + second\n"})
-    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
-    policy = TimeoutPolicy(headroom_is_go=lambda: True, sleep=lambda seconds: None)
-
-    outcome = run_or_ask(
-        policy,
-        timing_out_then([None, None, MEASURED_COMPLEXITY], []),
-        tool_map,
-        "lizard",
-        "complexity",
-        environ={"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
-    )
-
-    assert outcome == {"value": None, "ask": None}
+    assert timeouts_seen == [TOOL_TIMEOUT_SECONDS, TOOL_TIMEOUT_SECONDS]
 
 
 def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_coverage_0_percent_labelled_pessimistic_on_defer(
