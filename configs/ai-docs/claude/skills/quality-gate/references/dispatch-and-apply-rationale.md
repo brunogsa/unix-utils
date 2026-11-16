@@ -30,7 +30,7 @@ This skill sits in `/implement`'s main session for the same reason.
 
 Wrapping it in another subagent would spend one of the three nesting levels on a layer that decides nothing.
 
-## Why every test-sdd finding applies without triage
+## Why every missing-planned-test finding applies without triage
 
 Each names a test the plan declared and the repo lacks, so the human's plan approval already answered whether it is worth doing.
 
