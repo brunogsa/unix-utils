@@ -403,6 +403,9 @@ class TestGitSubcommandAllowlist:
             "echo merge feature | xargs git",
             "GIT_DIR=/Users/brunoagostini/other-repo/.git git status",
             "GIT_EXTERNAL_DIFF=./diff.sh git diff",
+            "git diff\"tool\" -y --extcmd=./diff.sh",
+            "git diff\\tool -y --extcmd=./diff.sh",
+            "git diff$suffix -y --extcmd=./diff.sh",
         ],
         ids=[
             "merge",
@@ -417,6 +420,9 @@ class TestGitSubcommandAllowlist:
             "subcommand-from-xargs",
             "git-dir-env",
             "external-diff-env",
+            "subcommand-spliced-with-quotes",
+            "subcommand-spliced-with-a-backslash",
+            "subcommand-spliced-with-a-variable",
         ],
     )
     def test_should_deny_a_git_call_unless_its_subcommand_never_creates_a_commit(self, tmp_path, command):

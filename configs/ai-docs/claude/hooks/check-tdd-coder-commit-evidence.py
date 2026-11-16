@@ -75,7 +75,10 @@ GIT_TIMEOUT_SECONDS = 3
 # included, is a possible commit, as is any GIT_* variable.
 NO_COMMIT_GIT_SUBCOMMANDS = frozenset({"status", "diff", "log", "show", "restore", "checkout", "worktree"})
 GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
-NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?![\w./-])")
+
+# The name must end its shell word: a quote, backslash or $
+# after it splices on more, so diff"tool" runs difftool.
+NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?=[\s;&|()<>]|$)")
 GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)GIT_\w*=")
 
 # git-commit and git-commit-tree also run as dashed binaries
