@@ -7,7 +7,7 @@
 #     --feature-branch <name> --refactor-branch <name>
 #     [--plan <file> --feature-pr <PR-N>] [--finding-out <file>]
 #
-# stdin: unused
+# stdin: unused.
 #
 # stdout: one JSON object: outcome (moved, kept or conflict),
 #   files, lines, commits, refactor_branch, needs_push,
