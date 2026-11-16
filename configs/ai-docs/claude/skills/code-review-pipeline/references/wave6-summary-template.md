@@ -25,6 +25,9 @@ Dropped findings (one line each, for validation):
 
 Totals: <y> false positives, <z> off-diff dropped.
 
+Resolved (one line per removed over-limit function, local mode with measured metrics):
+  resolved: <function> (<path>), last <metric> <value>
+
 Skipped files (not reviewed):
   binary: <list from work_dir/skipped-binary.txt>
   deleted: <list from work_dir/skipped-deleted.txt>

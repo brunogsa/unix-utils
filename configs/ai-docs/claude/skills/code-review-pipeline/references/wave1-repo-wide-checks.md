@@ -45,6 +45,8 @@ Run `~/.claude/scripts/measure-quality-metrics.py --diff "$(cat "$work_dir/base-
 
 Wave 2's `code-design-clarity` lens reads this file and cites its values.
 
+Wave 6 lists each `resolved` entry on its own line, `resolved: <function> (<path>), last <metric> <value>`, never as a finding or a violation.
+
 ### Tool map
 
 The first check that needs the per-session tool map builds it, and the `code-reviewer` orchestrator running this wave does that itself, since every wave runs inside it and it can dispatch agents.
