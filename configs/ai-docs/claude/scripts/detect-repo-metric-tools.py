@@ -4,6 +4,10 @@
 # Usage:
 #   detect-repo-metric-tools.py --repo PATH --base SHA
 #       --session-id ID [--map-dir DIR] [--rules FILE]
+#       [--defer TOOL]...
+#
+# --defer TOOL records the tool as deferred for this repo and
+# base, so later measure runs skip asking about it.
 #
 # stdin: none.
 # stdout: JSON {"tools": [{"tool", "metric", "config"}],
@@ -22,9 +26,29 @@ from quality_metrics.tool_map import (
     DETECTOR_RULES_PATH,
     LazyToolMap,
     load_detector_rules,
+    record_deferred_tool,
     TOOL_MAP_DIR,
 )
 from quality_metrics.tools import ToolError, run_tool
+
+
+def _detect_and_defer(arguments):
+    """The stored entry, listing any tools just deferred."""
+    rules = load_detector_rules(arguments.rules)
+    base_sha = run_tool(
+        ["git", "-C", arguments.repo, "rev-parse", arguments.base]
+    ).strip()
+    tool_map = LazyToolMap(
+        arguments.repo, base_sha, rules,
+        arguments.session_id, arguments.map_dir,
+    )
+    entry = tool_map.entry()
+    for tool in arguments.defer:
+        record_deferred_tool(
+            arguments.repo, base_sha, tool,
+            arguments.session_id, arguments.map_dir,
+        )
+    return tool_map.entry() if arguments.defer else entry
 
 
 def main():
@@ -34,16 +58,11 @@ def main():
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--map-dir", default=str(TOOL_MAP_DIR))
     parser.add_argument("--rules", default=str(DETECTOR_RULES_PATH))
+    parser.add_argument("--defer", action="append", default=[], metavar="TOOL",
+                        help="tool the user deferred fixing; repeatable")
     arguments = parser.parse_args()
     try:
-        rules = load_detector_rules(arguments.rules)
-        base_sha = run_tool(
-            ["git", "-C", arguments.repo, "rev-parse", arguments.base]
-        ).strip()
-        entry = LazyToolMap(
-            arguments.repo, base_sha, rules,
-            arguments.session_id, arguments.map_dir,
-        ).entry()
+        entry = _detect_and_defer(arguments)
     except ToolError as error:
         print(error, file=sys.stderr)
         return 2
