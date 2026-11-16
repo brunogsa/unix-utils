@@ -33,6 +33,7 @@ from pathlib import Path
 SCRIPTS_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS_DIR))
 declaring = importlib.import_module("quality_metrics.declaration")
+REPO_ROOT = SCRIPTS_DIR.parents[3]
 
 MEASURE_SCRIPT = SCRIPTS_DIR / "measure-quality-metrics.py"
 DEFAULT_DECLARATION = SCRIPTS_DIR / "quality-metrics.yaml"
@@ -168,20 +169,39 @@ def append_text(path, text):
         target.write(text)
 
 
-def main(arguments):
-    parser = argparse.ArgumentParser(description="Time each quality metric and set per_unit.")
-    parser.add_argument("--evidence", metavar="FILE", help="append commands and timings here")
-    parser.add_argument("--dry-run", action="store_true", help="time only, leave the declaration alone")
-    parser.add_argument("--declaration", default=DEFAULT_DECLARATION)
-    options = parser.parse_args(arguments)
-    results = benchmark(Path.cwd())
-    measured = measured_seconds(results)
-    per_unit = select_per_unit(measured)
-    print(f"per_unit: {per_unit}")
+def has_every_sample_file():
+    """True when every sample file exists; the missing ones are printed."""
+    missing = [name for name in SAMPLE_FILES if not (REPO_ROOT / name).is_file()]
+    if missing:
+        print(f"sample files missing under {REPO_ROOT}: {missing}", file=sys.stderr)
+    return not missing
+
+
+def record_results(options, results, per_unit):
+    """Append the evidence and write per_unit, as the options ask."""
     if options.evidence:
         append_text(options.evidence, evidence_section(results, per_unit))
     if not options.dry_run:
         write_per_unit(options.declaration, per_unit)
+
+
+def parse_options(arguments):
+    parser = argparse.ArgumentParser(description="Time each quality metric and set per_unit.")
+    parser.add_argument("--evidence", metavar="FILE", help="append commands and timings here")
+    parser.add_argument("--dry-run", action="store_true", help="time only, leave the declaration alone")
+    parser.add_argument("--declaration", default=DEFAULT_DECLARATION)
+    return parser.parse_args(arguments)
+
+
+def main(arguments):
+    options = parse_options(arguments)
+    if not has_every_sample_file():
+        return EXIT_UNMEASURED
+    results = benchmark(REPO_ROOT)
+    measured = measured_seconds(results)
+    per_unit = select_per_unit(measured)
+    print(f"per_unit: {per_unit}")
+    record_results(options, results, per_unit)
     return EXIT_DONE if len(measured) == len(results) else EXIT_UNMEASURED
 
 

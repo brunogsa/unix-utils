@@ -72,6 +72,21 @@ class TestDeclaredForTiming:
         assert benchmark.metrics_declared_for("size") == ["size"]
 
 
+class TestMainGuards:
+    def test_should_leave_per_unit_unchanged_and_exit_2_when_a_sample_file_is_missing(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        benchmark = load_benchmark()
+        declaration_path = write_declaration(tmp_path)
+        monkeypatch.setattr(benchmark, "SAMPLE_FILES", ("no/such/sample.py",))
+
+        exit_code = benchmark.main(["--declaration", str(declaration_path)])
+
+        assert exit_code == 2
+        assert "per_unit: []" in declaration_path.read_text()
+        assert "no/such/sample.py" in capsys.readouterr().err
+
+
 class TestPerUnitSelection:
     def test_should_keep_a_check_timed_at_exactly_8_0_seconds_in_per_unit(self):
         benchmark = load_benchmark()
