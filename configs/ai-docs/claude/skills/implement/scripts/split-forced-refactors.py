@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts"))
 
@@ -100,7 +101,7 @@ def parse_arguments(argv):
     return arguments
 
 
-def fail_on_bad_plan(message):
+def fail_on_bad_plan(message) -> NoReturn:
     print(f"error: {message}", file=sys.stderr)
     raise SystemExit(2)
 
