@@ -342,7 +342,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] An informational note has no status to close, so unplanned work reaches the PR without anyone approving it.
   - [Example] Bad: a "tests added after the plan" FYI section in a verdict. Good: a `test-sdd` finding listing each added test and its gate, marked Done once reviewed.
 
-- [Instruction] **CRITICAL: Make every gate that measures your own work AI-gaming-proof** -- any outcome you can reach by skipping, softening, or redefining a measurement must score no better than failing it.
+- [Instruction] **CRITICAL: Make every gate that measures your own work AI-gaming-proof** -- never judge, waive or retune it; a skipped, softened, redefined or missing measurement must score no better than failing.
   - [Why] The agent profits from every path around a gate, so any outcome softer than a fail is the path it drifts to.
 
   - [Example] Bad: the coverage tool crashed, so the report says "coverage: not measured". Good: "coverage: 0% (global tool crashed, fix deferred)".
