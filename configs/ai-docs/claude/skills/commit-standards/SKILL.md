@@ -2,7 +2,7 @@
 name: commit-standards
 description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
 user-invocable: false
-instructions-budget: 14
+instructions-budget: 15
 ---
 
 # Commit Standards
@@ -29,10 +29,13 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 
 ### Refactor isolation & hunk-splitting
 
-- [Instruction] Keep a refactor commit to structure only - rename, restructure, extract, with green tests staying green - and land an over-limit metric fix this way, before the behavior change.
+- [Instruction] Keep a refactor commit to structure only - rename, restructure, extract, with green tests staying green.
   - [Why] Bundling behavior in hides it under mechanical noise, so reviewers can't separate substantive diff from cosmetic.
 
   - [Example] A migration (move + update refs + delete) is structure-only - keep it as one isolated refactor commit.
+
+- [Instruction] Land an over-limit metric fix as its own structure-only commit, before the behavior change.
+  - [Why] The fix then reviews as pure structure, and the behavior change lands on code already under the limit.
 
   - [Example] `buildReport` at CRAP 11 against a limit of 8: split it in its own structure-only commit first, then commit the behavior change on top.
 
