@@ -51,7 +51,13 @@ Never compose an ad-hoc `for t in .../test-*.sh` loop instead - that is exactly 
 
 For the same reason, never run `pytest` as a separate manual step again - `./run-tests.py` alone is now the honest answer to "is the repo green."
 
-To iterate on one python test file, call the `pytest` binary (`pytest <path>`), never `python3 -m pytest`: `install.sh` installs pytest into its own pipx venv, so no system interpreter can import it and the module form fails with "No module named pytest".
+To run one file, name it: `./run-tests.py <path>` takes a `test-*.sh` bash suite, a `*.test.js` node suite, or `.py` files (run together as one pytest entry).
+
+It goes through the same headroom gate, PASS/FAIL report, log replay and exit codes (0, 1, 2) as a full run, so use it instead of calling `pytest <path>`, `node --test` or `bash` by hand whenever you want the gate and the report.
+
+A named path that does not exist, or is none of those three kinds, exits 1 with its name on stderr and runs nothing.
+
+When you do call the `pytest` binary directly (`pytest <path>`), never use `python3 -m pytest`: `install.sh` installs pytest into its own pipx venv, so no system interpreter can import it and the module form fails with "No module named pytest".
 
 Before any suite runs, `run-tests.py` calls `configs/ai-docs/claude/scripts/check-machine-headroom.sh` and refuses to start when it isn't GO - a profiled run averages only ~0.47 cores, so this exists to protect a machine that's already busy, not to serialize otherwise-light runs against each other.
 

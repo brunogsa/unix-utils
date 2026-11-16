@@ -3,10 +3,16 @@
 #
 # Usage:
 #   ./run-tests.py
+#   ./run-tests.py <path>...
+#
+# With paths, only the named suites run: a test-*.sh file as
+# a bash suite, a *.test.js file as `node --test <path>`, and
+# .py files together as one pytest entry. The headroom gate,
+# report and log replay are the same as a full run.
 #
 # Exit codes:
 #   0 - every suite passed
-#   1 - at least one suite failed
+#   1 - a suite failed, or a named path is unusable
 #   2 - the headroom gate refused, or is missing; no run
 #
 # Three legs run here: the bash suites, the node:test
