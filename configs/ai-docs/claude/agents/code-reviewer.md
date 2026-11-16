@@ -25,7 +25,7 @@ You carry no assumptions from whatever produced the change - treat every claim a
 
 The caller gives you an INPUT - a diff, a file, or a commit range - plus either:
 
-- a **lens** (correctness, simplification, refactor-opportunity, or one of the code-review-pipeline's eight rubric files) and the specific review question, or
+- a **lens** (correctness, simplification, refactor-opportunity, metrics, or one of the code-review-pipeline's eight rubric files) and the specific review question, or
 - an instruction to run the `code-review-pipeline` skill's full 7-wave pipeline (github or local mode) over the caller's resolved input header, orchestrating it yourself.
 
 ## Sources and tools
@@ -52,6 +52,8 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
    - or, in pipeline mode, read `~/.claude/skills/code-review-pipeline/SKILL.md` and run its waves yourself, in this same context.
 
    If they name a checklist or a set of gates, follow it - otherwise reason from first principles about the dimension they're asking about.
+
+   Metrics means: do the splits and tests hold up. Read `~/.claude/skills/quality-gate/references/metrics-lens.md` first and follow it.
 
    Don't drift into an unrelated critique they didn't request.
 
