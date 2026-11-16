@@ -202,3 +202,12 @@ class TestHotspotLabels:
         svg = (tmp_path / "hotspot.svg").read_text()
         assert "src/[id].tsx" in svg
         assert 'a"b.ts' in svg
+
+
+class TestNoCodeMeasured:
+    def test_should_state_that_no_code_file_was_measured_and_draw_no_hotspot_when_only_prose_files_change(self):
+        verdict = report.build_verdict(measured())
+
+        assert "no code file was measured" in verdict.lower()
+        assert "```mermaid" not in verdict
+        assert "flowchart" not in verdict

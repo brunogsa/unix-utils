@@ -19,6 +19,8 @@ METRIC_TITLES = {
 }
 
 
+NO_CODE_MEASURED = "No code file was measured."
+
 def build_verdict(report, exceptions=(), import_edges=()):
     """Verdict markdown.
 
@@ -84,6 +86,8 @@ def _ranked_sections(measurements, numbers):
 
 
 def _design_section(measurements, import_edges):
+    if not measurements:
+        return f"## Code design\n\n{NO_CODE_MEASURED}"
     view = hotspots.hotspot_view({"measurements": measurements}, import_edges)
     return f"## Code design\n\n{view}"
 
