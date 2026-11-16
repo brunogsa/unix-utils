@@ -237,6 +237,25 @@ def test_should_sum_three_40_line_forced_refactors_to_120_lines_and_move_them(
     assert subjects_between(repo, REFACTOR_BRANCH, FEATURE_BRANCH) == []
 
 
+def test_should_move_6_files_of_60_changed_lines_because_only_the_file_limit_is_exceeded(
+    tmp_path, run_split,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        (
+            "refactor: split six modules",
+            {f"module_{n}.py": 10 for n in range(6)},
+            "metrics",
+        ),
+    ])
+
+    report = run_split(repo, base)
+
+    assert report["outcome"] == "moved"
+    assert report["files"] == 6
+    assert report["lines"] == 60
+    assert len(subjects_between(repo, base, REFACTOR_BRANCH)) == 1
+
+
 def test_should_keep_exactly_5_files_and_100_changed_lines_in_the_feature_pr(
     tmp_path, run_split,
 ):
