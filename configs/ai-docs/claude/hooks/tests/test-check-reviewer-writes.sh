@@ -387,6 +387,21 @@ assert_eq "blocks a write in a command whose quote stays open across a line brea
 assert_eq "blocks a write in a command whose quote is never closed" \
   "2" "$(run_bash "echo x > /tmp/x.txt '")"
 
+# Bash reads a carriage return, vertical tab, form feed or a
+# Unicode space as part of a word, while the hook may end a
+# target word there, so a parent step after one goes unseen.
+odd_blank_writes=($'echo x > /tmp/a\r/../../src/a.py'
+  $'echo x > /tmp/a\v/../../src/a.py'
+  $'echo x > /tmp/a\f/../../src/a.py'
+  $'echo x > /tmp/a\xe3\x80\x80/../../src/a.py' $'echo x >&2\rsrc')
+allowed_odd_blank=""
+for c in "${odd_blank_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_odd_blank="$allowed_odd_blank [$(printf '%q' "$c")]"
+done
+assert_eq "blocks a write in a command holding a blank other than space, tab or newline" \
+  "" "$allowed_odd_blank"
+
 assert_eq "blocks a write in a command holding a heredoc" \
   "2" "$(run_bash $'cat <<EOF > /tmp/x.txt\nhello\nEOF')"
 

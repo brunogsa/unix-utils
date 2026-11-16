@@ -249,11 +249,16 @@ if [ -n "$CMD" ]; then
   #
   # An ANSI-C quote, an UNREADABLE_MARKER spot or a heredoc
   # in a command that writes is denied rather than modelled.
+  #
+  # So is a blank other than space, tab or newline, such as a
+  # carriage return: the target split below may end a word at
+  # it, while bash keeps it inside the word.
+  ODD_BLANK_LINES=$(printf '%s' "$CMD" | tr -d ' \t\n' | grep -c '[[:space:]]')
   if printf '%s' "$CMD" | sed -E "$FD_DUP_SED" \
       | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|g?sed)([[:space:]]|$)' \
     && [[ "$CMD" == *"\$'"* || "$STRIPPED" == *"$UNREADABLE_MARKER"* \
-      || "$STRIPPED" == *'<<'* ]]; then
-    echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote, a substitution inside double quotes, a quote left open at a line break or the end, or a heredoc); write with a plain one-line command instead" >&2
+      || "$STRIPPED" == *'<<'* || "$ODD_BLANK_LINES" != 0 ]]; then
+    echo "Blocked: this reviewer's Bash command writes and holds quoting the hook cannot read safely (an ANSI-C quote, a substitution inside double quotes, a quote left open at a line break or the end, a heredoc, or a blank other than space, tab or newline); write with a plain one-line command instead" >&2
     exit 2
   fi
   TARGETS=$(printf '%s\n' "$STRIPPED" \
