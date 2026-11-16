@@ -186,9 +186,9 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
    - **Then update the PR body**, only when `pr.wanted: true` and §8.1 opened one - via the `pr-creator` dispatch and REST-API path [`batch-end-pr.md`](batch-end-pr.md) owns.
      - The gate commits belong under its **"Unexpected extras"** section.
 
-2. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
+3. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
 
-3. **Finalize the phase.**
+4. **Finalize the phase.**
    - Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
    - It lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
    - The Stop hook releases on this phase; a presented batch is never resumed.
