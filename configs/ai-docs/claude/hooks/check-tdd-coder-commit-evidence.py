@@ -114,8 +114,9 @@ CONFIG_PROGRAM_KEY = re.compile(
 SAMPLE_HOOK_SUFFIX = ".sample"
 
 # core.hooksPath is judged by the hooks it holds, which the
-# hooks dir scan reads; a relative one resolves from a root
-# the scan may not share, so it counts as a program.
+# hooks dir scan reads. A relative, blank-padded or control-
+# character value may name a dir the scan never reads, so it
+# counts as a program.
 HOOKS_PATH_KEY = "core.hookspath"
 
 # The program check reads the payload's cwd, so a git call
@@ -238,9 +239,14 @@ def get_config_entries(cwd: str | None) -> list[tuple[str, str]] | None:
     return entries
 
 
+def has_control_character(value: str) -> bool:
+    return any(ord(character) < 32 or ord(character) == 127 for character in value)
+
+
 def is_program_entry(key: str, value: str) -> bool:
     if key.lower() == HOOKS_PATH_KEY:
-        return not os.path.isabs(value)
+        is_padded = value != value.strip()
+        return is_padded or has_control_character(value) or not os.path.isabs(value)
     return CONFIG_PROGRAM_KEY.fullmatch(key) is not None
 
 
@@ -257,7 +263,10 @@ def runs_configured_program(cwd: str | None) -> bool:
         return True
     elif hooks.returncode != 0:
         return False
-    return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.strip())
+
+    # git ends the path with one newline; any other blank is
+    # part of the path git runs hooks from.
+    return has_active_hook(Path(cwd or Path.cwd()) / hooks.stdout.removesuffix("\n"))
 
 
 def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:

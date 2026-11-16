@@ -661,6 +661,24 @@ class TestHooksPathAndProgramKeys:
         possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
 
 
+class TestHooksPathWhitespace:
+    @pytest.mark.parametrize(
+        ("dir_name", "value_of"),
+        [(" planted-hooks", lambda hooks: f" {hooks}"), ("planted-hooks ", lambda hooks: f"{hooks}")],
+        ids=["leading-space", "trailing-space"],
+    )
+    def test_should_deny_when_a_whitespace_padded_hooks_path_holds_an_active_hook(self, tmp_path, dir_name, value_of):
+        repo = git_repo(tmp_path)
+        hooks = tmp_path / dir_name
+        hooks.mkdir()
+        hook = hooks / "post-index-change"
+        hook.write_text("#!/bin/sh\n./release.sh\n", encoding="utf-8")
+        hook.chmod(0o755)
+        git(repo, "config", "core.hooksPath", value_of(hooks))
+
+        possible_commit_reason(tmp_path, "git status --short", cwd=str(repo))
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
