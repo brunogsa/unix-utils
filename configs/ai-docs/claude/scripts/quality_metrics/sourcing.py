@@ -103,8 +103,9 @@ def lazy_tool_map_for(working_directory, rules, session_id, map_dir, base_ref):
 
     `base_ref` is required: a default of the branch head would let
     a tool configured only on the branch into the map.
-    Returns None outside a git repo. Nothing is detected or written until a metric asks the map for
-    its entry.
+    Returns None outside a git repo.
+    Nothing is detected or written until a metric asks the map
+    for its entry.
     """
     toplevel = run_command(["git", "-C", str(working_directory), "rev-parse", "--show-toplevel"])
     if toplevel.returncode != 0:
