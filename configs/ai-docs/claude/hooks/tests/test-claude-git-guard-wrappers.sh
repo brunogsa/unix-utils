@@ -130,6 +130,21 @@ it_should_block_a_later_git_word_after_a_search_command_when_the_command_changes
   done
 }
 
+# Only a lone grep or rg is surely the search program: any
+# other statement, assignment or wrapper may change what that
+# name runs.
+it_should_block_a_later_git_word_after_a_search_command_that_is_not_the_whole_command() {
+  local cmd
+  for cmd in \
+    'hash -p /bin/sh grep; grep git zz -m x' \
+    'source f; grep git zz' \
+    'BASH_ENV=/tmp/x grep git zz' \
+    'command grep git zz -m x'; do
+    run_hook "$cmd"
+    assert_eq "should block a later git word after a search command that is not the whole command: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
 it_should_block_a_later_git_word_after_rg_when_the_environment_names_an_rg_config() {
   RIPGREP_CONFIG_PATH=/tmp/c run_hook 'rg git zz'
   assert_eq "should block a later git word after rg when the environment names an rg config" "2" "$HOOK_EXIT"
@@ -172,6 +187,7 @@ it_should_block_a_git_alias_set_in_the_environment_or_run_by_an_expandable_word
 it_should_allow_a_later_git_word_read_as_data_by_a_command_that_runs_no_argument
 it_should_block_a_later_git_word_after_grep_when_the_command_redefines_a_name
 it_should_block_a_later_git_word_after_a_search_command_when_the_command_changes_its_lookup
+it_should_block_a_later_git_word_after_a_search_command_that_is_not_the_whole_command
 it_should_block_a_later_git_word_after_rg_when_the_environment_names_an_rg_config
 it_should_block_a_later_git_word_naming_no_git_builtin_after_a_command_that_may_run_it
 it_should_allow_a_wrapper_running_no_git_alias

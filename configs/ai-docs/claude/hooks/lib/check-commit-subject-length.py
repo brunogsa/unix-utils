@@ -108,15 +108,12 @@ RIPGREP = "rg"
 RIPGREP_PREPROCESSOR = "--pre"
 TEXT_READING_COMMANDS = frozenset({"grep", "egrep", "fgrep", RIPGREP})
 
-# A function or alias defined anywhere in the command, under
-# any name, may give a search command's name to a program that
-# runs its arguments.
-COMMAND_DEFINITION_TEXT = re.compile(r"(?<![\w.-])(?:alias|function)(?![\w.-])|\(\s*\)")
-
-# A new PATH may find another program under a search command's
-# name, and an rg config file may set --pre.
+# An rg config file named here may set --pre.
 RIPGREP_CONFIG_ENV = "RIPGREP_CONFIG_PATH"
-COMMAND_LOOKUP_SETTING_TEXT = re.compile(r"(?<![\w.-])(?:PATH|" + RIPGREP_CONFIG_ENV + r")\+?=")
+
+# Any of these, even quoted, may join a second command, which
+# may then give a search command's name to another program.
+COMPOUND_COMMAND_TEXT = re.compile(r"[;&|\n`(){}]")
 
 # git, its global options, then the name it runs, read from
 # the raw text of a command the lexer cannot split.
@@ -863,11 +860,21 @@ def _may_run_commit(stage, is_text_reader_trusted):
     return _names_commit(words) or _may_later_git_run_commit(words)
 
 
-def _is_text_reader_trusted(command):
-    """True when the raw command text neither defines a function
-    or alias nor sets where a search command is found."""
-    is_name_redefined = COMMAND_DEFINITION_TEXT.search(command) is not None
-    return not is_name_redefined and COMMAND_LOOKUP_SETTING_TEXT.search(command) is None
+def _is_lone_search_command(command, stages):
+    """True when the whole command is one simple command whose
+    first word is a search command, as in grep git file.
+
+    Anything else - a second statement, an assignment, a wrapper
+    or a path - may change what that name runs: a function, an
+    alias, hash -p, source, a new PATH or BASH_ENV.
+    """
+    if len(stages) != 1 or COMPOUND_COMMAND_TEXT.search(command):
+        return False
+    words = stages[0][0].words
+    if not words or any(_is_assignment(word) for word in words):
+        return False
+    first = words[0]
+    return not first.is_expandable and first.text in TEXT_READING_COMMANDS
 
 
 def _reads_arguments_as_text(command, words):
@@ -945,7 +952,7 @@ def _read_commit_stages(command, cwd):
     except CannotBeSure:
         return None
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
-    is_text_reader_trusted = _is_text_reader_trusted(command)
+    is_text_reader_trusted = _is_lone_search_command(command, stages)
     commits = []
     for stage, is_piped in stages:
         if _may_run_commit(stage, is_text_reader_trusted):

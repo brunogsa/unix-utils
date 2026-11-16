@@ -164,6 +164,26 @@ def test_should_screen_a_later_git_word_after_a_search_command_when_the_command_
     assert _attribution_verdict(command) == WITHHELD_VERDICT
 
 
+# Only a lone grep or rg is surely the search program: any
+# other statement, assignment or wrapper may change what that
+# name runs.
+@pytest.mark.parametrize(
+    "command",
+    [
+        "hash -p /bin/sh grep; grep git zz -m x",
+        "source f; grep git zz",
+        ". f; grep git zz",
+        "BASH_ENV=/tmp/x grep git zz",
+        "eval x; grep git zz",
+        "read PATH; grep git zz -m x",
+        "printf -v PATH /tmp/e; grep git zz -m x",
+        "command grep git zz -m x",
+    ],
+)
+def test_should_screen_a_later_git_word_after_a_search_command_that_is_not_the_whole_command(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
 def test_should_screen_a_later_git_word_after_rg_when_the_environment_names_an_rg_config():
     environment = {RIPGREP_CONFIG_ENV: "/tmp/c"}
     assert _attribution_verdict("rg git zz", environment) == WITHHELD_VERDICT
