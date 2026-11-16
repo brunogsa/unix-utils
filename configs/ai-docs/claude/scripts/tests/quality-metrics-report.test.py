@@ -175,6 +175,18 @@ class TestDeferredMetrics:
         assert entry_headings(deferred_section) == []
         assert "buildReport" in section(verdict, "Open violations")
 
+    def test_should_mark_a_failed_test_runs_unlabelled_0_percent_coverage_as_pessimistic_in_the_ranking(self):
+        failed_run = {**file_record("src/report.py", "coverage", 0, 80), "pessimistic": True}
+        measured_zero = file_record("src/other.py", "coverage", 0, 80)
+
+        verdict = report.build_verdict(measured(failed_run, measured_zero))
+
+        entries = entry_headings(section(verdict, "Ranked: coverage"))
+        [failed_entry] = [entry for entry in entries if "src/report.py" in entry]
+        [measured_entry] = [entry for entry in entries if "src/other.py" in entry]
+        assert "coverage 0 (pessimistic)" in failed_entry
+        assert "pessimistic" not in measured_entry
+
     def test_should_print_the_deferred_label_on_a_deferred_crap_violation_but_not_on_a_measured_one(self):
         function = FunctionMeasure("buildReport", 4, 30, 26, 12, None, None)
         [deferred] = failures.deferred_crap_measurements(target("src/deferred.py"), [function])
