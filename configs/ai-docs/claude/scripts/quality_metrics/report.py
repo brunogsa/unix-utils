@@ -21,11 +21,25 @@ METRIC_TITLES = {
 
 NO_CODE_MEASURED = "No code file was measured."
 
-def build_verdict(report, exceptions=(), import_edges=()):
+NO_GIT_SKIPPED = (
+    "No git repo encloses the working directory, so the removed-code check "
+    "and the base-ref reads were skipped."
+)
+
+
+def verdict_filename(timestamp, in_git=True):
+    """The verdict's file name; a run outside git is named so a reader sees it."""
+    if in_git:
+        return f"verdict_metrics_{timestamp}.md"
+    return f"verdict_quality-gate_no-git_{timestamp}.md"
+
+
+def build_verdict(report, exceptions=(), import_edges=(), in_git=True):
     """Verdict markdown.
 
     `exceptions` are claims with a saved split diff path;
-    `import_edges` are (importer, imported) file pairs.
+    `import_edges` are (importer, imported) file pairs;
+    `in_git` is False when no git repo encloses the working directory.
     """
     numbers = itertools.count(1)
     claims_by_key = {_key(claim): claim for claim in exceptions}
@@ -43,6 +57,8 @@ def build_verdict(report, exceptions=(), import_edges=()):
         *_ranked_sections(report["measurements"], numbers),
         _design_section(report["measurements"], import_edges),
     ]
+    if not in_git:
+        sections.append(_section("Skipped checks", [NO_GIT_SKIPPED]))
     return "\n\n".join(sections) + "\n"
 
 

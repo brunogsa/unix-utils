@@ -211,3 +211,23 @@ class TestNoCodeMeasured:
         assert "no code file was measured" in verdict.lower()
         assert "```mermaid" not in verdict
         assert "flowchart" not in verdict
+
+
+class TestNoGitVerdict:
+    def test_should_name_the_no_git_verdict_and_state_the_removed_code_check_and_base_ref_reads_were_skipped(self):
+        run = measured(function_record("tool.sh", "main", "crap", 3, CRAP_LIMIT))
+
+        verdict = report.build_verdict(run, in_git=False)
+
+        assert (
+            report.verdict_filename("2026-11-15_22-30", in_git=False)
+            == "verdict_quality-gate_no-git_2026-11-15_22-30.md"
+        )
+        assert (
+            report.verdict_filename("2026-11-15_22-30", in_git=True)
+            == "verdict_metrics_2026-11-15_22-30.md"
+        )
+        skipped = section(verdict, "Skipped")
+        assert "removed-code check" in skipped
+        assert "base-ref" in skipped
+        assert "Skipped" not in report.build_verdict(run)
