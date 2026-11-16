@@ -835,8 +835,19 @@ def _may_run_commit(stage):
         return True
     is_plain_git = index is not None and not words[index].is_expandable and words[index].text == "git"
     if not is_plain_git:
-        return _names_commit(words)
+        return _names_commit(words) or _may_later_git_run_commit(words)
     return _may_git_run_commit(words, index + 1)
+
+
+def _may_later_git_run_commit(words):
+    """True when a git word past the command word may run
+    commit, as stdbuf, doas or any command not known as a
+    wrapper may run the words after it."""
+    for position in range(1, len(words) - 1):
+        word = words[position]
+        if word.text == "git" and not word.is_expandable and _may_git_run_commit(words, position + 1):
+            return True
+    return False
 
 
 def _may_text_run_commit(command):

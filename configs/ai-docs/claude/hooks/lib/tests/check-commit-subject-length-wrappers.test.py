@@ -104,6 +104,21 @@ def test_should_screen_as_a_possible_commit_a_wrapper_whose_options_it_cannot_re
 @pytest.mark.parametrize(
     "command",
     [
+        "stdbuf -oL git ci -m x",
+        "doas git ci -m x",
+        "setsid git ci -m x",
+        "flock /tmp/lock git ci -m x",
+        "ionice -c 3 git ci -m x",
+    ],
+)
+def test_should_screen_a_git_alias_run_by_a_command_not_known_as_a_wrapper(command):
+    assert _attribution_verdict(command) == WITHHELD_VERDICT
+
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
         "sudo ls",
         "time make",
         "xargs grep foo",
