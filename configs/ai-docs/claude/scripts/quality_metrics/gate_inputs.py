@@ -71,12 +71,12 @@ def write_base_ref_declaration(repo_dir, base_ref, declaration_path, directory):
     """The declaration file to measure with.
 
     A declaration the repo commits is copied as `base_ref` committed
-    it, so a branch edit never loosens its own gate. Any other
-    declaration (outside the repo, or new on the branch) is
-    returned as given.
+    it, so a branch edit never loosens its own gate. One outside the
+    repo is copied as the HEAD of its own git repo committed it.
+    A declaration with no committed text (new on the branch, or not
+    under git at all) is returned as given.
     """
-    name = _repo_relative_name(repo_dir, declaration_path)
-    text = None if name is None else _text_at(repo_dir, base_ref, name)
+    _, text, _ = _declaration_texts(repo_dir, base_ref, None, declaration_path)
     if text is None:
         return Path(declaration_path)
     copy_path = Path(directory) / Path(declaration_path).name
@@ -87,9 +87,11 @@ def write_base_ref_declaration(repo_dir, base_ref, declaration_path, directory):
 def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
     """A metric the branch drops from a language is an opt-out; any
     other changed key is a declaration change."""
-    name = None if declaration_path is None else _repo_relative_name(repo_dir, declaration_path)
-    base_text = None if name is None else _text_at(repo_dir, base_ref, name)
-    head_text = None if name is None else _text_at(repo_dir, head_ref, name, repo_dir)
+    if declaration_path is None:
+        return []
+    name, base_text, head_text = _declaration_texts(
+        repo_dir, base_ref, head_ref, declaration_path
+    )
     if base_text is None or head_text is None or base_text == head_text:
         return []
     base, head = parse_yaml(base_text), parse_yaml(head_text)
@@ -110,6 +112,27 @@ def declaration_changes(repo_dir, base_ref, head_ref, declaration_path):
             if field != METRICS_KEY and entry.get(field) != head_entry.get(field):
                 changes.append((DECLARATION_CHANGE_KIND, f"{LANGUAGES_KEY}.{language}.{field}"))
     return [{"kind": kind, "file": name, "value": value} for kind, value in changes]
+
+
+def _declaration_texts(repo_dir, base_ref, head_ref, declaration_path):
+    """The declaration's name, committed text and current text.
+
+    Inside the repo, committed means at `base_ref` and current means
+    at `head_ref`. Outside it, committed means the HEAD of the git
+    repo holding the file and current is the working copy. A text
+    is None when the file has none there.
+    """
+    name = _repo_relative_name(repo_dir, declaration_path)
+    if name is not None:
+        return (
+            name,
+            _text_at(repo_dir, base_ref, name),
+            _text_at(repo_dir, head_ref, name, repo_dir),
+        )
+    resolved = Path(declaration_path).resolve()
+    committed = _text_at(resolved.parent, "HEAD", resolved.name)
+    working_copy = _text_at(resolved.parent, None, resolved.name, resolved.parent)
+    return str(resolved), committed, working_copy
 
 
 def _repo_relative_name(repo_dir, path):

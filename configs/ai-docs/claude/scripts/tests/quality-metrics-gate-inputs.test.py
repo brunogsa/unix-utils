@@ -230,6 +230,26 @@ class TestJestListsWithCharacterClasses:
         ]
 
 
+class TestDeclarationOutsideTheMeasuredRepo:
+    def test_should_list_an_uncommitted_opt_out_in_a_declaration_kept_in_another_repo_and_keep_measuring_with_its_committed_entry(
+        self, tmp_path
+    ):
+        measured_repo = make_repo(tmp_path, {"src/parse.ts": PARSE_SOURCE})
+        (measured_repo / "src/parse.ts").write_text(PARSE_SOURCE + "\n// edited\n")
+        global_dir = tmp_path / "global-config"
+        global_dir.mkdir()
+        global_repo = make_repo(global_dir, {COMMITTED_DECLARATION_NAME: COMMITTED_DECLARATION})
+        declaration = global_repo / COMMITTED_DECLARATION_NAME
+        declaration.write_text(DECLARATION_WITHOUT_TS_SIZE)
+
+        report = measure_report(measured_repo, declaration)
+
+        assert report["gate_input_violations"] == [
+            {"kind": "opt_out", "file": str(declaration.resolve()), "value": "ts.size"}
+        ]
+        assert len(size_records_of(report, "src/parse.ts")) == 1
+
+
 class TestHappyPath:
     def test_should_pass_the_base_ref_config_to_a_repo_tool_through_its_config_flag_as_in_jest_config_tmp_jest_config_js(
         self, tmp_path, monkeypatch
