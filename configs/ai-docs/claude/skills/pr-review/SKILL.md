@@ -27,7 +27,7 @@ The code-review-pipeline expects these inputs:
 - **PR URL:** `<PR_URL>` (from the command argument)
 - **Issue ref:** `<ISSUE_REF>` (only if `--issue` was passed; it replaces the automatic extraction)
 - **Language:** Portuguese (Brazil)
-- **Session id:** your own session id, the last segment of your scratchpad path.
+- **Session id:** the path segment just above `scratchpad` in your scratchpad path; the pipeline's metrics `<session id>` is this one value.
   - Why: the metrics tool map is keyed by the main session's id, and the pipeline's subagent has another.
 
 - **Design sections:** `on` - the Review Guide carries the Arquitetura, Fluxo and Design de testes sections (specified in `code-review-pipeline/references/guide-writer.md`), the parts of a spec or plan a reviewer reads first.
