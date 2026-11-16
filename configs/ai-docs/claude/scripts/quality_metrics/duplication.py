@@ -25,12 +25,13 @@ TEST_METRIC = "test_duplication"
 
 SIMILARITY_LIMIT = 0.82
 
-# jscpd keeps a pair longer than --min-lines, so 3 keeps a pair
-# of 4 or more lines.
+# jscpd flags a block of --min-lines or more identical lines
+# and reports it one line longer: 3 flags 3 identical lines,
+# reported as 4.
 JSCPD_MIN_LINES = "3"
 
 # Tests repeat their arrange steps on purpose, so a test clone
-# is flagged only from 9 lines up: 8 keeps a pair of 9 or more.
+# is flagged only from 8 identical lines up (reported as 9).
 TEST_JSCPD_MIN_LINES = "8"
 
 # --similarity does not read Bash, HTML or CSS, so only exact
