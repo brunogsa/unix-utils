@@ -57,6 +57,15 @@ def _run(verdict):
     )
 
 
+def _assert_nothing_dispatched(verdict, findings):
+    verdict.write_text("## Findings\n\n" + findings, encoding="utf-8")
+
+    completed = _run(verdict)
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == ""
+
+
 class TestTestSddFindingsSentToTddCoder:
     def test_should_keep_the_unplanned_tests_finding_off_the_tdd_coder_dispatch_list_while_a_missing_planned_test_stays_on_it(
         self, tmp_path
@@ -96,17 +105,10 @@ class TestTestSddFindingsSentToTddCoder:
     def test_should_keep_the_unplanned_tests_finding_off_the_dispatch_list_even_when_the_human_marked_it_for_address_verdicts(
         self, tmp_path
     ):
-        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
-        verdict.write_text(
-            "## Findings\n\n"
+        _assert_nothing_dispatched(
+            tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md",
             "### 3. [AI!][LOW] Unplanned tests added by the branch\n",
-            encoding="utf-8",
         )
-
-        completed = _run(verdict)
-
-        assert completed.returncode == 0, completed.stderr
-        assert completed.stdout == ""
 
     def test_should_list_only_the_test_sdd_finding_from_a_merged_verdict_holding_one_finding_per_review_source(
         self, tmp_path
@@ -125,16 +127,11 @@ class TestTestSddFindingsSentToTddCoder:
         self, tmp_path
     ):
         verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_10:00.md"
-        verdict.write_text(
-            "## Findings\n\n"
+
+        _assert_nothing_dispatched(
+            verdict,
             "### 2. [LOW][test-sdd] Unplanned tests added by the branch\n",
-            encoding="utf-8",
         )
-
-        completed = _run(verdict)
-
-        assert completed.returncode == 0, completed.stderr
-        assert completed.stdout == ""
 
     def test_should_list_a_merged_test_sdd_finding_the_human_marked_done_or_marked_for_address_verdicts(
         self, tmp_path
