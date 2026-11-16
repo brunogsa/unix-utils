@@ -221,6 +221,7 @@ def resolved_since(declaration, mode, diff_range, policy=None):
     if not diff_range:
         return []
     base_ref, head_ref = range_ends(diff_range)
+
     # The three-dot range diffs from the merge base, so the
     # base-side text is read there, not at the tip of a base
     # branch that has moved on.
