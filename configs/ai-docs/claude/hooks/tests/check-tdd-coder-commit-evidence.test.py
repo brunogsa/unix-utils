@@ -17,6 +17,7 @@ or a rewording of the entry header fails a test here instead of
 silently disabling the gate.
 """
 
+import importlib.util
 import json
 import os
 import re
@@ -127,7 +128,7 @@ def payload(command, transcript_path, agent_type="tdd-coder", agent_id=AGENT_ID,
     return {key: value for key, value in fields.items() if value is not OMITTED}
 
 
-# The machine's own git aliases must not decide a test.
+# The machine's own git config must not decide a test.
 GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 
 
@@ -365,26 +366,96 @@ class TestFailClosedCommitScreen:
     def test_should_deny_a_command_naming_commit_however_it_is_spelled(self, tmp_path, command):
         possible_commit_reason(tmp_path, command)
 
-    def test_should_deny_a_repo_alias_whose_value_runs_commit(self, tmp_path):
-        repo = git_repo(tmp_path)
-        git(repo, "config", "alias.ci", "commit -v")
-
-        possible_commit_reason(tmp_path, "git ci -m x -- a.py", cwd=str(repo))
-
-    def test_should_let_a_repo_alias_through_when_its_value_runs_no_commit(self, tmp_path):
-        repo = git_repo(tmp_path)
-        git(repo, "config", "alias.st", "status")
-
-        assert check_commit(tmp_path, command="git st --short", cwd=str(repo)) is None
-
-    def test_should_deny_a_git_call_when_its_aliases_cannot_be_read(self, tmp_path):
-        possible_commit_reason(tmp_path, "git st --short", cwd=str(tmp_path / "missing"))
-
     def test_should_tell_a_false_positive_how_to_get_past_the_screen(self, tmp_path):
         reason = possible_commit_reason(tmp_path, "git log --grep commit --oneline")
 
         assert "reword" in reason
         assert "GREEN" in reason
+
+
+def load_hook_module():
+    spec = importlib.util.spec_from_file_location("check_tdd_coder_commit_evidence", HOOK)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def list_git_commands(group):
+    result = subprocess.run(
+        ["git", f"--list-cmds={group}"], check=True, capture_output=True, text=True, env=GIT_ENV
+    )
+    return set(result.stdout.split())
+
+
+class TestGitSubcommandAllowlist:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git merge feature",
+            "git cherry-pick 9ee665c6",
+            "git stash",
+            "git ci -m x -- a.py",
+            "cd /Users/brunoagostini/unix-utils && git ci -m x",
+            "git -C /Users/brunoagostini/other-repo ci -m x",
+            "git --git-dir=/Users/brunoagostini/other-repo/.git ci -m x",
+            "git -c include.path=/tmp/aliases.gitconfig st",
+            "/usr/bin/git merge feature",
+            "echo merge feature | xargs git",
+            "GIT_DIR=/Users/brunoagostini/other-repo/.git git status",
+            "GIT_EXTERNAL_DIFF=./diff.sh git diff",
+        ],
+        ids=[
+            "merge",
+            "cherry-pick",
+            "stash",
+            "alias",
+            "alias-after-cd",
+            "dash-C-other-repo",
+            "git-dir-option",
+            "dash-c-include-path",
+            "absolute-git-path",
+            "subcommand-from-xargs",
+            "git-dir-env",
+            "external-diff-env",
+        ],
+    )
+    def test_should_deny_a_git_call_unless_its_subcommand_never_creates_a_commit(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git diff -- a.py",
+            "git show HEAD:a.py",
+            "git restore a.py",
+            "git checkout -- a.py",
+            "git worktree add ../unix-utils-wt -b tdd-batch",
+            "/usr/bin/git status --short",
+            "cat configs/git/.gitconfig .git/config",
+        ],
+        ids=["diff", "show", "restore", "checkout-path", "worktree-add", "absolute-git-path", "git-named-paths"],
+    )
+    def test_should_let_a_git_call_through_when_its_subcommand_never_creates_a_commit(self, tmp_path, command):
+        assert check_commit(tmp_path, command=command) is None
+
+    def test_should_deny_a_repo_alias_even_when_its_value_runs_no_commit(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "alias.st", "status")
+
+        possible_commit_reason(tmp_path, "git st --short", cwd=str(repo))
+
+    def test_should_allow_only_built_in_subcommands_an_alias_cannot_hide(self):
+        # git ignores an alias that hides a built-in, except a
+        # deprecated one, so no allowed name can be redirected.
+        allowed = load_hook_module().NO_COMMIT_GIT_SUBCOMMANDS
+
+        assert allowed <= list_git_commands("builtins")
+        assert not allowed & list_git_commands("deprecated")
+
+    def test_should_deny_running_a_script_whose_text_runs_another_git_subcommand(self, tmp_path):
+        (tmp_path / "release.sh").write_text("#!/bin/sh\ngit merge feature\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "sh release.sh")
 
 
 class TestScriptFileScreen:

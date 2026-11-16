@@ -8,8 +8,7 @@
 #
 # stdin: the PreToolUse hook payload, as JSON
 # reads: the agent's own JSONL transcript, for the run label,
-#   /tmp/tdd-coder_evidences_<run-label>.txt, and the git
-#   aliases visible from the payload's cwd
+#   and /tmp/tdd-coder_evidences_<run-label>.txt
 #
 # stdout: a PreToolUse deny decision as JSON when a possible
 #   commit lacks that evidence; nothing otherwise
@@ -17,8 +16,8 @@
 #
 # The gated agent is the adversary, so this screens instead of
 # parsing: any call whose raw text names the word commit, runs
-# a git alias whose value does, or runs a script file whose
-# text does, is a possible commit.
+# git with anything but a fixed no-commit subcommand, or runs
+# a script file whose text does either, is a possible commit.
 #
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
@@ -68,8 +67,16 @@ SAFE_AGENT_ID = re.compile(r"[A-Za-z0-9_-]+")
 # A path such as check-tdd-coder-commit-evidence.test.py is
 # not the word, so Verification itself is never screened out.
 COMMIT_WORD = re.compile(r"(?<![\w./-])commit(?:-tree)?(?![\w./-])", re.IGNORECASE)
-GIT_WORD = re.compile(r"\bgit\b")
 GIT_TIMEOUT_SECONDS = 3
+
+# git ignores an alias that hides a built-in, except for a
+# deprecated one, so none of these built-ins can be made to
+# run commit. Any other subcommand or option, an alias
+# included, is a possible commit, as is any GIT_* variable.
+NO_COMMIT_GIT_SUBCOMMANDS = frozenset({"status", "diff", "log", "show", "restore", "checkout", "worktree"})
+GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
+NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?![\w./-])")
+GIT_VARIABLE_ASSIGNMENT = re.compile(r"(?<!\w)GIT_\w*=")
 
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
@@ -102,9 +109,10 @@ NO_SCRIPT = object()
 BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
-    "This hook screens every Bash call: one whose text names the word commit, runs a git alias "
-    "whose value names it, or runs a script not committed unchanged whose text names it, counts as "
-    "a possible commit. If this call is no commit, reword it so it no longer does that; if it is "
+    "This hook screens every Bash call: one whose text names the word commit, runs git with "
+    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, sets a GIT_* variable, "
+    "or runs a script not committed unchanged whose text does any of these, counts as a possible "
+    "commit. If this call is no commit, reword it so it no longer does that; if it is "
     "one, append the GREEN entry first"
 )
 
@@ -140,43 +148,16 @@ def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | N
         return None
 
 
-def get_alias_values(cwd: str | None) -> dict[str, str] | None:
-    # Exit 1 means no alias is set; any other failure leaves
-    # the aliases unknown, which the caller reads as a commit.
-    result = run_git(cwd, "config", "--get-regexp", r"^alias\.")
-    if result is None or result.returncode not in (0, 1):
-        return None
-    pairs = (line.partition(" ") for line in result.stdout.splitlines())
-    return {name.removeprefix("alias."): value for name, _, value in pairs}
+def runs_other_git_subcommand(text: str) -> bool:
+    # A git word followed by anything but blanks and a listed
+    # subcommand - an option, a quote, nothing - may commit.
+    git_ends = (match.end() for match in GIT_WORD.finditer(text))
+    has_other_call = any(NO_COMMIT_GIT_CALL.match(text, end) is None for end in git_ends)
+    return has_other_call or GIT_VARIABLE_ASSIGNMENT.search(text) is not None
 
 
-def get_word_pattern(names: set[str]) -> re.Pattern | None:
-    if not names:
-        return None
-    alternatives = "|".join(sorted(map(re.escape, names)))
-    return re.compile(rf"(?<![\w.-])(?:{alternatives})(?![\w.-])")
-
-
-def get_commit_aliases(values: dict[str, str]) -> set[str]:
-    # An alias may run another alias, so the set grows until
-    # no further alias names one already in it.
-    names: set[str] = set()
-    while True:
-        pattern = get_word_pattern(names)
-        found = {name for name, value in values.items() if COMMIT_WORD.search(value) or (pattern and pattern.search(value))}
-        if found == names:
-            return names
-        names = found
-
-
-def runs_commit_alias(command: str, cwd: str | None) -> bool:
-    if not GIT_WORD.search(command):
-        return False
-    values = get_alias_values(cwd)
-    if values is None:
-        return True
-    pattern = get_word_pattern(get_commit_aliases(values))
-    return pattern is not None and pattern.search(command) is not None
+def names_commit(text: str) -> bool:
+    return COMMIT_WORD.search(text) is not None or runs_other_git_subcommand(text)
 
 
 def is_separator(word: str) -> bool:
@@ -340,7 +321,7 @@ def names_commit_in_script(script: object, cwd: str | None) -> bool:
     # Joining an absolute path keeps it as it is.
     path = (Path(cwd or Path.cwd()) / Path(str(script)).expanduser()).resolve()
     text = "" if is_committed_unchanged(path) else read_script_text(path)
-    return text is None or COMMIT_WORD.search(text) is not None
+    return text is None or names_commit(text)
 
 
 def get_command_words(command: str) -> list[str] | None:
@@ -352,9 +333,9 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
     words = get_command_words(command)
-    if COMMIT_WORD.search(command) or words is None:
+    if names_commit(command) or words is None:
         return True
-    return runs_commit_alias(command, cwd) or any(names_commit_in_script(script, cwd) for script in get_scripts(words))
+    return any(names_commit_in_script(script, cwd) for script in get_scripts(words))
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:

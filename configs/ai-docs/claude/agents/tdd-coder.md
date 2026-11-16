@@ -276,7 +276,9 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
   - It also denies when two labels appear in those writes, or when the evidence file was last written before this run started.
 
   - It screens every Bash call, not only a literal `git commit`, and treats a matching call as a commit until GREEN.
-    - A call matches when it names the word commit, runs a git alias whose value names it, or runs a changed or uncommitted script whose text names it.
+    - A call matches when it names the word commit, or runs git with any option or subcommand outside the hook's no-commit list.
+
+    - It also matches a changed or uncommitted script whose text does either, since the hook reads that script too.
 
     - Before GREEN, reword a call that trips the screen without committing, e.g. use the Read tool rather than `grep commit`.
 
