@@ -80,7 +80,7 @@ class TestExceptions:
         assert f"]({split_diff})" in entry
         assert verdict.index("## Exceptions") < verdict.index("## Open violations")
 
-    def test_should_list_buildreport_as_a_crap_violation_with_no_exception_when_no_split_diff_is_saved(
+    def test_should_list_a_kept_over_limit_function_as_a_violation_when_no_split_diff_file_is_linked(
         self, tmp_path
     ):
         unsaved_diff = tmp_path / "split_buildReport.diff"
