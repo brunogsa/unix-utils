@@ -40,8 +40,8 @@ SIMILARITY_LIMIT = 0.82
 MIN_LINES = 4
 
 # Tests repeat their arrange steps on purpose, so a test
-# duplicate is flagged only from 9 lines up.
-TEST_MIN_LINES = 9
+# duplicate is flagged only from 8 lines up.
+TEST_MIN_LINES = 8
 
 # --similarity does not read Bash, HTML or CSS, so only exact
 # token clones are found there. The 50-token default would hide

@@ -268,9 +268,11 @@ class TestExactClonesInPython:
         [
             pytest.param("src", 4, {"code_duplication"}, id="4 lines in source"),
             pytest.param("src", 3, set(), id="3 lines in source"),
+            pytest.param("tests", 8, {"test_duplication"}, id="8 lines in tests"),
+            pytest.param("tests", 7, set(), id="7 lines in tests"),
         ],
     )
-    def test_should_flag_an_exact_clone_from_4_lines_in_source(
+    def test_should_flag_an_exact_clone_from_4_lines_in_source_and_from_8_lines_in_tests(
         self, tmp_path, folder, line_count, flagged_metrics
     ):
         violations = measure_files(tmp_path, exact_clone_files(folder, line_count))
@@ -297,20 +299,31 @@ class TestDuplicatedTests:
             ("test_duplication", "tests/test_adds_other.py"),
         }
 
-    def test_should_not_flag_two_tests_sharing_only_an_8_line_block(self, tmp_path):
+    @pytest.mark.parametrize(
+        "template, is_flagged",
+        [
+            pytest.param(EIGHT_LINE_TEST, True, id="8 lines"),
+            pytest.param(SEVEN_LINE_TEST, False, id="7 lines"),
+        ],
+    )
+    def test_should_flag_two_similar_tests_of_8_lines_and_pass_two_of_7_lines(
+        self, tmp_path, template, is_flagged
+    ):
         violations = measure_files(
             tmp_path,
             {
-                "tests/test_adds_two.py": EIGHT_LINE_TEST.format(
+                "tests/test_adds_two.py": template.format(
                     name="adds_two", first=2, second=3, total=5
                 ),
-                "tests/test_adds_other.py": EIGHT_LINE_TEST.format(
+                "tests/test_adds_other.py": template.format(
                     name="adds_other", first=7, second=8, total=15
                 ),
             },
         )
 
-        assert violations == []
+        assert {item["metric"] for item in violations} == (
+            {"test_duplication"} if is_flagged else set()
+        )
 
     @pytest.mark.parametrize(
         "folder, prefix, flagged_metrics",
