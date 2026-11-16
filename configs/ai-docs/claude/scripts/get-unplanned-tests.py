@@ -72,7 +72,8 @@ def normalize_title(title):
         title = title[len("test_"):]
     elif re.match(r"Test[A-Z0-9]", title):
         title = CAMEL_BOUNDARY.sub(" ", title[len("Test"):])
-    return " ".join(re.sub(r"[\W_]+", " ", title.lower()).split())
+    without_apostrophes = re.sub(r"['’]", "", title.lower())
+    return " ".join(re.sub(r"[\W_]+", " ", without_apostrophes).split())
 
 
 def read_planned_titles(plan_path):

@@ -100,9 +100,9 @@ def _run(repo, plan, base):
     )
 
 
-def _plan(tmp_path):
+def _plan(tmp_path, body=PLAN_BODY):
     plan = tmp_path / "plan_fixture.md"
-    plan.write_text(PLAN_BODY, encoding="utf-8")
+    plan.write_text(body, encoding="utf-8")
     return plan
 
 
@@ -237,3 +237,37 @@ class TestUnplannedTests:
         assert [row["title"] for row in listed] == [
             "test_should_reject_an_empty_row"
         ]
+
+    def test_should_match_a_planned_title_with_an_apostrophe_to_a_python_name_without_it(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/test_gate.py",
+            "def test_should_name_the_gate_from_the_adding_commits_trailer():\n"
+            "    pass\n",
+        )
+        _commit(repo, "test: gate naming")
+        plan = _plan(
+            tmp_path,
+            """# Plan
+
+## Test Design
+
+```ts
+describe("gate", () => {
+  // Happy cases
+  it("should name the gate from the adding commit's trailer");
+});
+```
+
+## Tasks
+""",
+        )
+
+        listed = _listed(repo, plan, base)
+
+        assert listed == []
