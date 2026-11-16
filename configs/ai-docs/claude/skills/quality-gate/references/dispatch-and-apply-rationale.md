@@ -1,6 +1,6 @@
 # Dispatch and apply rationale
 
-The reasoning behind two routing rules in `SKILL.md`. The rules themselves live there and bind without this file; read this only when someone questions why a leg or the apply step is shaped this way.
+The reasoning behind the routing and assembly rules in `SKILL.md`. The rules themselves live there and bind without this file; read this only when someone questions why a leg, the merge, or the apply step is shaped this way.
 
 ## Why each leg never spawns a nested reviewer
 
@@ -39,3 +39,27 @@ The unplanned-tests finding is one exception: it names tests the branch already 
 `[Done]` on it means the developer reviewed those tests, which only the human can do, so `/address-verdicts` never dispatches or annotates it.
 
 `get-test-sdd-dispatch-list.py` keys on the finding's exact title, so the test-sdd report schema and that script must change together.
+
+## Why the rendered metrics verdict goes first
+
+The rendered file is copied verbatim ahead of every other finding, so an open metrics violation or a rejected exception is the first thing a reader meets, and the PR is never blocked on it.
+
+Its entries are numbered `1` to `k` with no severity tag, because the script owns that numbering and a merge agent renumbering them would break the link between an entry and its split diff.
+
+Every other finding is numbered from `k+1` for the same reason: one run, one numbering, so `/address-verdicts` names a finding by a single number.
+
+## Why main assembles with `cat`
+
+The merge agent writes only `<RUN_DIR>/merged-findings.md`. Main then runs `cat <rendered> <RUN_DIR>/merged-findings.md | write-atomically.py <merged path>`.
+
+That keeps the rendered file byte-identical to what the script wrote, which a model rewriting it could not promise. The atomic write also means a killed run leaves no partial merged verdict in CWD.
+
+The `test-sdd` leg's verdict lands in `<RUN_DIR>` for the same reason: a quality-gate run leaves no `verdict_test-sdd_*` file in CWD, only the one merged verdict.
+
+## Why the merge count is checked as an equality
+
+An upper bound would let dropped findings pass, and the agent's own counts would let it hide one. Main counts the rendered file for `k` and every source itself, then requires the merged count to equal `k` plus the summed findings minus the absorbed.
+
+## Why the merged verdict still exists with no git
+
+With no git repo there is no base to diff against, so only the metrics leg can run, on the files the session edited. The verdict is still written, as `verdict_quality-gate_no-git_<ts>.md`, because stopping would hide a measurable result; the rendered file states which checks it skipped.

@@ -55,75 +55,104 @@ def quality_gate(arg):
     #     (/implement's batch-end tail passes BATCH_BASE_SHA that
     #     way), else resolve-base-ref.sh: origin/HEAD, then local
     #     main, then local master.
-    BASE_REF = arg.base_ref or sh("~/.claude/scripts/resolve-base-ref.sh")
-    if base_ref_detection_failed(BASE_REF):                  # 7 · detection failed?
-        if flag_passed:                                      # 7x · nobody standing by?
-            halt("base ref detection failed")                # 7a · no safe default the way a missing spec has
-            return
-        BASE_REF = ask("which branch to diff against?")      # 7b · ask which branch
+    in_git = inside_git_repo()                               # 6x · a git repo encloses CWD?
+    if not in_git:
+        # 6y · skip base-ref resolution and NEVER stop; only the metrics
+        #      leg runs, and the merged file is named ..._no-git_<ts>.md.
+        BASE_REF = None
+    else:
+        BASE_REF = arg.base_ref or sh("~/.claude/scripts/resolve-base-ref.sh")
+        if base_ref_detection_failed(BASE_REF):              # 7 · detection failed?
+            if flag_passed:                                  # 7x · nobody standing by?
+                halt("base ref detection failed")            # 7a · no safe default the way a missing spec has
+                return
+            BASE_REF = ask("which branch to diff against?")  # 7b · ask which branch
 
-    # ---- 8 · Step 3 - dispatch every leg in the SAME turn. Independent
-    #      report-only passes, no ordering between them. Each leg IS the
-    #      fresh-context reviewer, so none of them spawns a nested one. ----
+    # ---- 8 · Step 3 - mint the run directory FIRST, then dispatch every
+    #      leg in the SAME turn. Independent report-only passes, no ordering
+    #      between them. Each leg IS the fresh-context reviewer, so none of
+    #      them spawns a nested one. ----
+    run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 8i · minted before any dispatch; step 4.1 reuses it
+    # 8j · metrics-tool-inspector (read-only Explore) is dispatched by MAIN,
+    #      only when the per-session tool map has no entry for this repo.
     legs = dispatch_parallel(background=True, legs=[
         ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 8a · leg dispatch
         ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 8b · leg dispatch
-        # 8c · scoped by --tasks, and dispatched ONLY when a plan resolved.
-        ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"verdict_test-sdd_{branch}_{ts}.md"),
-    ] if plans else [...])
+        # 8c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
+        ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
+        # 8m · metrics-lens.md, with run_dir, BASE_REF and HEAD; runs plan-less too.
+        ("code-reviewer", "metrics",     "metrics-lens.md",      f"{run_dir}/verdict_metrics_{ts}.md + metrics-judge_{ts}.md"),
+    ] if in_git else [metrics_leg_only])
     # 8d · hook: check-reviewer-writes. Each leg is told /tmp is writable,
     #      or it skips the $work_dir persistence its compaction-resume needs.
+    # 8k · a leg's tooling ask is raised by MAIN, never the subagent:
+    #      asked unless a flag or a non-cli CLAUDE_CODE_ENTRYPOINT means
+    #      nobody can answer, then deferred (pessimistic / not measured).
+    #      "fix now" resumes the leg only after the fixed tool runs.
 
     for leg in legs:                                         # 9 · Step 4
         if not present_and_non_empty(leg.verdict_path):
             redispatch_once(leg)                             # 9a
             if still_missing(leg):
-                flag(leg)   # 9a · the other legs still stand
+                flag(leg)   # 9a · the other legs still stand; a failed metrics leg reads "not measured"
         # 9a · never report from a capped return message - always from the file
 
-    # ---- 10 · Step 4.1 - merge the refactor and auto-review files into
-    #      ONE verdict. Runs on report-only and auto-solve alike, and over a
-    #      single surviving file too, so the shape and lens tags are uniform. ----
-    sources = [l.verdict_path for l in (refactor_leg, auto_review_leg)
-               if present_and_non_empty(l.verdict_path)]
+    # ---- 10 · Step 4.1 - merge the four legs' files into ONE verdict.
+    #      Runs on report-only and auto-solve alike, and over a single
+    #      surviving file too, so the shape and lens tags are uniform. ----
+    rendered = first(run_dir, "verdict_metrics_*.md")        # copied verbatim and FIRST: entries 1..k, no severity tag
+    sources = [l.verdict_path for l in (refactor_leg, auto_review_leg, test_sdd_leg, judge_file)
+               if present_and_non_empty(l.verdict_path)]     # + run_dir/detector-edits.md when main committed one
     merged = None
-    if not sources:                                          # 10 · either lens produced a file?
-        pass                                                 # 10a · neither did - skip the step
+    if not sources and not rendered:                         # 10 · any leg produced a file?
+        pass                                                 # 10a · none did - skip the step
     else:
-        run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")     # minted once, before the pass/fail branch
-        merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')
+        merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')   # or ..._no-git_<ts>.md
         # 10b · main counts each source's findings itself, fence-aware (awk),
-        #       BEFORE dispatching; the agent's own input counts are never trusted.
+        #       BEFORE dispatching; k = the rendered file's count (0 with none).
+        #       The agent's own input counts are never trusted.
+        k = count_findings_fence_aware(rendered)
         input_counts = {s: count_findings_fence_aware(s) for s in sources}
         # 10b · ONE fresh code-reviewer, foreground, given exactly the source
-        #       paths recorded above (never a glob that could pick up a stale
-        #       file), the merged path and references/merge-review-verdicts.md.
-        #       It merges reports only: never re-reviews, never adds a finding.
-        dispatch_foreground("code-reviewer", sources, merged_path, "merge-review-verdicts.md")
-        if merge_verified(merged_path, sources):             # 10c · main checks, without reading the file
-            # 10c · non-empty, checker exit 0, finding count == main's
-            #       input_counts minus findings absorbed (a group of k
-            #       duplicates absorbs k-1), and an awk gsub count finds no
-            #       heading with != 1 lens tag. Headings are counted
-            #       fence-aware: a finding may quote one in a fence.
-            move(sources, run_dir)                           # 10d · never delete; record moved paths for the report
+        #       paths (never a glob), k, and references/merge-review-verdicts.md.
+        #       It writes ONLY run_dir/merged-findings.md, numbered from k+1.
+        dispatch_foreground("code-reviewer", sources, k, f"{run_dir}/merged-findings.md", "merge-review-verdicts.md")
+        # 10f · main assembles; a killed write leaves no partial verdict.
+        sh(f"cat {rendered} {run_dir}/merged-findings.md | write-atomically.py {merged_path}")
+        if merge_verified(merged_path, sources, k):          # 10c · main checks, without reading the file
+            # 10c · non-empty, checker exit 0 on merged-findings.md alone,
+            #       count == k + summed input_counts minus findings absorbed
+            #       (a group of k duplicates absorbs k-1), and an awk gsub
+            #       count on the WHOLE file finds no heading without exactly
+            #       one of auto-review|refactor|test-sdd|metrics.
+            move(refactor_and_auto_review_files, run_dir)    # 10d · never delete; record moved paths for the report
             merged = merged_path
         else:
-            move(merged_path, run_dir)                       # 10e · fallback: the two source files stay in CWD
+            move(merged_path, run_dir)                       # 10e · fallback: every source file goes back to CWD
             # 10e · as this run's output, and the report says so.
 
     # ---- 11 · Step 5 - assemble the apply list. Compose the whole list
-    #      before invoking or printing anything; the two groups below enter
+    #      before invoking or printing anything; the three groups below enter
     #      on different terms. ----
     apply_list = []
-    if plans and present_and_non_empty(test_sdd_leg.verdict_path):
+    if plans and merged_or_test_sdd_file_has_test_sdd_findings:
         # 11a · Step 5.1 - every finding get-test-sdd-dispatch-list.py
-        #       prints enters unconditionally, on a report-only run exactly
-        #       as on an auto-solve one. No triage runs: the plan already
-        #       declared the test, and the human already approved the plan.
-        #       The script omits the unplanned-tests finding; the report
-        #       step lists that one for the human to mark [Done].
-        apply_list += get_test_sdd_dispatch_list(test_sdd_leg.verdict_path)
+        #       prints (run on the merged file) enters unconditionally, on a
+        #       report-only run exactly as on an auto-solve one. No triage
+        #       runs: the plan already declared the test, and the human
+        #       already approved the plan. The script omits the
+        #       unplanned-tests finding; the report step lists that one for
+        #       the human to mark [Done].
+        apply_list += get_test_sdd_dispatch_list(merged or test_sdd_leg.verdict_path)
+
+    # 11c · Step 5.3 - every entry under the rendered file's "## Open
+    #       violations" (fence-aware awk lists their numbers) plus every
+    #       [metrics] judge finding enters, report-only and auto-solve alike:
+    #       the plan approval already asked for measured quality. Ranked
+    #       lists, exceptions and deferred entries stay out. A violation the
+    #       fix cannot clear, or a rejected exception, stays unmarked, open
+    #       and first - and never blocks the PR.
+    apply_list += open_violations(rendered) + metrics_judge_findings(merged)
 
     if mode == "auto-solve":                                 # 11b · Step 5.2
         # 11b2 · Read the MERGED file IN FULL (the two source files on the
@@ -167,8 +196,12 @@ def quality_gate(arg):
     #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
 
     # 14 · Step 7 - close with a report: every verdict path (the merged
-    #      file, the moved source paths, the fallback if it happened, + any
-    #      leg that failed to produce one), applied findings with SHAs,
+    #      file, the rendered metrics verdict and judge file in run_dir, the
+    #      moved source paths, the fallback if it happened, + any leg that
+    #      failed to produce one - a failed metrics leg reads "metrics: not
+    #      measured (<reason>)", never clean), any deferred tooling ask with
+    #      its "pessimistic" / "not measured" reading, the metrics apply
+    #      outcomes, applied findings with SHAs,
     #      §5.2's not-addressable findings, /address-verdicts' skipped/failed
     #      findings, the never-dispatched unplanned-tests finding for the
     #      human to mark [Done], and - on a report-only run - every refactor and
@@ -193,43 +226,54 @@ flowchart TD
   n5a["5a. Drop the multi-matched kind and say so,<br/>exactly as a zero match resolves.<br/>A prompt here would stall a batch-end caller forever"]
   n5b["5b. Prompt with a numbered list;<br/>the user picks which files feed the run.<br/>§1 already asked, so a human stands by"]:::gate
   n6["6. Step 2 · Resolve BASE_REF from --base-ref when the<br/>caller passed one (/implement's batch-end tail passes<br/>BATCH_BASE_SHA that way), else resolve-base-ref.sh:<br/>origin/HEAD, then local main, then local master"]
+  n6x{"6x. Does a git repo enclose CWD?"}
+  n6y["6y. No git - skip base-ref resolution, NEVER stop.<br/>Only the metrics leg runs; the merged file is<br/>verdict_quality-gate_no-git_&lt;ts&gt;.md"]:::state
   n7{"7. Base ref detection failed<br/>(none of the three found)?"}
   n7x{"7x. Either flag passed on the<br/>command line? (nobody standing by)"}
   n7a(["7a. STOP the run and print what failed -<br/>no safe default the way a missing spec has"])
   n7b["7b. Ask which branch to diff against"]:::gate
 
+  n8i["8i. Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
+  n8j["8j. Main dispatches the read-only metrics-tool-inspector<br/>(Explore) only when the per-session tool map has<br/>no entry for this repo; main double-checks its report<br/>and commits any detector edit"]:::dispatch
+
   subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
     n8a["8a. code-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
     n8b["8b. code-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
-    n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (agent-pinned, background, ∥)<br/>→ verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
+    n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
+    n8m["8m. code-reviewer · follows metrics-lens.md with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
   end
 
   n8d["8d. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook
+  n8k{"8k. Does a leg report a tooling ask?<br/>MAIN raises it, never the subagent"}
+  n8k1["8k1. A flag, or a non-cli CLAUDE_CODE_ENTRYPOINT: nobody can ask.<br/>Defer - CRAP reads pessimistic, tooling deferred;<br/>no-entry language reads not measured: no language entry"]:::gate
+  n8k2["8k2. AskUserQuestion: fix now or defer.<br/>Fix now resumes the leg only after the fixed tool runs;<br/>a failed fix asks again"]:::gate
   n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
   n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
-  subgraph merge["10. Step 4.1 · Merge the refactor and auto-review files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md - on report-only and auto-solve runs alike."]
+  subgraph merge["10. Step 4.1 · Merge the legs' files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md (or ..._no-git_&lt;ts&gt;.md) - on report-only and auto-solve runs alike."]
     direction TB
-    n10{"10. Did the refactor or auto-review<br/>leg produce a file?"}
-    n10a["10a. Neither did - skip the merge"]
-    n10b["10b. Record the resolved source paths; mint the run directory<br/>(mktemp -d /tmp/quality-gate.XXXXXX) and the merged path.<br/>Main counts each source's findings itself (fence-aware awk).<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - and<br/>references/merge-review-verdicts.md. It merges reports only:<br/>never re-reviews, never adds a finding. One surviving file<br/>is still merged, so shape and lens tags stay uniform"]:::dispatch
-    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0, finding count == main's input counts<br/>minus findings absorbed (k duplicates absorb k-1), no heading<br/>with other than one lens tag (counted fence-aware)?"}
-    n10d["10d. Pass - MOVE (never delete) both source files into<br/>the run directory so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
-    n10e["10e. Fail - the two source files stay in CWD as this run's<br/>output; move the failed merged file into the run directory<br/>instead, and say so in the report"]:::gate
+    n10{"10. Did any leg produce a file?"}
+    n10a["10a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: not measured (reason), never clean"]
+    n10b["10b. Record the source paths; k = main's fence-aware<br/>count of the rendered metrics verdict (0 with none).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1"]:::dispatch
+    n10f["10f. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
+    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0 on merged-findings.md alone,<br/>count == k + input counts minus absorbed (k duplicates absorb k-1),<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics (fence-aware)?"}
+    n10d["10d. Pass - MOVE (never delete) the refactor and auto-review<br/>files into RUN_DIR so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
+    n10e["10e. Fail - every source file goes back to CWD as this run's<br/>output; move the failed merged file into RUN_DIR<br/>instead, and say so in the report"]:::gate
     n10 -->|"no"| n10a
-    n10 -->|"yes"| n10b --> n10c
+    n10 -->|"yes"| n10b --> n10f --> n10c
     n10c -->|"yes"| n10d
     n10c -->|"no"| n10e
   end
 
-  subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The two groups below enter on different terms."]
+  subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The three groups below enter on different terms."]
     direction TB
-    n11a["11a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints enters the apply list UNCONDITIONALLY, whenever that<br/>leg was dispatched (a plan resolved) and its verdict file is<br/>non-empty - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
+    n11a["11a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints (run on the merged file) enters the apply list<br/>UNCONDITIONALLY, whenever that leg was dispatched (a plan<br/>resolved) - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
+    n11c["11c. Step 5.3 · Every entry under the rendered file's<br/>Open violations (fence-aware awk lists the numbers) plus every<br/>[metrics] judge finding enters, report-only and auto-solve alike.<br/>Ranked lists, exceptions and deferred entries stay out.<br/>A violation the fix cannot clear, or a rejected exception,<br/>stays unmarked, open and first; nothing blocks the PR"]
     n11b{"11b. Step 5.2 · Mode == auto-solve?"}
     n11b1["11b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
     n11b2["11b2. Auto-solve - read the MERGED file IN FULL (the two source<br/>files on the fallback path), never the legs' return summaries;<br/>sort every finding addressable vs not; print both lists with<br/>reasons BEFORE applying, each finding as<br/>quality-gate#N [lens] (file:lines), or lens#N (...) for<br/>test-sdd and on the fallback path"]
-    n11a --> n11b
+    n11a --> n11c --> n11b
     n11b -->|"report-only"| n11b1
     n11b -->|"auto-solve"| n11b2
   end
@@ -247,7 +291,7 @@ flowchart TD
     n13a --> n13b --> n13c --> n13d --> n13e --> n13f
   end
 
-  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the moved source paths, the fallback if it happened, + any<br/>leg that failed), applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads not measured, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
@@ -259,19 +303,26 @@ flowchart TD
   n5 -->|"yes"| n5x
   n5x -->|"yes"| n5a --> n6
   n5x -->|"no"| n5b --> n6
-  n6 --> n7
-  n7 -->|"no"| n8a
-  n7 -->|"no"| n8b
-  n7 -->|"no"| n8c
+  n6 --> n6x
+  n6x -->|"no"| n6y --> n8i
+  n6x -->|"yes"| n7
+  n7 -->|"no"| n8i
   n7 -->|"yes"| n7x
   n7x -->|"yes"| n7a
-  n7x -->|"no"| n7b
-  n7b --> n8a
-  n7b --> n8b
-  n7b --> n8c
+  n7x -->|"no"| n7b --> n8i
+  n8i --> n8j
+  n8j --> n8a
+  n8j --> n8b
+  n8j --> n8c
+  n8j --> n8m
   n8a -.->|"guards"| n8d
   n8b -.->|"guards"| n8d
   n8c -.->|"guards"| n8d
+  n8m -.->|"guards"| n8d
+  n8m --> n8k
+  n8k -->|"no ask"| n9
+  n8k -->|"ask, nobody can answer"| n8k1 --> n9
+  n8k -->|"ask, a human can"| n8k2 --> n9
   n8a --> n9
   n8b --> n9
   n8c --> n9
