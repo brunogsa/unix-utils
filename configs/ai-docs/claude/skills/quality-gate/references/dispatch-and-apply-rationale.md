@@ -34,7 +34,7 @@ Wrapping it in another subagent would spend one of the three nesting levels on a
 
 Each names a test the plan declared and the repo lacks, so the human's plan approval already answered whether it is worth doing.
 
-The unplanned-tests finding is the one exception: it names tests the branch already added, so nothing is left to write, and the human reviews it instead.
+The unplanned-tests finding is one exception: it names tests the branch already added, so nothing is left to write, and the human reviews it instead.
 
 `[Done]` on it means the developer reviewed those tests, which only the human can do, so `/address-verdicts` never dispatches or annotates it.
 
