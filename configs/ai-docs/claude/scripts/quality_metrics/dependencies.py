@@ -1,19 +1,14 @@
 """Finds the import cycles and layer imports a change introduces.
 
-Each language's imports are read by the tool that knows them:
-dependency-cruiser for JavaScript and TypeScript, import-linter for
-Python, go-arch-lint for Go. The tool runs over the head tree and
-over the base ref's tree, and only a problem the head has and the
-base lacks is flagged. One the repo already had is listed as a
-hotspot, so it never binds the change. A touched file is flagged
-when it sits inside an introduced cycle or is the importer of an
-introduced layer import.
-
-A layer map lists layers from the outermost to the innermost. A
-layer may import itself and any layer after it, never one before it.
-Go has no import cycles to find, so it is checked against a layer
-map only. A Go file whose tool cannot run is scored as a deferred
-violation, never as clean.
+- Each language's tool runs over the head tree and the base
+  ref's tree: dependency-cruiser for JS/TS, import-linter for
+  Python, go-arch-lint for Go.
+- A touched file is flagged when it sits inside an introduced
+  cycle or imports a layer it may not.
+- A layer map lists layers from outermost to innermost; a layer
+  may import itself and any layer after it, never one before it.
+- Go import cycles are compile errors, so Go is checked against
+  a layer map only.
 """
 
 import json
