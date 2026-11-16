@@ -143,7 +143,7 @@ def _ranked_sections(measurements, numbers):
             f"Ranked: {title}",
             [
                 _entry(next(numbers), _describe(record))
-                for record in sorted(records, key=lambda item: -item["value"])
+                for record in sorted(records, key=hotspots.badness, reverse=True)
             ],
         )
         for title, records in sorted(records_by_title.items())

@@ -13,6 +13,8 @@ size = importlib.import_module("quality_metrics.size")
 report = importlib.import_module("quality_metrics.report")
 hotspots = importlib.import_module("quality_metrics.hotspots")
 is_over_limit = importlib.import_module("quality_metrics.functions").is_over_limit
+coverage = importlib.import_module("quality_metrics.coverage")
+Target = importlib.import_module("quality_metrics.touched").Target
 
 CRAP_LIMIT = crap.CRAP_LIMIT
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
@@ -39,6 +41,10 @@ def file_record(file, metric, value, limit):
         "file": file, "function": None, "scope": "file",
         "metric": metric, "value": value, "limit": limit, "line": None,
     }
+
+
+def target(file):
+    return Target(Path(file), "python", None, repo_path=file)
 
 
 def measured(*records):
@@ -262,6 +268,32 @@ class TestHotspotLabels:
         svg = (tmp_path / "hotspot.svg").read_text()
         assert "src/[id].tsx" in svg
         assert 'a"b.ts' in svg
+
+
+class TestCoverageDirection:
+    def test_should_rank_a_failing_20_percent_coverage_above_a_passing_99_percent_one(self):
+        run = measured(
+            coverage.coverage_record(target("src/solid.py"), 99),
+            coverage.coverage_record(target("src/untested.py"), 20),
+        )
+
+        verdict = report.build_verdict(run)
+
+        first, second = entry_headings(section(verdict, "Ranked: coverage"))
+        assert "src/untested.py" in first
+        assert "src/solid.py" in second
+
+    def test_should_draw_a_file_by_its_amber_crap_when_its_coverage_of_95_percent_passes(self):
+        run = measured(
+            coverage.coverage_record(target("src/mixed.py"), 95),
+            crap_record("src/mixed.py", "branchy", 6),
+        )
+
+        view = hotspots.hotspot_view(run, [])
+
+        [(_, label, color)] = NODE_LINE.findall(view)
+        assert color == "amber"
+        assert "crap 75%" in label
 
 
 class TestNoCodeMeasured:

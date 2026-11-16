@@ -5,8 +5,12 @@ that metric's limit. Files one hop away are drawn uncolored,
 since the change did not measure them.
 """
 
+from quality_metrics.functions import is_over_limit
+
 AMBER_PERCENT = 70
 RED_PERCENT = 100
+
+COLOR_SEVERITY = ["green", "amber", "red"]
 
 COLOR_CLASSES = {
     "green": "fill:#c8e6c9,stroke:#2e7d32",
@@ -39,30 +43,51 @@ def hotspot_view(report, import_edges):
     return "\n".join(lines)
 
 
+def badness(record):
+    """Higher is worse; coverage is flagged below its limit, so its scale flips."""
+    if record.get("flagged_below_limit"):
+        return -record["value"]
+    return record["value"]
+
+
 def _colors_by_touched_file(measurements):
-    """Each touched file's (color, label), read from its worst limit ratio."""
+    """Each touched file's (color, label), read from its worst metric."""
     worst_by_file = {}
     for record in measurements:
         worst = worst_by_file.get(record["file"])
-        if worst is None or _ratio(record) > _ratio(worst):
+        if worst is None or _severity(record) > _severity(worst):
             worst_by_file[record["file"]] = record
     return {path: _color_and_label(record) for path, record in worst_by_file.items()}
 
 
-def _ratio(record):
-    return record["value"] / record["limit"] if record["limit"] > 0 else 0
+def _severity(record):
+    """Sort key: the color first, then the badness share of the limit."""
+    return COLOR_SEVERITY.index(_color(record)), _share_of_limit(record)
+
+
+def _share_of_limit(record):
+    return badness(record) / record["limit"] if record["limit"] > 0 else 0
+
+
+def _color(record):
+    if record["limit"] <= 0:
+        return "green"
+    if record.get("flagged_below_limit"):
+        return "red" if is_over_limit(record) else "green"
+    if record["value"] * 100 >= record["limit"] * RED_PERCENT:
+        return "red"
+    if record["value"] * 100 >= record["limit"] * AMBER_PERCENT:
+        return "amber"
+    return "green"
 
 
 def _color_and_label(record):
+    color = _color(record)
     if record["limit"] <= 0:
-        return "green", record["metric"]
+        return color, record["metric"]
+    if record.get("flagged_below_limit"):
+        return color, f"{record['metric']} {record['value']:g}%"
     percent = int(record["value"] * 100 / record["limit"])
-    if record["value"] * 100 >= record["limit"] * RED_PERCENT:
-        color = "red"
-    elif record["value"] * 100 >= record["limit"] * AMBER_PERCENT:
-        color = "amber"
-    else:
-        color = "green"
     return color, f"{record['metric']} {percent}%"
 
 
