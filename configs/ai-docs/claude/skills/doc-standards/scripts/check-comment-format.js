@@ -1491,6 +1491,25 @@ function readUtf8File(file) {
   }
 }
 
+function buildReport({ lang, lines, widthCheckedLines, fullCommentLines, maxChars, maxLines }) {
+  const { sentenceBreaks, bulletSpacing, bulletBlanks } = findSentenceAndBulletViolations(
+    fullCommentLines,
+    lines,
+    lang,
+  );
+  return {
+    lang,
+    lines,
+    fullCommentLines,
+    widthViolations: findWidthViolations(widthCheckedLines, fullCommentLines, lines, maxChars, lang),
+    paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines, lang),
+    codeGaps: findCodeGapViolations(fullCommentLines, lines, lang),
+    sentenceBreaks,
+    bulletSpacing,
+    bulletBlanks,
+  };
+}
+
 function checkFile(file, { maxChars, maxLines, langOverride, changedOnly, fix }) {
   const text = readUtf8File(file);
   const lang = resolveLanguage(file, text, langOverride);
@@ -1502,23 +1521,14 @@ function checkFile(file, { maxChars, maxLines, langOverride, changedOnly, fix })
     lines,
     lineStarts,
   );
-  const { sentenceBreaks, bulletSpacing, bulletBlanks } = findSentenceAndBulletViolations(
-    fullCommentLines,
-    lines,
-    lang,
-  );
-
-  const report = {
+  const report = buildReport({
     lang,
     lines,
+    widthCheckedLines: widthTouchedLines,
     fullCommentLines,
-    widthViolations: findWidthViolations(widthTouchedLines, fullCommentLines, lines, maxChars, lang),
-    paragraphViolations: findParagraphViolations(fullCommentLines, lines, maxLines, lang),
-    codeGaps: findCodeGapViolations(fullCommentLines, lines, lang),
-    sentenceBreaks,
-    bulletSpacing,
-    bulletBlanks,
-  };
+    maxChars,
+    maxLines,
+  });
 
   // Scope is re-derived from the file on disk on every call, so
   // a line an earlier --fix pass just inserted is itself
