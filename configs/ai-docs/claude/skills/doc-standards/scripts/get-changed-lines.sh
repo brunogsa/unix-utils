@@ -5,6 +5,11 @@
 #
 # Usage:
 #   get-changed-lines.sh <file>
+#   DOC_STANDARDS_EDITED_LINES="3 9" get-changed-lines.sh <file>
+#
+# DOC_STANDARDS_EDITED_LINES: space-separated line numbers
+# that replace "every line" for an untracked file only; a
+# tracked file ignores it.
 #
 # Output: one changed line number per line, ascending, unique,
 # to stdout.
@@ -89,6 +94,26 @@ cd "$repo_root"
 
 untracked=$(git ls-files --others --exclude-standard -- "$rel_file" 2>/dev/null || true)
 if [ -n "$untracked" ]; then
+  # why: an untracked file has no baseline, so a caller that
+  # knows which lines it just wrote (the prose-format hook on
+  # an Edit) names them; else one Edit to a long untracked
+  # file reports every pre-existing violation in it.
+  #
+  # Anything but space-separated line numbers is ignored and
+  # every line is printed, so a bad value never hides a line.
+  edited_lines=${DOC_STANDARDS_EDITED_LINES:-}
+  case "$edited_lines" in
+    *[0-9]*)
+      case "$edited_lines" in
+        *[!0-9\ ]*) ;;
+        *)
+          printf '%s\n' "$edited_lines" | tr -s ' ' '\n' | grep -v '^$' | sort -un
+          exit 0
+          ;;
+      esac
+      ;;
+  esac
+
   # `./` prefix, not `--`, guards a dash-leading rel_file - BSD
   # awk (macOS) reads `--` itself as a filename, failing there.
   awk '{ print NR }' "./$rel_file"

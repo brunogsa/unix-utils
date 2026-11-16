@@ -306,6 +306,28 @@ printf 'india written during the merge\n' >> "$repo/new-name.md"
 out=$(cd "$repo" && "$SCRIPT" new-name.md)
 assert_eq "merge of a renaming branch reports only the line written during the merge" "9" "$out"
 
+# --- Case 19: untracked file with an edited-line set from the
+# caller -> only those lines, not every line.
+repo=$(new_repo repo19)
+printf 'one\ntwo\nthree\nfour\n' > "$repo/notes.md"
+out=$(cd "$repo" && DOC_STANDARDS_EDITED_LINES="4 2" "$SCRIPT" notes.md)
+assert_eq "untracked file with an edited-line set reports only those lines, ascending" "$(printf '2\n4')" "$out"
+
+# --- Case 20: a malformed edited-line set is ignored, so an
+# untracked file still reports every line (fail closed).
+out=$(cd "$repo" && DOC_STANDARDS_EDITED_LINES="2;rm" "$SCRIPT" notes.md)
+assert_eq "untracked file with a malformed edited-line set reports every line" "$(printf '1\n2\n3\n4')" "$out"
+
+# --- Case 21: a tracked file ignores the edited-line set and
+# keeps its added-vs-HEAD lines.
+repo=$(new_repo repo21)
+printf 'one\ntwo\n' > "$repo/mod.txt"
+git -C "$repo" add mod.txt
+git -C "$repo" commit -q -m base
+printf 'one\ntwo\nthree\n' > "$repo/mod.txt"
+out=$(cd "$repo" && DOC_STANDARDS_EDITED_LINES="1" "$SCRIPT" mod.txt)
+assert_eq "tracked file ignores the edited-line set and reports its added lines" "3" "$out"
+
 echo
 echo "$pass_count passed, $fail_count failed"
 [ "$fail_count" -eq 0 ]

@@ -387,5 +387,43 @@ esac
 FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 [ -n "$FILE_PATH" ] || exit 0
 
+# LOCATE_EDITED_LINES_PY prints the line numbers an Edit's
+# new_string occupies in the post-edit file, every occurrence,
+# space-separated; nothing when new_string is empty or absent.
+#
+# Every occurrence, even without replace_all: the payload
+# never says which copy the Edit wrote, and a superset only
+# re-reports identical text.
+LOCATE_EDITED_LINES_PY='
+import json, sys
+new = json.load(sys.stdin).get("tool_input", {}).get("new_string")
+if not isinstance(new, str) or not new:
+    sys.exit(0)
+with open(sys.argv[1], encoding="utf-8", errors="surrogateescape", newline="") as f:
+    text = f.read()
+written = new[:-1] if new.endswith("\n") else new
+line_count = written.count("\n") + 1
+lines = set()
+start = text.find(new)
+while start != -1:
+    first = text.count("\n", 0, start) + 1
+    lines.update(range(first, first + line_count))
+    start = text.find(new, start + len(new))
+print(" ".join(str(n) for n in sorted(lines)))
+'
+
+# why: an untracked file has no git baseline, so without the
+# Edit's own lines every pre-existing violation in it gets
+# reported. get-changed-lines.sh applies the set to untracked
+# files only, so a tracked file keeps its git-diff scope.
+#
+# A new_string not found, a python3 failure, or a Write leaves
+# the set unset, which checks the whole untracked file.
+unset DOC_STANDARDS_EDITED_LINES
+if [ "$TOOL_NAME" = "Edit" ] && [ -f "$FILE_PATH" ]; then
+  edited_lines=$(printf '%s' "$INPUT" | python3 -c "$LOCATE_EDITED_LINES_PY" "$FILE_PATH" 2>/dev/null) || edited_lines=""
+  [ -n "$edited_lines" ] && export DOC_STANDARDS_EDITED_LINES="$edited_lines"
+fi
+
 check_file "$FILE_PATH" || exit 2
 exit 0

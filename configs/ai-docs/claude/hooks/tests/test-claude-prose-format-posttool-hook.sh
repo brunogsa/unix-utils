@@ -353,6 +353,97 @@ it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edi
   assert_eq "should print nothing for a committed violation the write did not touch" "" "$HOOK_OUT"
 }
 
+# run_edit_hook - invokes the hook with an Edit payload carrying
+# old_string, new_string and replace_all, the fields the real
+# PostToolUse Edit payload holds. Sets HOOK_EXIT and HOOK_OUT
+# like run_hook.
+run_edit_hook() {
+  local file_path="$1" old_string="$2" new_string="$3" replace_all="$4" stdin_json
+  stdin_json=$(jq -n --arg f "$file_path" --arg o "$old_string" --arg n "$new_string" --argjson r "$replace_all" \
+    '{tool_name: "Edit", tool_input: {file_path: $f, old_string: $o, new_string: $n, replace_all: $r}}')
+  HOOK_OUT=$(printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" 2>&1)
+  HOOK_EXIT=$?
+}
+
+# write_untracked_notes_with_three_long_lines - writes an
+# untracked notes.md holding 3 distinct over-cap prose lines
+# (L3, L5, L7) under a short intro line, then <tail> as the
+# file's last line. Echoes nothing.
+write_untracked_notes_with_three_long_lines() {
+  local file="$1" tail="$2"
+  {
+    printf 'Intro.\n\n'
+    printf '%s\n\n' "$(python3 -c "print('alpha ' * 120)")"
+    printf '%s\n\n' "$(python3 -c "print('bravo ' * 120)")"
+    printf '%s\n\n' "$(python3 -c "print('charlie ' * 120)")"
+    printf '%s\n' "$tail"
+  } > "$file"
+}
+
+it_should_not_report_pre_existing_violations_in_an_untracked_file_after_a_clean_edit() {
+  local dir
+  dir=$(new_repo_fixture)
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" $'Old tail.\n\nA fresh short clean line.'
+  run_edit_hook "$dir/notes.md" "Old tail." $'Old tail.\n\nA fresh short clean line.' false
+  assert_eq "should exit 0 when an Edit to an untracked file wrote only clean lines" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing for over-cap lines of an untracked file the Edit did not write" "" "$HOOK_OUT"
+}
+
+it_should_report_only_the_over_cap_line_an_edit_wrote_to_an_untracked_file() {
+  local dir delta_line
+  dir=$(new_repo_fixture)
+  delta_line=$(python3 -c "print('delta ' * 120)")
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" "$delta_line"
+  run_edit_hook "$dir/notes.md" "Old tail." "$delta_line" false
+  assert_eq "should exit 2 when an Edit wrote an over-cap line to an untracked file" "2" "$HOOK_EXIT"
+  assert_contains "should count only the over-cap line the Edit wrote, not the 3 already there" "notes.md - 1 violation" "$HOOK_OUT"
+  assert_line_number_row_matches "should report the over-cap line the Edit wrote at its own line" "L9" "$HOOK_OUT"
+}
+
+it_should_report_every_over_cap_line_a_replace_all_edit_wrote_to_an_untracked_file() {
+  local dir delta_line
+  dir=$(new_repo_fixture)
+  delta_line=$(python3 -c "print('delta ' * 120)")
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" "$delta_line"
+  printf '\n%s\n' "$delta_line" >> "$dir/notes.md"
+  run_edit_hook "$dir/notes.md" "TODO." "$delta_line" true
+  assert_eq "should exit 2 when a replace_all Edit wrote over-cap lines to an untracked file" "2" "$HOOK_EXIT"
+  assert_contains "should count each occurrence the replace_all Edit wrote, not the 3 already there" "notes.md - 2 violations" "$HOOK_OUT"
+}
+
+it_should_not_report_the_pre_existing_line_right_after_an_edit_that_ends_in_a_newline() {
+  local dir
+  dir=$(new_repo_fixture)
+  {
+    printf 'Intro.\n\nA fresh short clean line.\n\n'
+    printf '%s\n' "$(python3 -c "print('alpha ' * 120)")"
+  } > "$dir/notes.md"
+  run_edit_hook "$dir/notes.md" $'Intro.\n\n' $'Intro.\n\nA fresh short clean line.\n\n' false
+  assert_eq "should exit 0 when the over-cap line only follows the Edit's trailing newline" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing for the untouched line after the Edit's trailing newline" "" "$HOOK_OUT"
+}
+
+# Fail closed: when the Edit's own lines cannot be located,
+# the hook checks the whole untracked file rather than none
+# of it.
+it_should_check_the_whole_untracked_file_when_the_edit_text_is_not_in_it() {
+  local dir
+  dir=$(new_repo_fixture)
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" "Old tail."
+  run_edit_hook "$dir/notes.md" "Old tail." "A line a later write already replaced." false
+  assert_eq "should exit 2 when the Edit's text is no longer in the untracked file" "2" "$HOOK_EXIT"
+  assert_contains "should report all 3 over-cap lines when the Edit's text cannot be located" "notes.md - 3 violations" "$HOOK_OUT"
+}
+
+it_should_check_the_whole_untracked_file_when_the_edit_deleted_text() {
+  local dir
+  dir=$(new_repo_fixture)
+  write_untracked_notes_with_three_long_lines "$dir/notes.md" "Kept tail."
+  run_edit_hook "$dir/notes.md" $'\n\nA deleted line.' "" false
+  assert_eq "should exit 2 when a deletion Edit leaves over-cap lines in the untracked file" "2" "$HOOK_EXIT"
+  assert_contains "should report all 3 over-cap lines when the Edit wrote no text" "notes.md - 3 violations" "$HOOK_OUT"
+}
+
 it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo() {
   local dir
   dir=$(new_plain_dir_fixture)
@@ -988,6 +1079,12 @@ it_should_stay_silent_on_an_unknown_extension
 it_should_report_a_markdown_wall_of_text_outside_a_git_repo
 it_should_report_an_over_width_comment_outside_a_git_repo
 it_should_not_report_pre_existing_violations_inside_a_git_repo_after_a_clean_edit
+it_should_not_report_pre_existing_violations_in_an_untracked_file_after_a_clean_edit
+it_should_report_only_the_over_cap_line_an_edit_wrote_to_an_untracked_file
+it_should_report_every_over_cap_line_a_replace_all_edit_wrote_to_an_untracked_file
+it_should_not_report_the_pre_existing_line_right_after_an_edit_that_ends_in_a_newline
+it_should_check_the_whole_untracked_file_when_the_edit_text_is_not_in_it
+it_should_check_the_whole_untracked_file_when_the_edit_deleted_text
 it_should_fail_open_on_a_non_utf8_file_outside_a_git_repo
 it_should_cap_the_output_over_the_threshold_outside_a_git_repo
 it_should_fail_open_on_a_missing_file
