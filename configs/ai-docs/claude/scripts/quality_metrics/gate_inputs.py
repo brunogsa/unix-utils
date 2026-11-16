@@ -7,10 +7,12 @@ listed as a violation, and the config is read as the base
 ref committed it.
 
 A suppression counts as added when the diff holds more of
-that token on its added lines than on its removed ones, so
-moving or keeping one is silent. A coverage exclude is read
-from the literal lists `coveragePathIgnorePatterns` and
-`collectCoverageFrom` (`!` entries).
+that token on its added lines than on its removed ones, per
+file. Keeping one is silent, but moving one to another
+file counts as added: removals are never pooled.
+A coverage exclude is read from the literal lists
+`coveragePathIgnorePatterns` and `collectCoverageFrom` (`!`
+entries).
 """
 
 import re
