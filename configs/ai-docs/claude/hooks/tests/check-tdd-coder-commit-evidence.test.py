@@ -762,6 +762,43 @@ class TestConfigPlantWithNoGitWord:
         assert check_commit(tmp_path, command=command, cwd=str(repo)) is None
 
 
+class TestEnvironmentWriteBeforeAnyProgram:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "LD_PRELOAD=/tmp/planted.so ./status.sh",
+            "PYTHONPATH=/tmp/planted pytest tests/test_a.py",
+            "export BASH_ENV=/tmp/planted.sh; bash status.sh",
+            "env NODE_OPTIONS=--require=/tmp/planted.js ./status.sh",
+            "declare -x DYLD_INSERT_LIBRARIES=/tmp/planted.dylib; ./status.sh",
+            "set -a; RUBYOPT=-rplanted; ./status.sh",
+            "IFS=_; ./status.sh",
+        ],
+        ids=["prefix", "prefix-before-pytest", "export", "env", "declare-x", "allexport", "ifs"],
+    )
+    def test_should_deny_a_call_that_writes_a_later_program_environment(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(committed_status_script(tmp_path)))
+
+    def test_should_deny_a_plain_assignment_to_an_already_exported_name(self, tmp_path, monkeypatch):
+        monkeypatch.setitem(GIT_ENV, "PERL5OPT", "-w")
+        repo = committed_status_script(tmp_path)
+
+        possible_commit_reason(tmp_path, "PERL5OPT=-Mplanted; ./status.sh", cwd=str(repo))
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            './status.sh > /tmp/v.txt 2>&1; rc=$?; echo "exit: $rc" >> /tmp/v.txt; exit $rc',
+            "TDD_UNEXPORTED_PROBE=1; ./status.sh",
+        ],
+        ids=["verification-exit-code", "unexported-assignment"],
+    )
+    def test_should_let_a_call_through_whose_assignment_reaches_no_program(self, tmp_path, command):
+        repo = committed_status_script(tmp_path)
+
+        assert check_commit(tmp_path, command=command, cwd=str(repo)) is None
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

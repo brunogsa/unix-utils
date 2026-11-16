@@ -22,7 +22,7 @@
 # So is any git call or relative script after a cd, pushd,
 # popd or chdir, any git call in a repo whose git config or
 # hooks run a program of their own, and any call that names a
-# git config path.
+# git config path or exports a variable.
 #
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
@@ -89,10 +89,14 @@ GIT_WORD = re.compile(r"(?<![\w.-])git(?![\w./-])", re.IGNORECASE)
 # after it splices on more, so diff"tool" runs difftool.
 NO_COMMIT_GIT_CALL = re.compile(rf"[ \t]+(?:{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))})(?=[\s;&|()<>]|$)")
 
-# These pick git's config, binary, pager or editor, so any
-# write to one - NAME=, +=, export, read, unset, env -u - is a
+# A name already exported hands any new value to every later
+# program, as GIT_* names do to git and IFS does to the
+# shell's own word splitting.
+#
+# So any write to one - NAME=, +=, read, unset - is a
 # possible commit. Only a $NAME or ${NAME...} read passes.
-GIT_ENVIRONMENT_NAMES = r"GIT_\w*|HOME|XDG_CONFIG_HOME|PATH|PAGER|EDITOR|VISUAL"
+EXPORTED_NAMES = sorted((name for name in os.environ if re.fullmatch(r"[A-Za-z_]\w*", name)), key=len, reverse=True)
+GIT_ENVIRONMENT_NAMES = "|".join([r"GIT_\w*", "IFS", *EXPORTED_NAMES])
 GIT_ENVIRONMENT_READ = re.compile(
     rf"\$(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|\$\{{[#!]?(?:{GIT_ENVIRONMENT_NAMES})(?!\w)(?!:{{0,2}}=)"
 )
@@ -100,6 +104,16 @@ GIT_ENVIRONMENT_READ = re.compile(
 # zsh ties its path array to PATH, so path+=(dir) sets PATH.
 GIT_ENVIRONMENT_NAME = re.compile(
     rf"(?<!\w)(?:{GIT_ENVIRONMENT_NAMES})(?!\w)|(?<![\w.$-])path(?:\[[^\]]*\])?\+?="
+)
+
+# These export a value to every later program, whatever name
+# they write, so a planted LD_PRELOAD or PYTHONPATH reaches a
+# trusted script. zsh ignores case and _ in option names.
+ENVIRONMENT_EXPORTER = re.compile(
+    r"(?<![\w./-])(?:env|export)(?![\w./-])"
+    r"|(?<![\w./-])(?:declare|typeset|local|readonly)[ \t][^;&|\n]*?(?<=[ \t])-\w*x"
+    r"|(?<![\w./-])set[ \t]+-\w*a|allexport",
+    re.IGNORECASE,
 )
 
 # git-commit and git-commit-tree also run as dashed binaries
@@ -172,8 +186,9 @@ BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
-    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, HOME, XDG_CONFIG_HOME, PATH, PAGER, EDITOR or VISUAL "
-    "variable other than in a $NAME or ${NAME} read, "
+    f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, IFS or already "
+    "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
+    "a command, env, export, declare -x, set -a), "
     "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "
     "gitconfig or gitattributes path in any case, glob or splice, runs git in a repo whose git config "
     "or hooks run a program, "
@@ -224,7 +239,8 @@ def runs_other_git_subcommand(text: str) -> bool:
 
 def sets_git_environment(text: str) -> bool:
     unread = GIT_ENVIRONMENT_READ.sub("", text)
-    return GIT_ENVIRONMENT_NAME.search(unread) is not None
+    is_exported = ENVIRONMENT_EXPORTER.search(text.replace("_", "")) is not None
+    return is_exported or GIT_ENVIRONMENT_NAME.search(unread) is not None
 
 
 def names_commit(text: str) -> bool:
@@ -326,8 +342,24 @@ def names_config_path(words: list[str]) -> bool:
     return any(names_config_word(word) for word in words)
 
 
+def has_prefix_assignment(words: list[str]) -> bool:
+    # NAME=value before a command exports it to that command.
+    is_command_start = True
+    has_assignment = False
+    for word in words:
+        if is_command_end(word):
+            is_command_start, has_assignment = True, False
+        elif is_command_start and ASSIGNMENT.match(word):
+            has_assignment = True
+        elif is_command_start:
+            if has_assignment:
+                return True
+            is_command_start = False
+    return False
+
+
 def writes_program_input(words: list[str]) -> bool:
-    return names_config_path(words)
+    return names_config_path(words) or has_prefix_assignment(words)
 
 
 def is_separator(word: str) -> bool:
