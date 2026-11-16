@@ -43,12 +43,8 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Instruction] Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars.
   - [Why] One bar alone doesn't justify indirection; both must rise or inline wins - DRY cuts complexity, not a value itself.
-
-- [Instruction] Readability bar: the helper's name must communicate intent better than the inline form.
-  - [Why] If the inline pattern is already self-evident, a helper name adds indirection without revelation.
-
-- [Instruction] Cognitive-load bar: extraction must shrink the working set the reader holds.
-  - [Why] A 10-line helper hiding a 2-line pattern spreads the same load across two files the reader must chase.
+  - [Example] Readability bar: the helper's name communicates intent better than the inline form - a self-evident inline pattern gains only indirection.
+  - [Example] Cognitive-load bar: extraction shrinks the reader's working set - a 10-line helper hiding a 2-line pattern spreads it across two files.
 
 - [Instruction] A wrapper, including a test helper around the code under test, must add behavior (retry, logging, validation) or tame a counter-intuitive API, never just forward.
   - [Why] Each counter-intuitive-API site is a future bug, so taming it pays off; wrapping `Date.now()` only adds indirection.
