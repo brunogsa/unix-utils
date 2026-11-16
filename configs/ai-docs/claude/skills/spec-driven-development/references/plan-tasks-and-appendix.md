@@ -141,12 +141,14 @@ PR slicing (set by the user on 2026-11-06; replaces the earlier "prefer independ
 - [Instruction] Make a PR depend only on PRs whose code it calls; never chain PRs in sequence for ordering alone.
   - [Why] In the `sf-account-hierarchy` plan, a PDP answer gating PR-2 blocked every PR stacked after it; regrouping cut the longest dependency chain from 8 to 4.
 
-- [Instruction] Put a refactor of 4+ files or 128+ changed lines in its own PR, ahead of the behavior PR; a smaller one stays an isolated commit inside it.
-  - [Why] A large refactor buries the behavior change under review, while a PR for a tiny one costs a review cycle for little gain.
+- [Instruction] Put refactors over 5 files or 100 changed lines in total (insertions plus deletions) in their own PR, ahead of the behavior PR; the rest stay isolated commits inside it.
+  - [Why] A refactor over 100 lines, a quarter of a ~400-line review, buries the behavior change; 5 files is a guess aimed at wide moves and renames, retuned from reports.
 
-  - [Example] Google's small-CL guide puts refactors in a separate CL but lets small cleanups ride along, and calls 100 lines reasonable (https://google.github.io/eng-practices/review/developer/small-cls.html).
+  - [Example] SmartBear's Cisco study: 200-400 lines per review, about 400 at most (https://smartbear.com/learn/code-review/best-practices-for-peer-code-review/).
 
-  - [Example] No code exists at plan time, so estimate the counts from the files and functions the task names.
+  - [Example] Google's "Small CLs": 100 lines is usually reasonable; refactorings get their own CL (https://google.github.io/eng-practices/review/developer/small-cls.html).
+
+  - [Example] No code exists yet, so estimate from the files and functions the task names.
 
 - [Instruction] Treat a task with no code as a gate on the PR whose behavior it guards, never as a member of a PR.
   - [Why] In the `sf-account-hierarchy` plan, prod gates sat on the last PR although they guarded the first ones, so the first PRs reached prod unguarded.
