@@ -15,6 +15,9 @@ __pycache__/
 **/.DS_Store
 .claude
 report_*.md
+# Inferred layer map written to CWD by the quality-gate metrics leg;
+# untracked root files turn the comment-format self-gate red.
+layers_inferred_*.yaml
 # Generated from snapshots/ by usage-audit's build-usage-viewer.py - 330 KB of
 # inlined data that is fully reproducible, so committing it is pure churn.
 configs/ai-docs/claude/skills/usage-audit/usage-history/viewer.html
