@@ -20,7 +20,7 @@ Only when `pr.wanted: true`, because the split needs an open PR to move commits 
 
 Run `scripts/split-forced-refactors.py` (next to this skill's `SKILL.md`) with these flags.
 
-- `--repo` the repo root, `--base` the PR's base branch, `--feature-branch` the unit's branch.
+- `--repo` the repo root, `--base` `origin/<base>` (the PR's base branch) after `git fetch`, since a stale local base recounts already-merged `Gate: metrics` commits, `--feature-branch` the unit's branch.
 
 - `--refactor-branch <feature-branch>-forced-refactor`, so the new branch name traces back to its feature branch.
 
