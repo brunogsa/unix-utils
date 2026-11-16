@@ -181,6 +181,30 @@ class TestDeferredMetrics:
         assert entry_headings(deferred_section) == []
         assert "buildReport" in section(verdict, "Open violations")
 
+    def test_should_print_the_deferred_label_on_a_deferred_crap_violation_but_not_on_a_measured_one(self):
+        function = FunctionMeasure("buildReport", 4, 30, 26, 12, None, None)
+        [deferred] = failures.deferred_crap_measurements(target("src/deferred.py"), [function])
+        run = measured(crap_record("src/measured.py", "mergeRows", CRAP_LIMIT), deferred)
+
+        verdict = report.build_verdict(run)
+
+        entries = entry_headings(section(verdict, "Open violations"))
+        [deferred_entry] = [entry for entry in entries if "buildReport" in entry]
+        [measured_entry] = [entry for entry in entries if "mergeRows" in entry]
+        assert deferred_entry.count(DEFERRED_LABEL) == 1
+        assert DEFERRED_LABEL not in measured_entry
+
+    def test_should_print_the_deferred_label_once_on_a_valueless_deferred_violation(self):
+        function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
+        run = measured(
+            failures.deferred_measurement(target("src/deferred.py"), "crap", CRAP_LIMIT, function)
+        )
+
+        verdict = report.build_verdict(run)
+
+        [entry] = entry_headings(section(verdict, "Ranked: CRAP"))
+        assert entry.count(DEFERRED_LABEL) == 1
+
 
 class TestRankedLists:
     def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):

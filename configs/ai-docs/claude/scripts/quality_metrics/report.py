@@ -185,6 +185,8 @@ def _describe(record):
 def _shown_value(record):
     if record["value"] is None:
         return f"no value ({record['label']})"
+    if record.get("label") == DEFERRED_LABEL:
+        return f"{record['value']:g} ({DEFERRED_LABEL})"
     return f"{record['value']:g}"
 
 
