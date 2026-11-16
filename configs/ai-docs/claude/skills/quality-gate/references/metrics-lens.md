@@ -4,7 +4,7 @@ The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. Yo
 
 You report only. Never edit a source file, the declaration `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
-quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there.
+quality-gate passes you a run directory `<RUN_DIR>`, a `mktemp -d /tmp/quality-gate.XXXXXX` directory. Every file this lens hands back lands there, except the layer map, which section 2 writes to CWD.
 
 ## 1. Run the script
 
