@@ -191,13 +191,14 @@ PHASE GREEN:
 
 PHASE METRICS, after GREEN and before any commit:
 
-- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once per unit, after that unit's code is edited.
-  - Outside git it measures nothing without a file list, so pass the unit's edited files: `--per-unit --files <file>...`.
+- Run `~/.claude/scripts/measure-quality-metrics.py --per-unit` once for the whole batch, after GREEN.
+  - All N units are still uncommitted then, and the run diffs the whole working tree, so one run reports every unit's touched functions.
+  - Outside git it measures nothing without a file list, so pass the batch's edited files: `--per-unit --files <file>...`.
   - `--diff` cannot combine with `--per-unit` or `--files`, so never use it here.
   - Exit 0 is clean, 1 is a violation (the JSON is still valid), 2 means it did not measure: read stderr and never treat it as a pass.
 
-- Hold that unit's commit until every function in the JSON `violations` is fixed, then re-run the check on that unit.
-  - Only functions the unit touched can appear, so never fix an untouched one.
+- Assign each function in the JSON `violations` to the unit whose files hold it, and hold that unit's commit until its violations are fixed, then re-run the check once.
+  - Every function in the JSON belongs to some unit in this batch, so fix it under the unit whose files hold it - never a function outside the batch's diff.
 
 - Claim an exception only when splitting the function reads worse than leaving it whole.
   - Write the split version's diff to CWD through `~/.claude/scripts/write-atomically.py <path>` with the diff on stdin, then restore the unsplit code.
