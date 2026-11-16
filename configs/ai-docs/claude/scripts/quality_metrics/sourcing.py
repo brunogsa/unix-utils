@@ -144,15 +144,28 @@ def measure_function_size_with_repo_tool(target, repo):
     return records
 
 
-def measure_coverage(target, repo, measure_globally, policy=None, base_ref=None):
-    """Changed-line coverage, from the repo's jest or else the global tool.
+def measure_coverage(target, repo, measure_globally, tool_map, policy=None, base_ref=None):
+    """Changed-line coverage, from the repo's own tool or else the global one.
 
-    A repo tool that crashed, timed out twice or wrote no coverage data
+    The repo tool comes from `tool_map`. Only jest has a runner here:
+    another repo tool (pytest-cov) or none sends the measurement to
+    `measure_globally()`. A repo with its own tool is no gap, so only
+    a repo with none is a side-PR candidate.
+
+    A jest that crashed, timed out twice or wrote no coverage data
     falls through to `measure_globally()`, and the repo gap is the side-PR
     candidate. Failing tests are a red build, never a tooling gap: nothing
     falls through. A failure of the global tool propagates as ToolError.
     `policy` is the TimeoutPolicy bounding each jest run.
     """
+    choice = source_for("coverage", tool_map, target.language)
+    if choice["source"].get("tool") != JEST:
+        return {
+            "source": {"kind": "global", "tool": global_tool_for("coverage", target.language)},
+            "exit_class": None, "red_build": False,
+            "measurements": measure_globally(),
+            "side_pr_candidate": choice["side_pr_candidate"],
+        }
     try:
         outcome = _measure_coverage_under_timeout_policy(target, repo, policy or TimeoutPolicy(), base_ref)
     except RepoToolFailure as failure:
@@ -163,7 +176,7 @@ def measure_coverage(target, repo, measure_globally, policy=None, base_ref=None)
                 "side_pr_candidate": None,
             }
         return {
-            "source": {"kind": "global", "tool": COVERAGE_PY},
+            "source": {"kind": "global", "tool": global_tool_for("coverage", target.language)},
             "exit_class": failure.exit_class, "red_build": False,
             "measurements": measure_globally(),
             "side_pr_candidate": f"repo jest {FALL_THROUGH_REASONS[failure.exit_class]}",
@@ -171,7 +184,9 @@ def measure_coverage(target, repo, measure_globally, policy=None, base_ref=None)
     return {**outcome, "source": REPO_COVERAGE_SOURCE, "red_build": False, "side_pr_candidate": None}
 
 
-def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=None, environ=None):
+def measure_coverage_or_ask(
+    target, repo, measure_globally, tool_map, policy=None, environ=None, base_ref=None
+):
     """`measure_coverage` plus an `ask` for a global tool that cannot measure.
 
     A missing or crashing global tool, or a run that passes yet
@@ -182,17 +197,13 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
     When no session can ask (see `session_can_ask`, read from
     `environ`), a failure defers on the spot with no ask.
     """
-    global_tool = COVERAGE_PY
     asks = []
 
     def measure_globally_or_defer():
+        global_tool = global_tool_for("coverage", target.language)
         if global_tool in tool_map.entry()["deferred"]:
             return [deferred_coverage_measurement(target)]
-        try:
-            measurements = measure_globally()
-            failure = None if measurements else f"{global_tool} exited zero but wrote no coverage data"
-        except ToolError as error:
-            measurements, failure = [], str(error)
+        measurements, failure = _global_coverage_or_failure(measure_globally, global_tool)
         if failure is None:
             return measurements
         ask = ask_or_defer(tool_map, global_tool, "coverage", failure, environ)
@@ -201,8 +212,19 @@ def measure_coverage_or_ask(target, repo, measure_globally, tool_map, policy=Non
         asks.append(ask)
         return []
 
-    outcome = measure_coverage(target, repo, measure_globally_or_defer, policy)
+    outcome = measure_coverage(target, repo, measure_globally_or_defer, tool_map, policy, base_ref)
     return {**outcome, "ask": asks[0] if asks else None}
+
+
+def _global_coverage_or_failure(measure_globally, global_tool):
+    """The global tool's measurements and None, or no measurements and why."""
+    try:
+        measurements = measure_globally()
+    except ToolError as error:
+        return [], str(error)
+    if not measurements:
+        return [], f"{global_tool} exited zero but wrote no coverage data"
+    return measurements, None
 
 
 def _measure_coverage_under_timeout_policy(target, repo, policy, base_ref=None):
@@ -258,7 +280,8 @@ def measure_coverage_with_repo_tool(target, repo, timeout_seconds=None, base_ref
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
         hits_by_file = parse_lcov(report.read_text())
-    line_hits = hits_by_file.get(target.repo_path or str(Path(target.path).relative_to(repo)))
+    target_path = Path(repo) / target.path
+    line_hits = hits_by_file.get(target.repo_path or str(target_path.relative_to(repo)))
     return {"exit_class": exit_class, "measurements": [coverage_measurement(target, line_hits)]}
 
 

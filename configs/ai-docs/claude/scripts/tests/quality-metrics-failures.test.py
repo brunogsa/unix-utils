@@ -29,7 +29,7 @@ from quality_metrics.declaration import load_declaration
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.sourcing import measure_coverage_or_ask
-from quality_metrics.tool_map import LazyToolMap, record_deferred_tool
+from quality_metrics.tool_map import DETECTOR_RULES_PATH, LazyToolMap, load_detector_rules, record_deferred_tool
 from quality_metrics.tools import ToolError
 from quality_metrics.touched import Target
 
@@ -55,9 +55,14 @@ def timing_out_then(outcomes, timeouts_seen):
 
 def repo_with_crashing_jest(tmp_path, monkeypatch):
     """A repo whose jest dies on an internal error, and its one JS target."""
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
+    repo = make_repo(tmp_path, {"jest.config.js": "module.exports = {};\n", "src/cart.js": "// covered\n"})
     install_stub_tool(tmp_path, monkeypatch, "jest", JEST_CRASH_STUB)
-    return repo, Target(repo / "src/cart.js", "javascript", None)
+    return repo, Target(repo / "src/cart.js", "js", None)
+
+
+def lazy_tool_map_with_detectors(repo, map_dir):
+    """The repo's tool map under the real detector rules, so a jest config lists jest."""
+    return LazyToolMap(repo, head_of(repo), load_detector_rules(DETECTOR_RULES_PATH), SESSION_ID, map_dir)
 
 
 def test_should_report_the_measured_value_with_no_ask_when_the_retry_after_a_120_second_timeout_succeeds():
@@ -249,7 +254,7 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
 ):
     repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
     base_sha = head_of(repo)
-    tool_map = LazyToolMap(repo, base_sha, [], SESSION_ID, tmp_path)
+    tool_map = lazy_tool_map_with_detectors(repo, tmp_path)
     global_calls = []
 
     def crashing_global_tool():
@@ -259,12 +264,12 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
     first_unit = measure_coverage_or_ask(
         target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
     )
-    record_deferred_tool(repo, base_sha, "coverage.py", SESSION_ID, tmp_path)
+    record_deferred_tool(repo, base_sha, "c8", SESSION_ID, tmp_path)
     later_unit = measure_coverage_or_ask(
         target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
     )
 
-    assert first_unit["ask"]["tool"] == "coverage.py"
+    assert first_unit["ask"]["tool"] == "c8"
     assert first_unit["ask"]["metric"] == "coverage"
     assert "coverage.py crashed" in first_unit["ask"]["reason"]
     assert first_unit["measurements"] == []
@@ -277,7 +282,7 @@ def test_should_emit_an_ask_for_a_missing_or_crashing_global_tool_and_score_cove
 
 def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path, monkeypatch):
     repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
-    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    tool_map = lazy_tool_map_with_detectors(repo, tmp_path)
 
     def global_run_that_passes_and_writes_nothing():
         return []
@@ -286,7 +291,7 @@ def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path,
         target, repo, global_run_that_passes_and_writes_nothing, tool_map, environ=INTERACTIVE_SESSION
     )
 
-    assert outcome["ask"]["tool"] == "coverage.py"
+    assert outcome["ask"]["tool"] == "c8"
     assert outcome["ask"]["metric"] == "coverage"
     assert outcome["ask"]["choices"] == ["fix now", "defer"]
     assert "wrote no coverage data" in outcome["ask"]["reason"]
@@ -296,9 +301,9 @@ def test_should_emit_an_ask_when_a_passing_coverage_run_writes_no_data(tmp_path,
 def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_and_the_global_tool_crashes(
     tmp_path, monkeypatch
 ):
-    repo = make_repo(tmp_path, {"src/cart.js": "// covered\n"})
-    target = Target(repo / "src/cart.js", "javascript", None)
-    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    repo = make_repo(tmp_path, {"jest.config.js": "module.exports = {};\n", "src/cart.js": "// covered\n"})
+    target = Target(repo / "src/cart.js", "js", None)
+    tool_map = lazy_tool_map_with_detectors(repo, tmp_path)
     monkeypatch.setenv("PATH", os.pathsep.join(["/usr/bin", "/bin"]))
 
     def crashing_global_tool():
@@ -308,7 +313,7 @@ def test_should_ask_about_the_global_tool_when_the_repo_jest_is_not_installed_an
         target, repo, crashing_global_tool, tool_map, environ=INTERACTIVE_SESSION
     )
 
-    assert outcome["ask"]["tool"] == "coverage.py"
+    assert outcome["ask"]["tool"] == "c8"
     assert "coverage.py crashed" in outcome["ask"]["reason"]
     assert outcome["side_pr_candidate"] == "repo jest crashed"
 
@@ -317,7 +322,7 @@ def test_should_defer_without_asking_when_the_session_entry_point_is_set_and_is_
     tmp_path, monkeypatch
 ):
     repo, target = repo_with_crashing_jest(tmp_path, monkeypatch)
-    tool_map = LazyToolMap(repo, head_of(repo), [], SESSION_ID, tmp_path)
+    tool_map = lazy_tool_map_with_detectors(repo, tmp_path)
     headless_session = {"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}
 
     def crashing_global_tool():
@@ -331,6 +336,36 @@ def test_should_defer_without_asking_when_the_session_entry_point_is_set_and_is_
     assert [(record["value"], record["pessimistic"], record["label"]) for record in outcome["measurements"]] == [
         (0, True, "pessimistic, tooling deferred")
     ]
+
+
+# Logs its arguments, then writes an empty lcov report.
+JEST_ARGUMENT_LOGGING_STUB = """#!/bin/bash
+for argument in "$@"; do
+  echo "$argument" >> "$ARGS_LOG"
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+done
+: > "$report_dir/lcov.info"
+"""
+
+
+def test_should_read_the_jest_config_of_the_base_ref_when_the_coverage_ask_wrapper_is_given_one(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"jest.config.js": "module.exports = {};\n", "src/cart.js": "// covered\n"})
+    base_ref = head_of(repo)
+    args_log = tmp_path / "args.log"
+    monkeypatch.setenv("ARGS_LOG", str(args_log))
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_ARGUMENT_LOGGING_STUB)
+    target = Target(repo / "src/cart.js", "js", None)
+
+    measure_coverage_or_ask(
+        target, repo, lambda: [], lazy_tool_map_with_detectors(repo, tmp_path),
+        environ=INTERACTIVE_SESSION, base_ref=base_ref,
+    )
+
+    assert "--config" in args_log.read_text().splitlines()
 
 
 def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
