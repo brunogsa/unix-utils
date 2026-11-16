@@ -27,6 +27,15 @@ COMMENT_PATTERNS = {
     "css": re.compile(r"/\*.*?\*/", re.DOTALL),
 }
 
+SCSS_SUFFIX = ".scss"
+
+# SCSS adds `//` line comments. Strings and `url(...)` match
+# first and are kept, so a `//` inside them stays code.
+SCSS_COMMENT_PATTERN = re.compile(
+    r"""("[^"\n]*"|'[^'\n]*'|url\([^)\n]*\))|/\*.*?\*/|//[^\n]*""",
+    re.DOTALL,
+)
+
 # A lizard `--xml` File item holds Nr., NCSS, CCN, Functions;
 # NCSS is the file's non-blank, non-comment line count.
 LIZARD_FILE_NCSS = re.compile(
@@ -60,7 +69,13 @@ def _file_length_measurement(target):
 
 
 def _count_web_lines(target):
-    without_comments = COMMENT_PATTERNS[target.language].sub("", target.path.read_text())
+    text = target.path.read_text()
+    if target.path.suffix == SCSS_SUFFIX:
+        without_comments = SCSS_COMMENT_PATTERN.sub(
+            lambda match: match.group(1) or "", text
+        )
+    else:
+        without_comments = COMMENT_PATTERNS[target.language].sub("", text)
     return sum(1 for line in without_comments.splitlines() if line.strip())
 
 

@@ -221,6 +221,37 @@ class TestSizeLimits:
             "over_limit.html",
         ]
 
+    def test_should_not_count_scss_double_slash_comment_lines_but_keep_slashes_in_urls_and_strings(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"README.txt": "base\n"})
+        scss_text = (
+            "// first comment\n"
+            ".a { color: red; }\n"
+            "// second comment\n"
+            "// third comment\n"
+            ".b { color: blue; } // trailing comment\n"
+            '.c { content: "// not a comment"; }\n'
+            ".d { background: url(http://x/y.png); }\n"
+        )
+        (repo / "styles.scss").write_text(scss_text)
+        (repo / "plain.css").write_text(
+            "// not a comment in css\n.a { color: red; }\n"
+        )
+        declaration_path = write_declaration(tmp_path, ["size"])
+        declaration_path.write_text(
+            declaration_path.read_text().replace("[.css]", "[.css, .scss]")
+        )
+
+        report = measure_report(
+            repo, declaration_path, "--files", "styles.scss", "plain.css"
+        )
+
+        assert {item["file"]: item["value"] for item in report["measurements"]} == {
+            "styles.scss": 4,
+            "plain.css": 2,
+        }
+
 # --- end of size tests ---
 
 
