@@ -347,14 +347,15 @@ def _copy_at(ref, path, directory):
 
 def _measure_target(declaration, mode, target, coverage_run=None,
                     dependency_run=None):
-    """Measure one target; with no `coverage_run`, skip CRAP,
-    coverage and duplication, and with no `dependency_run`, skip
-    dependency direction.
+    """Measure one target; with no `coverage_run`, score CRAP at
+    full coverage and skip coverage and duplication, and with no
+    `dependency_run`, skip dependency direction.
 
     The base-side copy of a resolved function has no test run of
     its own, so scoring it against the working tree's coverage
-    would be wrong. Resolved findings keep only function-scoped
-    items, so a base-side duplication scan would be discarded.
+    would be wrong; CRAP equals complexity there. Resolved
+    findings keep only function-scoped items, so a base-side
+    duplication scan would be discarded.
     """
     measurements = []
     metrics = _metrics_binding(
@@ -381,16 +382,24 @@ def _measure_module(setup, target, module_name, module_metrics):
         DUPLICATION_MODULE: setup.coverage_run,
         DEPENDENCIES_MODULE: setup.dependency_run,
     }
+    if module_name == COVERAGE_MODULE:
+        return _measure_crap_and_coverage(setup, target, module_metrics)
     if module_name in run_needed and run_needed[module_name] is None:
         return []
-    if module_name == COVERAGE_MODULE:
-        return crap_coverage.measure(
-            target, module_metrics, declaration=setup.declaration,
-            coverage_run=setup.coverage_run,
-        )
     if module_name == DEPENDENCIES_MODULE:
         return dependencies.measure(target, module_metrics, setup.dependency_run)
     return _measure_with_module_file(setup, target, module_name, module_metrics)
+
+
+def _measure_crap_and_coverage(setup, target, module_metrics):
+    """With no coverage run (a removed function's base side),
+    CRAP is scored at full coverage."""
+    if setup.coverage_run is None:
+        return crap_coverage.measure_at_full_coverage(target, module_metrics)
+    return crap_coverage.measure(
+        target, module_metrics, declaration=setup.declaration,
+        coverage_run=setup.coverage_run,
+    )
 
 
 def _measure_with_module_file(setup, target, module_name, module_metrics):

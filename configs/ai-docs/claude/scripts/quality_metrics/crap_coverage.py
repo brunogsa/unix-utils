@@ -5,7 +5,7 @@ Both metrics read the same test run, so one module serves them.
 
 from quality_metrics.collection import NO_COVERAGE_DATA
 from quality_metrics.coverage import coverage_measurement
-from quality_metrics.crap import crap_measurements
+from quality_metrics.crap import FULL_COVERAGE, crap_measurements, crap_record, crap_score
 from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.failures import deferred_coverage_measurement, deferred_crap_measurements
 from quality_metrics.functions import touched_functions
@@ -36,6 +36,22 @@ def measure(target, metrics, declaration, coverage_run):
     if result.has_failed_tests:
         return [{**record, "pessimistic": True} for record in records]
     return records
+
+
+def measure_at_full_coverage(target, metrics):
+    """CRAP records scored at full coverage, so CRAP equals
+    complexity.
+
+    A removed function has no test run of its own to read.
+    Only CRAP is scored: changed-line coverage has no meaning
+    for it.
+    """
+    if "crap" not in metrics:
+        return []
+    return [
+        crap_record(target, function, crap_score(function.complexity, FULL_COVERAGE))
+        for function in touched_functions(target)
+    ]
 
 
 def _deferred_records(target, metrics):

@@ -611,6 +611,36 @@ class TestGoCollector:
         )
 
 
+def branchy_function(name, complexity):
+    """A function of the given cyclomatic complexity: one `if`
+    per point above 1."""
+    branches = "".join(f"    if value == {n}:\n        return {n}\n" for n in range(complexity - 1))
+    return f"def {name}(value):\n{branches}    return 0\n"
+
+
+class TestRemovedFunctionScoredAtBase:
+    def test_should_list_a_removed_untested_complexity_30_function_as_resolved_at_crap_30(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {
+            "legacy.py": branchy_function("legacy_parse", 30),
+            "keep.py": "def keep():\n    return 1\n",
+        })
+        base = head_of(repo)
+        (repo / "legacy.py").unlink()
+        commit_all(repo, "drop the legacy parser")
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(DECLARATION_TEXT)
+
+        result = run_measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        report = json.loads(result.stdout)
+        assert [
+            (item["file"], item["function"], item["metric"], item["value"])
+            for item in report["resolved"]
+        ] == [("legacy.py", "legacy_parse", "crap", 30)]
+
+
 class TestWorkingTreeDifferingFromHeadRef:
     def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
         self, tmp_path
