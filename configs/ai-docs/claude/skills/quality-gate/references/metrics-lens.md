@@ -28,7 +28,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
 - `--layers FILE` is the layer map the dependency check reads. Without it only import cycles are checked, so always pass one (section 2).
 
 - Exit 0 is clean.
-  - Exit 1 is a violation: the JSON is still valid and you still render it (section 3).
+  - Exit 1 is a violation, gate-input violation, or open ask: still valid JSON; render it (section 3).
   - Exit 2 means the run did not measure: read stderr, report the failure, and never read it as a pass.
 
 Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `asks`.

@@ -44,7 +44,9 @@ Run `base_rev=$(cat "$work_dir/base-rev.txt") && ~/.claude/scripts/measure-quali
 
 - A function the diff removes is listed under `resolved` with its last score; no limit applies to removed code, so it is never a violation.
 
-- Exit 0 is clean and exit 1 is a violation with valid JSON. On exit 2 or any other failure, write `not-available: <reason>` to `quality-metrics.json`, per "What runs".
+- Exit 0 is clean and exit 1 is a violation or an open ask, with valid JSON.
+
+- On exit 2 or any other failure, write `not-available: <reason>` to `quality-metrics.json`, per "What runs".
 
 Wave 2's `code-design-clarity` lens reads this file and cites its values.
 
