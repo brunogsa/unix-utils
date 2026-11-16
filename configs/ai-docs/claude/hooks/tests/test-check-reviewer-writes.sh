@@ -131,11 +131,118 @@ assert_eq "allows stderr merged into stdout and discarded output" \
 assert_eq "allows a quoted angle bracket that is not a redirect" \
   "0" "$(run_bash 'grep "a > b" src/a.py')"
 
-assert_eq "allows a verdict redirect at the working directory top level" \
-  "0" "$(run_bash 'echo done > /work/repo/verdict_x.md')"
+assert_eq "blocks a verdict redirect in Bash even at the working directory top level" \
+  "2" "$(run_bash 'echo done > /work/repo/verdict_x.md')"
+
+assert_eq "blocks a verdict redirect that follows a cd into a source directory" \
+  "2" "$(run_bash 'cd src && echo x > verdict_a.md')"
+
+assert_eq "blocks an inferred layer map redirect in Bash" \
+  "2" "$(run_bash 'echo x > layers_inferred_a.yaml')"
+
+assert_eq "blocks a clobber redirect into repo source" \
+  "2" "$(run_bash 'echo x >| src/a.py')"
+
+assert_eq "blocks an stdout-and-stderr redirect into repo source" \
+  "2" "$(run_bash 'echo x &> src/a.py')"
+
+assert_eq "blocks an stdout-and-stderr append redirect into repo source" \
+  "2" "$(run_bash 'echo x &>> src/a.py')"
+
+assert_eq "allows a clobber redirect into /tmp" \
+  "0" "$(run_bash 'echo x >| /tmp/a.txt')"
+
+assert_eq "allows an stdout-and-stderr redirect into /tmp" \
+  "0" "$(run_bash 'echo x &> /tmp/a.txt')"
+
+assert_eq "blocks a redirect with no target" \
+  "2" "$(run_bash 'echo x >')"
+
+assert_eq "blocks a redirect whose target is missing before a pipe" \
+  "2" "$(run_bash 'echo x > | cat')"
 
 assert_eq "blocks a verdict redirect in a subdirectory" \
   "2" "$(run_bash 'echo done > .github/verdict_x.md')"
+
+# run_bash_output - like run_bash, but prints the exit code and
+# whether stdout carried any approval output.
+run_bash_output() {
+  local command="$1" output code
+  output=$(jq -n --arg c "/work/repo" --arg m "$command" \
+    '{cwd:$c,tool_name:"Bash",tool_input:{command:$m}}' \
+    | bash "$SCRIPT" 2>/dev/null)
+  code=$?
+  if [ -z "$output" ]; then printf '%s no-output' "$code"; else printf '%s output' "$code"; fi
+}
+
+assert_eq "allows a quoted redirect target with a space under /tmp" \
+  "0" "$(run_bash 'echo x > "/tmp/a b.txt"')"
+
+assert_eq "allows tee into a quoted /tmp path with a space" \
+  "0" "$(run_bash 'cat a | tee "/tmp/x y"')"
+
+assert_eq "blocks a quoted redirect target that is repo source" \
+  "2" "$(run_bash 'echo x > "src/a.py"')"
+
+assert_eq "blocks a quoted /tmp target with a space that hops out of /tmp" \
+  "2" "$(run_bash 'echo x > "/tmp/a b/../../x"')"
+
+assert_eq "passes a quoted angle bracket in grep with no output" \
+  "0 no-output" "$(run_bash_output 'grep "a > b" src/a.py')"
+
+assert_eq "passes a quoted angle bracket in a git log format with no output" \
+  "0 no-output" "$(run_bash_output 'git log --format="%h > x"')"
+
+assert_eq "passes a quoted work_dir variable redirect target with no output" \
+  "0 no-output" "$(run_bash_output 'git diff > "$work_dir/diff.txt"')"
+
+assert_eq "passes an unquoted variable redirect target with no output" \
+  "0 no-output" "$(run_bash_output 'python3 x.py > $RUN_DIR/out.md')"
+
+assert_eq "passes a braced variable redirect target with no output" \
+  "0 no-output" "$(run_bash_output 'echo x > ${RUN_DIR}/x')"
+
+assert_eq "passes a bare quoted variable redirect target with no output" \
+  "0 no-output" "$(run_bash_output 'echo x > "$f"')"
+
+assert_eq "blocks a literal repo source redirect target" \
+  "2" "$(run_bash 'echo x > src/a.py')"
+
+assert_eq "blocks a literal append redirect into README.md" \
+  "2" "$(run_bash 'echo x >> README.md')"
+
+# Every redirect or tee line in the review pipeline's own
+# references must pass the hook, or the pipeline breaks on its
+# first scratch write. Lines are derived by grep at test time:
+# fenced code lines plus inline code spans.
+pipeline_dir="$script_dir/../skills/code-review-pipeline"
+pipeline_files=(
+  "$pipeline_dir/SKILL.md"
+  "$pipeline_dir/references/wave1-context-prep.md"
+  "$pipeline_dir/references/wave2-fan-out.md"
+  "$pipeline_dir/references/wave5-emit-github.md"
+  "$pipeline_dir/references/wave1-repo-wide-checks.md"
+)
+redirect_line_regex='(^|[[:space:]0-9])>>?[[:space:]]*["$]|(^|[|;&[:space:]])tee[[:space:]]'
+pipeline_lines=$(for f in "${pipeline_files[@]}"; do
+  awk '/^[[:space:]]*```/{inside=!inside; next} inside' "$f"
+  grep -o '`[^`]*`' "$f" | tr -d '`'
+done | grep -E "$redirect_line_regex" | sed -E 's/<[a-z_ -]+>//g')
+
+line_count=0
+denied_lines=""
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+  line_count=$((line_count + 1))
+  [ "$(run_bash "$line")" = "0" ] || denied_lines="$denied_lines
+$line"
+done <<< "$pipeline_lines"
+
+assert_eq "denies none of the review pipeline's own redirect and tee lines" \
+  "" "$denied_lines"
+
+assert_eq "finds at least 10 redirect or tee lines in the pipeline references" \
+  "yes" "$([ "$line_count" -ge 10 ] && echo yes || echo "no ($line_count)")"
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]

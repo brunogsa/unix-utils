@@ -5,6 +5,9 @@
 # spec-reviewer, plan-reviewer, test-reviewer,
 # performance-check-auditor.
 #
+# It screens Write/Edit paths and Bash write forms (a `>`,
+# `>>`, `>|`, `&>` or `&>>` redirect, `tee`, `sed -i`).
+#
 # Each is a read-only judge.
 #
 # Its write affordances are exactly two:
@@ -94,33 +97,82 @@ allowed_write_reason() {
 # A Bash command is checked for the write forms it can use to
 # reach repo source: a `>`/`>>` redirect, `tee`, and `sed -i`.
 #
-# The same allowed targets apply as for Write/Edit, plus
-# /dev/null. A command with none of those forms (git diff,
-# grep, a metrics script) passes with no approval output, so
-# the normal permission flow still decides it.
+# The allowed targets are /dev/null and scratch under /tmp.
+# A command with none of those forms (git diff, grep, a
+# metrics script) passes with no approval output, so the
+# normal permission flow still decides it.
 #
 # Known gap: a write hidden inside `bash -c`, a script, an
 # interpreter (`python3 -c`) or `cp`/`mv` is not parsed - the
 # guard is best-effort, not a sandbox.
+#
+# Known gap: a target that starts with a shell variable
+# (`$work_dir/x`) cannot be resolved statically. It passes
+# with no output.
+#
+# The Bash branch never auto-approves, so that target falls
+# back to the normal permission flow, not to an allow.
 CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+
+# Bash writes are narrower than Write/Edit: a verdict file is
+# written with the Write tool, and a Bash redirect into one
+# lands wherever a prior `cd` left the shell.
+bash_target_allowed() {
+  local path="$1"
+  [[ "$path" == /dev/null ]] && return 0
+  [[ "$path" != *..* && ( "$path" == /tmp/* || "$path" == /private/tmp/* ) ]]
+}
+
+# Matches a redirect operator or `tee` plus its flags, right
+# before a quote. Only that quote is a write target.
+REDIRECT_PREFIX='((&>>?|>>?\|?)[[:space:]]*|tee[[:space:]]+(-[A-Za-z]+[[:space:]]+)*)'
+SPACE_PLACEHOLDER=$'\001'
+
+# Prints the command with each quoted redirect/tee target
+# unquoted and its spaces swapped for SPACE_PLACEHOLDER, so
+# `> "/tmp/a b.txt"` is judged as one path.
+unquote_write_targets() {
+  local text="$1" quote="$2"
+  printf '%s' "$text" | sed -E -e ':a' \
+    -e "s/(${REDIRECT_PREFIX}${quote}[^${quote} ]*) ([^${quote}]*${quote})/\1${SPACE_PLACEHOLDER}\5/" \
+    -e 'ta' \
+    -e "s/${REDIRECT_PREFIX}${quote}([^${quote}]*)${quote}/\1\4/g"
+}
+
 if [ -n "$CMD" ]; then
-  # Quoted text is replaced by a placeholder, so `grep "a > b"`
-  # is not read as a redirect while `> "src/a.py"` still leaves
-  # a target no allow rule accepts.
-  STRIPPED=$(printf '%s' "$CMD" | sed -E "s/\"[^\"]*\"/Q/g; s/'[^']*'/Q/g; s/[0-9]*>&[0-9-]+//g")
+  # Quoted write targets are unquoted first. Any other quoted
+  # text is replaced by a placeholder, so `grep "a > b"` is not
+  # read as a redirect while a target that is not a literal
+  # allowed path is still denied.
+  UNQUOTED=$(unquote_write_targets "$(unquote_write_targets "$CMD" '"')" "'")
+  STRIPPED=$(printf '%s' "$UNQUOTED" | sed -E "s/\"[^\"]*\"/Q/g; s/'[^']*'/Q/g; s/[0-9]*>&[0-9-]+//g")
   TARGETS=$(printf '%s\n' "$STRIPPED" \
-    | grep -oE '>>?[[:space:]]*[^[:space:]<>|;&]*' | sed -E 's/^>>?[[:space:]]*//')
+    | grep -oE '(&>>?|>>?\|?)[[:space:]]*[^[:space:]<>|;&)]*' \
+    | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')
   TEE_ARGS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(^|[|;&[:space:]])tee[[:space:]]+[^|;&]*' \
     | sed -E 's/^[|;&[:space:]]*tee[[:space:]]+//' | tr ' ' '\n' | grep -v '^-')
+  # Each redirect target carries a `T:` prefix, so a redirect
+  # with no target is denied, not skipped as a blank line.
+  # A target rooted at a shell variable cannot be resolved and
+  # is left to the normal permission flow (Known gap).
   while IFS= read -r target; do
     [ -z "$target" ] && continue
-    [ "$target" = /dev/null ] && continue
-    [ -n "$(allowed_write_reason "$target")" ] && continue
-    echo "Blocked: this reviewer's Bash may write only to verdict_*.md, verdict_*.html, layers_inferred_*.yaml in the working directory, or scratch under /tmp (attempted: $target)" >&2
+    target=${target#T:}
+    target=${target//$SPACE_PLACEHOLDER/ }
+    [[ "$target" =~ ^\$[A-Za-z_{] ]] && continue
+    bash_target_allowed "$target" && continue
+    echo "Blocked: this reviewer's Bash may write only to /dev/null or scratch under /tmp (attempted: ${target:-<empty target>})" >&2
     exit 2
-  done <<< "$TARGETS
-$TEE_ARGS"
+  done <<< "$TARGETS"
+  while IFS= read -r target; do
+    [ -z "$target" ] && continue
+    target=${target//$SPACE_PLACEHOLDER/ }
+    [[ "$target" =~ ^\$[A-Za-z_{] ]] && continue
+    bash_target_allowed "$target" && continue
+    echo "Blocked: this reviewer's Bash may write only to /dev/null or scratch under /tmp (attempted: $target)" >&2
+    exit 2
+  done <<< "$TEE_ARGS"
   if printf '%s' "$STRIPPED" | grep -qE '(^|[^A-Za-z0-9_-])g?sed[[:space:]]([^|;&]*[[:space:]])?(-[A-Za-z]*i|--in-place)'; then
     echo "Blocked: this reviewer may not edit files in place with sed -i" >&2
     exit 2
