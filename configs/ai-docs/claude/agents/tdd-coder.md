@@ -275,6 +275,11 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
   - It also denies when two labels appear in those writes, or when the evidence file was last written before this run started.
 
+  - It screens every Bash call, not only a literal `git commit`, and treats a matching call as a commit until GREEN.
+    - A call matches when it names the word commit, runs a git alias whose value names it, or runs a changed or uncommitted script whose text names it.
+
+    - Before GREEN, reword a call that trips the screen without committing, e.g. use the Read tool rather than `grep commit`.
+
 - On the cap-exhausted path, append one GREEN entry before committing, naming the units it covers and quoting their targeted runs' command, exit code, and output tail.
   - That entry is what unlocks the commits of the units that earned them; list it under Deviations.
 

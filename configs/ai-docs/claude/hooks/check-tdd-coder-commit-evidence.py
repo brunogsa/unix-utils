@@ -16,12 +16,19 @@
 # exit: always 0; stdin that is not a JSON object fails open
 #
 # The gated agent is the adversary, so this screens instead of
-# parsing: any call whose raw text names the word commit, or
-# runs a git alias whose value does, is a possible commit.
+# parsing: any call whose raw text names the word commit, runs
+# a git alias whose value does, or runs a script file whose
+# text does, is a possible commit.
+#
+# A script committed and unchanged since is trusted, so
+# tdd-coder's own preflight scripts never count.
 #
 # Known limits: a name built at run time - concatenated
 # strings, base64, an env var holding "commit" - passes the
-# screen. The real check stays with the caller, who re-runs
+# screen, as does a script another script runs, or one read
+# in through $(cat ...).
+#
+# The real check stays with the caller, who re-runs
 # Verification and reads the evidence file's entry order.
 
 import importlib.util
@@ -67,11 +74,38 @@ GIT_TIMEOUT_SECONDS = 3
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
 SHELL_PUNCTUATION = "();<>|&\n"
+ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
+SUBSTITUTION = re.compile(r"\$\(|[`)]")
+
+# An interpreter runs its first operand as a script; . and
+# source only do so where a command starts.
+INTERPRETER = re.compile(r"(sh|bash|zsh|dash|ksh|fish|csh|tcsh|mksh|yash|busybox|python|perl|ruby|node)[0-9.]*")
+SOURCING_COMMANDS = {".", "source"}
+INLINE_CODE_LETTERS = {"python": "cm", "perl": "eE", "ruby": "e", "node": "ep", "busybox": ""}
+SHELL_CODE_LETTERS = "c"
+INLINE_CODE_OPTIONS = ("--eval", "--print", "--command")
+
+# Reading a value as the script only over-denies, while
+# skipping a script as a value lets it pass unread, so each
+# interpreter skips only the values it really takes.
+OPTIONS_TAKING_A_VALUE = {
+    "python": {"-W", "-X"},
+    "ruby": {"-I", "-r"},
+    "node": {"-r", "--require"},
+    "perl": set(),
+    "busybox": set(),
+}
+SHELL_OPTIONS_TAKING_A_VALUE = {"-o", "+o", "-O", "+O"}
+HEREDOC = "<<"
+SCRIPT_FROM_STDIN = object()
+NO_SCRIPT = object()
+BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
-    "This hook screens every Bash call: one whose text names the word commit, or runs a git alias "
-    "whose value names it, counts as a possible commit. If this call is no commit, reword it so it "
-    "no longer does that; if it is one, append the GREEN entry first"
+    "This hook screens every Bash call: one whose text names the word commit, runs a git alias "
+    "whose value names it, or runs a script not committed unchanged whose text names it, counts as "
+    "a possible commit. If this call is no commit, reword it so it no longer does that; if it is "
+    "one, append the GREEN entry first"
 )
 
 # Only the agent's file writes bind its run label: a Bash
@@ -145,14 +179,182 @@ def runs_commit_alias(command: str, cwd: str | None) -> bool:
     return pattern is not None and pattern.search(command) is not None
 
 
+def is_separator(word: str) -> bool:
+    return word != "" and set(word) <= set(SHELL_PUNCTUATION)
+
+
+def is_redirect(word: str) -> bool:
+    return is_separator(word) and word.startswith(("<", ">"))
+
+
+def is_command_end(word: str) -> bool:
+    return is_separator(word) and not is_redirect(word)
+
+
+def expand_substitutions(words: list[str]) -> list[str] | None:
+    # A quoted $(...) stays one shell word, so its commands are
+    # split back out and appended as commands of their own.
+    expanded = list(words)
+    for word in words:
+        if not SUBSTITUTION.search(word) or ("$(" not in word and "`" not in word):
+            continue
+        inner = get_shell_words(SUBSTITUTION.sub("\n", word))
+        inner = expand_substitutions(inner) if inner is not None else None
+        if inner is None:
+            return None
+        expanded += ["\n", *inner]
+    return expanded
+
+
+def get_command_positions(words: list[str]) -> set[int]:
+    positions: set[int] = set()
+    is_expecting_command = True
+    previous = ""
+    for index, word in enumerate(words):
+        if is_redirect(previous) or is_redirect(word):
+            previous = word
+            continue
+        if is_command_end(word):
+            is_expecting_command = True
+        elif is_expecting_command and not ASSIGNMENT.match(word):
+            positions.add(index)
+            is_expecting_command = False
+        previous = word
+    return positions
+
+
+def get_interpreter(word: str, is_command_position: bool) -> str | None:
+    name = word.rsplit("/", 1)[-1]
+    if name in SOURCING_COMMANDS:
+        return name if is_command_position else None
+    match = INTERPRETER.fullmatch(name)
+    return match.group(1) if match else None
+
+
+def is_inline_code_option(word: str, interpreter: str) -> bool:
+    if word.startswith(INLINE_CODE_OPTIONS):
+        return True
+    letters = INLINE_CODE_LETTERS.get(interpreter, SHELL_CODE_LETTERS)
+    is_short_cluster = word.startswith("-") and not word.startswith("--")
+    return is_short_cluster and any(letter in word for letter in letters)
+
+
+def get_operand(arguments: list[str], interpreter: str) -> object:
+    # Returns the script operand, NO_SCRIPT for inline code
+    # (the raw screen already read it), or None for stdin.
+    value_options = OPTIONS_TAKING_A_VALUE.get(interpreter, SHELL_OPTIONS_TAKING_A_VALUE)
+    index = 0
+    while index < len(arguments):
+        word = arguments[index]
+        if is_redirect(word) or word in value_options:
+            index += 2
+        elif is_inline_code_option(word, interpreter):
+            return NO_SCRIPT
+        elif word.startswith(("-", "+")):
+            index += 1
+        else:
+            return word
+    return None
+
+
+def get_redirect_source(arguments: list[str], position: int) -> object:
+    target = arguments[position + 1 : position + 2]
+    if arguments[position] == "<" and target:
+        return target[0]
+    return SCRIPT_FROM_STDIN
+
+
+def is_piped(words: list[str], index: int) -> bool:
+    command_start = next((word for word in reversed(words[:index]) if is_command_end(word)), "")
+    return command_start.startswith("|")
+
+
+def get_stdin_script(words: list[str], index: int, arguments: list[str]) -> object:
+    # A heredoc body is raw text the screen already read; any
+    # other stdin a script reaches here through is unseen.
+    redirect = next((position for position, word in enumerate(arguments) if word.startswith("<") and word != HEREDOC), None)
+    if redirect is not None:
+        return get_redirect_source(arguments, redirect)
+    elif is_piped(words, index):
+        return SCRIPT_FROM_STDIN
+    return None
+
+
+def get_arguments(words: list[str], index: int) -> list[str]:
+    end = next((position for position in range(index + 1, len(words)) if is_command_end(words[position])), len(words))
+    return words[index + 1 : end]
+
+
+def get_interpreter_script(words: list[str], index: int, interpreter: str) -> object:
+    # busybox sh script.sh: the sh word is screened on its own.
+    arguments = get_arguments(words, index)
+    operand = get_operand(arguments, interpreter)
+    if operand is NO_SCRIPT:
+        return None
+    elif operand is None:
+        return get_stdin_script(words, index, arguments)
+    elif get_interpreter(operand, False) is not None:
+        return None
+    return operand
+
+
+def get_interpreters(words: list[str], positions: set[int]) -> list[tuple[int, str]]:
+    found = [(index, get_interpreter(word, index in positions)) for index, word in enumerate(words)]
+    return [(index, interpreter) for index, interpreter in found if interpreter is not None]
+
+
+def get_interpreter_scripts(words: list[str], positions: set[int]) -> list[object]:
+    scripts = [get_interpreter_script(words, *found) for found in get_interpreters(words, positions)]
+    return [script for script in scripts if script is not None]
+
+
+def get_scripts(words: list[str]) -> list[object]:
+    positions = get_command_positions(words)
+    path_scripts: list[object] = [words[index] for index in sorted(positions) if "/" in words[index]]
+    return path_scripts + get_interpreter_scripts(words, positions)
+
+
+def is_committed_unchanged(path: Path) -> bool:
+    # rev-parse and hash-object run no fsmonitor or filter
+    # command, so a planted git config cannot act through them.
+    committed = run_git(str(path.parent), "rev-parse", "--verify", "--quiet", f"HEAD:./{path.name}")
+    current = run_git(str(path.parent), "hash-object", "--no-filters", "--", path.name)
+    results = [committed, current]
+    is_known = all(result is not None and result.returncode == 0 for result in results)
+    return is_known and committed.stdout.strip() == current.stdout.strip()
+
+
+def read_script_text(path: Path) -> str | None:
+    # None means unreadable; a binary reads as empty text.
+    try:
+        content = path.read_bytes()
+    except OSError:
+        return None
+    return "" if b"\0" in content[:BINARY_PROBE_BYTES] else content.decode("utf-8", errors="replace")
+
+
+def names_commit_in_script(script: object, cwd: str | None) -> bool:
+    if script is SCRIPT_FROM_STDIN:
+        return True
+
+    # Joining an absolute path keeps it as it is.
+    path = (Path(cwd or Path.cwd()) / Path(str(script)).expanduser()).resolve()
+    text = "" if is_committed_unchanged(path) else read_script_text(path)
+    return text is None or COMMIT_WORD.search(text) is not None
+
+
+def get_command_words(command: str) -> list[str] | None:
+    words = get_shell_words(parse_shell_command.strip_heredoc_bodies(command))
+    return expand_substitutions(words) if words is not None else None
+
+
 def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
-    if COMMIT_WORD.search(command):
+    words = get_command_words(command)
+    if COMMIT_WORD.search(command) or words is None:
         return True
-    if get_shell_words(parse_shell_command.strip_heredoc_bodies(command)) is None:
-        return True
-    return runs_commit_alias(command, cwd)
+    return runs_commit_alias(command, cwd) or any(names_commit_in_script(script, cwd) for script in get_scripts(words))
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:

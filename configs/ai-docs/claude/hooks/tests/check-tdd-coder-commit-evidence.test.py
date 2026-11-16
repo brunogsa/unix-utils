@@ -387,6 +387,70 @@ class TestFailClosedCommitScreen:
         assert "GREEN" in reason
 
 
+class TestScriptFileScreen:
+    @pytest.fixture
+    def release_script(self, tmp_path):
+        script = tmp_path / "release.sh"
+        script.write_text("#!/bin/sh\ngit commit -m x\n", encoding="utf-8")
+        script.chmod(0o755)
+        return script
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "bash release.sh",
+            "./release.sh",
+            "RELEASE=1 ./release.sh",
+            "python3 -u release.sh",
+            "python3 -I release.sh",
+            "busybox sh release.sh",
+            "cat release.sh | bash",
+            "sh -x < release.sh",
+            "bash missing.sh",
+        ],
+        ids=[
+            "bash-operand",
+            "command-position",
+            "after-an-assignment",
+            "python-after-an-option",
+            "python-isolated-mode",
+            "busybox-applet",
+            "piped-to-a-shell",
+            "stdin-redirect",
+            "unreadable-script",
+        ],
+    )
+    def test_should_deny_running_a_script_whose_text_names_commit(self, tmp_path, release_script, command):
+        possible_commit_reason(tmp_path, command)
+
+    def test_should_let_a_script_through_when_its_text_names_no_commit(self, tmp_path):
+        (tmp_path / "status.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+
+        assert check_commit(tmp_path, command="bash status.sh") is None
+
+    @pytest.mark.parametrize(
+        "command",
+        ["pytest test_release.py", "python3 -m pytest test_release.py"],
+        ids=["pytest", "python-module"],
+    )
+    def test_should_let_a_test_run_through_when_its_test_file_names_commit(self, tmp_path, command):
+        (tmp_path / "test_release.py").write_text("COMMAND = 'git commit -m x'\n", encoding="utf-8")
+
+        assert check_commit(tmp_path, command=command) is None
+
+    def test_should_let_a_tracked_unmodified_script_through_and_deny_it_once_modified(self, tmp_path):
+        repo = git_repo(tmp_path)
+        script = repo / "release.sh"
+        script.write_text("#!/bin/sh\ngit commit -m x\n", encoding="utf-8")
+        git(repo, "add", "release.sh")
+        git(repo, "-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "x")
+
+        assert check_commit(tmp_path, command="bash release.sh", cwd=str(repo)) is None
+
+        script.write_text("#!/bin/sh\ngit commit -m y\n", encoding="utf-8")
+        possible_commit_reason(tmp_path, "bash release.sh", cwd=str(repo))
+
+
 class TestRunLabelBinding:
     def test_should_take_the_run_label_from_its_file_writes_not_from_a_bash_call_naming_another(self, tmp_path):
         OTHER_EVIDENCE.write_text(RED_ENTRY + GREEN_ENTRY, encoding="utf-8")
