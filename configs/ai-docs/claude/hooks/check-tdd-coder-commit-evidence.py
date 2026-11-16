@@ -20,8 +20,9 @@
 # a script file whose text does either, is a possible commit.
 #
 # So is any git call or relative script after a cd, pushd,
-# popd or chdir, and any git call in a repo whose git config
-# or hooks run a program of their own.
+# popd or chdir, any git call in a repo whose git config or
+# hooks run a program of their own, and any call that names a
+# git config path.
 #
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
@@ -34,7 +35,9 @@
 # The real check stays with the caller, who re-runs
 # Verification and reads the evidence file's entry order.
 
+import fnmatch
 import importlib.util
+import itertools
 import json
 import os
 import re
@@ -125,8 +128,17 @@ DIRECTORY_CHANGE = re.compile(r"(?<![\w./-])(?:cd|pushd|popd|chdir)(?![\w./-])")
 
 # The program check runs before the call, so a call that
 # writes git's config or hooks files plants a program its own
-# git call then runs.
-GIT_CONFIG_FILE = re.compile(r"(?<![\w-])\.git(?![\w-])|gitconfig|gitattributes|/git/(?:config|attributes)")
+# git call, or a trusted script's, then runs.
+GIT_CONFIG_FILE = re.compile(
+    r"(?<![\w-])\.git(?![\w-])|gitconfig|gitattributes|/git/(?:config|attributes)", re.IGNORECASE
+)
+
+# A glob, a brace list, or an expansion spliced onto literal
+# text can still spell one of these path parts when it runs.
+GIT_CONFIG_PARTS = (".git", ".gitconfig", ".gitattributes", "gitconfig", "gitattributes")
+GIT_CONFIG_PART_PAIRS = (("git", "config"), ("git", "attributes"))
+EXPANSION = re.compile(r"\$\{[^}]*\}|\$\w+|\$.?|`")
+BRACE_LIST = re.compile(r"\{[^}]*\}")
 
 # A newline ends a command just as ; does, so a heredoc's
 # closing delimiter line reads as its own command.
@@ -162,8 +174,9 @@ SCREEN_GUIDANCE = (
     "This hook screens every Bash call: one whose text names the word commit, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>`, names a GIT_*, HOME, XDG_CONFIG_HOME, PATH, PAGER, EDITOR or VISUAL "
     "variable other than in a $NAME or ${NAME} read, "
-    "runs git or a relative script after cd/pushd/popd/chdir, runs git beside a .git, "
-    "gitconfig or gitattributes path or in a repo whose git config or hooks run a program, "
+    "runs git or a relative script after cd/pushd/popd/chdir, names a .git, "
+    "gitconfig or gitattributes path in any case, glob or splice, runs git in a repo whose git config "
+    "or hooks run a program, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
     "one, append the GREEN entry first"
@@ -276,13 +289,45 @@ def runs_configured_program(cwd: str | None) -> bool:
 
 
 def may_commit(text: str, cwd: str | None, has_moved: bool = False) -> bool:
-    if names_commit(text):
+    if names_commit(text) or GIT_CONFIG_FILE.search(text):
         return True
     elif GIT_WORD.search(text) is None:
         return False
-    names_config_file = GIT_CONFIG_FILE.search(text) is not None
     has_changed_directory = has_moved or DIRECTORY_CHANGE.search(text) is not None
-    return has_changed_directory or names_config_file or runs_configured_program(cwd)
+    return has_changed_directory or runs_configured_program(cwd)
+
+
+def get_glob_form(part: str) -> str:
+    # A lone expansion is a value set elsewhere in the text,
+    # which the raw screen reads; spliced, it is a wildcard.
+    if EXPANSION.fullmatch(part):
+        return part
+    return BRACE_LIST.sub("*", EXPANSION.sub("*", part)).lower()
+
+
+def matches_config_part(part: str) -> bool:
+    return any(fnmatch.fnmatchcase(name, part) for name in GIT_CONFIG_PARTS)
+
+
+def matches_config_pair(first: str, second: str) -> bool:
+    return any(
+        fnmatch.fnmatchcase(parent, first) and fnmatch.fnmatchcase(child, second)
+        for parent, child in GIT_CONFIG_PART_PAIRS
+    )
+
+
+def names_config_word(word: str) -> bool:
+    parts = list(map(get_glob_form, word.split("/")))
+    pairs = zip(parts, parts[1:])
+    return any(map(matches_config_part, parts)) or any(itertools.starmap(matches_config_pair, pairs))
+
+
+def names_config_path(words: list[str]) -> bool:
+    return any(names_config_word(word) for word in words)
+
+
+def writes_program_input(words: list[str]) -> bool:
+    return names_config_path(words)
 
 
 def is_separator(word: str) -> bool:
@@ -450,7 +495,13 @@ def names_commit_in_script(script: object, cwd: str | None, has_moved: bool) -> 
     # Joining an absolute path keeps it as it is.
     path = (Path(cwd or Path.cwd()) / script_path).resolve()
     text = "" if is_committed_unchanged(path) else read_script_text(path)
-    return text is None or may_commit(text, cwd, has_moved)
+    if text is None or may_commit(text, cwd, has_moved):
+        return True
+
+    # Source in another language need not split into shell
+    # words; the raw screen above already read all of it.
+    words = get_command_words(text)
+    return words is not None and writes_program_input(words)
 
 
 def get_command_words(command: str) -> list[str] | None:
@@ -466,7 +517,7 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
     words = get_command_words(command)
-    if may_commit(command, cwd) or words is None:
+    if may_commit(command, cwd) or words is None or writes_program_input(words):
         return True
 
     # The words are the text after quote removal, so gi""t

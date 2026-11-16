@@ -441,9 +441,8 @@ class TestGitSubcommandAllowlist:
             "git checkout -- a.py",
             "git worktree add ../unix-utils-wt -b tdd-batch",
             "/usr/bin/git status --short",
-            "cat configs/git/.gitconfig .git/config",
         ],
-        ids=["diff", "show", "restore", "checkout-path", "worktree-add", "absolute-git-path", "git-named-paths"],
+        ids=["diff", "show", "restore", "checkout-path", "worktree-add", "absolute-git-path"],
     )
     def test_should_let_a_git_call_through_when_its_subcommand_never_creates_a_commit(self, tmp_path, command):
         assert check_commit(tmp_path, command=command) is None
@@ -708,6 +707,59 @@ class TestSameCallGitGaps:
         (repo / "plant.sh").write_text(script, encoding="utf-8")
 
         possible_commit_reason(tmp_path, f"sh {repo}/plant.sh", cwd=str(repo))
+
+
+PLANT_FSMONITOR = "printf '[core]\\n\\tfsmonitor = ./release.sh\\n' >> "
+
+
+def committed_status_script(tmp_path):
+    """A repo whose committed status.sh runs git status, so the
+    screen trusts the script and never reads its text."""
+    repo = git_repo(tmp_path)
+    script = repo / "status.sh"
+    script.write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+    script.chmod(0o755)
+    git(repo, "add", "status.sh")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t.t", "commit", "-qm", "add status.sh")
+    return repo
+
+
+class TestConfigPlantWithNoGitWord:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"{PLANT_FSMONITOR}.git/config; ./status.sh",
+            f"{PLANT_FSMONITOR}.GIT/config; ./status.sh",
+            f"{PLANT_FSMONITOR}.g?t/config; ./status.sh",
+            f"{PLANT_FSMONITOR}.gi[t]/config; ./status.sh",
+            f"{PLANT_FSMONITOR}.g*/config; ./status.sh",
+            f"{PLANT_FSMONITOR}.{{g,x}}it/config; ./status.sh",
+            f"d=.gi; {PLANT_FSMONITOR}${{d}}t/config; ./status.sh",
+            f"{PLANT_FSMONITOR}~/.config/*/config; ./status.sh",
+        ],
+        ids=[
+            "plain-path",
+            "upper-case",
+            "question-glob",
+            "bracket-glob",
+            "star-glob",
+            "brace-expansion",
+            "variable-splice",
+            "xdg-config-glob",
+        ],
+    )
+    def test_should_deny_a_config_plant_before_a_trusted_script_that_runs_git(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(committed_status_script(tmp_path)))
+
+    @pytest.mark.parametrize(
+        "command",
+        ["cat .gitignore; ./status.sh", 'ls "$HOME/x"; ./status.sh'],
+        ids=["gitignore", "home-read"],
+    )
+    def test_should_let_a_trusted_script_through_beside_no_config_path(self, tmp_path, command):
+        repo = committed_status_script(tmp_path)
+
+        assert check_commit(tmp_path, command=command, cwd=str(repo)) is None
 
 
 class TestScriptFileScreen:
