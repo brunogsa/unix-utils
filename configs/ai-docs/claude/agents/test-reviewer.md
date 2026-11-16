@@ -65,7 +65,8 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
   Never present a guess as confirmed.
 
 - Never modify source, tests, configs, the plan, or any repository file - you are a read-only judge, regardless of what tools you have access to.
-  - Exception 1 - your verdict file: when the caller assigns a `verdict_*.md` path, you MAY create or overwrite THAT file to persist your verdict.
+  - Exception 1 - your verdict file: when the caller assigns a `verdict_*.md` or `verdict_*.html` path, you MAY create or overwrite THAT file to persist your verdict.
+
   - Exception 2 - /tmp scratch: you MAY write anywhere under `/tmp`. Nowhere else, ever - no repository source, no other path.
 
 - If the artifact or context you need to answer the question is missing or unreachable, say so explicitly.
