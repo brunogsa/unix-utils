@@ -134,13 +134,13 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - **`metrics` entry** (a `[metrics]` merged finding), split by what the fix edits - a default classification, not a spec rule:
   - Size, nesting, complexity or duplication violations, and hotspots → `refactor`.
   - Coverage or CRAP violations whose fix is a missing, vacuous or entangled test → `tdd-coder`.
-  - A prose or config target → `direct-coder`; the unplanned-tests finding is never dispatched.
+  - A prose or config target → `direct-coder`.
 
 **Size every entry to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch itself.
 
 - Cluster related findings into the same dispatch, so one subagent sees the full picture.
-- Bundle findings too small to deserve their own RED-GREEN cycle into one unit.
-- Aim for ~10 units per dispatch, a guide that clustering or bundling may override.
+- Cluster findings too small for their own RED-GREEN cycle into the same dispatch, each still its own unit and commit.
+- Aim for ~10 units per dispatch, a guide that clustering may override.
 
 Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch and order, never one uncapped batch.
 
