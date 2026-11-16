@@ -32,11 +32,11 @@ For each new function, class, or module, ask:
   branching factor, parameter count. High on any axis usually means
   "split or simplify".
 
-Readability beats brevity. Name by purpose (what the caller gets), not by
-mechanism (how it works internally).
+Readability beats brevity.
 
-CRITICAL - naming and intent: a name that describes mechanism hides what
-the code is for, so check every new or renamed name against its purpose.
+CRITICAL - naming and intent: name by purpose (what the caller gets), not
+by mechanism (how it works internally), since a mechanism name hides what
+the code is for. Check every new or renamed name against its purpose.
 `loopRowsAndSum`, which totals an invoice, names mechanism; flag it and
 suggest the purpose (`totalInvoice`).
 
