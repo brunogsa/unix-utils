@@ -15,7 +15,7 @@ from quality_metrics_support import head_of, make_repo, measure_report
 
 
 class TestSizeLimits:
-    def test_should_pass_30_lines_5_parameters_and_a_300_line_file_and_flag_31_6_and_301(
+    def test_should_pass_30_lines_and_5_parameters_and_flag_31_lines_and_6_parameters(
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
@@ -28,18 +28,9 @@ class TestSizeLimits:
             ]
         )
         (repo / "report.go").write_text(PACKAGE_LINE + functions_text)
-        file_at_limit = PACKAGE_LINE + "// header comment\n\n" + "".join(
-            f"var at_limit_{number} = {number}\n" for number in range(1, 300)
-        )
-        file_over_limit = PACKAGE_LINE + "".join(
-            f"var over_limit_{number} = {number}\n" for number in range(1, 301)
-        )
-        (repo / "at_limit.go").write_text(file_at_limit)
-        (repo / "over_limit.go").write_text(file_over_limit)
         declaration_path = write_declaration(tmp_path, ["size", "parameters"])
 
         function_report = measure_report(repo, declaration_path, "--per-unit")
-        file_report = measure_report(repo, declaration_path, "--files", "at_limit.go", "over_limit.go")
 
         function_violations = [
             entry for entry in violation_summary(function_report) if entry[0] is not None
@@ -48,6 +39,21 @@ class TestSizeLimits:
             ("lines_31", "size", 31, 30),
             ("parameters_6", "parameters", 6, 5),
         ]
+
+    def test_should_pass_a_300_line_file_and_flag_a_301_line_file(self, tmp_path):
+        repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
+        file_at_limit = PACKAGE_LINE + "// header comment\n\n" + "".join(
+            f"var at_limit_{number} = {number}\n" for number in range(1, 300)
+        )
+        file_over_limit = PACKAGE_LINE + "".join(
+            f"var over_limit_{number} = {number}\n" for number in range(1, 301)
+        )
+        (repo / "at_limit.go").write_text(file_at_limit)
+        (repo / "over_limit.go").write_text(file_over_limit)
+        declaration_path = write_declaration(tmp_path, ["size"])
+
+        file_report = measure_report(repo, declaration_path, "--files", "at_limit.go", "over_limit.go")
+
         assert [
             (item["file"], item["value"], item["limit"])
             for item in file_report["violations"]
