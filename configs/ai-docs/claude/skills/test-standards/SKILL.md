@@ -446,7 +446,7 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
   - [Why] Skipped tests are silent debt that grows quietly, and a tell for AI slop - scaffolding that never lands.
 
 - [Instruction] Delete dead skips - a stale one (old, no follow-up commits, referenced code gone or changed), or the whole file when 100% of its tests are skipped.
-  - [Why] A stale skip pads the count with tests mapping to no real code, adding audit cost.
+  - [Why] Stale skips pad the count with tests mapping to no code; a fully-skipped file is pure audit cost.
 
 - [Instruction] File a `[Scout]` whenever you judge the condition justifying a skip has lifted, naming the test and why it looks un-skippable now.
   - [Why] Only a filed entry gets triaged - an un-skip judged in passing is lost and the skip goes unchallenged.
