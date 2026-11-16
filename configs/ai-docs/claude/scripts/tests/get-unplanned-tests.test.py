@@ -215,3 +215,25 @@ class TestUnplannedTests:
 
         assert completed.returncode == 0, completed.stderr
         assert json.loads(completed.stdout) == []
+
+    def test_should_ignore_it_calls_inside_string_literals_of_a_python_test_file(
+        self, tmp_path
+    ):
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        base = _init_repo(repo)
+        _write(
+            repo,
+            "tests/test_fixtures.py",
+            "FIXTURE = 'it(\"rejects an empty row\", () => {});'\n"
+            "\n"
+            "def test_should_reject_an_empty_row():\n"
+            "    assert FIXTURE\n",
+        )
+        _commit(repo, "test: python fixture holding js text")
+
+        listed = _listed(repo, _plan(tmp_path), base)
+
+        assert [row["title"] for row in listed] == [
+            "test_should_reject_an_empty_row"
+        ]

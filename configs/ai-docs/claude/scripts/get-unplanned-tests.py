@@ -24,11 +24,25 @@ EXTRACT_DESIGN_TESTS = (
 
 GATE_UNKNOWN = "gate unknown"
 
-PYTHON_TEST = re.compile(r"^\s*(?:async\s+)?def\s+(test_\w*)\s*\(")
+PYTHON_TEST = re.compile(
+    r"^\s*(?:async\s+)?def\s+(?P<title>test_\w*)\s*\("
+)
 
-GO_TEST = re.compile(r"^func\s+(Test\w*)\s*\(")
+GO_TEST = re.compile(r"^func\s+(?P<title>Test\w*)\s*\(")
 
-JS_TEST = re.compile(r"""\b(?:it|test)\s*\(\s*(["'`])(.*?)\1""")
+JS_TEST = re.compile(
+    r"""\b(?:it|test)\s*\(\s*(?P<quote>["'`])(?P<title>.*?)(?P=quote)"""
+)
+
+# A file declares tests only in its own language's form, so
+# another language's form inside a string is not a test.
+JS_EXTENSIONS = (".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs")
+
+DECLARATION_PATTERN_BY_EXTENSION = {
+    ".py": PYTHON_TEST,
+    ".go": GO_TEST,
+    **{extension: JS_TEST for extension in JS_EXTENSIONS},
+}
 
 HUNK_HEADER = re.compile(r"^@@ -\S+ \+(\d+)(?:,\d+)? @@")
 
@@ -79,14 +93,14 @@ def read_planned_titles(plan_path):
     return {normalize_title(title) for title in bare_titles}
 
 
-def declared_title(source_line):
-    """Return the test title a source line declares, else None."""
-    for pattern in (PYTHON_TEST, GO_TEST):
-        match = pattern.match(source_line)
-        if match:
-            return match.group(1)
-    match = JS_TEST.search(source_line)
-    return match.group(2) if match else None
+def declared_title(path, source_line):
+    """Return the test title a source line of this file declares,
+    else None."""
+    pattern = DECLARATION_PATTERN_BY_EXTENSION.get(Path(path).suffix)
+    if pattern is None:
+        return None
+    match = pattern.search(source_line)
+    return match.group("title") if match else None
 
 
 def list_added_tests(base):
@@ -106,7 +120,7 @@ def list_added_tests(base):
             continue
         if path is None or not diff_line.startswith("+"):
             continue
-        title = declared_title(diff_line[1:])
+        title = declared_title(path, diff_line[1:])
         if title is not None:
             added.append((path, new_line, title))
         new_line += 1
