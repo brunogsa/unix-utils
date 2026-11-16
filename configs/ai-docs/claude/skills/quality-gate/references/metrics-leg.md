@@ -24,7 +24,7 @@ Main dispatches the read-only inspector before the leg, never the leg itself.
 
 A subagent never asks the human. The leg returns each tooling problem as an `ask` record (`tooling_ask` in `quality_metrics/failures.py`): the `tool`, its `metric`, the `reason`, and `choices` of `fix now` and `defer`. A missing or crashed global tool and a changed code file whose language has no declaration entry both arrive this way.
 
-**Nobody can be asked** when `--report-only` or `--auto-solve` was passed, or when `CLAUDE_CODE_ENTRYPOINT` is set to anything but `cli` (`session_can_ask` in the same file).
+**Nobody can be asked** when `--report-only` or `--auto-solve` was passed, or when `CLAUDE_CODE_ENTRYPOINT` is set to anything but `cli` (`session_can_ask` in the same file). `/implement`'s batch end always passes `--report-only`, so every tooling ask in that tail defers.
 
 The variable decides, never your judgment. Answer `defer` without asking:
 - coverage and CRAP read `pessimistic, tooling deferred` at 0%,
