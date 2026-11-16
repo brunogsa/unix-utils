@@ -306,10 +306,10 @@ class TestHappyPath:
         assert f"--rootDir={repo}" in arguments
         assert config_copy_log.read_text() == JEST_CONFIG_WITHOUT_EXCLUDES
 
-    @pytest.mark.skipif(shutil.which("node") is None, reason="node is not on PATH")
     def test_should_load_a_base_ref_config_that_requires_a_preset_from_the_repo_node_modules(
         self, tmp_path, monkeypatch
     ):
+        assert shutil.which("node") is not None, "node must be on PATH; install.sh installs it"
         repo = make_repo(tmp_path, {
             "jest.config.js": 'module.exports = require("fakepreset");\n',
             "src/report.ts": REPORT_SOURCE,
