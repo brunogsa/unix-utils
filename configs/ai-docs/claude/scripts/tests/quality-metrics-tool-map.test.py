@@ -102,7 +102,7 @@ def test_should_build_the_map_at_the_first_check_that_finds_it_missing_and_read_
     assert tool_names(first_check_entry) == ["jest"]
     assert map_path.exists()
     stored_key = f"{repo.resolve()}@{base_sha}"
-    stored_entry = {"tools": [{"tool": "pytest-cov", "metric": "coverage", "config": "pytest.ini"}]}
+    stored_entry = {"tools": [{"tool": "pytest-cov", "metric": "coverage", "config": ".coveragerc"}]}
     map_path.write_text(json.dumps({stored_key: stored_entry}))
 
     later_check_entry = detect(repo, tmp_path, base_sha)
