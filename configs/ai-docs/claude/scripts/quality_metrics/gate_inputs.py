@@ -128,11 +128,11 @@ def _declaration_texts(repo_dir, base_ref, head_ref, declaration_path):
         return (
             name,
             _text_at(repo_dir, base_ref, name),
-            _text_at(repo_dir, head_ref, name, repo_dir),
+            _text_at(repo_dir, head_ref, name),
         )
     resolved = Path(declaration_path).resolve()
     committed = _text_at(resolved.parent, "HEAD", resolved.name)
-    working_copy = _text_at(resolved.parent, None, resolved.name, resolved.parent)
+    working_copy = _text_at(resolved.parent, None, resolved.name)
     return str(resolved), committed, working_copy
 
 
@@ -183,7 +183,7 @@ def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
     violations = []
     for name in _jest_config_names():
         base_excludes = _coverage_excludes(_text_at(repo_dir, base_ref, name))
-        head_excludes = _coverage_excludes(_text_at(repo_dir, head_ref, name, repo_dir))
+        head_excludes = _coverage_excludes(_text_at(repo_dir, head_ref, name))
         violations += [
             {"kind": COVERAGE_EXCLUDE_KIND, "file": name, "value": exclude}
             for exclude in sorted(head_excludes - base_excludes)
@@ -234,11 +234,11 @@ def _jest_config_names():
     return next(rule["configs"] for rule in rules if rule["tool"] == "jest")
 
 
-def _text_at(repo_dir, ref, path, working_tree_dir=None):
-    """The file's text at `ref`, or in `working_tree_dir` when `ref`
-    is None; None when the file is absent there."""
+def _text_at(repo_dir, ref, path):
+    """The file's text at `ref`, or in the `repo_dir` working tree
+    when `ref` is None; None when the file is absent there."""
     if ref is None:
-        file_path = Path(working_tree_dir) / path
+        file_path = Path(repo_dir) / path
         return file_path.read_text() if file_path.exists() else None
 
     # `./` resolves the path from the cwd, not the repo root.
