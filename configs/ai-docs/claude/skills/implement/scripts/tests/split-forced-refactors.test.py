@@ -117,3 +117,25 @@ def test_should_sum_three_40_line_forced_refactors_to_120_lines_and_move_them(
     assert len(subjects_between(repo, base, REFACTOR_BRANCH)) == 3
     assert subjects_between(repo, REFACTOR_BRANCH, FEATURE_BRANCH) == []
 
+
+def test_should_keep_exactly_5_files_and_100_changed_lines_in_the_feature_pr(
+    tmp_path,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        (
+            "refactor: split five modules",
+            {f"module_{n}.py": 20 for n in range(5)},
+            "metrics",
+        ),
+    ])
+    feature_head = git(repo, "rev-parse", FEATURE_BRANCH)
+
+    report = run_split(repo, base)
+
+    assert report["outcome"] == "kept"
+    assert report["files"] == 5
+    assert report["lines"] == 100
+    assert report["needs_push"] == []
+    assert git(repo, "rev-parse", FEATURE_BRANCH) == feature_head
+    assert git(repo, "branch", "--list", REFACTOR_BRANCH) == ""
+
