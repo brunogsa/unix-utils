@@ -13,7 +13,7 @@ Detection lives in `~/.claude/scripts/quality_metrics/tool_map.py` and reads the
 
 1. Read the detector rules file and note each tool and config name.
 
-2. Search the repo at the base ref (`git ls-tree -r --name-only <BASE>`, `git show <BASE>:<path>`) for coverage, test and lint tools:
+2. Search the repo at the base ref (`git ls-tree -r --name-only <BASE>`, `git show <BASE>:<path>`) for tools that measure a metric declared in `quality-metrics.yaml`:
    - config files at the root or in a package directory,
    - `package.json` scripts and dev dependencies, `pyproject.toml`, `Makefile`, CI workflow files.
 
@@ -25,7 +25,7 @@ Detection lives in `~/.claude/scripts/quality_metrics/tool_map.py` and reads the
 
 One entry per tool:
 
-- tool name and the metric it would measure (coverage, complexity, size, code duplication, dependency direction)
+- tool name and the metric it would measure (a metric name from `quality-metrics.yaml`, such as `coverage`, `crap`, `cognitive_complexity`, `code_duplication` or `dependency_direction`)
 - evidence: `<path>:<line>` with the quoted text
 - why no detector matches it: no rule for the tool, or the config name or location is missing from the rule
 - proposed detector edit: the rule entry to add or the config name to append, written out, as a proposal
