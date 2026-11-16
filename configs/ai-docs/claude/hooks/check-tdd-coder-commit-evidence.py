@@ -399,6 +399,11 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     words = get_command_words(command)
     if may_commit(command, cwd) or words is None:
         return True
+
+    # The words are the text after quote removal, so gi""t
+    # com""mit reads as the git commit the shell runs.
+    if may_commit(" ".join(words), cwd):
+        return True
     return any(names_commit_in_script(script, cwd) for script in get_scripts(words))
 
 

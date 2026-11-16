@@ -540,6 +540,16 @@ class TestGitConfiguredPrograms:
         possible_commit_reason(tmp_path, "sh status.sh", cwd=str(repo))
 
 
+class TestShellQuoteRemoval:
+    @pytest.mark.parametrize(
+        "command",
+        ['gi""t com""mit -m x -- a.py', "gi''t me''rge feature"],
+        ids=["commit", "other-subcommand"],
+    )
+    def test_should_deny_a_git_call_whose_words_are_split_by_empty_quotes(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):
