@@ -250,7 +250,7 @@ def test_should_land_both_concurrent_writers_deferred_entries_and_never_show_a_r
         start_process(WRITER_PROGRAM, *shared, writer, DEFERRALS_PER_WRITER)
         for writer in range(WRITER_COUNT)
     ]
-    builder = start_process(BUILDER_PROGRAM, *shared, DETECTOR_RULES_PATH,REBUILDS_BY_BUILDER)
+    builder = start_process(BUILDER_PROGRAM, *shared, DETECTOR_RULES_PATH, REBUILDS_BY_BUILDER)
     processes = [*writers, builder]
 
     go_file.write_text("go")
