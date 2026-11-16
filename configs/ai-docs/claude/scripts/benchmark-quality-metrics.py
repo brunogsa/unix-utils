@@ -26,8 +26,9 @@
 # with every metric timed at PER_UNIT_LIMIT_SECONDS or less.
 #
 # A run that did not measure is left out of per_unit: the
-# measure script exited 2, its output was not JSON, or it
-# held only pessimistic results (a red build scored 0%).
+# measure script exited 2 or its output was not JSON.
+# A pessimistic or deferred result still counts: per_unit
+# membership is decided by timing alone.
 #
 # --declaration selects the file to rewrite; the default is
 # the quality-metrics.yaml shipped beside this script.
@@ -133,19 +134,19 @@ def metrics_declared_for(metric):
 
 
 def run_measured(exit_code, stdout):
-    """True when the run measured the metric for real.
+    """True when the run produced a report, whatever it says.
 
-    Exit 2 did not measure.
-    A report holding a pessimistic result (a red build scored
-    0%) timed a failure path, not the check.
+    Exit 2 or output that is not JSON did not run the metric.
+    A pessimistic or deferred result is a tooling verdict,
+    not slowness: timing alone decides per_unit membership.
     """
     if exit_code == measuring.EXIT_UNMEASURED:
         return False
     try:
-        report = json.loads(stdout)
+        json.loads(stdout)
     except json.JSONDecodeError:
         return False
-    return not any(item.get("pessimistic") for item in report["measurements"])
+    return True
 
 
 def time_metric(metric, repo_root):

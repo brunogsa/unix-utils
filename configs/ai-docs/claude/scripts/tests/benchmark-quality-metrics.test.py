@@ -50,13 +50,13 @@ def declaration_path(tmp_path):
 
 
 class TestRunMeasured:
-    def test_should_leave_out_a_check_whose_run_only_produced_pessimistic_results(self):
+    def test_should_count_a_run_that_only_produced_pessimistic_results_as_measured(self):
         red_build_report = (
             '{"measurements": [{"metric": "coverage", "value": 0,'
             ' "pessimistic": true}]}'
         )
 
-        assert not benchmark.run_measured(1, red_build_report)
+        assert benchmark.run_measured(1, red_build_report)
 
     def test_should_count_a_run_that_reports_a_real_violation_as_measured(self):
         report = '{"measurements": [{"metric": "size", "value": 61}]}'
@@ -73,6 +73,28 @@ class TestDeclaredForTiming:
 
     def test_should_declare_only_the_check_itself_for_any_other_metric(self):
         assert benchmark.metrics_declared_for("size") == ["size"]
+
+
+PESSIMISTIC_STUB = """\
+import sys
+print('{"measurements": [{"metric": "size", "value": 0, "pessimistic": true}]}')
+sys.exit(1)
+"""
+
+
+class TestPessimisticMetric:
+    def test_should_keep_a_quick_metric_in_per_unit_and_not_exit_2_when_its_run_reads_pessimistic(
+        self, declaration_path, tmp_path, monkeypatch
+    ):
+        stub = tmp_path / "pessimistic-stub.py"
+        stub.write_text(PESSIMISTIC_STUB)
+        monkeypatch.setattr(benchmark, "MEASURE_SCRIPT", stub)
+        monkeypatch.setattr(benchmark, "metrics_with_a_module", lambda: ["size"])
+
+        exit_code = benchmark.main(["--declaration", str(declaration_path)])
+
+        assert exit_code == 0
+        assert "per_unit: [size]" in declaration_path.read_text()
 
 
 class TestMainGuards:
