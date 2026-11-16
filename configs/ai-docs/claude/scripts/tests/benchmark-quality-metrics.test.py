@@ -6,15 +6,17 @@ Usage:
 """
 
 import importlib
-import importlib.machinery
 import sys
-import types
 from pathlib import Path
 
 import pytest
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SCRIPTS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from quality_metrics_support import load_script
+
 declaring = importlib.import_module("quality_metrics.declaration")
 
 SCRIPT = SCRIPTS_DIR / "benchmark-quality-metrics.py"
@@ -34,11 +36,7 @@ languages:
 
 def load_benchmark():
     """Run the script once; a wrong SCRIPT path names itself."""
-    loader = importlib.machinery.SourceFileLoader("benchmark_quality_metrics", str(SCRIPT))
-    module = types.ModuleType(loader.name)
-    module.__file__ = str(SCRIPT)
-    loader.exec_module(module)
-    return module
+    return load_script(SCRIPT, "benchmark_quality_metrics")
 
 
 benchmark = load_benchmark()

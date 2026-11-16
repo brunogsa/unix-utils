@@ -29,15 +29,17 @@ def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
         raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error
 
 
-def run_tool(command, input_text=None, cwd=None):
-    result = run_command(command, input_text, cwd=cwd)
+def run_tool(command, input_text=None, cwd=None, timeout=None):
+    """Run a command and return its stdout; raises ToolError on a non-zero exit."""
+    result = run_command(command, input_text, cwd=cwd, timeout=timeout)
     if result.returncode != 0:
         raise ToolError(f"{' '.join(command)} failed: {result.stderr.strip()}")
     return result.stdout
 
 
-def shellmetrics_rows(path):
-    output = run_tool(["shellmetrics", "--csv", str(path)])
+def shellmetrics_rows(path, run=run_tool):
+    """shellmetrics' rows for a file; `run(command)` returns a command's stdout."""
+    output = run(["shellmetrics", "--csv", str(path)])
     return list(csv.reader(io.StringIO(output)))[1:]
 
 

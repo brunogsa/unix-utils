@@ -34,8 +34,15 @@ from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
-from quality_metrics.failures import unclaimed_file_records
-from quality_metrics.functions import is_over_limit, measure_functions
+from quality_metrics.failures import (
+    function_tool_failure_records,
+    unclaimed_file_records,
+)
+from quality_metrics.functions import (
+    FunctionToolError,
+    is_over_limit,
+    measure_functions,
+)
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.sourcing import lazy_tool_map_for
 from quality_metrics.tool_map import (
@@ -279,12 +286,11 @@ def _measure_file(setup, path, touched_lines, head_ref, directory):
         return None
     if language is None:
         return []
-    if head_ref and _reads_working_tree(
-        setup.declaration, setup.mode, language, path
-    ):
-        _require_worktree_at(head_ref, path)
-    source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
-    target = Target(source, language, touched_lines, repo_path=path)
+    source = _source_path(setup, language, path, head_ref, directory)
+    target = Target(
+        source, language, touched_lines, repo_path=path,
+        tool_policy=setup.coverage_run.policy,
+    )
     found = _measure_target(
         setup.declaration, setup.mode, target,
         setup.coverage_run, setup.dependency_run,
@@ -293,6 +299,15 @@ def _measure_file(setup, path, touched_lines, head_ref, directory):
         # The copy is in a temp dir; name the real path.
         found = [{**item, "file": path} for item in found]
     return found
+
+
+def _source_path(setup, language, path, head_ref, directory):
+    """The file to measure: the working tree's, or a copy at `head_ref`."""
+    if not head_ref:
+        return Path(path)
+    if _reads_working_tree(setup.declaration, setup.mode, language, path):
+        _require_worktree_at(head_ref, path)
+    return _copy_at(head_ref, path, directory)
 
 
 def _reads_working_tree(declaration, mode, language, path):
@@ -335,29 +350,44 @@ def _measure_target(declaration, mode, target, coverage_run=None,
     metrics = _metrics_binding(
         declaration, target.language, mode, target.repo_path
     )
+    setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
     for module_name, module_metrics in _group_by_module(metrics).items():
-        if module_name == COVERAGE_MODULE:
-            if coverage_run is not None:
-                measurements += crap_coverage.measure(
-                    target, module_metrics, declaration=declaration,
-                    coverage_run=coverage_run,
-                )
-            continue
-        if module_name == DEPENDENCIES_MODULE:
-            if dependency_run is not None:
-                measurements += dependencies.measure(
-                    target, module_metrics, dependency_run
-                )
-            continue
-        module = importlib.import_module(f"quality_metrics.{module_name}")
-        if module_name == DUPLICATION_MODULE:
-            if coverage_run is not None:
-                measurements += module.measure(
-                    target, module_metrics, declaration=declaration
-                )
-            continue
-        measurements += module.measure(target, module_metrics)
+        try:
+            measurements += _measure_module(setup, target, module_name, module_metrics)
+        except FunctionToolError as error:
+            if coverage_run is None or coverage_run.tool_map is None:
+                raise
+            measurements += function_tool_failure_records(
+                target, module_metrics, error, coverage_run
+            )
     return measurements
+
+
+def _measure_module(setup, target, module_name, module_metrics):
+    """One module's records for `target`; none when the run it needs is absent."""
+    run_needed = {
+        COVERAGE_MODULE: setup.coverage_run,
+        DUPLICATION_MODULE: setup.coverage_run,
+        DEPENDENCIES_MODULE: setup.dependency_run,
+    }
+    if module_name in run_needed and run_needed[module_name] is None:
+        return []
+    if module_name == COVERAGE_MODULE:
+        return crap_coverage.measure(
+            target, module_metrics, declaration=setup.declaration,
+            coverage_run=setup.coverage_run,
+        )
+    if module_name == DEPENDENCIES_MODULE:
+        return dependencies.measure(target, module_metrics, setup.dependency_run)
+    return _measure_with_module_file(setup, target, module_name, module_metrics)
+
+
+def _measure_with_module_file(setup, target, module_name, module_metrics):
+    """Records from a `quality_metrics/<module_name>.py` module."""
+    module = importlib.import_module(f"quality_metrics.{module_name}")
+    if module_name == DUPLICATION_MODULE:
+        return module.measure(target, module_metrics, declaration=setup.declaration)
+    return module.measure(target, module_metrics)
 
 
 def _resolved_since(declaration, mode, diff_range):

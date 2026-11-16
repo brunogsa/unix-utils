@@ -17,9 +17,23 @@ from typing import Callable
 from quality_metrics.coverage import coverage_record
 from quality_metrics.crap import CRAP_LIMIT, crap_record
 from quality_metrics.declaration import NoLanguageEntryError, language_for_file
-from quality_metrics.functions import is_over_limit, measurement
+from quality_metrics.functions import (
+    NESTING_LIMIT,
+    PARAMETER_LIMIT,
+    is_over_limit,
+    measurement,
+)
+from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.tools import ToolError, run_command
 from quality_metrics.touched import Target
+
+# The limit each function-tool metric's deferred record carries.
+FUNCTION_METRIC_LIMITS = {
+    "size": FUNCTION_LINES_LIMIT,
+    "nesting": NESTING_LIMIT,
+    "parameters": PARAMETER_LIMIT,
+    "crap": CRAP_LIMIT,
+}
 
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 NO_LANGUAGE_ENTRY_STATUS = "not measured: no language entry"
@@ -132,6 +146,29 @@ def unclaimed_file_records(declaration, file_path, coverage_run):
     if outcome["ask"]:
         coverage_run.asks.append(outcome["ask"])
     return outcome["measurements"]
+
+
+def _deferred_function_metric(target, metric):
+    """The pessimistic record for one metric a failed function tool left unmeasured."""
+    if metric == "coverage":
+        return deferred_coverage_measurement(target)
+    return deferred_measurement(target, metric, FUNCTION_METRIC_LIMITS[metric])
+
+
+def function_tool_failure_records(target, metrics, error, coverage_run):
+    """The pessimistic records for `metrics` after a global function tool failed.
+
+    The ask joins `coverage_run.asks`, once per tool however many
+    files it failed on. It is None once the tool is deferred in
+    the batch or when no session can ask. It needs a tool map: the
+    caller re-raises `error` when there is none.
+    """
+    ask = ask_or_defer(
+        coverage_run.tool_map, error.tool, "function metrics", str(error), coverage_run.environ
+    )
+    if ask and all(known["tool"] != ask["tool"] for known in coverage_run.asks):
+        coverage_run.asks.append(ask)
+    return [_deferred_function_metric(target, metric) for metric in metrics]
 
 
 def session_can_ask(environ=None):

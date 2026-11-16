@@ -6,7 +6,7 @@ so the code they move is never bound by a limit.
 
 import re
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional, Set
 
@@ -50,6 +50,9 @@ class Target:
     language: Optional[str]
     touched_lines: Optional[Set[int]]
     repo_path: Optional[str] = None
+
+    # Times each global function tool; None runs it bare.
+    tool_policy: Optional[object] = field(default=None, compare=False)
 
     def touches(self, first_line, last_line):
         if self.touched_lines is None:

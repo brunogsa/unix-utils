@@ -4,11 +4,13 @@ Named without a `.test.py` or `test_` marker, so pytest imports it
 and never collects it.
 """
 
+import importlib.machinery
 import json
 import os
 import re
 import subprocess
 import sys
+import types
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent
@@ -90,6 +92,22 @@ def install_stub_tool(tmp_path, monkeypatch, name, script):
     stub.write_text(script)
     stub.chmod(0o755)
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
+
+
+def load_script(script_path, module_name):
+    """A hyphen-named script as a module, so a test can call its functions.
+
+    SCRIPTS_DIR must already be on sys.path for the script's own imports.
+    """
+    loader = importlib.machinery.SourceFileLoader(module_name, str(script_path))
+    module = types.ModuleType(loader.name)
+    module.__file__ = str(script_path)
+    loader.exec_module(module)
+    return module
+
+
+def load_measure_script():
+    return load_script(MEASURE_SCRIPT, "measure_quality_metrics")
 
 
 def git(repo, *args):

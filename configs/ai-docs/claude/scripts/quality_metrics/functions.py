@@ -53,14 +53,36 @@ class FunctionMeasure:
     parameters: Optional[int]
 
 
-def measure_functions(path, language):
+class FunctionToolError(ToolError):
+    """A global function tool is missing, crashed or timed out twice."""
+
+    def __init__(self, tool, reason):
+        super().__init__(reason)
+        self.tool = tool
+
+
+def _run_function_tool(policy, command, input_text=None):
+    """The tool's stdout, run under `policy`'s timeout when given.
+
+    Any ToolError, a timeout twice included, is re-raised as a
+    FunctionToolError naming the tool, so a caller can ask about it.
+    """
+    try:
+        if policy is None:
+            return run_tool(command, input_text)
+        return policy.run(lambda timeout: run_tool(command, input_text, timeout=timeout))
+    except ToolError as error:
+        raise FunctionToolError(command[0], str(error)) from error
+
+
+def measure_functions(path, language, policy=None):
     if language == BASH:
-        return _measure_bash_functions(path)
-    return _measure_functions_with_lizard(path)
+        return _measure_bash_functions(path, policy)
+    return _measure_functions_with_lizard(path, policy)
 
 
 def touched_functions(target):
-    functions = measure_functions(target.path, target.language)
+    functions = measure_functions(target.path, target.language, target.tool_policy)
     return [
         function for function in functions
         if target.touches(function.start, function.end)
@@ -125,8 +147,8 @@ def measurement(target, metric, value, limit, function=None):
     }
 
 
-def _measure_functions_with_lizard(path):
-    output = run_tool(["lizard", "--csv", "-E", "nd", str(path)])
+def _measure_functions_with_lizard(path, policy):
+    output = _run_function_tool(policy, ["lizard", "--csv", "-E", "nd", str(path)])
     return [
         FunctionMeasure(
             name=row[LIZARD_NAME],
@@ -141,10 +163,11 @@ def _measure_functions_with_lizard(path):
     ]
 
 
-def _measure_bash_functions(path):
-    end_lines = _bash_function_end_lines(path)
+def _measure_bash_functions(path, policy):
+    end_lines = _bash_function_end_lines(path, policy)
     functions = []
-    for row in shellmetrics_rows(path):
+    rows = shellmetrics_rows(path, run=lambda command: _run_function_tool(policy, command))
+    for row in rows:
         name, start = row[SHELLMETRICS_NAME], int(row[SHELLMETRICS_START])
         if name in SHELLMETRICS_PSEUDO_FUNCTIONS:
             continue
@@ -162,14 +185,16 @@ def _measure_bash_functions(path):
     return functions
 
 
-def _bash_function_end_lines(path):
+def _bash_function_end_lines(path, policy):
     """Map (name, start line) of each Bash function to its end line.
 
     shellmetrics gives no end line, so shfmt's syntax tree supplies it:
     a parser knows where a function ends when a heredoc or a quoted
     brace holds a `}`.
     """
-    tree = json.loads(run_tool(["shfmt", "--to-json", "-ln=bash"], input_text=Path(path).read_text()))
+    tree = json.loads(_run_function_tool(
+        policy, ["shfmt", "--to-json", "-ln=bash"], Path(path).read_text()
+    ))
     return {
         (node["Name"]["Value"], node["Pos"]["Line"]): node["End"]["Line"]
         for node in _function_declarations(tree)
