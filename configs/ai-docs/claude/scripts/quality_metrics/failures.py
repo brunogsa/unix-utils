@@ -110,16 +110,28 @@ def measure_language_entry_or_ask(declaration, file_path, tool_map, environ=None
     extension as the tool to fix, and no measurements. Once that
     extension is deferred in `tool_map`'s batch, or when no session
     can ask (see `session_can_ask`), the file is listed as not
-    measured and scored pessimistically.
+    measured and scored pessimistically. With no `tool_map` there
+    is no deferral list to read, so it never asks.
     """
     try:
         return {"language": language_for_file(declaration, file_path), "ask": None, "measurements": []}
     except NoLanguageEntryError as error:
         tool = f"language entry ({Path(file_path).suffix})"
-        ask = ask_or_defer(tool_map, tool, "language_entry", str(error), environ)
+        ask = tool_map and ask_or_defer(tool_map, tool, "language_entry", str(error), environ)
         if ask:
             return {"language": None, "ask": ask, "measurements": []}
         return {"language": None, "ask": None, "measurements": [unmeasured_file_measurement(file_path)]}
+
+
+def unclaimed_file_records(declaration, file_path, coverage_run):
+    """The records for a code file no language entry claims.
+
+    An ask it raises joins `coverage_run.asks`, never the records.
+    """
+    outcome = measure_language_entry_or_ask(declaration, file_path, coverage_run.tool_map)
+    if outcome["ask"]:
+        coverage_run.asks.append(outcome["ask"])
+    return outcome["measurements"]
 
 
 def session_can_ask(environ=None):

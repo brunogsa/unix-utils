@@ -34,6 +34,7 @@ from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
+from quality_metrics.failures import unclaimed_file_records
 from quality_metrics.functions import is_over_limit, measure_functions
 from quality_metrics.resolved import resolved_measurements
 from quality_metrics.sourcing import lazy_tool_map_for
@@ -264,8 +265,8 @@ def _measure(setup, touched_by_file, head_ref=None):
             )
             if found is None:
                 unclaimed.append(path)
-            else:
-                measurements += found
+                found = unclaimed_file_records(setup.declaration, path, setup.coverage_run)
+            measurements += found
     return measurements, unclaimed
 
 
