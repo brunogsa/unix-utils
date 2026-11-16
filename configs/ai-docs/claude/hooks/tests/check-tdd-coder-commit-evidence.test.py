@@ -209,6 +209,34 @@ class TestCommitWithNoEvidenceFile:
         assert "/tmp/tdd-coder_evidences_<run-label>.txt" in reason
 
 
+class TestCommitWithEvidenceMissingAGreenAfterTheLastRed:
+    @pytest.mark.parametrize(
+        "evidence_text",
+        [
+            RED_ENTRY,
+            GREEN_ENTRY,
+            RED_ENTRY + GREEN_ENTRY + RED_ENTRY,
+            "",
+            "RED: 3 failed\nGREEN: 15 passed\n",
+        ],
+        ids=[
+            "red-only",
+            "green-only",
+            "redispatch-red-after-prior-green",
+            "empty-file",
+            "entries-without-the-header-line",
+        ],
+    )
+    def test_should_deny_saying_a_green_entry_must_follow_the_latest_red(self, tmp_path, evidence_text):
+        EVIDENCE.write_text(evidence_text, encoding="utf-8")
+
+        reason = check_commit(tmp_path)
+
+        assert reason is not None
+        assert str(EVIDENCE) in reason
+        assert "=== GREEN" in reason
+
+
 def frontmatter_pretooluse_command():
     """The command wired under hooks: PreToolUse: in tdd-coder.md's frontmatter."""
     frontmatter = AGENT_FILE.read_text(encoding="utf-8").split("---\n")[1]
@@ -237,3 +265,13 @@ class TestAgentFileWiring:
         )
 
         assert str(EVIDENCE) in deny_reason(result)
+
+    def test_should_accept_the_entry_headers_the_agent_body_tells_it_to_write(self, tmp_path):
+        agent_body = AGENT_FILE.read_text(encoding="utf-8")
+        red_header = re.search(r"`(=== RED <timestamp> ===)`", agent_body)
+        green_header = re.search(r"`(=== GREEN <timestamp> ===)`", agent_body)
+        assert red_header and green_header, "tdd-coder.md names no RED and GREEN entry header"
+        entries = f"{red_header.group(1)}\nexit: 1\n{green_header.group(1)}\nexit: 0\n"
+        EVIDENCE.write_text(entries.replace("<timestamp>", "2026-11-16T14:10:30Z"), encoding="utf-8")
+
+        assert check_commit(tmp_path) is None

@@ -43,6 +43,7 @@ GREEN_HEADER = "=== GREEN <timestamp> ==="
 # Labels are plain tokens, so a test source's f-string such as
 # {RUN_LABEL} or a * glob never reads as a run label.
 RUN_FILE_LABEL = re.compile(r"/tmp/tdd-coder_(?:substeps|evidences)_([A-Za-z0-9._-]+?)\.(?:md|txt)\b")
+ENTRY_HEADER = re.compile(r"^=== (RED|GREEN)\b", re.MULTILINE)
 SAFE_AGENT_ID = re.compile(r"[A-Za-z0-9_-]+")
 
 GIT_OPTIONS_TAKING_A_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
@@ -137,6 +138,14 @@ def get_evidence_problem(evidence_path: Path) -> str | None:
     except OSError as error:
         return f"{evidence_path} cannot be read ({error})"
 
+    # A re-dispatch appends to the same file, so only a GREEN
+    # after the latest RED proves this attempt went green.
+    entry_kinds = ENTRY_HEADER.findall(text)
+    if "RED" not in entry_kinds:
+        return f"{evidence_path} holds no {RED_HEADER} entry"
+    latest_red_index = len(entry_kinds) - 1 - entry_kinds[::-1].index("RED")
+    if "GREEN" not in entry_kinds[latest_red_index + 1 :]:
+        return f"{evidence_path} holds no {GREEN_HEADER} entry after its latest RED entry"
     return None
 
 

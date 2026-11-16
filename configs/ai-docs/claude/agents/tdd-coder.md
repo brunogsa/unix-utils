@@ -267,6 +267,12 @@ Evidence file, `/tmp/tdd-coder_evidences_<run-label>.txt`:
 
 - Each entry holds exactly what was read to conclude the state: the command verbatim, its exit code, and the output tail - not the full dump, not a paraphrase.
 
+- Open each entry with its header line, `=== RED <timestamp> ===` or `=== GREEN <timestamp> ===`, any extra words after the state name allowed.
+  - A PreToolUse hook denies every `git commit` until a GREEN header follows the latest RED header, so an entry written after its commit cannot happen.
+
+- On the cap-exhausted path, append one GREEN entry before committing, naming the units it covers and quoting their targeted runs' command, exit code, and output tail.
+  - That entry is what unlocks the commits of the units that earned them; list it under Deviations.
+
 - Never truncate or reset this file across dispatches. A re-dispatch's confirmed RED must not erase a prior attempt's record.
 
 ## Boundaries
