@@ -345,7 +345,7 @@ every_sed_call_read_only() {
       [[ "$name" == sed || "$name" == gsed ]] || continue
       sed_args_read_only "${words[@]:i+1}" || return 1
     done
-  done < <(printf '%s\n' "$1" | sed -E 's/[0-9]*&?[<>]+[|&]?/ > /g' | tr '|;&()' '\n\n\n\n\n')
+  done < <(printf '%s\n' "$1" | sed -E 's/[0-9]*&?[<>]+[|&]?/ > /g' | tr '|;&()' '\n')
 }
 
 if [ -n "$CMD" ]; then
@@ -379,7 +379,7 @@ if [ -n "$CMD" ]; then
   UNESCAPED=${STRIPPED//\\/}
   ESCAPED_TEE_WORDS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '[A-Za-z0-9_\\-]*[A-Za-z0-9_-]\\[A-Za-z0-9_\\-]*' \
-    | tr -d '\\' | grep -cx 'tee')
+    | tr -d "\\\\" | grep -cx 'tee')
   if [ "$ESCAPED_TEE_WORDS" != 0 ]; then
     echo "Blocked: this reviewer's Bash names tee with a backslash inside the name; spell tee plainly" >&2
     exit 2
@@ -389,7 +389,7 @@ if [ -n "$CMD" ]; then
     | sed -E 's/^(&>>?|>>?\|?)[[:space:]]*/T:/')
   TEE_ARGS=$(printf '%s\n' "$STRIPPED" \
     | grep -oE '(^|[^A-Za-z0-9_-])tee[[:space:]]+[^|;&]*' \
-    | sed -E 's/^[^A-Za-z0-9_-]?tee[[:space:]]+//' | tr ' \t' '\n\n' | grep -v '^-')
+    | sed -E 's/^[^A-Za-z0-9_-]?tee[[:space:]]+//' | tr ' \t' '\n' | grep -v '^-')
   # Each redirect target carries a `T:` prefix, so a redirect
   # with no target is denied, not skipped as a blank line.
   while IFS= read -r target; do

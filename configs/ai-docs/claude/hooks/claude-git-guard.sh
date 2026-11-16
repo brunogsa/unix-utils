@@ -512,7 +512,7 @@ fi
 # attribution check reads the message the commit records.
 if [ "$is_commit_screened" = true ]; then
   if ! commit_has_attribution_trailer; then
-    echo 'git commit must include Co-Authored-By: Claude attribution as a git trailer. Put it in its own last -m "Co-Authored-By: ...", or pass --trailer "Co-Authored-By: ...". Glued onto a body sentence or after a literal \n, git keeps it as body text.' >&2
+    printf '%s\n' 'git commit must include Co-Authored-By: Claude attribution as a git trailer. Put it in its own last -m "Co-Authored-By: ...", or pass --trailer "Co-Authored-By: ...". Glued onto a body sentence or after a literal \n, git keeps it as body text.' >&2
     exit 2
   fi
 
