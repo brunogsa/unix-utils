@@ -113,11 +113,6 @@ it('should filter by assignee', ...);
 - [Instruction] Never commit test titles alone - a title needs its body in the same commit.
   - [Why] A title committed without its body rots as forever-pending TDD scaffolding that never gets its implementation.
 
-- [Instruction] Before refactoring or rewriting untested code, pin its current behavior with tests, then keep them green through the change.
-  - [Why] Untested code has no suite to lean on, so pinned current behavior is the only proof the change is equivalent.
-
-  - [Example] For a `.sh` script, `scripts/capture-script-behavior.py` records every row's stdout/stderr/exit code and fixture post-state as golden, then replays the table against the rewrite.
-
 ### Descriptive titles (BDD-like)
 
 - [Instruction] **CRITICAL: Write test titles in domain language a non-engineer (PM, QA, designer) could understand - observable behavior, not internal field names or implementation tokens.**
@@ -436,6 +431,11 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
 
 - [Instruction] When you move code, move its tests too (if they exist) - adapt them to the new path, don't drop the coverage.
   - [Why] Tests left behind in a move leave the next bug in that area uncaught.
+
+- [Instruction] Before refactoring or rewriting untested code, pin its current behavior with tests, then keep them green through the change.
+  - [Why] Untested code has no suite to lean on, so pinned current behavior is the only proof the change is equivalent.
+
+  - [Example] For a `.sh` script, `scripts/capture-script-behavior.py` records every row's stdout/stderr/exit code and fixture post-state as golden, then replays the table against the rewrite.
 
 - [Instruction] Prefer durable debugging artifacts - a failing test or committed debug script - over throwaway scratchpads.
   - [Why] A scratchpad vanishes when the session ends, leaving the next person who hits the bug no signal to find.
