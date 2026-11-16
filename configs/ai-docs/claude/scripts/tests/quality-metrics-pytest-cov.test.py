@@ -234,6 +234,7 @@ LEGACY_IMPORTED_REPO_FILES = {
 LEGACY_HITS = {1: 1, 2: 1}
 OMIT_LEGACY_PYPROJECT = '[tool.coverage.run]\nomit = ["legacy.py"]\n'
 OMIT_LEGACY_INI = "[coverage:run]\nomit = legacy.py\n"
+OMIT_LEGACY_COVERAGERC = "[run]\nomit = legacy.py\n"
 INI_OMIT_CASES = [("setup.cfg", OMIT_LEGACY_INI), ("tox.ini", OMIT_LEGACY_INI)]
 BASE_OMIT_CASES = [("pyproject.toml", OMIT_LEGACY_PYPROJECT), *INI_OMIT_CASES]
 
@@ -272,3 +273,11 @@ def test_should_omit_a_file_the_base_ref_coverage_config_omits_whichever_of_pypr
 
     assert "legacy.py" not in hits
     assert hits["cart.py"] == {1: 1, 2: 1, 5: 1, 6: 0}
+
+
+def test_should_keep_measuring_an_omitted_file_when_the_branch_adds_the_omit_to_a_coveragerc_and_the_base_ref_has_no_coverage_config(
+    tmp_path,
+):
+    hits = hits_with_configs(tmp_path, {}, {".coveragerc": OMIT_LEGACY_COVERAGERC})
+
+    assert hits["legacy.py"] == LEGACY_HITS
