@@ -28,7 +28,8 @@ FAILED_TESTS, REPO_THRESHOLD, CRASH = "failed_tests", "repo_threshold", "crash"
 # INTERNALERROR trace.
 EXIT_CLASS_PATTERNS = (
     (FAILED_TESTS, re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
-    (FAILED_TESTS, re.compile(r"\b\d+ failed\b.* in \d+\.\d+s")),
+    (FAILED_TESTS, re.compile(r"^Test Suites:.*\d+ failed", re.MULTILINE)),
+    (FAILED_TESTS, re.compile(r"\b\d+ (failed|errors?)\b.* in \d+\.\d+s")),
     (REPO_THRESHOLD, re.compile(r"coverage threshold .* not met")),
     (REPO_THRESHOLD, re.compile(r"Required test coverage of .* not reached")),
     (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),

@@ -12,10 +12,13 @@ from quality_metrics_support import (
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from types import SimpleNamespace
+
 import pytest
 
 from quality_metrics.sourcing import (
     NoGlobalToolError,
+    classify_exit,
     lazy_tool_map_for,
     run_repo_jest,
     source_for,
@@ -177,6 +180,30 @@ def test_should_keep_a_repo_jest_report_path_outside_the_repo_unchanged_without_
     run = run_repo_jest(repo)
 
     assert list(run["hits_by_file"]) == [outside_path]
+
+
+ERRORED_SUITE_WITH_THRESHOLD_MISS = [
+    pytest.param(
+        "=== 5 passed, 1 error in 0.40s ===\n"
+        "FAIL Required test coverage of 90% not reached. Total coverage: 84.00%\n",
+        id="pytest-collection-error",
+    ),
+    pytest.param(
+        "Test Suites: 1 failed, 2 passed, 3 total\n"
+        "Tests:       12 passed, 12 total\n"
+        'Jest: "global" coverage threshold for lines (90%) not met: 84%\n',
+        id="jest-suite-failed-to-load",
+    ),
+]
+
+
+@pytest.mark.parametrize("output", ERRORED_SUITE_WITH_THRESHOLD_MISS)
+def test_should_read_a_run_with_an_errored_suite_as_failed_tests_even_when_the_coverage_threshold_message_is_printed(
+    output
+):
+    result = SimpleNamespace(returncode=1, stdout="", stderr=output)
+
+    assert classify_exit(result) == "failed_tests"
 
 
 
