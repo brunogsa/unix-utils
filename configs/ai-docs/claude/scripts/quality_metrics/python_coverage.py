@@ -33,7 +33,12 @@ PYTHON_COVERAGE_WITH = [
 ]
 PYTHON_TEST_COMMAND = [*PYTHON_COVERAGE_WITH, "run", "-m", "pytest"]
 PYTHON_COMBINE_COMMAND = [*PYTHON_COVERAGE_WITH, "combine"]
-PYTHON_LCOV_COMMAND = [*PYTHON_COVERAGE_WITH, "lcov", "-o"]
+
+# `-i` skips a source file the data names that no longer exists,
+# such as a script a test ran from a temp dir it then deleted;
+# without it one such file fails the whole report
+# (coverage.readthedocs.io/en/latest/cmd.html#cmd-lcov).
+PYTHON_LCOV_COMMAND = [*PYTHON_COVERAGE_WITH, "lcov", "-i", "-o"]
 
 # `patch = subprocess` measures Python subprocesses a test
 # starts; `parallel` gives each process its own data file for

@@ -408,3 +408,32 @@ def test_should_leave_only_the_lcov_report_as_a_new_file_in_the_repo_after_a_sub
     collect_python(repo)
 
     assert files_under(repo) - files_before == {"coverage/lcov.info"}
+
+
+VANISHING_SUBPROCESS_REPO_FILES = {
+    "tool.py": "print('tool ran')\n",
+    "test_tool.py": (
+        "import shutil\nimport subprocess\nimport sys\nimport tempfile\n"
+        "from pathlib import Path\n\n\n"
+        "def test_runs_a_script_from_a_directory_it_then_deletes():\n"
+        "    scratch = Path(tempfile.mkdtemp())\n"
+        "    script = scratch / 'scratch_tool.py'\n"
+        "    script.write_text('print(1)\\n')\n"
+        "    subprocess.run([sys.executable, str(script)], check=True)\n"
+        "    shutil.rmtree(scratch)\n\n\n"
+        "def test_runs_the_tool_as_a_subprocess():\n"
+        "    script = Path(__file__).parent / 'tool.py'\n"
+        "    done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True)\n"
+        "    assert done.stdout == 'tool ran\\n'\n"
+    ),
+}
+
+
+def test_should_still_report_the_files_that_exist_when_a_measured_subprocess_script_was_deleted(tmp_path):
+    from quality_metrics.collection import collect_python
+
+    repo = write_repo(tmp_path, VANISHING_SUBPROCESS_REPO_FILES)
+
+    result = collect_python(repo)
+
+    assert result.hits_by_file["tool.py"][1] > 0
