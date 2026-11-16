@@ -19,7 +19,8 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 1. **Push the branch on every batch end, regardless of `pr.wanted`.**
    - Use `git push -u origin HEAD`, with or without an upstream.
-   - **`scripts/get-push-route.py` printing `by-hand` (main/master, which `hooks/claude-git-guard.sh` blocks) skips every §8 push, never halting.** The package prints `git rev-list --count @{u}..HEAD` and `git push -u origin HEAD`.
+   - **`~/.claude/skills/implement/scripts/get-push-route.py` printing `by-hand` (main/master, which `hooks/claude-git-guard.sh` blocks) skips every §8 push, never halting.**
+     - The package prints `git rev-list --count @{u}..HEAD` and `git push -u origin HEAD`.
 
    - A pushed branch with no PR is an ordinary outcome.
    - **On a stacked run**, [`stacked-by-task-batch-end.md`](stacked-by-task-batch-end.md) replaces this step.
