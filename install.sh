@@ -264,18 +264,13 @@ npm install -g dependency-cruiser@18.7.2
 # range, and 7.x is outside it
 npm install -g typescript@6.0.3
 
-# gcov2lcov: Go coverage as lcov, only where go exists.
-# GOBIN installs it to ~/.local/bin, since the default
+# Go tools, only where go exists: gcov2lcov (Go coverage as
+# lcov) and go-arch-lint (Go layer imports against the layer
+# map). GOBIN installs them to ~/.local/bin, since the default
 # ~/go/bin is on no PATH.
 if command -v go &> /dev/null; then
     mkdir -p "$HOME/.local/bin"
     GOBIN="$HOME/.local/bin" go install github.com/jandelgado/gcov2lcov@latest
-fi
-
-# go-arch-lint: Go layer imports against the layer map,
-# only where go exists. Installed beside gcov2lcov.
-if command -v go &> /dev/null; then
-    mkdir -p "$HOME/.local/bin"
     GOBIN="$HOME/.local/bin" go install github.com/fe3dback/go-arch-lint@v1.19.1
 fi
 
