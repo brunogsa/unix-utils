@@ -1,23 +1,34 @@
 #!/usr/bin/env python3
-# check-tdd-coder-commit-evidence.py - deny a tdd-coder git
-#   commit until its run's evidence file holds a RED entry
-#   followed by a GREEN entry.
+# check-tdd-coder-commit-evidence.py - deny a tdd-coder Bash
+#   call that may run a git commit until its run's evidence
+#   file holds a RED entry followed by a GREEN entry.
 #
 # Usage (tdd-coder frontmatter PreToolUse Bash hook):
 #   check-tdd-coder-commit-evidence.py
 #
 # stdin: the PreToolUse hook payload, as JSON
 # reads: the agent's own JSONL transcript, for the run label,
-#   and /tmp/tdd-coder_evidences_<run-label>.txt
+#   /tmp/tdd-coder_evidences_<run-label>.txt, and the git
+#   aliases visible from the payload's cwd
 #
-# stdout: a PreToolUse deny decision as JSON when the commit
-#   lacks that evidence; nothing otherwise
+# stdout: a PreToolUse deny decision as JSON when a possible
+#   commit lacks that evidence; nothing otherwise
 # exit: always 0; stdin that is not a JSON object fails open
+#
+# The gated agent is the adversary, so this screens instead of
+# parsing: any call whose raw text names the word commit, or
+# runs a git alias whose value does, is a possible commit.
+#
+# Known limits: a name built at run time - concatenated
+# strings, base64, an env var holding "commit" - passes the
+# screen. The real check stays with the caller, who re-runs
+# Verification and reads the evidence file's entry order.
 
 import importlib.util
 import json
 import re
 import shlex
+import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -47,21 +58,21 @@ RUN_FILE_LABEL = re.compile(r"/tmp/tdd-coder_(?:substeps|evidences)_([A-Za-z0-9.
 ENTRY_HEADER = re.compile(r"^=== (RED|GREEN)\b", re.MULTILINE)
 SAFE_AGENT_ID = re.compile(r"[A-Za-z0-9_-]+")
 
-GIT_OPTIONS_TAKING_A_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
+# A path such as check-tdd-coder-commit-evidence.test.py is
+# not the word, so Verification itself is never screened out.
+COMMIT_WORD = re.compile(r"(?<![\w./-])commit(?:-tree)?(?![\w./-])", re.IGNORECASE)
+GIT_WORD = re.compile(r"\bgit\b")
+GIT_TIMEOUT_SECONDS = 3
 
-# The gated agent is the adversary, so a command that hands
-# its script to a shell or to eval is read through to that
-# script; the POSIX shells that run a -c string are a fixed
-# set, not a ledger of seen commands.
-SHELLS = {"sh", "bash", "zsh", "dash", "ksh"}
-SHELL_OPTIONS_TAKING_A_VALUE = {"-o", "+o", "-O", "+O"}
-SHELL_READS_STDIN = ""
-MAX_NESTED_SCRIPTS = 8
+# A newline ends a command just as ; does, so a heredoc's
+# closing delimiter line reads as its own command.
+SHELL_PUNCTUATION = "();<>|&\n"
 
-# A shell reading its script from stdin gets it from a pipe or
-# a heredoc body, so only a plain match over the raw command
-# can see that script.
-RAW_GIT_COMMIT = re.compile(r"\bgit\b[^;&|\n]*\bcommit\b")
+SCREEN_GUIDANCE = (
+    "This hook screens every Bash call: one whose text names the word commit, or runs a git alias "
+    "whose value names it, counts as a possible commit. If this call is no commit, reword it so it "
+    "no longer does that; if it is one, append the GREEN entry first"
+)
 
 # Only the agent's file writes bind its run label: a Bash
 # string or a Read can name any other run's files at will.
@@ -76,21 +87,9 @@ def read_payload() -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
-def get_git_subcommand(tokens: list[str], git_index: int) -> str | None:
-    index = git_index + 1
-    while index < len(tokens):
-        token = tokens[index]
-        if token in GIT_OPTIONS_TAKING_A_VALUE:
-            index += 2
-        elif token.startswith("-"):
-            index += 1
-        else:
-            return token
-    return None
-
-
 def get_shell_words(text: str) -> list[str] | None:
-    lexer = shlex.shlex(text, posix=True, punctuation_chars=True)
+    lexer = shlex.shlex(text, posix=True, punctuation_chars=SHELL_PUNCTUATION)
+    lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     try:
         return list(lexer)
@@ -98,84 +97,62 @@ def get_shell_words(text: str) -> list[str] | None:
         return None
 
 
-def is_separator(word: str) -> bool:
-    return word != "" and set(word) <= set("();<>|&")
-
-
-def get_shell_script(words: list[str], shell_index: int) -> str | None:
-    # Returns the -c string, SHELL_READS_STDIN, or None when the
-    # shell runs a script file.
-    index = shell_index + 1
-    while index < len(words) and not is_separator(words[index]):
-        option = words[index]
-        if option in SHELL_OPTIONS_TAKING_A_VALUE:
-            index += 2
-        elif option.startswith("-") and not option.startswith("--") and "c" in option:
-            return words[index + 1] if index + 1 < len(words) else SHELL_READS_STDIN
-        elif option.startswith(("-", "+")):
-            index += 1
-        else:
-            return None
-    return SHELL_READS_STDIN
-
-
-def get_eval_script(words: list[str], eval_index: int) -> str:
-    arguments = []
-    for word in words[eval_index + 1 :]:
-        if is_separator(word):
-            break
-        arguments.append(word)
-    return " ".join(arguments)
-
-
-def get_substituted_script(word: str) -> str | None:
-    # A quoted $(...) or `...` stays one shell word, so its
-    # command is read back out of that word.
-    if "$(" not in word and "`" not in word:
+def run_git(cwd: str | None, *arguments: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(
+            ["git", *arguments], cwd=cwd, capture_output=True, text=True, timeout=GIT_TIMEOUT_SECONDS, check=False
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return None
-    return word.replace("$(", ";").replace("`", ";").replace(")", ";")
 
 
-def get_handed_script(words: list[str], index: int) -> str | None:
-    if Path(words[index]).name in SHELLS:
-        return get_shell_script(words, index)
-    if words[index] == "eval":
-        return get_eval_script(words, index)
-    return None
+def get_alias_values(cwd: str | None) -> dict[str, str] | None:
+    # Exit 1 means no alias is set; any other failure leaves
+    # the aliases unknown, which the caller reads as a commit.
+    result = run_git(cwd, "config", "--get-regexp", r"^alias\.")
+    if result is None or result.returncode not in (0, 1):
+        return None
+    pairs = (line.partition(" ") for line in result.stdout.splitlines())
+    return {name.removeprefix("alias."): value for name, _, value in pairs}
 
 
-def get_handed_scripts(words: list[str]) -> list[str | None]:
-    return [get_handed_script(words, index) for index in range(len(words))]
+def get_word_pattern(names: set[str]) -> re.Pattern | None:
+    if not names:
+        return None
+    alternatives = "|".join(sorted(map(re.escape, names)))
+    return re.compile(rf"(?<![\w.-])(?:{alternatives})(?![\w.-])")
 
 
-def get_nested_scripts(words: list[str], text: str) -> list[str]:
-    whole_text = [text.replace("`", ";")] if "`" in text else []
-    scripts = [*map(get_substituted_script, words), *get_handed_scripts(words), *whole_text]
-    return [script for script in scripts if script is not None]
+def get_commit_aliases(values: dict[str, str]) -> set[str]:
+    # An alias may run another alias, so the set grows until
+    # no further alias names one already in it.
+    names: set[str] = set()
+    while True:
+        pattern = get_word_pattern(names)
+        found = {name for name, value in values.items() if COMMIT_WORD.search(value) or (pattern and pattern.search(value))}
+        if found == names:
+            return names
+        names = found
 
 
-def names_git_commit(words: list[str]) -> bool:
-    subcommands = [get_git_subcommand(words, index) for index, word in enumerate(words) if Path(word).name == "git"]
-    return "commit" in subcommands
-
-
-def runs_git_commit(command: str, depth: int = 0) -> bool:
-    # A heredoc body or a quoted argument is data, so the
-    # call that appends "git commit" text to the evidence
-    # file is never read as a commit.
-    text = parse_shell_command.strip_heredoc_bodies(command)
-    words = get_shell_words(text)
-    if words is None or depth > MAX_NESTED_SCRIPTS:
+def runs_commit_alias(command: str, cwd: str | None) -> bool:
+    if not GIT_WORD.search(command):
+        return False
+    values = get_alias_values(cwd)
+    if values is None:
         return True
+    pattern = get_word_pattern(get_commit_aliases(values))
+    return pattern is not None and pattern.search(command) is not None
 
-    nested_scripts = get_nested_scripts(words, text)
-    return names_git_commit(words) or any(runs_nested_commit(script, command, depth) for script in nested_scripts)
 
-
-def runs_nested_commit(script: str, command: str, depth: int) -> bool:
-    if script == SHELL_READS_STDIN:
-        return RAW_GIT_COMMIT.search(command) is not None
-    return runs_git_commit(script, depth + 1)
+def is_possible_commit(command: str, cwd: str | None) -> bool:
+    # The raw text includes heredoc bodies and quoted code, so
+    # a script fed to any interpreter is screened with it.
+    if COMMIT_WORD.search(command):
+        return True
+    if get_shell_words(parse_shell_command.strip_heredoc_bodies(command)) is None:
+        return True
+    return runs_commit_alias(command, cwd)
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:
@@ -255,7 +232,7 @@ def print_deny(problem: str) -> None:
     reason = (
         f"tdd-coder commits only after its evidence file holds a confirmed {RED_HEADER} entry "
         f"followed by a confirmed {GREEN_HEADER} entry, appended as each run is read, "
-        f"never reconstructed afterwards: {problem}."
+        f"never reconstructed afterwards: {problem}. {SCREEN_GUIDANCE}."
     )
     output = {
         "hookSpecificOutput": {
@@ -267,19 +244,7 @@ def print_deny(problem: str) -> None:
     print(json.dumps(output))
 
 
-def is_tdd_coder_commit(payload: dict) -> bool:
-    # A nested Explore's call can reach this agent's hooks, and
-    # main never carries tdd-coder as its agent_type.
-    tool_input = payload.get("tool_input")
-    command = tool_input.get("command") if isinstance(tool_input, dict) else None
-    is_tdd_coder = payload.get("agent_type") == report_files.AGENT_TYPE
-    return is_tdd_coder and isinstance(command, str) and runs_git_commit(command)
-
-
-def get_commit_problem(payload: dict) -> str | None:
-    transcript_path = get_agent_transcript_path(payload)
-    records = report_files.read_transcript_records(str(transcript_path)) if transcript_path is not None else []
-    labels = get_written_labels(records)
+def get_label_problem(labels: list[str]) -> str | None:
     if not labels:
         return (
             "no Write or Edit of this run created its checklist or evidence file, so its run label "
@@ -289,17 +254,41 @@ def get_commit_problem(payload: dict) -> str | None:
     if len(labels) > 1:
         evidence_paths = ", ".join(EVIDENCE_PATH.format(label=label) for label in labels)
         return f"this run's file writes name {len(labels)} run labels ({evidence_paths}); one run owns one label"
+    return None
+
+
+def get_commit_problem(payload: dict, command: str) -> str | None:
+    cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
+    if not is_possible_commit(command, cwd):
+        return None
+
+    transcript_path = get_agent_transcript_path(payload)
+    records = report_files.read_transcript_records(str(transcript_path)) if transcript_path is not None else []
+    labels = get_written_labels(records)
+    label_problem = get_label_problem(labels)
+    if label_problem is not None:
+        return label_problem
 
     evidence_path = Path(EVIDENCE_PATH.format(label=labels[0]))
     return get_evidence_problem(evidence_path) or get_staleness_problem(evidence_path, records)
 
 
+def get_tdd_coder_command(payload: dict | None) -> str | None:
+    # A nested Explore's call can reach this agent's hooks, and
+    # main never carries tdd-coder as its agent_type.
+    is_tdd_coder = payload is not None and payload.get("agent_type") == report_files.AGENT_TYPE
+    tool_input = payload.get("tool_input") if is_tdd_coder else None
+    command = tool_input.get("command") if isinstance(tool_input, dict) else None
+    return command if isinstance(command, str) else None
+
+
 def main() -> int:
     payload = read_payload()
-    if payload is None or not is_tdd_coder_commit(payload):
+    command = get_tdd_coder_command(payload)
+    if command is None:
         return 0
 
-    problem = get_commit_problem(payload)
+    problem = get_commit_problem(payload, command)
     if problem is not None:
         print_deny(problem)
     return 0

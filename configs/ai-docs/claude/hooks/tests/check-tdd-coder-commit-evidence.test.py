@@ -102,7 +102,7 @@ def write_agent_transcript(tmp_path, records, is_stamped=True):
     session_transcript = tmp_path / f"{SESSION_ID}.jsonl"
     session_transcript.write_text("", encoding="utf-8")
     agent_transcript = tmp_path / SESSION_ID / "subagents" / f"agent-{AGENT_ID}.jsonl"
-    agent_transcript.parent.mkdir(parents=True)
+    agent_transcript.parent.mkdir(parents=True, exist_ok=True)
     agent_transcript.write_text("".join(json.dumps(stamped(record) if is_stamped else record) + "\n" for record in records))
     return session_transcript
 
@@ -127,6 +127,10 @@ def payload(command, transcript_path, agent_type="tdd-coder", agent_id=AGENT_ID,
     return {key: value for key, value in fields.items() if value is not OMITTED}
 
 
+# The machine's own git aliases must not decide a test.
+GIT_ENV = {**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
+
 def run_hook(stdin_text):
     return subprocess.run(
         [sys.executable, str(HOOK)],
@@ -134,7 +138,19 @@ def run_hook(stdin_text):
         capture_output=True,
         text=True,
         check=False,
+        env=GIT_ENV,
     )
+
+
+def git(repo, *arguments):
+    subprocess.run(["git", "-C", str(repo), *arguments], check=True, capture_output=True, env=GIT_ENV)
+
+
+def git_repo(tmp_path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    git(repo, "init", "-q")
+    return repo
 
 
 def deny_reason(result):
@@ -152,6 +168,7 @@ def check_commit(tmp_path, command=COMMIT, records=None, is_stamped=True, **payl
     if records is None:
         records = [prompt_record("Units: 1. block a commit"), checklist_write_record()]
     transcript_path = write_agent_transcript(tmp_path, records, is_stamped)
+    payload_fields.setdefault("cwd", str(tmp_path))
     return deny_reason(run_hook(json.dumps(payload(command, transcript_path, **payload_fields))))
 
 
@@ -255,11 +272,12 @@ class TestCallsLetThrough:
         "command",
         [
             "git status --short",
-            "git log --grep commit --oneline",
-            f"echo 'git commit ran' >> {EVIDENCE}",
-            f"cat >> {EVIDENCE} <<'EOF'\ngit commit -m x\nEOF",
+            "git log --oneline -5",
+            "pytest configs/ai-docs/claude/hooks/tests/check-tdd-coder-commit-evidence.test.py",
+            f"cat >> {EVIDENCE} <<'EOF'\n{RED_ENTRY}EOF",
+            "python3 - <<'EOF'\nprint('green')\nEOF",
         ],
-        ids=["git-status", "git-log-grepping-commit", "quoted-text", "heredoc-body"],
+        ids=["git-status", "git-log", "pytest-on-a-commit-named-path", "evidence-heredoc", "python-heredoc"],
     )
     def test_should_let_a_bash_call_through_when_it_runs_no_git_commit(self, tmp_path, command):
         assert check_commit(tmp_path, command=command) is None
@@ -318,7 +336,55 @@ class TestCommitWrappedInAnotherCommand:
         assert str(EVIDENCE) in reason
 
     def test_should_let_a_wrapped_command_through_when_it_runs_no_git_commit(self, tmp_path):
-        assert check_commit(tmp_path, command="bash -c 'git status --short && echo commit'") is None
+        assert check_commit(tmp_path, command="bash -c 'git status --short'") is None
+
+
+def possible_commit_reason(tmp_path, command, **payload_fields):
+    reason = check_commit(tmp_path, command=command, **payload_fields)
+
+    assert reason is not None
+    assert str(EVIDENCE) in reason
+    return reason
+
+
+class TestFailClosedCommitScreen:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "git $'commit' -m x -- a.py",
+            "git -c alias.ci=commit ci -m x -- a.py",
+            "echo commit -m x | xargs git",
+            "xargs git <<'EOF'\ncommit -m x\nEOF",
+            "fish -c 'git COMMIT -m x'",
+            "python3 -c \"import subprocess; subprocess.run(['git', 'commit', '-m', 'x'])\"",
+            "perl -e 'system(\"git\", \"commit\", \"-m\", \"x\")'",
+            "node -e \"require('child_process').execSync('git commit -m x')\"",
+        ],
+        ids=["ansi-c-quoting", "inline-alias", "split-across-a-pipe", "split-into-a-heredoc", "fish", "python", "perl", "node"],
+    )
+    def test_should_deny_a_command_naming_commit_however_it_is_spelled(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+    def test_should_deny_a_repo_alias_whose_value_runs_commit(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "alias.ci", "commit -v")
+
+        possible_commit_reason(tmp_path, "git ci -m x -- a.py", cwd=str(repo))
+
+    def test_should_let_a_repo_alias_through_when_its_value_runs_no_commit(self, tmp_path):
+        repo = git_repo(tmp_path)
+        git(repo, "config", "alias.st", "status")
+
+        assert check_commit(tmp_path, command="git st --short", cwd=str(repo)) is None
+
+    def test_should_deny_a_git_call_when_its_aliases_cannot_be_read(self, tmp_path):
+        possible_commit_reason(tmp_path, "git st --short", cwd=str(tmp_path / "missing"))
+
+    def test_should_tell_a_false_positive_how_to_get_past_the_screen(self, tmp_path):
+        reason = possible_commit_reason(tmp_path, "git log --grep commit --oneline")
+
+        assert "reword" in reason
+        assert "GREEN" in reason
 
 
 class TestRunLabelBinding:
