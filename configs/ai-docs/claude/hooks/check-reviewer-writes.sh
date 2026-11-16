@@ -230,16 +230,26 @@ remove_quotes() {
     }'
 }
 
+# Drops a descriptor duplication such as `2>&1` or `>&-`.
+#
+# `>&word` duplicates only when the word is digits or `-`
+# ending at a blank, the line end or a shell operator; any
+# other word, as in `>&2src`, is a file the shell writes.
+#
+# The blanks are listed by hand, since [[:space:]] also holds
+# characters bash keeps inside a word.
+FD_DUP_SED='s/[0-9]*>&([0-9]+-?|-)([ '$'\t'';|&()<>]|$)/\2/g'
+
 if [ -n "$CMD" ]; then
   # Quotes are removed first, so a target whose quote sits
   # anywhere in the word is judged as the path the shell uses.
-  STRIPPED=$(remove_quotes "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g')
+  STRIPPED=$(remove_quotes "$CMD" | sed -E "$FD_DUP_SED")
   # The write form is read from the raw command, so a quote
   # paired wrongly cannot hide it.
   #
   # An ANSI-C quote, an UNREADABLE_MARKER spot or a heredoc
   # in a command that writes is denied rather than modelled.
-  if printf '%s' "$CMD" | sed -E 's/[0-9]*>&[0-9-]+//g' \
+  if printf '%s' "$CMD" | sed -E "$FD_DUP_SED" \
       | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|g?sed)([[:space:]]|$)' \
     && [[ "$CMD" == *"\$'"* || "$STRIPPED" == *"$UNREADABLE_MARKER"* \
       || "$STRIPPED" == *'<<'* ]]; then

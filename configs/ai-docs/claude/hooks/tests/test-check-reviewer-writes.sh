@@ -322,6 +322,29 @@ assert_eq "blocks a /tmp segment that starts with two dots then a glob" \
 assert_eq "allows a /tmp redirect with stderr merged into it" \
   "0" "$(run_bash 'git diff > /tmp/x.txt 2>&1')"
 
+# `>&word` duplicates a descriptor only when the word is a
+# number or `-`; any other word, digits first or not, is a
+# file the shell writes.
+fd_word_writes=('echo x >&2src' 'echo x 2>&1src' 'echo x >&2-x'
+  'echo x >&2"src"')
+allowed_fd_word=""
+for c in "${fd_word_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_fd_word="$allowed_fd_word [$c]"
+done
+assert_eq "blocks a redirect into a file whose name starts with digits after the descriptor-duplication form" \
+  "" "$allowed_fd_word"
+
+fd_dups=('echo x >&2' 'echo x >&2; ls' 'echo x 2>&1|cat'
+  'echo x 2>&1&& ls' 'exec 3>&-' 'echo x 1>&2-')
+denied_fd_dup=""
+for c in "${fd_dups[@]}"; do
+  [ "$(run_bash "$c")" = "0" ] \
+    || denied_fd_dup="$denied_fd_dup [$c]"
+done
+assert_eq "allows a descriptor duplication or close ending at a blank, the end or a shell operator" \
+  "" "$denied_fd_dup"
+
 # A target holding an expansion or glob character becomes a
 # path only when the shell runs, so it is denied even with no
 # parent step in sight.
