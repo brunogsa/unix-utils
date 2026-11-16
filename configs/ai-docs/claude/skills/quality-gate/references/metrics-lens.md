@@ -65,11 +65,9 @@ A claimed exception says a function stays over its limit because splitting it re
 
 For each claim you were given:
 
-1. Save the split the author tried as `split_<function>_<timestamp>.diff` in CWD, linked from your report, never under `/tmp`:
-
-```bash
-git diff <BASE>...<HEAD> -- <file> | ~/.claude/scripts/write-atomically.py split_<function>_<timestamp>.diff
-```
+1. Judge the split diff the claim names, saved by the unit next to the future verdict.
+   - Never regenerate it from the range diff, which holds only the committed, unsplit code.
+   - A claim that names no saved split is rejected.
 
 2. Read the split and rule whether it reads worse than the unsplit function.
    - Worse: the exception stands. List it as an exception, not a violation.
