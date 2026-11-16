@@ -15,6 +15,7 @@ from pathlib import Path
 from quality_metrics.tools import ToolError, run_tool
 
 TOOL_MAP_DIR = Path("/tmp")
+DETECTOR_RULES_PATH = Path(__file__).resolve().parents[1] / "quality-metrics-detectors.yaml"
 
 
 def load_detector_rules(path):

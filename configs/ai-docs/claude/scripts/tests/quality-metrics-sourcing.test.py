@@ -19,10 +19,9 @@ from quality_metrics.sourcing import (
     measure_function_size_with_repo_tool,
     source_for,
 )
-from quality_metrics.tool_map import load_detector_rules
+from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
 from quality_metrics.touched import Target
 
-DETECTOR_RULES = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 SESSION_ID = "session-7b1d3e"
 
 JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} };\n"
@@ -30,7 +29,7 @@ PYTHON_MODULE = "def add(first, second):\n    return first + second\n"
 
 
 def source_of_coverage(working_directory, map_dir):
-    rules = load_detector_rules(DETECTOR_RULES)
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
     tool_map = lazy_tool_map_for(working_directory, rules, SESSION_ID, map_dir, base_ref="HEAD")
     return source_for("coverage", tool_map)
 
@@ -49,7 +48,7 @@ def test_should_name_the_repos_own_tool_as_the_source_when_the_tool_map_lists_on
 
 def test_should_name_the_repos_eslint_as_the_function_size_source_when_the_repo_has_an_eslint_config(tmp_path):
     repo = make_repo(tmp_path, {"eslint.config.js": "module.exports = [];\n", "src/index.js": "module.exports = 1;\n"})
-    rules = load_detector_rules(DETECTOR_RULES)
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
     tool_map = lazy_tool_map_for(repo, rules, SESSION_ID, tmp_path, base_ref="HEAD")
 
     size_source = source_for("size", tool_map)

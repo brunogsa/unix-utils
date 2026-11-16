@@ -17,18 +17,14 @@
 import argparse
 import json
 import sys
-from pathlib import Path
 
 from quality_metrics.tool_map import (
+    DETECTOR_RULES_PATH,
     LazyToolMap,
     load_detector_rules,
     TOOL_MAP_DIR,
 )
 from quality_metrics.tools import ToolError, run_tool
-
-DEFAULT_RULES = (
-    Path(__file__).resolve().parent / "quality-metrics-detectors.yaml"
-)
 
 
 def main():
@@ -37,7 +33,7 @@ def main():
     parser.add_argument("--base", required=True, help="base SHA or ref to read configs at")
     parser.add_argument("--session-id", required=True)
     parser.add_argument("--map-dir", default=str(TOOL_MAP_DIR))
-    parser.add_argument("--rules", default=str(DEFAULT_RULES))
+    parser.add_argument("--rules", default=str(DETECTOR_RULES_PATH))
     arguments = parser.parse_args()
     try:
         rules = load_detector_rules(arguments.rules)

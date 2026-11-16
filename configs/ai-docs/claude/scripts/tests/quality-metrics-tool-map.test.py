@@ -9,10 +9,14 @@ from quality_metrics_support import GIT_ENV, SCRIPTS_DIR, commit_all, head_of, m
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from quality_metrics.tool_map import LazyToolMap, load_detector_rules, record_deferred_tool
+from quality_metrics.tool_map import (
+    DETECTOR_RULES_PATH,
+    LazyToolMap,
+    load_detector_rules,
+    record_deferred_tool,
+)
 
 DETECT_SCRIPT = SCRIPTS_DIR / "detect-repo-metric-tools.py"
-DETECTOR_RULES = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 SESSION_ID = "session-4f2a9c"
 
 JEST_CONFIG = "module.exports = { collectCoverage: true, coverageThreshold: {} };\n"
@@ -105,7 +109,7 @@ def test_should_build_the_map_at_the_first_check_that_finds_it_missing_and_read_
 
 def test_should_build_no_tool_map_for_a_run_where_no_check_needs_one(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
-    rules = load_detector_rules(DETECTOR_RULES)
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
 
     LazyToolMap(repo, head_of(repo), rules, SESSION_ID, tmp_path)
 
@@ -127,7 +131,7 @@ def test_should_record_a_deferred_tool_in_the_current_batchs_deferred_list(tmp_p
 def test_should_still_detect_the_repos_tools_and_keep_the_deferral_when_a_tool_is_deferred_before_the_map_is_built(tmp_path):
     repo = make_repo(tmp_path, {"jest.config.js": JEST_CONFIG})
     base_sha = head_of(repo)
-    rules = load_detector_rules(DETECTOR_RULES)
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
     record_deferred_tool(repo, base_sha, "eslint", SESSION_ID, tmp_path)
 
     entry = LazyToolMap(repo, base_sha, rules, SESSION_ID, tmp_path).entry()
@@ -189,7 +193,7 @@ def test_should_land_both_concurrent_writers_deferred_entries_and_never_show_a_r
         start_process(WRITER_PROGRAM, *shared, writer, DEFERRALS_PER_WRITER)
         for writer in range(WRITER_COUNT)
     ]
-    builder = start_process(BUILDER_PROGRAM, *shared, DETECTOR_RULES, REBUILDS_BY_BUILDER)
+    builder = start_process(BUILDER_PROGRAM, *shared, DETECTOR_RULES_PATH,REBUILDS_BY_BUILDER)
     processes = [*writers, builder]
 
     go_file.write_text("go")

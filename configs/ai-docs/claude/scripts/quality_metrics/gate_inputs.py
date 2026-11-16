@@ -17,7 +17,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from quality_metrics.declaration import parse_yaml
-from quality_metrics.tool_map import load_detector_rules
+from quality_metrics.tool_map import DETECTOR_RULES_PATH, load_detector_rules
 from quality_metrics.touched import (
     DELETED_FILE_HEADER,
     DIFF_COMMAND,
@@ -30,9 +30,6 @@ from quality_metrics.tools import run_command, run_tool
 # it blocks is also listed here.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks" / "lib"))
 from suppression_patterns import PROSE_SUFFIXES, count_suppressions
-
-SCRIPTS_DIR = Path(__file__).resolve().parents[1]
-DETECTORS_PATH = SCRIPTS_DIR / "quality-metrics-detectors.yaml"
 
 SUPPRESSION_KIND = "suppression"
 COVERAGE_EXCLUDE_KIND = "coverage_exclude"
@@ -233,7 +230,7 @@ def _untracked_texts(repo_dir):
 
 
 def _jest_config_names():
-    rules = load_detector_rules(DETECTORS_PATH)
+    rules = load_detector_rules(DETECTOR_RULES_PATH)
     return next(rule["configs"] for rule in rules if rule["tool"] == "jest")
 
 
