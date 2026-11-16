@@ -22,11 +22,14 @@ def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
 
     Raises subprocess.TimeoutExpired once `timeout` seconds
     pass.
+
+    A binary or Latin-1 file must not crash the run, so bytes
+    that are not UTF-8 decode to a replacement character.
     """
     try:
         return subprocess.run(
             command, capture_output=True, text=True,
-            input=input_text, cwd=cwd, env=env, timeout=timeout,
+            encoding="utf-8", errors="replace", input=input_text, cwd=cwd, env=env, timeout=timeout,
         )
     except FileNotFoundError as error:
         raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error

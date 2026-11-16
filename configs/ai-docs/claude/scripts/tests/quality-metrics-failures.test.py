@@ -1,4 +1,3 @@
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -8,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from quality_metrics_support import (
     JEST_CRASH_STUB,
     SCRIPTS_DIR,
+    commit_all,
     coverage_records_of,
     head_of,
     install_global_collector,
@@ -38,7 +38,7 @@ from quality_metrics.functions import FunctionMeasure, is_over_limit, measuremen
 from quality_metrics.size import FUNCTION_LINES_LIMIT
 from quality_metrics.collection import CoverageRun
 from quality_metrics.tool_map import DETECTOR_RULES_PATH, LazyToolMap, load_detector_rules, record_deferred_tool
-from quality_metrics.tools import ToolError
+from quality_metrics.tools import ToolError, run_command
 from quality_metrics.touched import Target
 
 MEASURED_COMPLEXITY = {"metric": "complexity", "value": 7}
@@ -337,3 +337,13 @@ def test_should_not_count_a_timeout_under_no_go_headroom_as_the_tool_failing():
 
     assert result == MEASURED_COMPLEXITY
     assert len(timeouts_seen) == 3
+
+
+def test_should_return_the_text_of_a_latin_1_file_shown_from_a_revision_instead_of_failing_to_decode_it(tmp_path):
+    repo = make_repo(tmp_path, {"readme.txt": "seed\n"})
+    (repo / "legacy.txt").write_bytes("caf\xe9 au lait\n".encode("latin-1"))
+    commit_all(repo, "add latin-1 file")
+
+    shown = run_command(["git", "show", "HEAD:legacy.txt"], cwd=repo)
+
+    assert shown.stdout == "caf� au lait\n"
