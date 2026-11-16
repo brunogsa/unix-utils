@@ -129,6 +129,30 @@ class TestRunnerConfigHappy(unittest.TestCase):
                     f"python_files config de-collected a pre-existing suite")
 
 
+class TestAssertionIntrospection(unittest.TestCase):
+    def test_should_show_both_operands_of_a_failed_comparison_in_a_dotted_stem_test_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            (tmp_path / "pytest.ini").write_text(PYTEST_INI.read_text())
+            conftest = REPO_ROOT / "conftest.py"
+            if conftest.is_file():
+                (tmp_path / "conftest.py").write_text(conftest.read_text())
+            (tmp_path / "sample-check.test.py").write_text(
+                "def test_mismatch():\n"
+                "    expected_total = 1058\n"
+                "    assert expected_total == 2\n"
+            )
+
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", "-q"],
+                cwd=tmp_path, capture_output=True, text=True,
+            )
+
+            self.assertIn(
+                "assert 1058 == 2", result.stdout,
+                msg=f"bare AssertionError, no rewritten operands:\n{result.stdout}")
+
+
 class TestRunnerConfigCorner(unittest.TestCase):
     def test_should_raise_no_module_import_error_for_a_hyphenated_test_stem_under_importlib_import_mode(self):
         with tempfile.TemporaryDirectory() as tmp:
