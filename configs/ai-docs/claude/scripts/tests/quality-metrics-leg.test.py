@@ -1,11 +1,16 @@
+import signal
+import subprocess
 import sys
 from pathlib import Path
 
+SCRIPTS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
     SHIPPED_DECLARATION, make_repo, measure_report,
 )
+
+WRITE_SCRIPT = SCRIPTS_DIR / "write-atomically.py"
 
 # A branchy function with no test around it: the kind of code
 # a CRAP limit flags, and an inspector could judge a poor fit.
@@ -32,6 +37,38 @@ classify() {
 """
 
 
+PARTIAL_CHUNK = b"diff --git a/report.go b/report.go\n+half of a later wri"
+
+WRITER_MODULE_MARKER = b"quality_metrics.atomic_write"
+
+
+def start_write(target):
+    """The write-atomically CLI, stdin held open so the caller can kill it.
+
+    Returns once the CLI has imported the shared writer, so a later
+    kill lands while it waits on stdin, not during interpreter start.
+    `-X importtime` reports each import on stderr as it finishes.
+    """
+    process = subprocess.Popen(
+        [sys.executable, "-X", "importtime", str(WRITE_SCRIPT), str(target)],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    for import_line in process.stderr:
+        if WRITER_MODULE_MARKER in import_line:
+            break
+    return process
+
+
+def kill_mid_write(target, partial_bytes):
+    """Send part of the content, then SIGKILL before stdin closes."""
+    process = start_write(target)
+    process.stdin.write(partial_bytes)
+    process.stdin.flush()
+    process.kill()
+    process.communicate()
+    return process.returncode
+
+
 class TestMetricsLegIsReadOnly:
     def test_should_leave_the_metrics_declaration_byte_identical_after_a_run_whose_inspector_proposes_an_opt_out(
         self, tmp_path
@@ -45,3 +82,15 @@ class TestMetricsLegIsReadOnly:
 
         assert report["measurements"], "the run measured nothing, so it proved nothing"
         assert declaration_copy.read_bytes() == declaration_before
+
+
+class TestKilledAtomicWrite:
+    def test_should_leave_no_partial_merged_verdict_quality_gate_file_when_its_write_is_killed_mid_way(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_00:07.md"
+
+        returncode = kill_mid_write(verdict, PARTIAL_CHUNK)
+
+        assert returncode == -signal.SIGKILL
+        assert list(tmp_path.glob("verdict_quality-gate_*")) == []
