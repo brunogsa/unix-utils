@@ -13,7 +13,7 @@ import collections
 import itertools
 from pathlib import Path
 
-from quality_metrics import hotspots
+from quality_metrics import debt, hotspots
 from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.functions import display_value
@@ -85,6 +85,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _gate_inputs_section(report.get("gate_input_violations", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
+        _debt_section(report),
         _design_section(report["measurements"]),
     ]
     if not in_git:
@@ -202,6 +203,18 @@ def _ranked_section(title, records, numbers):
 
 def _is_rankable(record):
     return bool(record["limit"]) and record["limit"] > 0 and not hotspots.is_neutral(record)
+
+
+def _debt_section(report):
+    score = debt.debt_score(report["violations"], debt.measured_nloc(report["measurements"]))
+    if score["ratio"] is None:
+        text = f"{score['minutes']} min of remediation; ratio not computable, no file size was measured"
+    else:
+        text = (
+            f"{score['minutes']} min of remediation over {score['nloc']} measured lines = "
+            f"{score['ratio']:.1%}, band {score['band']}"
+        )
+    return _section("Debt", [text])
 
 
 def _design_section(measurements):

@@ -33,6 +33,7 @@ from pathlib import Path
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
+from quality_metrics.debt import debt_score, measured_nloc
 from quality_metrics.failures import holds_commit
 from quality_metrics.functions import is_over_limit
 from quality_metrics.measuring import (
@@ -127,6 +128,7 @@ def _print_report(measurements, unclaimed, resolved, gate_input_violations, cove
         "measurements": measurements,
         "violations": violations,
         "holds_commit": holds_commit(measurements),
+        "debt": debt_score(violations, measured_nloc(measurements)),
         "gate_input_violations": gate_input_violations,
         "resolved": resolved,
         "unclaimed_files": unclaimed,
