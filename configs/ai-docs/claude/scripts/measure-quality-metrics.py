@@ -87,7 +87,7 @@ def main(arguments):
         layer_map = load_layer_map(options.layers) if options.layers else None
         dependency_run = DependencyRun(
             Path.cwd(), _dependency_base_ref(options),
-            declaration.excluded_paths, layer_map,
+            declaration.excluded_paths, layer_map, head_ref=head_ref,
         )
         measurements, unclaimed = _measure(
             declaration, mode, touched_by_file, coverage_run, head_ref,

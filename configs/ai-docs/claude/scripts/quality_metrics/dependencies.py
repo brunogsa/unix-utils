@@ -132,9 +132,11 @@ def load_layer_map(path):
 class DependencyRun:
     """Finds the head's problems once per tool, however many files ask."""
 
-    def __init__(self, repo_dir, base_ref, excluded_paths, layer_map=None):
+    def __init__(self, repo_dir, base_ref, excluded_paths, layer_map=None,
+                 head_ref=None):
         self.repo_dir = Path(repo_dir)
         self.base_ref = base_ref
+        self.head_ref = head_ref
         self.excluded_paths = excluded_paths
         self.layer_map = layer_map
         self._problems_by_tool = {}
@@ -156,7 +158,7 @@ class DependencyRun:
         return found
 
     def _find_problems(self, tool):
-        head = self._find_in(tool, self.repo_dir)
+        head = self._find_in_head(tool)
         with tempfile.TemporaryDirectory() as base_dir:
             _extract_tree_at(self.repo_dir, self.base_ref, Path(base_dir))
             try:
@@ -169,6 +171,18 @@ class DependencyRun:
             {**problem, "is_introduced": problem["key"] not in base_keys}
             for problem in head
         ]
+
+    def _find_in_head(self, tool):
+        """With a head ref, read its tree, not the working tree.
+
+        An uncommitted edit to any file must not change what
+        the range is judged on.
+        """
+        if not self.head_ref:
+            return self._find_in(tool, self.repo_dir)
+        with tempfile.TemporaryDirectory() as head_dir:
+            _extract_tree_at(self.repo_dir, self.head_ref, Path(head_dir))
+            return self._find_in(tool, Path(head_dir))
 
     def _find_in(self, tool, tree):
         if tool == DEPENDENCY_CRUISER:

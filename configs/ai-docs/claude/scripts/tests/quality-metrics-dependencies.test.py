@@ -653,3 +653,23 @@ def test_exits_not_measured_with_a_message_when_the_layer_map_is_a_list_not_a_ma
     assert result.returncode == 2
     assert "must be a mapping" in result.stderr
     assert "Traceback" not in result.stderr
+
+
+def test_flags_a_cycle_the_range_adds_when_an_uncommitted_edit_to_an_untouched_file_breaks_it(tmp_path):
+    repo = make_repo(tmp_path, PYTHON_CYCLE_BASE_FILES)
+    base_sha = head_of(repo)
+    (repo / "shop/orders/order.py").write_text(ORDER_READS_BILLING)
+    commit_all(repo, "branch adds orders -> billing")
+
+    # invoice.py is not in the range; the edit is uncommitted.
+    (repo / "shop/billing/invoice.py").write_text("INVOICE_ID = 1\n")
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(PYTHON_DECLARATION)
+
+    report = measure_report(
+        repo, declaration_path, "--diff", f"{base_sha}...HEAD"
+    )
+
+    assert [(item["kind"], item["file"]) for item in report["violations"]] == [
+        ("cycle", "shop/orders/order.py")
+    ]
