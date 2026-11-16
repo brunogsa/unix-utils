@@ -9,9 +9,13 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 crap = importlib.import_module("quality_metrics.crap")
 size = importlib.import_module("quality_metrics.size")
 report = importlib.import_module("quality_metrics.report")
+hotspots = importlib.import_module("quality_metrics.hotspots")
 
 CRAP_LIMIT = crap.CRAP_LIMIT
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
+
+NODE_LINE = re.compile(r'^\s*(n\d+)\["(.*)"\]:::(\w+)$', re.M)
+EDGE_LINE = re.compile(r"^\s*(n\d+) --> (n\d+)$", re.M)
 
 
 def function_record(file, function, metric, value, limit):
@@ -113,3 +117,57 @@ class TestRankedLists:
         [file_size_entry] = entry_headings(section(verdict, "Ranked: File size"))
         assert "src/grown.py" in file_size_entry
         assert "400" in file_size_entry
+
+
+HOTSPOT_RUN = measured(
+    function_record("src/red.py", "tangle", "crap", 14, CRAP_LIMIT),
+    file_record("src/red.py", "size", 100, FILE_LINES_LIMIT),
+    function_record("src/amber.py", "branchy", "crap", 6, CRAP_LIMIT),
+    function_record("src/green.py", "tidy", "crap", 3, CRAP_LIMIT),
+    file_record("src/limit.py", "size", 300, FILE_LINES_LIMIT),
+    file_record("src/edge70.py", "size", 210, FILE_LINES_LIMIT),
+    file_record("src/under70.py", "size", 209, FILE_LINES_LIMIT),
+)
+IMPORT_EDGES = [
+    ("src/red.py", "lib/util.py"),
+    ("tools/caller.py", "src/amber.py"),
+    ("far/away.py", "lib/util.py"),
+]
+
+
+def nodes_by_file(view):
+    """Each node's file path and color, read back from the Mermaid text."""
+    return {
+        label.split("<br/>")[0]: color for _, label, color in NODE_LINE.findall(view)
+    }
+
+
+class TestHotspotView:
+    def test_should_show_every_touched_file_in_the_hotspot_view_colored_by_its_worst_metrics_ratio_to_its_limit(self):
+        view = hotspots.hotspot_view(HOTSPOT_RUN, IMPORT_EDGES)
+
+        colors = nodes_by_file(view)
+        assert colors["src/red.py"] == "red"
+        assert colors["src/limit.py"] == "red"
+        assert colors["src/amber.py"] == "amber"
+        assert colors["src/edge70.py"] == "amber"
+        assert colors["src/green.py"] == "green"
+        assert colors["src/under70.py"] == "green"
+
+    def test_should_draw_the_files_one_import_hop_away_but_no_further(self):
+        view = hotspots.hotspot_view(HOTSPOT_RUN, IMPORT_EDGES)
+
+        colors = nodes_by_file(view)
+        assert colors["lib/util.py"] == "context"
+        assert colors["tools/caller.py"] == "context"
+        assert "far/away.py" not in colors
+        ids = {label.split("<br/>")[0]: id_ for id_, label, _ in NODE_LINE.findall(view)}
+        assert set(EDGE_LINE.findall(view)) == {
+            (ids["src/red.py"], ids["lib/util.py"]),
+            (ids["tools/caller.py"], ids["src/amber.py"]),
+        }
+
+    def test_should_embed_the_hotspot_view_in_the_verdict_within_the_code_design(self):
+        verdict = report.build_verdict(HOTSPOT_RUN, import_edges=IMPORT_EDGES)
+
+        assert "```mermaid" in section(verdict, "Code design")

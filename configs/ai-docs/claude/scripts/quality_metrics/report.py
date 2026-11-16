@@ -8,6 +8,8 @@ so a claim made in prose alone stays a violation.
 import itertools
 from pathlib import Path
 
+from quality_metrics import hotspots
+
 METRICS_TAG = "[metrics]"
 
 METRIC_TITLES = {
@@ -17,8 +19,12 @@ METRIC_TITLES = {
 }
 
 
-def build_verdict(report, exceptions=()):
-    """Verdict markdown; `exceptions` are claims with a saved split diff path."""
+def build_verdict(report, exceptions=(), import_edges=()):
+    """Verdict markdown.
+
+    `exceptions` are claims with a saved split diff path;
+    `import_edges` are (importer, imported) file pairs.
+    """
     numbers = itertools.count(1)
     claims_by_key = {_key(claim): claim for claim in exceptions}
     accepted = []
@@ -33,6 +39,7 @@ def build_verdict(report, exceptions=()):
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
         *_ranked_sections(report["measurements"], numbers),
+        _design_section(report["measurements"], import_edges),
     ]
     return "\n\n".join(sections) + "\n"
 
@@ -74,6 +81,11 @@ def _ranked_sections(measurements, numbers):
         )
         for title, records in sorted(records_by_title.items())
     ]
+
+
+def _design_section(measurements, import_edges):
+    view = hotspots.hotspot_view({"measurements": measurements}, import_edges)
+    return f"## Code design\n\n{view}"
 
 
 def _section(title, entries):
