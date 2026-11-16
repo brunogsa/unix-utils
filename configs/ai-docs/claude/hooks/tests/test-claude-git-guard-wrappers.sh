@@ -107,6 +107,13 @@ it_should_block_a_wrapper_whose_skipped_duration_the_shell_may_split() {
   assert_eq "should block a wrapper whose skipped duration the shell may split" "2" "$HOOK_EXIT"
 }
 
+# OPT='-n1 git commit -m x' puts more options and another
+# command before the git status that follows it.
+it_should_block_a_wrapper_whose_option_word_is_an_expansion() {
+  run_hook 'git log -3 | xargs $OPT git status'
+  assert_eq "should block a wrapper whose option word is an expansion" "2" "$HOOK_EXIT"
+}
+
 it_should_block_a_wrapper_whose_options_it_cannot_read() {
   run_hook 'sudo -Z git status'
   assert_eq "should block a wrapper whose options it cannot read" "2" "$HOOK_EXIT"
@@ -223,6 +230,7 @@ it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_comma
 it_should_block_an_xargs_whose_glued_option_value_the_shell_may_split
 it_should_block_a_wrapper_whose_separate_option_value_the_shell_may_split
 it_should_block_a_wrapper_whose_skipped_duration_the_shell_may_split
+it_should_block_a_wrapper_whose_option_word_is_an_expansion
 it_should_block_a_wrapper_whose_options_it_cannot_read
 it_should_block_a_git_alias_run_by_a_command_not_known_as_a_wrapper
 it_should_block_an_xargs_that_rewrites_its_git_words
