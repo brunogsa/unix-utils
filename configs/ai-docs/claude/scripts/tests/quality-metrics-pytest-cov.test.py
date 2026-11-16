@@ -5,6 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
+    CART_LCOV,
     SCRIPTS_DIR,
     assert_fell_through_to_global,
     coverage_records_of,
@@ -68,14 +69,45 @@ echo "no tests ran in 0.01s" >&2
 exit 5
 """
 
+# Copies the lcov fixture to the report path it is given.
+WRITE_LCOV_FROM_FIXTURE = """#!/bin/bash
+for argument in "$@"; do
+  case "$argument" in
+    --cov-report=lcov:*) report="${argument#--cov-report=lcov:}";;
+  esac
+done
+cp "$LCOV_FIXTURE" "$report"
+"""
+
+# Writes the report, then misses the repo's own threshold in
+# pytest-cov's words.
+PYTEST_COV_THRESHOLD_STUB = WRITE_LCOV_FROM_FIXTURE + """echo "FAIL Required test coverage of 95% not reached. Total coverage: 92.00%" >&2
+exit 1
+"""
+
+# pytest's own summary line for a run with failing tests.
+PYTEST_FAILED_TESTS_STUB = """#!/bin/bash
+echo "=========== 2 failed, 10 passed in 0.31s ===========" >&2
+exit 1
+"""
+
+# pytest dying on an internal error: a trace, no report.
+PYTEST_CRASH_STUB = """#!/bin/bash
+echo attempt >> "$ATTEMPT_LOG"
+echo "INTERNALERROR> Traceback (most recent call last):" >&2
+echo "INTERNALERROR> KeyError: 'rootdir'" >&2
+exit 3
+"""
+
 FallThroughCase = namedtuple("FallThroughCase", "stub exit_class candidate attempts")
 
 HEADROOM_POLICY = TimeoutPolicy(timeout_seconds=0.5, headroom_is_go=lambda: True)
 FALL_THROUGH_CASES = [
     FallThroughCase(PYTEST_HANG_STUB, "timeout", "repo pytest-cov timed out twice", 2),
     FallThroughCase(PYTEST_NO_REPORT_STUB, "no_coverage_data", "repo pytest-cov wrote no coverage data", 1),
+    FallThroughCase(PYTEST_CRASH_STUB, "crash", "repo pytest-cov crashed", 1),
 ]
-FALL_THROUGH_IDS = ["timeout-on-both-attempts", "no-coverage-report-written"]
+FALL_THROUGH_IDS = ["timeout-on-both-attempts", "no-coverage-report-written", "internal-error"]
 
 
 def cart_target(repo):
@@ -83,6 +115,9 @@ def cart_target(repo):
 
 
 def install_stub_pytest_cov(tmp_path, monkeypatch, stub):
+    lcov_fixture = tmp_path / "cart.lcov"
+    lcov_fixture.write_text(CART_LCOV.replace("SF:src/cart.js", "SF:cart.py"))
+    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
     monkeypatch.setenv("ATTEMPT_LOG", str(tmp_path / "attempts.log"))
     install_stub_tool(tmp_path, monkeypatch, "uv", stub)
 
@@ -126,7 +161,7 @@ def test_should_measure_with_the_base_ref_coverage_config_when_the_branch_omits_
 
 
 @pytest.mark.parametrize("failure", FALL_THROUGH_CASES, ids=FALL_THROUGH_IDS)
-def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_out_twice_or_writes_no_coverage_data(
+def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_out_twice_crashes_or_writes_no_coverage_data(
     tmp_path, monkeypatch, failure
 ):
     measured = measure_cart_with_stub(tmp_path, monkeypatch, failure.stub, policy=HEADROOM_POLICY)
@@ -135,6 +170,34 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_o
         "metric": "coverage", "language": "python", "source": GLOBAL_COVERAGE_PY_SOURCE,
         "exit_class": failure.exit_class, "side_pr_candidate": failure.candidate,
     }, failure.attempts)
+
+
+def test_should_read_measurements_as_valid_when_the_repo_pytest_cov_misses_its_own_fail_under_threshold(
+    tmp_path, monkeypatch
+):
+    coverage_run, records, global_calls = measure_cart_with_stub(
+        tmp_path, monkeypatch, PYTEST_COV_THRESHOLD_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert source["exit_class"] == "repo_threshold"
+    assert source["source"] == PYTEST_COV_SOURCE
+    assert [record["value"] for record in records] == [92]
+    assert global_calls == []
+
+
+def test_should_classify_a_non_zero_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(
+    tmp_path, monkeypatch
+):
+    coverage_run, records, global_calls = measure_cart_with_stub(
+        tmp_path, monkeypatch, PYTEST_FAILED_TESTS_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert source["exit_class"] == "failed_tests"
+    assert source["source"] == PYTEST_COV_SOURCE
+    assert [(record["value"], record["pessimistic"]) for record in records] == [(0, True)]
+    assert global_calls == []
 
 
 def test_should_read_0_percent_coverage_from_the_repo_pytest_cov_when_it_collected_no_tests(

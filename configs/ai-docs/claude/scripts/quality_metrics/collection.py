@@ -143,6 +143,8 @@ class CoverageRun:
         try:
             run = run_repo_pytest_cov_under_policy(self.repo_dir, self.policy, self.base_ref)
         except RepoToolFailure as failure:
+            if failure.exit_class == FAILED_TESTS:
+                return _Measured(RED_BUILD, FAILED_TESTS, PYTEST_COV_SOURCE, None)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, collector, f"repo pytest-cov {reason}", failure.exit_class)
         result = CoverageResult(_normalized_hits(self.repo_dir, run["hits_by_file"], ""), False)

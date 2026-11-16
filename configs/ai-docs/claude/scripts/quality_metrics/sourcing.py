@@ -21,10 +21,18 @@ from quality_metrics.tools import ToolError, run_command, run_tool
 # How a repo tool exited, read from its output, in check order.
 PASSED, UNCLASSIFIED = "passed", "unclassified"
 FAILED_TESTS, REPO_THRESHOLD, CRASH = "failed_tests", "repo_threshold", "crash"
+
+# The jest lines are jest's summary, its threshold message and a
+# node stack frame. The pytest lines are pytest's summary,
+# pytest-cov's threshold message (its plugin.py) and pytest's
+# INTERNALERROR trace.
 EXIT_CLASS_PATTERNS = (
     (FAILED_TESTS, re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
+    (FAILED_TESTS, re.compile(r"\b\d+ failed\b.* in \d+\.\d+s")),
     (REPO_THRESHOLD, re.compile(r"coverage threshold .* not met")),
+    (REPO_THRESHOLD, re.compile(r"Required test coverage of .* not reached")),
     (CRASH, re.compile(r"^\s+at .+:\d+:\d+\)?$", re.MULTILINE)),
+    (CRASH, re.compile(r"^INTERNALERROR>", re.MULTILINE)),
 )
 
 # Failures that are not exits of a finished run.
