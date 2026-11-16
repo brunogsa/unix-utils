@@ -404,3 +404,47 @@ def test_should_abort_keep_the_commits_in_the_feature_pr_and_open_a_metrics_find
     assert plan.read_text() == PLAN_TEXT
 
 
+def test_should_keep_nothing_and_leave_both_branches_alone_on_a_rerun_after_the_forced_refactors_moved(
+    tmp_path, run_split,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("refactor: split parser", {"parser.py": 51}, "metrics"),
+        ("refactor: split writer", {"writer.py": 50}, "metrics"),
+        ("feat: add report", {"report.py": 3}, None),
+    ])
+    assert run_split(repo, base)["outcome"] == "moved"
+    refactor_head = git(repo, "rev-parse", REFACTOR_BRANCH)
+    feature_head = git(repo, "rev-parse", FEATURE_BRANCH)
+
+    report = run_split(repo, base)
+
+    assert report["outcome"] == "kept"
+    assert report["commits"] == []
+    assert report["needs_push"] == []
+    assert git(repo, "rev-parse", REFACTOR_BRANCH) == refactor_head
+    assert git(repo, "rev-parse", FEATURE_BRANCH) == feature_head
+
+
+def test_should_report_the_same_conflict_again_on_a_rerun_after_a_cherry_pick_conflict(
+    tmp_path, run_split,
+):
+    repo, base = build_feature_repo(tmp_path, [
+        ("feat: add parser", {"parser.py": 3}, None),
+        ("refactor: rewrite parser", {"parser.py": 120}, "metrics"),
+    ])
+    original_head = git(repo, "rev-parse", "HEAD")
+    first_report, _, _ = run_split_expecting_conflict(
+        run_split, tmp_path, repo, base
+    )
+
+    report, plan, finding = run_split_expecting_conflict(
+        run_split, tmp_path, repo, base
+    )
+
+    assert report == first_report
+    assert_conflict_kept_the_commits_in_the_feature_pr(
+        repo, report, finding, "cherry-pick", original_head
+    )
+    assert plan.read_text() == PLAN_TEXT
+
+

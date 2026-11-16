@@ -159,7 +159,13 @@ def get_plan_with_refactor_entry(plan_text, feature_pr, refactor_branch):
     return f"{head}\n\n{new_entry}\n{separator}", label
 
 
-def list_forced_refactor_commits(repo, base, feature_branch):
+def list_forced_refactor_commits(repo, base, feature_branch, refactor_branch):
+    # A moved run left the feature branch on top of the refactor
+    # branch, so list only what sits above it.
+    if git_succeeds(
+        repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{refactor_branch}"
+    ):
+        base = refactor_branch
     shas = run_git(
         repo, "rev-list", "--reverse", "--no-merges", f"{base}..{feature_branch}"
     ).splitlines()
@@ -307,7 +313,10 @@ def move_forced_refactors(arguments, report):
 def main(argv):
     arguments = parse_arguments(argv)
     shas = list_forced_refactor_commits(
-        arguments.repo, arguments.base, arguments.feature_branch
+        arguments.repo,
+        arguments.base,
+        arguments.feature_branch,
+        arguments.refactor_branch,
     )
     files, lines = sum_changed_files_and_lines(arguments.repo, shas)
     report = get_kept_report(shas, files, lines)
