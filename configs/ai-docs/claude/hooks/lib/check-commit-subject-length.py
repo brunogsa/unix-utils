@@ -151,7 +151,6 @@ GLOBAL_FLAG_OPTIONS = frozenset(
 )
 GLOBAL_VALUE_OPTIONS = frozenset({"--git-dir", "--work-tree", "--namespace", "--attr-source"})
 
-WRAPPER_COMMANDS =frozenset({"command", "env"})
 CLEANUP_CONFIG_KEYS = frozenset({"core.commentchar", "core.commentstring"})
 CLEANUP_CONFIG_SECTION = "commit."
 GIT_CONFIG_ENV_PREFIX = "GIT_CONFIG"
@@ -451,9 +450,57 @@ def _is_assignment(word):
     return match is not None and (word.quoted_from is None or word.quoted_from >= match.end())
 
 
-def _command_word_index(words):
-    """Return the index past assignments and wrappers, or
-    None."""
+class WrapperOptions(NamedTuple):
+    """The options of a command that runs the word after
+    them."""
+
+    flags: frozenset[str] = frozenset()
+    valued: frozenset[str] = frozenset()
+
+    # Words read before the command, as timeout's duration.
+    positionals: int = 0
+
+
+class UnknownWrapperOption(Exception):
+    """A wrapper option outside the known set hides which word
+    the wrapper runs."""
+
+
+# A commit message is read through these only with no option,
+# since an option such as env -u may change what git records.
+READ_WRAPPERS = {"command": WrapperOptions(), "env": WrapperOptions()}
+
+# These run the word after their options, so a git alias run
+# through them is screened. Any option fails closed.
+SCREENED_WRAPPERS = {
+    "command": WrapperOptions(),
+    "env": WrapperOptions(),
+    "exec": WrapperOptions(),
+    "nice": WrapperOptions(),
+    "nohup": WrapperOptions(),
+    "sudo": WrapperOptions(),
+    "time": WrapperOptions(),
+    "xargs": WrapperOptions(),
+}
+
+
+def _skip_wrapper_options(words, index, options):
+    """Return the index past a wrapper's options and positional
+    words; raise UnknownWrapperOption for any other option."""
+    while index < len(words) and words[index].text.startswith("-"):
+        text = words[index].text
+        if text in options.flags:
+            index += 1
+        elif text in options.valued:
+            index += 2
+        else:
+            raise UnknownWrapperOption(text)
+    return index + options.positionals
+
+
+def _command_word_index(words, wrappers):
+    """Return the index past assignments and the given wrappers,
+    or None; raise UnknownWrapperOption as the wrappers do."""
     index = 0
     while index < len(words):
         word = words[index]
@@ -462,12 +509,10 @@ def _command_word_index(words):
             if word.text.startswith(GIT_CONFIG_ENV_PREFIX):
                 return None
             index += 1
-            continue
-        if word.text not in WRAPPER_COMMANDS:
+        elif word.text in wrappers:
+            index = _skip_wrapper_options(words, index + 1, wrappers[word.text])
+        else:
             return index
-        index += 1
-        if index < len(words) and words[index].text.startswith("-"):
-            return None
     return None
 
 
@@ -660,7 +705,10 @@ def _update_state(stage, is_piped, state):
 def _commit_subcommand_index(words):
     """Return (index of the commit subcommand, whether a -C
     moved git's directory), or None for any other command."""
-    index = _command_word_index(words)
+    try:
+        index = _command_word_index(words, READ_WRAPPERS)
+    except UnknownWrapperOption:
+        return None
     if index is None or words[index].text != "git":
         return None
     git_options_start = index + 1
@@ -776,9 +824,13 @@ def _may_git_run_commit(words, options_start):
 
 
 def _may_run_commit(stage):
-    """True when a stage may run git commit."""
+    """True when a stage may run git commit, as it may when a
+    wrapper option hides which word the wrapper runs."""
     words = stage.words
-    index = _command_word_index(words)
+    try:
+        index = _command_word_index(words, SCREENED_WRAPPERS)
+    except UnknownWrapperOption:
+        return True
     is_plain_git = index is not None and not words[index].is_expandable and words[index].text == "git"
     if not is_plain_git:
         return _names_commit(words)
