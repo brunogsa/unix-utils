@@ -65,6 +65,12 @@ class Target:
         return any(first_line <= line <= last_line for line in self.touched_lines)
 
 
+def repo_root():
+    """The repo's top-level directory, whatever the working
+    directory."""
+    return Path(_git("rev-parse", "--show-toplevel").strip())
+
+
 def touched_files_since(base_ref):
     """Map each changed or new file to its touched lines.
 

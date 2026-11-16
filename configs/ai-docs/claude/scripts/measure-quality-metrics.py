@@ -26,6 +26,7 @@
 import argparse
 import importlib
 import json
+import os
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -58,6 +59,7 @@ from quality_metrics.touched import (
     file_text_at,
     GitError,
     merge_base,
+    repo_root,
     Target,
     touched_files_between,
     touched_files_since,
@@ -105,6 +107,7 @@ EXIT_CLEAN, EXIT_VIOLATION, EXIT_UNMEASURED = 0, 1, 2
 def main(arguments):
     options = _parse_arguments(arguments)
     try:
+        _anchor_at_repo_root(options)
         judged_against = _judged_against_ref(options)
         declaration = _load_committed_declaration(options, judged_against)
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
@@ -130,6 +133,29 @@ def main(arguments):
     return _print_report(
         measurements, unclaimed, resolved, gate_input_violations, coverage_run
     )
+
+
+def _anchor_at_repo_root(options):
+    """Run from the repo root, where the touched-file paths are
+    relative to.
+
+    Paths the user typed are relative to the directory the run
+    started in, so they are resolved before the move.
+    Outside a git repo, explicit --files still measure, so the
+    run stays where it started.
+    """
+    launch_dir = Path.cwd()
+    try:
+        root = repo_root()
+    except GitError:
+        return
+    if options.files:
+        options.files = [os.path.relpath(launch_dir / name, root) for name in options.files]
+    options.declaration = launch_dir / options.declaration
+    if options.layers:
+        options.layers = launch_dir / options.layers
+    options.map_dir = launch_dir / options.map_dir
+    os.chdir(root)
 
 
 def _print_report(measurements, unclaimed, resolved, gate_input_violations, coverage_run):
