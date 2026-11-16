@@ -292,6 +292,19 @@ assert_eq "blocks a repo source redirect that follows a quoted angle bracket" \
 assert_eq "blocks a single-quoted scratch dir name, which is a literal directory" \
   "2" "$(run_bash "echo x > '\$work_dir'/x")"
 
+# A lone `"$"` is a literal dollar sign, and a quote inside a
+# name ends that name, so neither target is the scratch dir.
+lone_dollar_writes=('echo x > "$"work_dir/x' 'echo x > "$"{RUN_DIR}/x'
+  'echo x | tee "$"work_dir/x' 'echo x > $work_"dir"/x'
+  'echo x > "$work"_dir/x' "echo x > \$RUN_''DIR/x")
+allowed_lone_dollar=""
+for c in "${lone_dollar_writes[@]}"; do
+  [ "$(run_bash "$c")" = "2" ] \
+    || allowed_lone_dollar="$allowed_lone_dollar [$c]"
+done
+assert_eq "blocks a scratch dir name split by a quote or written after a lone double-quoted dollar sign" \
+  "" "$allowed_lone_dollar"
+
 # `..` inside a file name is not a parent step, but only a
 # plain literal name can show that before the shell runs.
 assert_eq "allows a quoted scratch dir file whose name holds two dots" \

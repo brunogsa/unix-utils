@@ -193,6 +193,15 @@ remove_quotes() {
       if (is_single && (c == "$" || c == "`")) return inert
       return c
     }
+
+    # A quote inside a variable name ends that name for the
+    # shell, so `"$"work_dir` and `$work_"dir"` must not fuse
+    # into the `$work_dir` the scratch dir check trusts.
+    function name_break(i) {
+      if (out ~ /[$][{]?[A-Za-z0-9_]*$/ && substr(text, i + 1, 1) ~ /[A-Za-z0-9_{]/)
+        return inert
+      return ""
+    }
     { text = text (NR > 1 ? "\n" : "") $0 }
     END {
       n = length(text)
@@ -202,17 +211,18 @@ remove_quotes() {
         if (state == "double" && (c == "`" || (c == "$" && substr(text, i + 1, 1) == "(")))
           out = out unreadable
         if (state == "single") {
-          if (c == "\047") state = ""
+          if (c == "\047") { state = ""; out = out name_break(i) }
           else out = out quoted(c, 1)
         } else if (c == "\\" && i < n) {
           i++
           out = out c quoted(substr(text, i, 1), 0)
         } else if (state == "double") {
-          if (c == "\"") state = ""
+          if (c == "\"") { state = ""; out = out name_break(i) }
           else out = out quoted(c, 0)
         } else if (c == "\047" || c == "\"") {
           state = (c == "\"") ? "double" : "single"
           if (substr(out, length(out)) == "$") out = substr(out, 1, length(out) - 1)
+          out = out name_break(i)
         } else out = out c
       }
       if (state != "") out = out unreadable
