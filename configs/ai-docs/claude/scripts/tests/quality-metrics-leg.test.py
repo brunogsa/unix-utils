@@ -36,8 +36,9 @@ classify() {
 }
 """
 
-
+COMPLETE_VERDICT_DIFF = "diff --git a/report.go b/report.go\n+complete earlier write\n"
 PARTIAL_CHUNK = b"diff --git a/report.go b/report.go\n+half of a later wri"
+
 
 WRITER_MODULE_MARKER = b"quality_metrics.atomic_write"
 
@@ -57,6 +58,13 @@ def start_write(target):
         if WRITER_MODULE_MARKER in import_line:
             break
     return process
+
+
+def write_completely(target, text):
+    return subprocess.run(
+        [sys.executable, str(WRITE_SCRIPT), str(target)],
+        input=text, capture_output=True, text=True,
+    )
 
 
 def kill_mid_write(target, partial_bytes):
@@ -94,3 +102,16 @@ class TestKilledAtomicWrite:
 
         assert returncode == -signal.SIGKILL
         assert list(tmp_path.glob("verdict_quality-gate_*")) == []
+
+    def test_should_keep_a_split_diffs_last_complete_write_when_a_later_write_of_it_is_killed_mid_way(
+        self, tmp_path
+    ):
+        split_diff = tmp_path / "diff_quality-gate_part-1.patch"
+        first_write = write_completely(split_diff, COMPLETE_VERDICT_DIFF)
+        assert first_write.returncode == 0, first_write.stderr
+
+        returncode = kill_mid_write(split_diff, PARTIAL_CHUNK)
+
+        assert returncode == -signal.SIGKILL
+        assert split_diff.read_text() == COMPLETE_VERDICT_DIFF
+        assert list(tmp_path.glob("diff_quality-gate_*")) == [split_diff]
