@@ -2005,4 +2005,24 @@ describe('python docstrings', () => {
       assert.equal(read(file), original);
     });
   });
+
+  describe('a docstring that fits the cap', () => {
+    it('should pass the docstring lines that fit the cap while reporting the one that does not', () => {
+      const file = put(
+        'mixed.py',
+        lines(
+          '"""Bill one unit per response."""',
+          '',
+          '',
+          'def collapse(records):',
+          `    """${AGGREGATOR}`,
+          '',
+          '    A retry never bills twice.',
+          '    """',
+          '    return len(records)',
+        ),
+      );
+      assert.equal(check(file).out, `== ${file}\nWIDTH 5:94`);
+    });
+  });
 });
