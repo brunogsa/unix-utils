@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
-"""Upload a .docx to Google Drive, converting to a native Google Doc.
+"""Upload a .docx to Google Drive,
+converting it to a native Google Doc.
 
-Reads the file from disk (no inline base64), using a gcloud-minted Drive token.
-This is the scalable upload mechanism the future skill will encode.
+Reads the file from disk (no inline base64),
+using a gcloud-minted Drive token.
+This is the scalable upload mechanism.
+The future skill will encode it.
 
 Usage:
-  gdoc_upload.py test  <docx>                 -> create a NEW scratch Doc, print id
-  gdoc_upload.py update <fileId> <docx>        -> replace EXISTING Doc content in place
-  gdoc_upload.py export <fileId> <out.html>    -> export Doc back to HTML (verification)
-  gdoc_upload.py delete <fileId>               -> trash a Doc (scratch cleanup)
+  gdoc_upload.py test <docx>
+    -> create a NEW scratch Doc, print id
+  gdoc_upload.py update <fileId> <docx>
+    -> replace EXISTING Doc content in place
+  gdoc_upload.py export <fileId> <out.html>
+    -> export Doc back to HTML (verification)
+  gdoc_upload.py delete <fileId>
+    -> trash a Doc (scratch cleanup)
 """
 import json
 import subprocess
