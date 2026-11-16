@@ -1,4 +1,3 @@
-import importlib
 import json
 import subprocess
 import sys
@@ -15,6 +14,7 @@ from quality_metrics_support import (
     commit_all, head_of, install_stub_tool, make_repo, measure_report,
 )
 
+from quality_metrics import gate_inputs
 from quality_metrics.sourcing import measure_coverage_with_repo_tool
 from quality_metrics.touched import Target
 
@@ -105,7 +105,7 @@ def size_records_of(report, file_name):
 
 
 def write_declaration(tmp_path):
-    path = tmp_path / "quality-metrics.yaml"
+    path = tmp_path / COMMITTED_DECLARATION_NAME
     path.write_text(DECLARATION_TEXT)
     return path
 
@@ -311,7 +311,6 @@ class TestHappyPath:
         measured_with.mkdir()
 
         report = measure_report(repo, write_declaration(tmp_path), "--diff", f"{base}...HEAD")
-        gate_inputs = importlib.import_module("quality_metrics.gate_inputs")
         gate_inputs.write_base_ref_configs(repo, base, measured_with)
 
         assert report["gate_input_violations"] == [
