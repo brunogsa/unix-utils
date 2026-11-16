@@ -56,7 +56,7 @@
 #   procedure to a unit with five tasks still unfinished.
 #
 #   That misfires twice. It ends the batch early: §8 falls
-#   due only once implement-loop-state.sh verdicts the unit
+#   due only once implement-loop-state.py verdicts the unit
 #   to 'gates', which it does only after every task has
 #   left the loop.
 #
@@ -203,7 +203,7 @@ if [ -n "$unfinished_ids" ]; then
 read -r -d '' DIRECTIVE <<EOF || true
 A /implement batch for '$slug' has $unit_desc still in phase '$phase', with $unfinished_count task(s) not yet done: $unfinished_ids. The batch isn't done yet, and this compaction may have dropped that from working memory.
 
-Keep working the task loop (see the implement skill and implement-loop-state.sh) instead of winding the batch down: ask implement-loop-state.sh for the unit's next verdict and dispatch from there. Do NOT start the batch-end procedure - it falls due only when that verdict moves this unit to phase 'gates', which cannot happen while a task is still unfinished.
+Keep working the task loop (see the implement skill and implement-loop-state.py) instead of winding the batch down: ask implement-loop-state.py for the unit's next verdict and dispatch from there. Do NOT start the batch-end procedure - it falls due only when that verdict moves this unit to phase 'gates', which cannot happen while a task is still unfinished.
 $remaining_line
 EOF
 
