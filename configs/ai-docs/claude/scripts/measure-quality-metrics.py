@@ -211,7 +211,7 @@ def _measure(declaration, mode, touched_by_file, coverage_run, dependency_run,
                 continue
             if language is None:
                 continue
-            if head_ref and _needs_coverage(declaration, mode, language, path):
+            if head_ref and _reads_working_tree(declaration, mode, language, path):
                 _require_worktree_at(head_ref, path)
             source = _copy_at(head_ref, path, directory) if head_ref else Path(path)
             target = Target(source, language, touched_lines, repo_path=path)
@@ -225,18 +225,21 @@ def _measure(declaration, mode, touched_by_file, coverage_run, dependency_run,
     return measurements, unclaimed
 
 
-def _needs_coverage(declaration, mode, language, path):
+def _reads_working_tree(declaration, mode, language, path):
     metrics = _metrics_binding(declaration, language, mode, path)
-    return COVERAGE_MODULE in _group_by_module(metrics)
+    modules = _group_by_module(metrics)
+    return COVERAGE_MODULE in modules or DUPLICATION_MODULE in modules
 
 
 def _require_worktree_at(ref, path):
-    """Fail closed: lcov comes from the working tree, not `ref`."""
+    """Fail closed: lcov and duplication peers come from the
+    working tree, not `ref`."""
     same_text = run_command(["git", "diff", "--quiet", ref, "--", path])
     if same_text.returncode != 0:
         raise ToolError(
             f"{path} in the working tree differs from {ref}; "
-            f"check out {ref} clean to measure its coverage"
+            f"check out {ref} clean to measure its coverage "
+            f"or duplication"
         )
 
 

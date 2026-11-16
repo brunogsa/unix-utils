@@ -7,7 +7,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
-    SHIPPED_DECLARATION, commit_all, make_repo, measure_report,
+    SHIPPED_DECLARATION, commit_all, head_of, make_repo, measure_report,
+    run_measure,
 )
 
 DECLARATION = """\
@@ -432,3 +433,22 @@ class TestDuplicationInsideOneFile:
         assert {(item["metric"], item["file"]) for item in violations} == {
             ("code_duplication", "src/pricing.py"),
         }
+
+
+class TestWorkingTreeDifferingFromHeadRef:
+    def test_should_exit_not_measured_naming_the_head_ref_when_a_touched_file_was_edited_after_the_head_commit(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"src/pricing.py": "x = 1\n"})
+        base = head_of(repo)
+        (repo / "src/pricing.py").write_text(PRICING)
+        commit_all(repo, "add pricing")
+        (repo / "src/pricing.py").write_text(PRICING + "\nlater = 1\n")
+        declaration_path = tmp_path / "quality-metrics.yaml"
+        declaration_path.write_text(DECLARATION)
+
+        result = run_measure(repo, declaration_path, "--diff", f"{base}...HEAD")
+
+        assert result.returncode == 2
+        assert result.stdout == ""
+        assert "HEAD" in result.stderr
