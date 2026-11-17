@@ -90,6 +90,8 @@ First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/qua
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
 Then export the open scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of open `[Scout]` tasks.
+- **No git repo** → skip the export and dispatch no scout leg, since it needs `git diff`; §7 reads `scout leg: not run (no git)`.
+
 - **Non-zero exit** → dispatch no scout leg; §7 reads `scout leg: FAIL (export exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
 
 - **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no open scout)`.
