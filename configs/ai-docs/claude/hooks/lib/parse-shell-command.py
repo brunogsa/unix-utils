@@ -204,8 +204,8 @@ def strip_heredoc_bodies(text):
 
 
 def command_substitution_bodies(text):
-    """Return the command inside every outermost `$(...)`
-    substitution in `text`.
+    """Return the command inside every outermost `$(...)` and
+    backtick substitution in `text`.
 
     An opener counts even inside single quotes, since an
     unquoted heredoc body runs `$(...)` whatever quotes surround
@@ -221,6 +221,10 @@ def command_substitution_bodies(text):
         if text.startswith('$(', index):
             end = _dollar_paren_end(text, index + 2)
             bodies.append(text[index + 2:end])
+            index = end + 1
+        elif text[index] == '`':
+            end = _backtick_end(text, index + 1)
+            bodies.append(text[index + 1:end])
             index = end + 1
         else:
             index += 1
@@ -247,6 +251,13 @@ def _dollar_paren_end(text, start):
             depth -= 1
         index += 2 if char == '\\' and quote != "'" else 1
     return len(text)
+
+
+def _backtick_end(text, start):
+    index = start
+    while index < len(text) and text[index] != '`':
+        index += 2 if text[index] == '\\' else 1
+    return min(index, len(text))
 
 
 def split_into_pipelines(text):
