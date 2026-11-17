@@ -203,6 +203,11 @@ ANSI_C_QUOTE_START = "$'"
 PROCESS_ID_EXPANSION = "$$"
 PROCESS_ID_BEFORE_QUOTE = "$$'"
 
+# A # after the ) of $( ) sits mid-word, while one after the )
+# of a subshell starts a comment, so the scan fails closed on
+# any )#.
+PAREN_BEFORE_HASH = ")#"
+
 # A ) inside ${...}, a here-document or a case pattern does not
 # close $( ), but the paren count reads it as the close, so a
 # body holding one is never screened as split.
@@ -580,6 +585,8 @@ def read_shell_construct(text: str, index: int, bodies: list[str]) -> int | None
         return skip_single_quoted(text, index + 2, is_ansi_c=True)
     elif text[index] == '"':
         return read_double_quoted(text, index + 1, bodies)
+    elif index > 0 and text.startswith(PAREN_BEFORE_HASH, index - 1):
+        return None
     elif is_comment_start(text, index):
         newline = text.find("\n", index)
         return len(text) if newline == -1 else newline
