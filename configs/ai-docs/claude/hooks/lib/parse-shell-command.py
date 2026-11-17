@@ -82,11 +82,12 @@ def strip_commit_message_heredoc_bodies(text):
     - a commit other than `git [-C <dir>] commit` with known
       flags, since an env assignment, `git -c` or `--edit` can
       run an editor or hooks on the message
-    - a `$` in any commit word before `--`, since bash
+    - a `$` in any word before the commit's own `--`, since bash
       word-splits an unquoted `$e` into flags this parser never
       sees
-    - an earlier `git config` stage, since it can set hooks that
-      run the message
+    - an earlier stage other than `cd <dir>` or a plain
+      assignment, since `git config`, `env` or `export
+      GIT_EDITOR=sh` can set hooks or an editor that run it
     """
     return _strip_heredoc_bodies_where(text, _is_commit_message_heredoc)
 
@@ -98,7 +99,7 @@ def _is_commit_message_heredoc(kept, line, opener):
     if not _PLAIN_SHELL_TEXT.fullmatch(before_opener):
         return False
     stages = [stage for statement in split_into_pipelines(before_opener) for stage in statement]
-    if any(_runs_git_config(stage) for stage in stages[:-1]):
+    if not all(_is_inert_earlier_stage(stage) for stage in stages[:-1]):
         return False
     try:
         tokens = shlex.split(stages[-1])
@@ -107,14 +108,31 @@ def _is_commit_message_heredoc(kept, line, opener):
     return _is_plain_git_commit_reading_stdin(tokens)
 
 
-# An earlier `git config` can set core.hooksPath to hooks that
-# run the message file, so the body is code after all.
-def _runs_git_config(stage):
+# Any earlier stage but a `cd` or a plain assignment can set an
+# editor or hooks that run the message - `git config`, `env`,
+# `export GIT_EDITOR=sh`, a write under .git - so it keeps the
+# body.
+#
+# PATH, HOME and XDG_CONFIG_HOME pick the git binary and its
+# global config, so they count as unsafe too.
+_UNSAFE_ASSIGNMENT_NAMES = {'EDITOR', 'VISUAL', 'PATH', 'HOME', 'XDG_CONFIG_HOME'}
+_ASSIGNMENT = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)=.*', re.S)
+
+
+def _is_inert_earlier_stage(stage):
     try:
         tokens = shlex.split(stage)
     except ValueError:
+        return False
+    if not tokens:
         return True
-    return tokens[:1] == ['git'] and 'config' in tokens
+    if tokens[0] == 'cd':
+        return len(tokens) <= 2
+    assignment = _ASSIGNMENT.fullmatch(tokens[0]) if len(tokens) == 1 else None
+    if assignment is None:
+        return False
+    name = assignment.group(1)
+    return not name.startswith('GIT_') and name not in _UNSAFE_ASSIGNMENT_NAMES
 
 
 # Text where bash and shlex agree on every word and separator.
@@ -130,22 +148,27 @@ _MESSAGE_INERT_COMMIT_FLAGS = {
 
 
 def _is_plain_git_commit_reading_stdin(tokens):
-    if _has_variable_before_pathspecs(tokens):
-        return False
     index = 1 if tokens[:1] == ['git'] else len(tokens)
     while tokens[index:index + 1] == ['-C']:
         index += 2
     if tokens[index:index + 1] != ['commit']:
         return False
-    return _reads_message_from_stdin_with_inert_flags(tokens[index + 1:])
+    commit_args = tokens[index + 1:]
+    if _holds_variable(tokens[:index]) or _holds_variable(_options_before_pathspecs(commit_args)):
+        return False
+    return _reads_message_from_stdin_with_inert_flags(commit_args)
 
 
 # bash word-splits an unquoted `$e` that shlex keeps as one
-# token, so `e=-e; git commit $e -F -` opens an editor. After
-# `--` every word is a pathspec, which runs nothing.
-def _has_variable_before_pathspecs(tokens):
-    options = tokens[:tokens.index('--')] if '--' in tokens else tokens
-    return any('$' in token for token in options)
+# token, so `e=-e; git commit $e -F -` opens an editor.
+def _holds_variable(tokens):
+    return any('$' in token for token in tokens)
+
+
+# Only the commit's own `--` starts its pathspecs, which run
+# nothing: in `git -C -- commit $e`, the first `--` is a dir.
+def _options_before_pathspecs(commit_args):
+    return commit_args[:commit_args.index('--')] if '--' in commit_args else commit_args
 
 
 def _reads_message_from_stdin_with_inert_flags(args):

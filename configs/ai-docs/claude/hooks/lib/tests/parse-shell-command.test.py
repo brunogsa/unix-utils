@@ -11,6 +11,8 @@ Usage:
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 LIB_PATH = Path(__file__).parent.parent / "parse-shell-command.py"
 
 
@@ -100,6 +102,31 @@ class TestStripCommitMessageHeredocBodies:
 
     def test_should_keep_the_body_when_an_earlier_git_config_can_point_the_commit_at_hooks_that_run_the_message(self):
         assert _keeps_push_body("git config core.hooksPath /tmp/hooks && git commit -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_a_double_dash_given_as_the_directory_hides_a_variable_in_the_commit_options(self):
+        assert _keeps_push_body("e=-e; git -C -- commit $e -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_the_directory_variable_before_the_commit_can_split_even_with_pathspecs_after_a_double_dash(self):
+        assert _keeps_push_body("d='x -c core.editor=sh'; git -C $d commit -F - -- notes.md <<'EOF'")
+
+    @pytest.mark.parametrize("earlier_stage", [
+        "env git config core.hooksPath /tmp/hooks",
+        "command git config core.hooksPath /tmp/hooks",
+        "X=1 git config core.hooksPath /tmp/hooks",
+        "export GIT_EDITOR=sh",
+        "export GIT_CONFIG_COUNT=1",
+        "GIT_EDITOR=sh",
+        "EDITOR=sh",
+        "VISUAL=sh",
+        "$cmd core.hooksPath /tmp/hooks",
+        "cp hook.sh .git/hooks/commit-msg",
+    ], ids=[
+        "env-git-config", "command-git-config", "assignment-prefixed-git-config",
+        "exported-git-editor", "exported-git-config-count", "git-editor-assignment",
+        "editor-assignment", "visual-assignment", "variable-command-word", "write-under-dot-git",
+    ])
+    def test_should_keep_the_body_when_an_earlier_stage_is_neither_a_cd_nor_a_plain_assignment(self, earlier_stage):
+        assert _keeps_push_body(earlier_stage + " && git commit -F - <<'EOF'")
 
     def test_should_drop_the_body_when_variables_appear_only_in_the_pathspecs_after_the_double_dash(self):
         command = (

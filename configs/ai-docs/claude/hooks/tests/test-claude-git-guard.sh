@@ -714,6 +714,20 @@ it_should_block_a_push_to_main_in_a_commit_message_after_a_git_config_that_can_s
   assert_eq "should deny, as a push, a commit message after a git config that can point the commit at hooks running it" "yes" "$PUSH_GUARD_DENIED"
 }
 
+it_should_block_a_push_to_main_in_a_commit_message_whose_double_dash_directory_hides_an_editor_flag_variable() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "export GIT_EDITOR=sh; e=-e; git -C -- commit \$e -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message whose -C -- puts the unquoted \$e after a double dash that is no pathspec separator" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_after_an_env_run_git_config() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "env git config core.hooksPath /tmp/hooks && git commit -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message after env runs a git config that can point the commit at hooks running it" "yes" "$PUSH_GUARD_DENIED"
+}
+
 it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash() {
   local dir cmd
   dir=$(make_repo feat)
@@ -1346,6 +1360,8 @@ it_should_block_a_push_to_main_on_the_lines_after_a_here_string
 it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_variable_splits_into_an_editor_flag
 it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_directory_variable_splits_into_git_options
 it_should_block_a_push_to_main_in_a_commit_message_after_a_git_config_that_can_set_its_hooks
+it_should_block_a_push_to_main_in_a_commit_message_whose_double_dash_directory_hides_an_editor_flag_variable
+it_should_block_a_push_to_main_in_a_commit_message_after_an_env_run_git_config
 it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash
 it_should_allow_a_commit_whose_inline_message_mentions_git_push
 it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main
