@@ -20,7 +20,12 @@ for purpose, readability of dense expressions, and reuse-vs-reinvention.
 
 For each new function, class, or module, ask:
 - Does it do one thing at one level of abstraction?
-- Is the layering right (I/O in controllers, pure logic in use cases)?
+- Does complex or business logic stay pure, with I/O and other side effects
+  gathered at a controller/boundary (code-standards, "Functions, purity & side
+  effects")? Flag logic that reads or writes state (files, network, clock,
+  globals, mutation of inputs) that could be passed in or returned instead,
+  and side effects scattered across layers. Hidden effects in a pure-named
+  function belong to `corner-cases-and-side-effects.md`.
 - Are the parameter shapes friendly (named object for ≥2 params)?
 - Does an existing module/helper in the codebase already do this? (Grep
   for similar function names or patterns before accepting a new helper.)
@@ -77,7 +82,7 @@ Reuse and modularity:
   and better-tested.
 
 Cognitive load / clarity:
-- Function longer than ~30 lines without clear sub-structure - usually a
+- Function longer than 64 counted lines without clear sub-structure - usually a
   sign it's doing more than one thing.
 - Deep nesting (>3 levels) where guard clauses would flatten.
 - Parameter count >5 (even with a named-param object, the function is
