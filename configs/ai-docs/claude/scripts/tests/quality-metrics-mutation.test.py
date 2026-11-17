@@ -375,6 +375,16 @@ class TestStrykerJestConfigOverride:
         assert not re.search(pattern, "/repo/src/price [v2].test.jsx")
         assert not re.search(pattern, "/other/repo/src/price [v2].test.js")
 
+    # jest 29 runs tests in a worker whenever the config sets
+    # workerIdleMemoryLimit, --runInBand or not (@jest/core's
+    # build/testSchedulerHelper.js), and Stryker reads its
+    # per-test coverage only from tests run in its own process.
+    def test_clears_the_worker_memory_limit_so_jest_runs_the_tests_inside_the_stryker_process(self):
+        options = jest_runner_options(tests=["/repo/src/price.test.js"], config_file="jest.config.js")
+
+        assert "workerIdleMemoryLimit" in options["config"]
+        assert options["config"]["workerIdleMemoryLimit"] is None
+
     # Stryker's sandbox copies only its cwd, so a workspace
     # config doing require('../jest.config') breaks there.
     def test_mutates_the_checked_tree_in_place_so_a_config_requiring_a_file_above_the_workspace_resolves(self, tmp_path):

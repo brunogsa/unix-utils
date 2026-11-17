@@ -77,13 +77,17 @@ def jest_runner_options(tests, config_file):
     - `testMatch` is cleared, since jest refuses it beside a
       `testRegex` the workspace config may set.
 
+    - `workerIdleMemoryLimit` is cleared, since jest runs tests
+      in a worker whenever it is set, and Stryker reads per-test
+      coverage only from tests run in its own process.
+
     - A None `config_file` leaves the runner to its default.
     """
     test_regexes = [f"^{re.escape(test)}$" for test in tests]
     options = {
         "projectType": "custom",
         "enableFindRelatedTests": True,
-        "config": {"testMatch": None, "testRegex": test_regexes},
+        "config": {"testMatch": None, "testRegex": test_regexes, "workerIdleMemoryLimit": None},
     }
     if config_file is not None:
         options["configFile"] = config_file
