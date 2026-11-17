@@ -198,7 +198,8 @@ def run_stryker_batch(tree, path, ranges, deadline, tools=StrykerTools()):
         if result.returncode == 0 and not report_path.is_file():
             return _no_related_test_result(path, ranges)
         if result.returncode != 0:
-            raise ToolError(f"Stryker failed on {path}: {result.stderr.strip()}")
+            output = (getattr(result, "stdout", "") + result.stderr).strip()
+            raise ToolError(f"Stryker failed on {path}: {output}")
         report = _report_keyed_by_repo_path(json.loads(report_path.read_text()), workspace)
         killed, survivors = survivors_from_report(report, path, ranges)
     return BatchResult(killed=killed, survivors=survivors)

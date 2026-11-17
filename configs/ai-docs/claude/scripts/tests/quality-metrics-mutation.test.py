@@ -21,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import pytest
 
+from quality_metrics.cannot_run import cannot_run_ask
 from quality_metrics.deadline import run_until
 from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.mutation import (
@@ -446,6 +447,30 @@ def crashing_batch(failing_paths, message):
     )
 
 
+STRYKER_STDOUT = (
+    "\x1b[32m11:05:27 (33234) INFO ProjectReader\x1b[39m Found 1 of 4 file(s) to be mutated.\n"
+    "\x1b[91m11:05:27 (33234) ERROR Stryker\x1b[39m Unexpected error occurred while running "
+    "Stryker StrykerError: Error: Could not inject [class JestWrapper]. Cause: Cannot find module 'jest'\n"
+    "Require stack:\n"
+)
+
+
+def ask_for_failed_run(stdout, stderr):
+    """The ask raised by a Stryker run that exits 1."""
+    failed = lambda *a, **k: type(
+        "R", (), {"killed": False, "returncode": 1, "stdout": stdout, "stderr": stderr},
+    )()
+    tools = StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=failed)
+    result = measure_javascript_mutation(
+        Path("/tree"), {"a.js": [(3, 4)]}, time.monotonic() + 60,
+        run_batch=lambda tree, path, ranges, deadline: run_stryker_batch(
+            tree, path, ranges, deadline, tools=tools,
+        ),
+    )
+    [ask] = result["asks"]
+    return ask
+
+
 class TestStrykerCannotRun:
     def test_gives_a_failed_file_one_flagged_pessimistic_record_and_still_runs_the_others(self):
         changed = {"a.js": [(3, 4)], "b.js": [(7, 9)]}
@@ -484,3 +509,37 @@ class TestStrykerCannotRun:
         )
 
         assert result["asks"] == []
+
+    def test_quotes_the_stryker_error_line_from_stdout_when_stderr_opens_with_noise(self):
+        ask = ask_for_failed_run(
+            stdout=STRYKER_STDOUT, stderr="node:internal/process/promises:394\n    triggerUncaughtException()\n",
+        )
+
+        assert "Cannot find module 'jest'" in ask["reason"]
+        assert "\x1b" not in ask["reason"]
+        assert "\n" not in ask["reason"]
+
+    def test_quotes_the_stryker_error_when_stderr_is_empty(self):
+        ask = ask_for_failed_run(stdout=STRYKER_STDOUT, stderr="")
+
+        assert "Cannot find module 'jest'" in ask["reason"]
+
+
+class TestCannotRunAsk:
+    def test_prefers_the_first_error_level_line_over_the_first_line(self):
+        message = (
+            "\x1b[32m11:05:27 (1) INFO Stryker\x1b[39m starting\n"
+            "\x1b[91m11:05:27 (1) ERROR Stryker\x1b[39m it broke\nmore"
+        )
+
+        reason = cannot_run_ask("stryker", ["a.js"], message)["reason"]
+
+        assert reason == "stryker could not run on a.js: 11:05:27 (1) ERROR Stryker it broke"
+
+    def test_falls_back_to_the_first_non_empty_line_without_an_error_level(self):
+        reason = cannot_run_ask("mutmut", ["a.py"], "\n\nboom\nlater")["reason"]
+
+        assert reason == "mutmut could not run on a.py: boom"
+
+    def test_says_no_output_for_an_empty_message(self):
+        assert cannot_run_ask("mutmut", ["a.py"], "")["reason"].endswith(": no output")
