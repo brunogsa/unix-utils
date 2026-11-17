@@ -242,14 +242,29 @@ elif [[ "$OS" == "linux" ]]; then
     if command -v go &> /dev/null && [[ "$(go version)" == *"go${GO_VERSION} "* ]]; then
         echo "go ${GO_VERSION} already installed, skipping"
     else
+        # SHA-256 pins, checked before sudo replaces Go.
+        # Source: https://go.dev/dl/?mode=json&include=all
         case "$(uname -m)" in
-            aarch64|arm64) GO_ARCH="arm64" ;;
-            *) GO_ARCH="amd64" ;;
+            aarch64|arm64)
+                GO_ARCH="arm64"
+                GO_SHA256="3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92" ;;
+            *)
+                GO_ARCH="amd64"
+                GO_SHA256="7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840" ;;
         esac
-        wget "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -O /tmp/go.tar.gz
-        sudo rm -rf /usr/local/go
-        sudo tar -xzf /tmp/go.tar.gz -C /usr/local
-        rm /tmp/go.tar.gz
+
+        # A private dir, so no other user can swap the tarball
+        # between the checksum and the root-owned extract.
+        GO_TMP_DIR="$(mktemp -d)"
+        GO_TARBALL="$GO_TMP_DIR/go.tar.gz"
+        if wget "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -O "$GO_TARBALL" \
+            && echo "${GO_SHA256}  ${GO_TARBALL}" | sha256sum -c -; then
+            sudo rm -rf /usr/local/go
+            sudo tar -xzf "$GO_TARBALL" -C /usr/local
+        else
+            echo "go ${GO_VERSION}: download or checksum failed, /usr/local/go left unchanged" >&2
+        fi
+        rm -rf "$GO_TMP_DIR"
     fi
     export PATH="/usr/local/go/bin:$PATH"
 
