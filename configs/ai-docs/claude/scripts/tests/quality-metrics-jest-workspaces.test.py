@@ -207,9 +207,10 @@ class TestNestedWorktree:
 # Copies the lcov fixture where it is told to, and answers
 # --showConfig with no readable config, so the default ignore
 # list applies. Logs its arguments one per line when ARGS_LOG
-# names a file.
+# names a file, and its TZ and NODE_OPTIONS when ENV_LOG does.
 JEST_LCOV_COPY_STUB = """#!/bin/bash
 if [ -n "$ARGS_LOG" ]; then printf '%s\\n' "$@" > "$ARGS_LOG"; fi
+if [ -n "$ENV_LOG" ]; then echo "TZ=${TZ-unset} NODE_OPTIONS=${NODE_OPTIONS-unset}" > "$ENV_LOG"; fi
 for argument in "$@"; do
   case "$argument" in
     --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
@@ -282,3 +283,33 @@ class TestChangedFileScope:
         _, arguments = jest_arguments_for_scoped_run(tmp_path, monkeypatch, {"pkg/package.json": package_json})
 
         assert "--maxWorkers=2" in arguments
+
+
+def jest_env_for_test_script(tmp_path, monkeypatch, test_script):
+    """The TZ and NODE_OPTIONS jest saw, from a caller that sets
+    neither, when the workspace test script is `test_script`."""
+    monkeypatch.delenv("TZ", raising=False)
+    monkeypatch.delenv("NODE_OPTIONS", raising=False)
+    env_log = tmp_path / "env.log"
+    monkeypatch.setenv("ENV_LOG", str(env_log))
+    package_json = json.dumps({"scripts": {"test": test_script}}) + "\n"
+    jest_arguments_for_scoped_run(tmp_path, monkeypatch, {"pkg/package.json": package_json})
+    return env_log.read_text().strip()
+
+
+class TestTestScriptEnvironment:
+    def test_should_run_jest_with_the_variables_the_workspace_test_script_assigns_before_jest(
+        self, tmp_path, monkeypatch
+    ):
+        test_script = "TZ=UTC NODE_OPTIONS='--experimental-vm-modules' jest --maxWorkers=2"
+
+        env = jest_env_for_test_script(tmp_path, monkeypatch, test_script)
+
+        assert env == "TZ=UTC NODE_OPTIONS=--experimental-vm-modules"
+
+    def test_should_take_no_variable_from_a_test_script_that_runs_another_command_before_the_assignments(
+        self, tmp_path, monkeypatch
+    ):
+        env = jest_env_for_test_script(tmp_path, monkeypatch, "yarn db:migrate && TZ=UTC jest")
+
+        assert env == "TZ=unset NODE_OPTIONS=unset"
