@@ -54,9 +54,9 @@ HOTSPOT_RUN = measured(
     file_record("src/red.py", "size", 100, FILE_LINES_LIMIT),
     crap_record("src/amber.py", "branchy", 24),
     crap_record("src/green.py", "tidy", 3),
-    file_record("src/limit.py", "size", 300, FILE_LINES_LIMIT),
-    file_record("src/edge70.py", "size", 210, FILE_LINES_LIMIT),
-    file_record("src/under70.py", "size", 209, FILE_LINES_LIMIT),
+    file_record("src/limit.py", "size", 512, FILE_LINES_LIMIT),
+    file_record("src/edge70.py", "size", 359, FILE_LINES_LIMIT),
+    file_record("src/under70.py", "size", 358, FILE_LINES_LIMIT),
 )
 
 

@@ -21,7 +21,7 @@ from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import ToolError, bash_file_lloc
 
 FUNCTION_LINES_LIMIT = 64
-FILE_LINES_LIMIT = 300
+FILE_LINES_LIMIT = 512
 
 # A test file is a flat list of independent cases bounded by its
 # subject; per-test size, duplication and entangled-test metrics

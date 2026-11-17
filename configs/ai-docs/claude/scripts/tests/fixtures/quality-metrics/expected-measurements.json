@@ -1,13 +1,13 @@
 [
-  {"file": "page.html", "function": null, "scope": "file", "metric": "size", "value": 2, "limit": 300, "line": null},
-  {"file": "pick.sh", "function": null, "scope": "file", "metric": "size", "value": 6, "limit": 300, "line": null},
+  {"file": "page.html", "function": null, "scope": "file", "metric": "size", "value": 2, "limit": 512, "line": null},
+  {"file": "pick.sh", "function": null, "scope": "file", "metric": "size", "value": 6, "limit": 512, "line": null},
   {"file": "pick.sh", "function": "pick", "scope": "function", "metric": "size", "value": 4, "limit": 64, "line": 4},
-  {"file": "report.go", "function": null, "scope": "file", "metric": "size", "value": 16, "limit": 300, "line": null},
+  {"file": "report.go", "function": null, "scope": "file", "metric": "size", "value": 16, "limit": 512, "line": null},
   {"file": "report.go", "function": "build_report", "scope": "function", "metric": "nesting", "value": 4, "limit": 3, "line": 3},
   {"file": "report.go", "function": "build_report", "scope": "function", "metric": "parameters", "value": 1, "limit": 5, "line": 3},
   {"file": "report.go", "function": "build_report", "scope": "function", "metric": "size", "value": 12, "limit": 64, "line": 3},
   {"file": "report.go", "function": "trim_cell", "scope": "function", "metric": "nesting", "value": 0, "limit": 3, "line": 16},
   {"file": "report.go", "function": "trim_cell", "scope": "function", "metric": "parameters", "value": 3, "limit": 5, "line": 16},
   {"file": "report.go", "function": "trim_cell", "scope": "function", "metric": "size", "value": 3, "limit": 64, "line": 16},
-  {"file": "styles.css", "function": null, "scope": "file", "metric": "size", "value": 3, "limit": 300, "line": null}
+  {"file": "styles.css", "function": null, "scope": "file", "metric": "size", "value": 3, "limit": 512, "line": null}
 ]
