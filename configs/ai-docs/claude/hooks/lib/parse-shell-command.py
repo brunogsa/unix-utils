@@ -64,58 +64,76 @@ def strip_commit_message_heredoc_bodies(text):
     prose there (e.g. "git push origin main stays blocked")
     must not be scanned as code.
 
-    A body is dropped only when its delimiter is quoted, since
-    an unquoted one lets bash run `$(...)` inside it. The `<<`
-    must also belong to that commit, not to a later stage such
-    as `git commit ...; bash <<'EOF'`, and sit outside quotes.
+    Anything bash could read differently from this parser keeps
+    the body, so the guards still scan it:
+
+    - an unquoted delimiter, since bash runs `$(...)` inside it;
+      HEREDOC_OPENER never matches one, its `\\2` needs a quote
+    - text before the `<<` holding more than plain words, plain
+      quotes, `$NAME` and `; & |`, since `$'...'`, a backslash,
+      a `#` comment or a substitution can hand the heredoc to
+      another command, or make the `<<` no heredoc at all
+    - a commit other than `git [-C <dir>] commit` with known
+      flags, since an env assignment, `git -c` or `--edit` can
+      run an editor or hooks on the message
     """
     return _strip_heredoc_bodies_where(text, _is_commit_message_heredoc)
 
 
 def _is_commit_message_heredoc(kept, line, opener):
-    if not opener.group(2):
-        return False
-
     # Earlier lines count too: a quote opened on one of them may
     # still be open at the `<<`.
     before_opener = '\n'.join(kept[:-1] + [line[:opener.start()]])
-    owning_stage = split_into_pipelines(before_opener)[-1][-1]
-    if _OPENS_A_NESTED_COMMAND.search(owning_stage):
+    if not _PLAIN_SHELL_TEXT.fullmatch(before_opener):
         return False
+    owning_stage = split_into_pipelines(before_opener)[-1][-1]
     try:
         tokens = shlex.split(owning_stage)
     except ValueError:
         return False
-    return _is_git_commit_reading_stdin(tokens)
+    return _is_plain_git_commit_reading_stdin(tokens)
 
 
-# A stage that opens a subshell, command substitution or group
-# may hand the heredoc to a command inside it rather than to
-# the commit, and a `#` may turn the `<<` into comment text.
-_OPENS_A_NESTED_COMMAND = re.compile(r'[(){}`#]')
+# Text where bash and shlex agree on every word and separator.
+_PLAIN_SHELL_TEXT = re.compile(r'''(?:[\w\s\-./=:@%+,'";&|~]|\$(?!['"]))*''')
 
-_ENV_ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
-_GIT_OPTIONS_TAKING_A_VALUE = {'-C', '-c'}
 _STDIN_MESSAGE_FORMS = {('-F', '-'), ('--file', '-')}
 _STDIN_MESSAGE_WORDS = {'-F-', '--file=-'}
 
+# Flags that change what the commit records, never what runs.
+_MESSAGE_INERT_COMMIT_FLAGS = {
+    '-q', '--quiet', '--allow-empty', '-a', '--all', '-s', '--signoff', '--amend', '--no-edit',
+}
 
-def _is_git_commit_reading_stdin(tokens):
+
+def _is_plain_git_commit_reading_stdin(tokens):
+    index = 1 if tokens[:1] == ['git'] else len(tokens)
+    while tokens[index:index + 1] == ['-C']:
+        index += 2
+    if tokens[index:index + 1] != ['commit']:
+        return False
+    return _reads_message_from_stdin_with_inert_flags(tokens[index + 1:])
+
+
+def _reads_message_from_stdin_with_inert_flags(args):
+    reads_stdin = False
     index = 0
-    while index < len(tokens) and _ENV_ASSIGNMENT.match(tokens[index]):
+    while index < len(args) and args[index] != '--':
+        if tuple(args[index:index + 2]) in _STDIN_MESSAGE_FORMS:
+            reads_stdin = True
+            index += 2
+            continue
+        if args[index] in _STDIN_MESSAGE_WORDS:
+            reads_stdin = True
+        elif args[index].startswith('-') and args[index] not in _MESSAGE_INERT_COMMIT_FLAGS:
+            return False
         index += 1
-    if index >= len(tokens) or tokens[index] != 'git':
-        return False
-    index += 1
-    while index < len(tokens) and tokens[index].startswith('-'):
-        index += 2 if tokens[index] in _GIT_OPTIONS_TAKING_A_VALUE else 1
-    if index >= len(tokens) or tokens[index] != 'commit':
-        return False
-    commit_args = tokens[index + 1:]
-    if '--' in commit_args:
-        commit_args = commit_args[:commit_args.index('--')]
-    adjacent_pairs = set(zip(commit_args, commit_args[1:]))
-    return bool(adjacent_pairs & _STDIN_MESSAGE_FORMS) or bool(set(commit_args) & _STDIN_MESSAGE_WORDS)
+    return reads_stdin
+
+
+# A `<<<` here-string feeds one word to stdin, so the lines
+# after it run as commands and are never a heredoc body.
+_HEREDOC_OPENER_NOT_HERE_STRING = re.compile(r'(?<!<)' + HEREDOC_OPENER.pattern)
 
 
 def _strip_heredoc_bodies_where(text, should_strip):
@@ -126,7 +144,7 @@ def _strip_heredoc_bodies_where(text, should_strip):
     while index < total:
         line = lines[index]
         kept.append(line)
-        opener = HEREDOC_OPENER.search(line)
+        opener = _HEREDOC_OPENER_NOT_HERE_STRING.search(line)
         index += 1
         if not opener or not should_strip(kept, line, opener):
             continue

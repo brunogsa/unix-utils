@@ -54,3 +54,49 @@ class TestSplitIntoPipelines:
 
     def test_should_return_one_empty_stage_for_empty_input(self):
         assert parse_shell_command.split_into_pipelines("") == [[""]]
+
+
+PUSH_BODY = "\ngit push origin main\nEOF"
+
+
+def _keeps_push_body(opener_line):
+    command = opener_line + PUSH_BODY
+    return "git push origin main" in parse_shell_command.strip_commit_message_heredoc_bodies(command)
+
+
+class TestStripCommitMessageHeredocBodies:
+    def test_should_drop_the_message_body_of_a_plain_commit_reading_stdin_after_cd(self):
+        assert not _keeps_push_body("cd /Users/dev/repo && git commit -q -F - -- \"$d/notes.md\" <<'EOF'")
+
+    def test_should_keep_the_body_when_the_heredoc_delimiter_is_unquoted_since_bash_expands_it(self):
+        assert _keeps_push_body("git commit -F - <<EOF")
+
+    def test_should_keep_the_body_when_the_heredoc_opens_inside_a_command_substitution(self):
+        assert _keeps_push_body("git commit -F - $(bash <<'EOF'")
+
+    def test_should_keep_the_body_when_ansi_c_quoting_hides_that_bash_reads_the_heredoc(self):
+        assert _keeps_push_body("bash -s $'\\' ; git commit -F - '\\' <<'EOF'")
+
+    def test_should_keep_the_body_when_a_comment_before_the_commit_swallows_the_heredoc_marker(self):
+        assert _keeps_push_body("echo done #; git commit -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_an_environment_assignment_before_git_can_set_its_hooks(self):
+        assert _keeps_push_body("GIT_CONFIG_PARAMETERS=\"'core.hooksPath=/tmp/hooks'\" git commit -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_git_dash_c_can_set_the_commits_hooks(self):
+        assert _keeps_push_body("git -c core.hooksPath=/tmp/hooks commit -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_the_commit_opens_an_editor_on_the_message(self):
+        assert _keeps_push_body("git commit --edit -F - <<'EOF'")
+
+    def test_should_keep_the_lines_after_a_here_string_since_bash_runs_them_as_commands(self):
+        assert _keeps_push_body("git commit -F - <<<'EOF'")
+
+
+class TestStripHeredocBodiesForSinks:
+    def test_should_keep_the_lines_after_a_here_string_fed_to_cat_since_bash_runs_them(self):
+        command = "cat <<<'EOF'" + PUSH_BODY
+
+        stripped = parse_shell_command.strip_heredoc_bodies_for_sinks(command, parse_shell_command.NON_EXECUTING_SINK_PATTERN)
+
+        assert "git push origin main" in stripped

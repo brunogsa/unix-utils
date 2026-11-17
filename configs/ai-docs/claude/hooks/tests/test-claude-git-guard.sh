@@ -622,6 +622,56 @@ it_should_block_git_dash_c_absolute_path_push_to_main() {
   assert_eq "should block git -C /some/repo push origin main, whatever the directory" "2" "$HOOK_EXIT"
 }
 
+### Block: a commit-looking heredoc whose body still runs
+
+# push_in_heredoc_opened_by - prints the given opener line,
+# then a body that pushes to main, then the attribution.
+push_in_heredoc_opened_by() {
+  printf '%s\n' \
+    "$1" \
+    'git push origin main' \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF'
+}
+
+# bash reads $'\' ; ... \'' as one argument, so `bash -s`,
+# not the commit, reads the heredoc and runs its body.
+it_should_block_a_push_to_main_in_a_heredoc_that_ansi_c_quoting_hands_to_bash() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(push_in_heredoc_opened_by "bash -s \$'\\' ; git commit -F - '\\' <<'EOF'")" "$dir"
+  assert_eq "should block git push origin main in a heredoc that ANSI-C quoting hands to bash -s" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_push_to_main_after_a_heredoc_marker_inside_a_comment() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(push_in_heredoc_opened_by "echo done #; git commit -F - <<'EOF'")" "$dir"
+  assert_eq "should block git push origin main on the line after a heredoc marker that sits in a comment" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_that_an_env_set_editor_runs() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(push_in_heredoc_opened_by "GIT_EDITOR=sh git commit -e -F - <<'EOF'")" "$dir"
+  assert_eq "should block git push origin main in a commit message that GIT_EDITOR=sh runs as a script" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_that_a_dash_c_editor_runs() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(push_in_heredoc_opened_by "git -c core.editor=sh commit --edit -F - <<'EOF'")" "$dir"
+  assert_eq "should block git push origin main in a commit message that git -c core.editor=sh runs as a script" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_push_to_main_on_the_lines_after_a_here_string() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(push_in_heredoc_opened_by "git commit -F - <<<'EOF'")" "$dir"
+  assert_eq "should block git push origin main on the lines after a here-string, which bash runs as commands" "2" "$HOOK_EXIT"
+}
+
 ### Allow: exact branch-name match only, never substring
 
 it_should_allow_git_push_origin_feature_main_fix() {
@@ -1173,6 +1223,11 @@ it_should_block_a_push_to_main_on_the_line_after_a_heredoc_commit_message
 it_should_block_a_push_to_main_in_a_bash_heredoc_opened_after_a_commit
 it_should_block_a_push_to_main_after_a_quoted_heredoc_marker_in_a_commit_message
 it_should_block_git_dash_c_absolute_path_push_to_main
+it_should_block_a_push_to_main_in_a_heredoc_that_ansi_c_quoting_hands_to_bash
+it_should_block_a_push_to_main_after_a_heredoc_marker_inside_a_comment
+it_should_block_a_push_to_main_in_a_commit_message_that_an_env_set_editor_runs
+it_should_block_a_push_to_main_in_a_commit_message_that_a_dash_c_editor_runs
+it_should_block_a_push_to_main_on_the_lines_after_a_here_string
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch
