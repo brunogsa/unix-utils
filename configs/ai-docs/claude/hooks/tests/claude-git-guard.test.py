@@ -317,3 +317,87 @@ def test_blocks_subject_over_64_characters_with_the_lib_reason(repo):
     result = run_hook(f'git commit -m "{long_subject}" {TRAILER}', repo)
     assert_blocked(result)
     assert "over the 64-character cap" in result.stderr
+
+
+# Ways around the guard: an agent that rewords a blocked command
+# until it passes. Each case would have run a guarded git
+# command, or discarded work, without being checked.
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param("bash <<'EOF'\ngit push --force origin master\nEOF", id="heredoc fed to bash"),
+        pytest.param("cat <<'EOF' | sh\ngit push --force origin master\nEOF", id="heredoc piped on to sh"),
+        pytest.param(
+            "python3 <<'EOF'\nimport subprocess\nsubprocess.run(['git', 'push', '-f', 'origin', 'master'])\nEOF",
+            id="heredoc fed to python",
+        ),
+        pytest.param(
+            "echo \"<<'EOF'\"\ngit push --force origin master", id="heredoc opener inside quotes"
+        ),
+        pytest.param(
+            "echo hi # <<'EOF'\ngit push --force origin master", id="heredoc opener inside a comment"
+        ),
+        pytest.param("echo `git push -f`", id="backtick substitution behind echo"),
+        pytest.param('echo "`git push -f`"', id="backtick substitution inside double quotes"),
+        pytest.param('echo "$(git push -f)"', id="command substitution inside double quotes"),
+        pytest.param("git -c alias.p=push p --force origin master", id="alias defined with -c"),
+        pytest.param("git -c color.ui=always log", id="any -c global"),
+        pytest.param("git --config-env=alias.p=P p origin master", id="alias defined with --config-env"),
+        pytest.param('git config alias.p "push --force"', id="git config writes an alias"),
+        pytest.param(
+            "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=alias.p GIT_CONFIG_VALUE_0=push git p -f origin master",
+            id="alias defined through GIT_CONFIG environment variables",
+        ),
+        pytest.param("$'\\x67it' push --force origin master", id="ANSI-C quoted command word"),
+        pytest.param("G=git; $G push --force origin master", id="variable in command position"),
+        pytest.param("g''it push --force origin master", id="empty quotes splitting the word git"),
+        pytest.param(f"{DIFF_CHECK} && git add notes.txt && git commit --amend {TRAILER}", id="chain with --amend"),
+        pytest.param(
+            f"{DIFF_CHECK} && git add notes.txt && git commit --no-verify -m x {TRAILER}", id="chain with --no-verify"
+        ),
+        pytest.param("git restore ./", id="restore ./"),
+        pytest.param("git restore :/", id="restore :/"),
+        pytest.param("git restore ':(top)'", id="restore :(top) magic"),
+        pytest.param("git restore '*'", id="restore glob"),
+        pytest.param("git restore sub/..", id="restore path that resolves to the root"),
+        pytest.param("git restore ..", id="restore the parent directory"),
+        pytest.param("git checkout -- ./", id="checkout -- ./"),
+        pytest.param("git checkout -- ':/'", id="checkout -- :/"),
+        pytest.param("git checkout HEAD -- '*.txt'", id="checkout -- glob"),
+        pytest.param("git push origin refs/heads/main", id="push refs/heads/main"),
+        pytest.param("git push origin heads/master", id="push heads/master"),
+        pytest.param("git push origin Main", id="push main in another case"),
+        pytest.param("git push origin @", id="push @"),
+        pytest.param("git push origin 'feature@{1}'", id="push a reflog form"),
+        pytest.param("git push origin feature~1", id="push a ~ form"),
+        pytest.param("git push origin feature^", id="push a ^ form"),
+        pytest.param("git checkout notes.txt", id="checkout of an existing file name"),
+    ],
+)
+def test_blocks_each_way_around_the_guard(repo, command):
+    assert_blocked(run_hook(command, repo))
+
+
+def test_blocks_restore_of_the_repository_root_by_absolute_path(repo):
+    assert_blocked(run_hook(f"git restore {repo}", repo))
+
+
+def test_blocks_checkout_of_an_existing_directory_and_names_the_safe_commands(repo):
+    (repo / "src").mkdir()
+    result = run_hook("git checkout src", repo)
+    assert_blocked(result)
+    assert "git restore" in result.stderr and "git switch" in result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param('"$HOME/bin/tool" --help', id="variable in command position without git"),
+        pytest.param("git restore sub/notes.txt", id="restore of a named path in a subdirectory"),
+        pytest.param("git push origin feature/main-menu", id="push a branch whose name contains main"),
+    ],
+)
+def test_still_allows_near_misses(repo, command):
+    assert_allowed(run_hook(command, repo))

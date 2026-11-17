@@ -17,6 +17,7 @@ import re
 import shlex
 import subprocess
 import sys
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 
 LIB_DIR = Path(__file__).resolve().parent / "lib"
@@ -24,11 +25,24 @@ FOOTER = "See the commit-standards skill."
 GUARDED = ("commit", "push", "reset", "clean", "checkout", "restore", "branch", "worktree")
 MAY_NAME_GIT = re.compile(r"\b(git|aigitcommit)\b")
 UNPARSED_GUARDED = re.compile(r"\b(git\b.*?\b(" + "|".join(GUARDED) + r")|aigitcommit)\b", re.S)
+GUARDED_WORD = re.compile(r"\b(" + "|".join(GUARDED) + r")\b")
+
+# A reader that runs a heredoc body as code, anywhere on the
+# opener line: `bash <<X`, `cat <<X | sh`, `python3 <<X`.
+EXECUTING_READER = re.compile(
+    r"(^|[\s;&|(/])(bash|sh|zsh|dash|ksh|fish|ssh|sudo|env|exec|eval|source|xargs"
+    r"|python[\d.]*|node|deno|perl|ruby|php|lua|osascript)\b|(^|\s)\.(\s|$)")
+HEREDOC_START = re.compile(r"(?<!<)<<(?!<)")
+
+# Ways to point git at config that defines an alias, so that
+# an unguarded-looking `git p` runs `git push`.
+ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*=")
+CONFIG_ROUTE = re.compile(r"alias\.|^(GIT_CONFIG\w*|HOME|XDG_CONFIG_HOME)=", re.I)
 OPERATOR_CHARS = "();<>|&\n"
 WRAPPERS = {"sh", "bash", "zsh", "eval"}
 GLOBALS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 WHOLE_TREE = {".", "./"}
-PROTECTED_BRANCHES = {"main", "master", "HEAD"}
+PROTECTED_BRANCHES = {"main", "master", "head"}
 BRANCH_LISTING = {"-a", "--all", "-r", "--remotes", "-l", "--list", "-v", "-vv", "--verbose",
                   "--show-current", "--merged", "--no-merged", "--contains"}
 COMMIT_CHAIN = "git diff --cached --quiet && git add <paths> (or git-hunk stage <ids>) && git commit ..."
@@ -53,8 +67,10 @@ FORMS = {
 }
 
 
-def block(rule, subcommand="commit"):
-    lines = [f"git guard: {rule}.", "Allowed forms:", *(f"  {form}" for form in FORMS[subcommand]), FOOTER]
+def block(rule, subcommand: str | None = "commit"):
+    forms = FORMS.get(subcommand, []) if subcommand else []
+    allowed = ["Allowed forms:", *(f"  {form}" for form in forms)] if forms else []
+    lines = [f"git guard: {rule}.", *allowed, FOOTER]
     print("\n".join(lines), file=sys.stderr)
     sys.exit(2)
 
@@ -113,7 +129,7 @@ def names_guarded_git(text, strip_heredoc_bodies):
         return bool(UNPARSED_GUARDED.search(text))
 
 
-def parse_args(args, flags=frozenset(), valued=frozenset()):
+def parse_args(args, flags: AbstractSet[str] = frozenset(), valued: AbstractSet[str] = frozenset()):
     """Split args into options, positionals, and the paths
     after `--` (None when there is no `--`).
 
@@ -138,7 +154,7 @@ def parse_args(args, flags=frozenset(), valued=frozenset()):
     return options, positionals, None
 
 
-def check_commit(args):
+def check_commit(args, _base_dir):
     args = [part for arg in args for part in (arg.split("=", 1) if arg.startswith("--message=") else [arg])]
     options, positionals, _ = parse_args(args, {"-q"}, {"-m", "--message", "-F", "--file"})
     has_message = any(option in ("-m", "--message") for option in options)
@@ -150,22 +166,47 @@ def check_commit(args):
     return None
 
 
-def check_push(args):
+def is_protected_branch(name):
+    """True for main, master or HEAD under any spelling git
+    resolves to them, and for any revision expression."""
+    short = re.sub(r"^(refs/)?heads/", "", name)
+    is_expression = short == "@" or "@{" in short or any(char in short for char in "^~")
+    return is_expression or short.startswith("refs/") or short.casefold() in PROTECTED_BRANCHES
+
+
+def check_push(args, _base_dir):
     _, positionals, _ = parse_args(args, {"-u", "--set-upstream", "--force-with-lease"})
     if len(positionals) != 2 or positionals[0] != "origin":
         return "git push names exactly origin and one branch"
     branch = positionals[1]
-    if ":" in branch or branch[0] in "+-" or branch in PROTECTED_BRANCHES:
+    if ":" in branch or branch[0] in "+-" or is_protected_branch(branch):
         return f"git push may not push {branch}"
     return None
 
 
-def check_reset(args):
+def find_repo_root(base_dir):
+    for directory in (base_dir, *Path(base_dir).parents):
+        if (Path(directory) / ".git").exists():
+            return os.path.normpath(directory)
+    return base_dir
+
+
+def pathspec_is_safe(path, base_dir):
+    """True when a path names part of the tree, never the whole
+    repository, its parent, or a pathspec pattern."""
+    if path.startswith(":") or any(char in path for char in "*?["):
+        return False
+    target = os.path.normpath(os.path.join(base_dir, path))
+    relative = os.path.relpath(target, find_repo_root(base_dir))
+    return target != base_dir and relative != "." and not relative.startswith("..")
+
+
+def check_reset(args, _base_dir):
     parse_args(args, {"--soft", "--mixed", "-q", "--"})
     return None
 
 
-def check_clean(args):
+def check_clean(args, _base_dir):
     for arg in args:
         is_allowed_short = arg.startswith("-") and not arg.startswith("--") and set(arg[1:]) <= set("ndxXq")
         if arg.startswith("-") and arg != "--dry-run" and not is_allowed_short:
@@ -174,24 +215,29 @@ def check_clean(args):
     return None if is_dry_run else "git clean must be a dry run (-n or --dry-run)"
 
 
-def check_checkout(args):
+def check_checkout(args, base_dir):
     options, positionals, paths = parse_args(args, {"--"}, {"-b"})
     if paths is not None:
-        is_path_form = not options and len(positionals) <= 1 and paths and not WHOLE_TREE & set(paths)
-        return None if is_path_form else "git checkout -- needs named paths, never ., and no option"
+        is_path_form = not options and len(positionals) <= 1 and paths
+        if is_path_form and all(pathspec_is_safe(path, base_dir) for path in paths):
+            return None
+        return "git checkout -- needs named paths, never the whole tree, a pattern, or an option"
     if len(positionals) > 1 or not (options or positionals):
         return "git checkout takes one branch, or -b <branch> [<start>]"
-    return "git checkout never takes the path ." if WHOLE_TREE & set(positionals) else None
-
-
-def check_restore(args):
-    _, positionals, _ = parse_args(args, {"--staged", "-S"})
-    if not positionals or WHOLE_TREE & set(positionals):
-        return "git restore needs named paths, never ."
+    if not options and os.path.lexists(os.path.join(base_dir, positionals[0])):
+        return (f"{positionals[0]} is a path here, and git checkout of a path discards its changes;"
+                " use git restore <file> or git switch <branch>")
     return None
 
 
-def check_branch(args):
+def check_restore(args, base_dir):
+    _, positionals, _ = parse_args(args, {"--staged", "-S"})
+    if not positionals or not all(pathspec_is_safe(path, base_dir) for path in positionals):
+        return "git restore needs named paths, never the whole tree or a pattern"
+    return None
+
+
+def check_branch(args, _base_dir):
     args = [arg for arg in args if not arg.startswith(("--sort=", "--format="))]
     parse_args(args, BRANCH_LISTING | {"-d", "--delete"})
     return None
@@ -207,7 +253,7 @@ WORKTREE_ACTIONS = {
 }
 
 
-def check_worktree(args):
+def check_worktree(args, _base_dir):
     if not args or args[0] not in WORKTREE_ACTIONS:
         return "git worktree runs only add, list, remove or prune"
     flags, valued, fewest, most = WORKTREE_ACTIONS[args[0]]
@@ -236,23 +282,23 @@ def read_git_segment(segment, subcommand):
     return segment[sub_index], segment[sub_index + 1:], (options[1] if options else None)
 
 
-def check_form(subcommand, args):
+def check_form(subcommand, args, base_dir):
     try:
-        rule = FORM_CHECKS[subcommand](args)
+        rule = FORM_CHECKS[subcommand](args, base_dir)
     except ValueError as error:
         rule = f"{error} for git {subcommand}"
     if rule:
         block(rule, subcommand)
 
 
-def check_single(segment, first_guarded):
-    subcommand, args, _ = read_git_segment(segment, first_guarded)
+def check_single(segment, first_guarded, cwd):
+    subcommand, args, git_dir = read_git_segment(segment, first_guarded)
     if subcommand not in GUARDED:
         block(f"run git {first_guarded} on its own, not inside git {subcommand}", first_guarded)
-    check_form(subcommand, args)
+    check_form(subcommand, args, os.path.normpath(os.path.join(cwd, git_dir or ".")))
 
 
-def check_chain(segments, operators):
+def check_chain(segments, operators, cwd):
     if operators != ["&&", "&&"]:
         block(f"the only chain allowed is: {COMMIT_CHAIN}")
     first, middle, last = segments
@@ -268,7 +314,7 @@ def check_chain(segments, operators):
             block("the chain's middle step must be git add <paths> or git-hunk stage <ids>, never . or an option")
     if not staged or any(arg.startswith("-") for arg in staged) or len({diff_dir, stage_dir, commit_dir}) != 1:
         block("the chain stages named paths or hunks, and every git step uses the same -C <dir>")
-    check_form("commit", commit_args)
+    check_form("commit", commit_args, os.path.normpath(os.path.join(cwd, commit_dir or ".")))
 
 
 def run_lib(args, cwd):
@@ -294,10 +340,74 @@ def check_commit_content(command, cwd):
 
 
 def load_strip_heredoc_bodies():
+    """Return the lib's heredoc stripper, or a no-op when the
+    lib cannot load: nothing stripped means nothing hidden."""
     spec = importlib.util.spec_from_file_location("parse_shell_command", LIB_DIR / "parse-shell-command.py")
+    if spec is None or spec.loader is None:
+        return lambda text: text
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.strip_heredoc_bodies
+
+
+def parses(text):
+    try:
+        tokenize(text)
+    except ValueError:
+        return False
+    return True
+
+
+def strip_inert_heredocs(command, strip_heredoc_bodies):
+    """Return the command with its heredoc bodies dropped, and
+    False; or the command whole, and True, when any `<<` is
+    quoted, commented, or on a line that runs a shell or an
+    interpreter, so a body that runs as code is still read."""
+    for opener in HEREDOC_START.finditer(command):
+        line_start = command.rfind("\n", 0, opener.start()) + 1
+        line_end = command.find("\n", opener.end())
+        line = command[line_start:line_end if line_end != -1 else len(command)]
+        prefix = command[:opener.start()]
+        if EXECUTING_READER.search(line) or "#" in prefix or not parses(prefix):
+            return command, True
+    return strip_heredoc_bodies(command), False
+
+
+def may_run_git(command):
+    """False only when no word can spell git: quotes and
+    backslashes removed, no git, and no $ or backtick."""
+    plain = re.sub(r"[\"'\\]", "", command)
+    return bool(MAY_NAME_GIT.search(plain)) or "$" in command or "`" in command
+
+
+def unparsed_is_risky(text):
+    is_dynamic = ("$" in text or "`" in text) and GUARDED_WORD.search(text)
+    names_alias = MAY_NAME_GIT.search(text) and CONFIG_ROUTE.search(text)
+    return bool(UNPARSED_GUARDED.search(text) or is_dynamic or names_alias)
+
+
+def runs_git(tokens):
+    return any(token == "git" or token.endswith("/git") for token in tokens)
+
+
+def check_config_routes(tokens):
+    for index, token in enumerate(tokens):
+        if token == "git" or token.endswith("/git"):
+            options, _ = skip_globals(tokens, index + 1)
+            if any(option == "-c" or option.startswith("--config-env") for option in options):
+                block("git -c and --config-env can define an alias; run git without them", None)
+    if runs_git(tokens) and any(CONFIG_ROUTE.search(token) for token in tokens):
+        block("a git alias or a GIT_CONFIG, HOME or XDG_CONFIG_HOME override can rename"
+              " a guarded subcommand; leave git config alone", None)
+
+
+def check_dynamic_command_words(segments):
+    for segment in segments:
+        words = [token for token in segment if not ASSIGNMENT.match(token)]
+        is_dynamic = words and ("$" in words[0] or "`" in words[0])
+        if is_dynamic and any(word in GUARDED for word in words):
+            block("a command name built from $ or a backtick runs beside a guarded git word;"
+                  " run git by name", None)
 
 
 def check_wrappers(segments, strip_heredoc_bodies):
@@ -308,37 +418,55 @@ def check_wrappers(segments, strip_heredoc_bodies):
             block("a guarded git command inside sh -c, bash -c, zsh -c or eval; run git directly")
 
 
-def check_shape(command, segments, operators, first_guarded):
+def check_shape(command, segments, operators, first_guarded, cwd):
     if "$" in command or "`" in command:
         block("no $ or backtick anywhere in a guarded git command; put such a message in a -F file",
               first_guarded)
     if operators and len(segments) != 3:
         block(f"a guarded git command runs alone, or as: {COMMIT_CHAIN}", first_guarded)
     if operators:
-        check_chain(segments, operators)
+        check_chain(segments, operators, cwd)
     else:
-        check_single(segments[0], first_guarded)
+        check_single(segments[0], first_guarded, cwd)
+
+
+def check_text(text, kept_heredocs):
+    """Blocks a guarded git command hidden from the tokens: in
+    a backtick or $( ) substitution, or in a heredoc body
+    that runs as code."""
+    if ("`" in text or "$(" in text) and UNPARSED_GUARDED.search(text):
+        block("a guarded git command inside a backtick or $( ) substitution; run git directly", None)
+    if kept_heredocs and UNPARSED_GUARDED.search(text):
+        block("a guarded git command inside a heredoc that may run as code; run git directly", None)
+
+
+def check_tokens(tokens, segments, strip_heredoc_bodies):
+    if any(token == "aigitcommit" or token.endswith("/aigitcommit") for token in tokens):
+        block("aigitcommit is never allowed; run git commit directly")
+    check_wrappers(segments, strip_heredoc_bodies)
+    check_dynamic_command_words(segments)
+    check_config_routes(tokens)
 
 
 def check(command, cwd):
-    if not MAY_NAME_GIT.search(command):
+    if not may_run_git(command):
         return
     strip_heredoc_bodies = load_strip_heredoc_bodies()
-    text = strip_heredoc_bodies(command).strip()
+    text, kept_heredocs = strip_inert_heredocs(command, strip_heredoc_bodies)
+    text = text.strip()
     try:
         tokens = tokenize(text)
     except ValueError:
-        if UNPARSED_GUARDED.search(text):
+        if unparsed_is_risky(text):
             block("this command does not parse (an unbalanced quote?); run the git command on its own")
         return
-    if any(token == "aigitcommit" or token.endswith("/aigitcommit") for token in tokens):
-        block("aigitcommit is never allowed; run git commit directly")
+    check_text(text, kept_heredocs)
     segments, operators = split_segments(tokens)
-    check_wrappers(segments, strip_heredoc_bodies)
+    check_tokens(tokens, segments, strip_heredoc_bodies)
     found = guarded_subcommands(tokens)
     if not found:
         return
-    check_shape(command, segments, operators, found[0])
+    check_shape(command, segments, operators, found[0], os.path.abspath(cwd or "."))
     if "commit" in found:
         check_commit_content(command, cwd or "")
 
