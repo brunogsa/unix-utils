@@ -294,6 +294,23 @@ class TestCornerCases:
         assert "task-notification" not in result.stdout
 
 
+class TestSurveyEstimate:
+    def test_should_estimate_the_size_of_the_extract_text_that_follows_the_survey_line(self, tmp_path):
+        # Short turns make the per-turn header, NEXT line and
+        # session header a large share of the emitted text.
+        lines = []
+        for n in range(20):
+            lines.append(_user_line(f"fix {n}", timestamp=f"2026-01-01T00:{n:02d}:00"))
+            lines.append(_assistant_line(f"ok {n}"))
+        _write_transcript(tmp_path / "short_turns.jsonl", lines, seconds_ago=DAY)
+
+        result = _run_script(["--since", "7", "--project-dirs", str(tmp_path)])
+
+        survey_line, extract_text = result.stdout.split("\n", 1)
+        reported = int(survey_line.rsplit("~", 1)[1].split(" ")[0])
+        assert reported == len(extract_text) // 4
+
+
 class TestFailureScenarios:
     def test_should_exit_nonzero_when_given_the_removed_session_id_project_dir_and_cwd_flags(self):
         result = _run_script(["--session-id", "fake-session", "--project-dir", "/nonexistent", "--cwd", "/nonexistent"])

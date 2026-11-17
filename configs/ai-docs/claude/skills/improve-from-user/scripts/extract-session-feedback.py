@@ -46,6 +46,7 @@ Examples:
 import argparse
 import datetime
 import glob
+import io
 import json
 import os
 import subprocess
@@ -172,25 +173,22 @@ def qualifying_transcripts(project_dirs, since_days, exclude_path):
     return candidates
 
 
-def survey(qualifying):
+def survey(qualifying, extract_text):
     """Corpus survey for qualifying: file count, real user
     turns, estimated tokens.
 
-    Estimated tokens is user_chars / 4, a rough conversion.
-    Printed before any session content so an oversized sweep
-    is visible before a single message body is read.
+    Estimated tokens is len(extract_text) / 4, a rough
+    conversion over the exact text emit mode prints - headers
+    and NEXT lines included - so the skill's 80k escalation
+    check sees the real size. Printed before any session
+    content so an oversized sweep is visible before a single
+    message body is read.
     """
-    file_count = len(qualifying)
-    turn_count = 0
-    char_count = 0
-    for path in qualifying:
-        for text in _real_user_turn_texts(path):
-            turn_count += 1
-            char_count += len(text)
+    turn_count = sum(1 for path in qualifying for _ in _real_user_turn_texts(path))
     return {
-        "file_count": file_count,
+        "file_count": len(qualifying),
         "turn_count": turn_count,
-        "estimated_tokens": char_count // 4,
+        "estimated_tokens": len(extract_text) // 4,
     }
 
 
@@ -311,11 +309,12 @@ def main():
               "-- nothing to mine")
         return
 
-    stats = survey(qualifying)
+    extract_text = build_extract(qualifying)
+    stats = survey(qualifying, extract_text)
     print(f"# corpus survey: {stats['file_count']} files · {stats['turn_count']} real user turns · "
           f"~{stats['estimated_tokens']} estimated tokens")
 
-    emit(qualifying)
+    sys.stdout.write(extract_text)
 
 
 def _emit_session(out, path, index, total, turns, boundaries):
@@ -362,15 +361,16 @@ def _emit_session(out, path, index, total, turns, boundaries):
         out.write("\n")
 
 
-def emit(paths):
-    """Emit every qualifying session's feedback, grouped and in
-    session order."""
-    out = sys.stdout
+def build_extract(paths):
+    """Return every qualifying session's feedback as one text,
+    grouped and in session order."""
+    out = io.StringIO()
     out.write("# Session feedback extract (recovered from disk - survives compaction)\n\n")
     total = len(paths)
     for index, path in enumerate(paths, 1):
         turns, boundaries = parse_transcript(path)
         _emit_session(out, path, index, total, turns, boundaries)
+    return out.getvalue()
 
 
 if __name__ == "__main__":
