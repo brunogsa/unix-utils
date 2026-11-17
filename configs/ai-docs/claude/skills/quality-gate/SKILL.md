@@ -8,7 +8,7 @@ disable-model-invocation: false
 
 Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. By default, also apply what a judge rules Fix.
 
-Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in CWD, `verdict_quality-gate_<branch>_<ts>.md`:
+Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in CWD, `verdict_quality-gate_<branch>_<ts>.md`:
 
 | Leg | Lens | Entries in the merged file |
 |---|---|---|
@@ -16,10 +16,11 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `refactor` | structure, duplication, dead code, naming | `[refactor]` |
 | `auto-review` | correctness, edge cases, contract and spec conformance | `[auto-review]` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
+| `scout` | open `[Scout]` tasks that belong to this branch, judged fresh | `[scout]` |
 
-A whole run on one branch (§1 through §7, apply included) targets 20 minutes of wall-clock or less, because the user waits on it and a 2-hour run per PR stalls a stacked series of PRs. §7 measures against it; it is a target, never a reason to cut a gate short.
+A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less; it is a target, never a reason to cut a gate short.
 
-Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it happens, because the user tunes the gate from where its time goes: each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch's start and end, §6.1 when it runs, and §7.
+Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it happens: each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch's start and end, and §7.
 
 ## Usage
 
@@ -33,7 +34,7 @@ Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
-- `--auto-solve` - skip the interview; a judge rules each `refactor`, `auto-review` and `metrics` finding Fix or Skip, and every Fix applies.
+- `--auto-solve` - skip the interview; a judge rules each `refactor`, `auto-review`, `metrics` and `scout` finding Fix or Skip, and every Fix applies.
 
 - `--report-only` - skip the interview the other way; only `test-sdd` findings apply.
   - A skill caller that already asked its human passes one flag, so §1 never stalls a batch.
@@ -44,7 +45,7 @@ See [`references/more-examples.md`](references/more-examples.md) for example inv
 
 ## 1. Ask about auto-solve - first, before anything else
 
-**The question covers the `refactor`, `auto-review` and `metrics` lenses.**
+**The question covers the `refactor`, `auto-review`, `metrics` and `scout` lenses.**
 
 **Skip this step entirely when either `--auto-solve` or `--report-only` was passed.** The flag is the answer.
 
@@ -86,6 +87,11 @@ If detection fails, ask which branch to diff against; under either flag, stop an
 
 First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
 
+`<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
+
+Then export the open scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of open `[Scout]` tasks.
+- **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no open scout)`.
+
 Spawn each leg as its own agent, all in the **same turn**, all in the background.
 
 - `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill with `<BASE_REF>` as its `--base-ref`.
@@ -94,10 +100,11 @@ Spawn each leg as its own agent, all in the **same turn**, all in the background
 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
+- `agent(subAgent=code-reviewer, title=Scout-lens review)` - follows [`references/scout-leg.md`](references/scout-leg.md), with `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths, and the export path pushed in.
+  - Dispatch it only when the export printed a count above 0.
+
 - Run the `metrics-review` skill ([`../metrics-review/SKILL.md`](../metrics-review/SKILL.md)) in this session, in parallel with the other legs, with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
   - Main runs it, since the inspector dispatch and the tooling asks are main's, and the skill dispatches the `code-reviewer` that follows [`metrics-lens.md`](../metrics-review/references/metrics-lens.md) in the background.
-
-  - `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
   - Never pass the `refactor` and `auto-review` legs a `--metrics` flag: this leg already measures, and a second measurement is the duplicate that flag exists to avoid.
 
@@ -111,7 +118,7 @@ Tell each leg the `/tmp` half too: a leg that believes only `verdict_*` is writa
 
 ## 4. Collect the reports
 
-When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd` and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
+When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd`, `scout` (`scout-leg_*.md`) and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary and let the other legs stand.
 
 - **Never report from a leg's return message** - it truncates long lists.
@@ -120,7 +127,7 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 
 **No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform on every run.
 
-Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review` and `test-sdd` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
+Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on the rendered metrics verdict to get k (0 with none).
@@ -135,17 +142,22 @@ Verify without reading the merged file into main:
 
 - The merged count, counted the same way, equals k plus the sources' summed findings minus those absorbed (a group of k duplicates absorbs k-1).
 
-- Every heading carries exactly one of `auto-review|refactor|test-sdd|metrics`, so this prints 0: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /{if(gsub(/\[(auto-review|refactor|test-sdd|metrics)\]/,"&")!=1)b++} END{print b+0}' <merged path>``.
+- Every heading carries exactly one of `auto-review|refactor|test-sdd|metrics|scout`, so this prints 0: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /{if(gsub(/\[(auto-review|refactor|test-sdd|metrics|scout)\]/,"&")!=1)b++} END{print b+0}' <merged path>``.
 
 **Pass** → move (never delete) the `refactor` and `auto-review` files into `<RUN_DIR>`, so `/address-verdicts` can't apply one finding from both the merged file and its source. Record the moved paths for §7.
 
-**Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Say so in §7.
+Then delete the in-goal scout tasks the merged file carries: grep it, outside code fences, for `**Scout task**: #<id>` lines, and `TaskUpdate` each id to status `deleted`.
+- An in-goal id with no such line in the merged file stays in the TaskList; §7 names it.
+
+**Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Delete no scout task. Say so in §7.
 
 ### 4.2. Judge each finding Fix or Skip - auto-solve only
 
 Runs on auto-solve when §4.1 passed. Report-only and §4.1's fallback skip it.
 
 Main copies the merged file to `<RUN_DIR>/pre-judge.md`. Then it dispatches ONE `agent(subAgent=code-reviewer, title=Fix-or-Skip judge)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §1, and runs that file's §3 checks.
+
+The judge rules `[scout]` findings exactly like `refactor`, `auto-review` and `metrics` ones, so an in-goal scout is judged, and under auto-solve applied, with no human step.
 
 On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: not run (merge fell back)`.
 
@@ -187,6 +199,8 @@ Resolve the repo's test command first, then invoke, **in this session**:
 
 - **Pass `--test-cmd`**, so it has nothing to infer.
 
+- **A scout found while applying goes to the TaskList** like any other, and the next gate run exports it; the scout leg never re-runs in this run.
+
 ### 6.1. One fix review over every applied commit
 
 **Disabled since 2026-11-17: skip this step, and §7 reports `fix review: disabled`.** The user disabled it while finding out what makes a run slow. Delete this notice once the user has reviewed §7's per-phase timings and turns the review back on.
@@ -215,12 +229,17 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - Applied findings, with commit SHA.
 - Findings the judge ruled Skip, with their `**Standards check**` line - they stay open in the merged file.
 
-- **On a report-only run, every `refactor`, `auto-review` and `metrics` finding, under a heading naming them as never judged.**
+- **On a report-only run, every `refactor`, `auto-review`, `metrics` and `scout` finding, under a heading naming them as never judged.**
   - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
 
 - `judge: FAIL (<reason>)` or `judge: not run (merge fell back)` when that happened; on a failure, say to fix the judge and re-run `/quality-gate`.
 
 - Every `[QUESTION]` finding, under "needs your answer".
+
+- The scout leg, from `<RUN_DIR>/scout-classification.md`, or `scout leg: not run (no open scout)`:
+  - The in-goal task ids deleted.
+  - The in-goal ids kept because no finding for them reached the merged file.
+  - The off-goal ids left in the TaskList for the human, ids only, with no finding text.
 
 - `fix review: disabled` while §6.1's notice stands; once deleted, the fix-review findings, "reported, never applied", or "fix review: clean", and on a failed check `fix review: FAIL (<reason>)`.
 
