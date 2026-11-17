@@ -22,6 +22,7 @@ from quality_metrics.coverage_result import (
     read_fresh_lcov,
 )
 from quality_metrics.dependencies import head_tree
+from quality_metrics.dependency_trees import is_clean_checkout_of
 from quality_metrics.failures import TimeoutPolicy, ask_or_defer
 from quality_metrics.go_coverage import collect_go
 from quality_metrics.javascript_coverage import collect_javascript, declares_npm_test
@@ -29,6 +30,7 @@ from quality_metrics.python_coverage import collect_python
 from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
+    JEST,
     REPO_COVERAGE_RUNNERS,
     RepoToolFailure,
     global_tool_for,
@@ -125,15 +127,32 @@ class CoverageRun:
             path for path, changed_language in self.changed_files.items()
             if COLLECTORS.get(changed_language) is collector
         )
+        run_dir = self._repo_tool_run_dir(tool, tree, changed_paths)
         try:
-            run = run_repo_coverage_under_policy(tool, tree, self.policy, self.base_ref, changed_paths)
+            run = run_repo_coverage_under_policy(tool, run_dir, self.policy, self.base_ref, changed_paths)
         except RepoToolFailure as failure:
             if failure.exit_class == FAILED_TESTS:
                 return _Measured(RED_BUILD, FAILED_TESTS, source, None)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
-        result = CoverageResult(normalized_hits(tree, run["hits_by_file"], ""), False)
+        result = CoverageResult(normalized_hits(run_dir, run["hits_by_file"], ""), False)
         return _Measured(result, run["exit_class"], source, None)
+
+    def _repo_tool_run_dir(self, tool, tree, changed_paths):
+        """Where the repo tool runs: the checkout itself for
+        jest, when the head ref is the checked-out commit and no
+        changed file has an uncommitted edit; else the head
+        ref's tree.
+
+        An export of the head ref holds no installed
+        node_modules, so jest cannot run there. The global
+        fall-through stays on the export.
+        """
+        if tool != JEST or not self.head_ref:
+            return tree
+        if not is_clean_checkout_of(self.repo_dir, self.head_ref, changed_paths):
+            return tree
+        return self.repo_dir
 
     def _measure_globally(self, language, side_pr_candidate, tree, exit_class=None):
         tool = global_tool_for("coverage", language)

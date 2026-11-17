@@ -5,7 +5,7 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
-from quality_metrics.tools import run_tool
+from quality_metrics.tools import run_command, run_tool
 
 
 @contextmanager
@@ -21,6 +21,20 @@ def head_tree(repo_dir, head_ref):
     with tempfile.TemporaryDirectory() as head_dir:
         extract_tree_at(repo_dir, head_ref, Path(head_dir))
         yield Path(head_dir)
+
+
+def is_clean_checkout_of(repo_dir, head_ref, paths):
+    """Whether the checkout sits on the head ref's commit with
+    no uncommitted edit to any of the paths, so it holds the
+    same files an export of the ref would."""
+    head_commit = run_command(["git", "-C", str(repo_dir), "rev-parse", "--verify", f"{head_ref}^{{commit}}"])
+    checkout_commit = run_command(["git", "-C", str(repo_dir), "rev-parse", "--verify", "HEAD"])
+    if head_commit.returncode != 0 or checkout_commit.returncode != 0:
+        return False
+    if head_commit.stdout.strip() != checkout_commit.stdout.strip():
+        return False
+    status = run_command(["git", "-C", str(repo_dir), "status", "--porcelain", "--", *paths])
+    return status.returncode == 0 and not status.stdout.strip()
 
 
 def extract_tree_at(repo_dir, ref, destination):
