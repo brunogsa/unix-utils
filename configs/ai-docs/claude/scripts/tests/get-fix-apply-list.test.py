@@ -138,3 +138,118 @@ class TestFencedTextInsideAnEntryBody:
 
         assert completed.returncode == 0, completed.stderr
         assert completed.stdout.splitlines() == ["1"]
+
+
+def _finding(ruling, section="## Findings", heading="### 4. [HIGH][refactor] Split"):
+    return f"{section}\n\n{heading}\n\n{ruling}"
+
+
+class TestJudgeRulingCheck:
+    def test_should_flag_an_entry_holding_two_standards_check_lines(self, tmp_path):
+        verdict = _write(tmp_path, _finding(FIX_RULING + FIX_RULING))
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+        assert "more than one" in completed.stdout
+
+    def test_should_flag_a_ruling_that_is_neither_fix_nor_a_skip_with_a_rule_and_a_considered_fix(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            _finding('**Standards check**: Skip - "a rule"\nSKIPPED (judge ruled Skip)\n'),
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+        assert "neither" in completed.stdout
+
+    def test_should_flag_a_skip_whose_considered_fix_is_empty(self, tmp_path):
+        verdict = _write(
+            tmp_path,
+            _finding(
+                '**Standards check**: Skip - "a rule"; considered fix: \n'
+                "SKIPPED (judge ruled Skip)\n"
+            ),
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+
+    def test_should_flag_a_skip_with_no_skipped_line_after_it(self, tmp_path):
+        verdict = _write(
+            tmp_path,
+            _finding(
+                '**Standards check**: Skip - "Split a function past the limit"; '
+                "considered fix: extract the date parsing\n"
+            ),
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+        assert "SKIPPED" in completed.stdout
+
+    def test_should_flag_a_skip_that_cites_a_standards_file_by_name_instead_of_quoting_the_rule(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            _finding(
+                '**Standards check**: Skip - "code-standards says keep it"; '
+                "considered fix: extract the date parsing\n"
+                "SKIPPED (judge ruled Skip)\n"
+            ),
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+        assert "quote" in completed.stdout
+
+    def test_should_flag_a_ruling_over_the_char_cap_on_an_open_violations_entry(
+        self, tmp_path
+    ):
+        long_ruling = (
+            '**Standards check**: Skip - "Split a function past the limit"; '
+            "considered fix: " + "extract the date parsing " * 30 + "\n"
+            "SKIPPED (judge ruled Skip)\n"
+        )
+        verdict = _write(
+            tmp_path,
+            _finding(
+                long_ruling,
+                section="## Open violations (1)",
+                heading="### 4. Cyclomatic complexity of `parse_invoice` - 14",
+            ),
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 1
+        assert completed.stdout.startswith("4: ")
+        assert "chars" in completed.stdout
+
+    def test_should_accept_a_fix_a_no_ruling_entry_and_a_well_formed_skip(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            "## Findings\n\n"
+            f"### 1. [HIGH][refactor] Split the parser\n\n{FIX_RULING}\n"
+            "### 2. [HIGH][metrics] No ruling yet\n\n"
+            f"### 3. [HIGH][auto-review] Wrong tax base\n\n{SKIP_RULING}",
+        )
+
+        completed = _run(verdict, "--check")
+
+        assert completed.returncode == 0, completed.stdout
+        assert completed.stdout == ""
