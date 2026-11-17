@@ -4,8 +4,11 @@ report-only."""
 
 import importlib
 import json
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -49,6 +52,11 @@ FIVE_PARAMETERS = (
     "    return total - total * rate\n"
 )
 PARAMETER_VIOLATION_MINUTES = 20
+
+DOC_SCRIPTS_DIR = SCRIPTS_DIR.parent / "skills" / "doc-standards" / "scripts"
+
+# The checkers the prose-format hook runs on a .md file.
+PROSE_CHECKERS = ("check-density.sh", "check-hard-wrap.py", "check-bullet-gap.py", "check-bullet-structure.py")
 
 
 def declaration_at(tmp_path):
@@ -133,6 +141,19 @@ class TestDebtDeltaInVerdict:
 
         assert "src/cart.py: 0 -> 20 min (+20)" in text
         assert "Total: +20 min" in text
+
+    # why: quality-gate §4.1 cats this verdict into a repo file,
+    # and the bash write guard runs the doc-standards prose
+    # checkers on every source of that cat before the write.
+    @pytest.mark.parametrize("checker", PROSE_CHECKERS)
+    def test_should_render_a_debt_delta_verdict_every_prose_checker_passes(self, tmp_path, checker):
+        verdict_path = tmp_path / "verdict_metrics.md"
+        verdict_path.write_text(report.build_verdict({**measured(), "debt": {"delta": self.DELTA}}))
+
+        result = subprocess.run([str(DOC_SCRIPTS_DIR / checker), str(verdict_path)],
+                                capture_output=True, text=True)
+
+        assert (result.returncode, result.stdout) == (0, "")
 
     def test_should_say_delta_not_computable_when_there_is_no_base_ref(self):
         run = {**measured(), "debt": {"delta": {"computable": False, "reason": "no base ref"}}}

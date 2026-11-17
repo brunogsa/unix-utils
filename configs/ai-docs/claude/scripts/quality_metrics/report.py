@@ -326,9 +326,14 @@ def _debt_delta_text(delta):
         f"{entry['head_minutes']} min ({entry['delta_minutes']:+d})"
         for entry in delta["files"]
     ]
+
+    # why: the blank line ends the list, so the doc-standards
+    # hard-wrap checker does not read "Total:" as a bullet's
+    # wrapped continuation.
     return "\n".join([
         "Debt delta on touched files, base ref to HEAD (static metrics only):",
         *lines,
+        "",
         f"Total: {delta['total_minutes']:+d} min",
     ])
 
