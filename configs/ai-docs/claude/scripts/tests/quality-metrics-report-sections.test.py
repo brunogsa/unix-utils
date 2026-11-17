@@ -515,9 +515,9 @@ class TestMetricTitles:
 
         verdict = report.build_verdict(measured(record))
 
-        listed = section(verdict, section_title)
-        assert f" - {title} " in listed
-        assert metric not in listed
+        [bullet] = record_bullets(section(verdict, section_title))
+        assert f" - {title} " in bullet
+        assert metric not in bullet
 
     def test_should_title_every_metric_the_declaration_lists_so_a_new_metric_cannot_render_a_raw_key(self):
         declaration = yaml.safe_load(DECLARATION.read_text())

@@ -13,7 +13,7 @@ import collections
 import itertools
 from pathlib import Path
 
-from quality_metrics import debt, hotspots
+from quality_metrics import debt, hotspots, record_keys
 from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.functions import display_value
@@ -78,15 +78,18 @@ def build_verdict(report, exceptions=(), in_git=True):
     working directory.
     """
     numbers = itertools.count(1)
-    accepted, open_violations = _partition_claims(report["violations"], exceptions)
+    accepted, open_violations = partition_claims(report["violations"], exceptions)
+    keys = record_keys.keys_by_section(
+        [violation for violation, _ in open_violations], report
+    )
     sections = [
         _deferred_section(report["measurements"], numbers),
         _asks_section(report.get("asks", []), numbers),
         _exceptions_section(accepted, numbers),
-        _violations_section(open_violations),
-        _gate_inputs_section(report.get("gate_input_violations", [])),
-        _duplication_section(report.get("duplication_candidates", [])),
-        *_new_candidate_sections(report),
+        _violations_section(open_violations, keys["violations"]),
+        _gate_inputs_section(report.get("gate_input_violations", []), keys["gate_inputs"]),
+        _duplication_section(report.get("duplication_candidates", []), keys["duplication"]),
+        *_new_candidate_sections(report, keys),
         _not_applicable_section(report.get("not_applicable", [])),
         _not_measured_section(report["measurements"]),
         _sources_section(report.get("sources", [])),
@@ -99,7 +102,7 @@ def build_verdict(report, exceptions=(), in_git=True):
     return "\n\n".join(sections) + "\n"
 
 
-def _partition_claims(violations, exceptions):
+def partition_claims(violations, exceptions):
     """Split violations into accepted ones (a claim whose
     diff file exists, not rejected) and open ones, each
     paired with whether its claim was rejected.
@@ -155,14 +158,24 @@ def _deferred_section(measurements, numbers):
     return _section(f"Deferred metrics ({len(entries)})", entries)
 
 
-def _counted_section(title, items, describe_item):
+def _counted_section(title, items, describe_item, keys=None):
     """A titled section with one bullet per raw record, the
     title carrying the record count.
 
     Records are not findings, so they carry no `### N.` number.
+    `keys`, aligned with `items`, puts each record's key on the
+    line under its bullet, for a judge to cite.
     """
-    bullets = [_bullet(describe_item(item)) for item in items]
+    texts = [describe_item(item) for item in items]
+    if keys is not None:
+        texts = [_with_record_line(text, key) for text, key in zip(texts, keys)]
+    bullets = [_bullet(text) for text in texts]
     return _section(f"{title} ({len(bullets)})", bullets)
+
+
+def _with_record_line(text, key):
+    first, *rest = text.split("\n")
+    return "\n".join([first, f"**Record**: `{key}`", *rest])
 
 
 def _asks_section(asks, numbers):
@@ -188,8 +201,8 @@ def _describe_source(item):
     return text
 
 
-def _violations_section(violations):
-    return _counted_section("Open violations", violations, _describe_open)
+def _violations_section(violations, keys):
+    return _counted_section("Open violations", violations, _describe_open, keys)
 
 
 def _describe_open(violation_and_rejection):
@@ -197,11 +210,11 @@ def _describe_open(violation_and_rejection):
     return _describe(item) + (REJECTED_NOTE if is_rejected else "")
 
 
-def _duplication_section(candidates):
-    return _counted_section("Duplication candidates", candidates, _describe)
+def _duplication_section(candidates, keys):
+    return _counted_section("Duplication candidates", candidates, _describe, keys)
 
 
-def _new_candidate_sections(report):
+def _new_candidate_sections(report, keys):
     """Dead code and mutation sections; the mutation keys are
     absent until `--mutation` runs, and then so are the
     sections."""
@@ -210,13 +223,16 @@ def _new_candidate_sections(report):
             "Dead code candidates",
             report.get("dead_code_candidates", []),
             _describe_dead_code,
+            keys["dead_code"],
         )
     ]
     survivors = report.get("surviving_mutants", [])
     not_run = report.get("mutants_not_run", [])
     if survivors or not_run:
         sections.append(
-            _counted_section("Surviving mutants", survivors, _describe_mutant)
+            _counted_section(
+                "Surviving mutants", survivors, _describe_mutant, keys["survivors"]
+            )
         )
         sections.append(
             _counted_section("Mutants not run", not_run, _describe_not_run)
@@ -294,9 +310,9 @@ def _describe_not_applicable(item):
     return f"{item['file']} - {title} - not applicable: {item['reason']}"
 
 
-def _gate_inputs_section(gate_input_violations):
+def _gate_inputs_section(gate_input_violations, keys):
     return _counted_section(
-        "Gate input violations", gate_input_violations, _describe_gate_input
+        "Gate input violations", gate_input_violations, _describe_gate_input, keys
     )
 
 
