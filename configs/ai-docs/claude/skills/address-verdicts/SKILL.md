@@ -201,7 +201,7 @@ State plainly, every time:
 
 In marked mode, also report one line per tree branch and stopped subtree, per [`references/stack-mode.md`](references/stack-mode.md).
 
-Invoked by a skill, hand that same list back to the caller, with the full-suite result, which composes the human's closing report.
+Invoked by a skill, hand that same list and the full-suite result back to the caller, which composes the human's closing report.
 
 ## Flowchart (human-facing)
 
