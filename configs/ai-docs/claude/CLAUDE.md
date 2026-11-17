@@ -368,7 +368,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Subagents
 
-- [Instruction] **Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
+- [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
   - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks.
 
 - [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
@@ -389,6 +389,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Size every dispatch to finish well inside the 64-turn subagent cap - 4-6 files per mechanical batch, an explicit stop criterion for any collection or checker loop.
   - [Why] Five sessions hit the cap or a silent 45-minute agent, each losing the whole slice's work.
 
+  - [Example] Bad: a 6-task wave run serially because the plan lists it in order. Good: group pending tasks by files touched, then dispatch every file-disjoint group at once.
 - [Instruction] Treat a turn-cap stop, or a subagent 30 minutes past its last output, as a stall - kill it and re-dispatch a smaller slice, never wait it out.
   - [Why] "Kill your general-purpose sub-agent, 45min is too long" - waiting past the stall buys nothing but wall-clock.
 
