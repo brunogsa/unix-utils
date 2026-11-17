@@ -1,8 +1,9 @@
 """Which changed JS/TS files the mutation phase hands to
-Stryker: only production files.
+Stryker: only production files with code a mutant can change.
 
-A test or fixture file proves nothing when mutated, so it is
-neither run nor listed in any mutation record.
+A test or fixture file proves nothing when mutated, and a
+type-only file or a barrel of re-exports has no mutant at all,
+so neither is run nor listed in any mutation record.
 """
 
 import sys
@@ -40,6 +41,20 @@ CONTRACT_FIXTURE = """export const buildContract = (overrides = {}) => ({
   quantity: 3,
   ...overrides,
 });
+"""
+
+TYPE_ONLY_SOURCE = """import type { Contract } from './contract';
+
+export interface SkuLine {
+  sku: string;
+  quantity: number;
+}
+
+export type MergedLines = { lines: SkuLine[]; source: Contract };
+"""
+
+BARREL_SOURCE = """export * from './discount';
+export { buildLines } from './build-lines';
 """
 
 
@@ -88,6 +103,18 @@ class TestTestFilesAreNeverMutated:
             "core/src/discount.ts": DISCOUNT_SOURCE,
             "core/test/discount.spec.ts": DISCOUNT_SPEC,
             "core/test/fixtures/contract.fixtures.ts": CONTRACT_FIXTURE,
+        })
+
+        assert handed == ["core/src/discount.ts"]
+        assert recorded_files(result) == set()
+
+
+class TestCodeFreeFilesAreNeverMutated:
+    def test_hands_a_type_only_file_and_a_barrel_to_no_stryker_batch(self, mutated_paths):
+        handed, result = mutated_paths({
+            "core/src/discount.ts": DISCOUNT_SOURCE,
+            "core/src/merge/types.ts": TYPE_ONLY_SOURCE,
+            "core/src/merge/index.ts": BARREL_SOURCE,
         })
 
         assert handed == ["core/src/discount.ts"]

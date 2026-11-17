@@ -9,6 +9,7 @@ import time
 from collections import Counter
 
 from quality_metrics import declaration, mutation, mutation_python
+from quality_metrics.executable_code import has_no_executable_code
 from quality_metrics.failures import add_ask_once
 
 BUDGET_SECONDS = 300
@@ -48,15 +49,17 @@ def run_mutation(setup, touched_by_file, changed_files):
 
 def _changed_ranges(setup, tree, touched_by_file, changed_files, languages):
     """Path to (start, end) ranges, for the files of
-    `languages` that `mutation` binds.
+    `languages` that `mutation` binds and that hold code a
+    mutant can change.
 
     A test file, fixtures included, is bound by no source-only
-    metric, so it gets no record.
+    metric, and a JS/TS file with no executable code has no
+    mutant, so neither gets a record.
     """
     changed = {}
     for path, language in changed_files.items():
         is_mutated = MUTATION_METRIC in declaration.metrics_for_file(setup.declaration, path)
-        if language in languages and is_mutated:
+        if language in languages and is_mutated and not has_no_executable_code(tree / path):
             changed[path] = _ranges_of(touched_by_file[path], tree / path)
     return changed
 
