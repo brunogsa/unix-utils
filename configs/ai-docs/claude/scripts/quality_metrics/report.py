@@ -37,6 +37,18 @@ METRIC_TITLES = {
     ("mutation", "file"): "Surviving mutant",
 }
 
+BULLET_MARK = "- "
+
+# The doc-standards density cap for a bullet line, the one
+# check-density.sh applies; an indented paragraph line gets
+# twice as much.
+BULLET_CAP_CHARS = 256
+BULLET_CAP_WORDS = 32
+
+# Where an over-cap bullet splits, tried in order: the record's
+# ` - ` before its value, else a debt delta's `: `.
+BULLET_SPLIT_SEPARATORS = (" - ", ": ")
+
 PESSIMISTIC_NOTE = "pessimistic"
 REJECTED_NOTE = ", exception rejected by the judge"
 
@@ -363,19 +375,21 @@ def _debt_section(report):
 def _debt_delta_text(delta):
     if not delta["computable"]:
         return f"Debt delta: delta not computable: {delta['reason']}"
-    lines = [
-        f"- {_delta_name(entry)}: {entry['base_minutes']} -> "
-        f"{entry['head_minutes']} min ({entry['delta_minutes']:+d})"
+    bullets = [
+        _bullet(
+            f"{_delta_name(entry)}: {entry['base_minutes']} -> "
+            f"{entry['head_minutes']} min ({entry['delta_minutes']:+d})"
+        )
         for entry in delta["files"]
     ]
 
-    # why: the blank line ends the list, so the doc-standards
-    # hard-wrap checker does not read "Total:" as a bullet's
-    # wrapped continuation.
-    return "\n".join([
+    # why: a blank line between bullets keeps a long one from
+    # failing the doc-standards bullet-gap checker, and the
+    # one before "Total:" keeps the hard-wrap checker from
+    # reading it as a bullet's wrapped continuation.
+    return "\n\n".join([
         "Debt delta on touched files, base ref to HEAD (static metrics only):",
-        *lines,
-        "",
+        *bullets,
         f"Total: {delta['total_minutes']:+d} min",
     ])
 
@@ -403,9 +417,41 @@ def _entry(number, text):
 
 def _bullet(text):
     """`text`'s first line as a `- ` bullet, its other lines
-    indented under it so they stay part of that record."""
+    indented under it so they stay part of that record.
+
+    A blank line goes before each indented line, so the
+    doc-standards hard-wrap checker never reads it as the
+    bullet wrapped across lines.
+    """
     first, *continuations = text.split("\n")
-    return "\n".join([f"- {first}", *(f"  {line}" for line in continuations)])
+    blocks = [_fitted_bullet(first, indent="")]
+    for line in continuations:
+        if line.startswith(BULLET_MARK):
+            blocks.append(_fitted_bullet(line[len(BULLET_MARK):], indent="  "))
+        else:
+            blocks.append(f"  {line}")
+    return "\n\n".join(blocks)
+
+
+def _fitted_bullet(text, indent):
+    """`text` as one bullet at `indent`, its tail moved to a
+    paragraph under it when the line runs past the bullet cap.
+
+    A bullet line gets half the cap a paragraph line gets, so
+    the tail after the first separator moves down instead.
+    """
+    line = f"{indent}{BULLET_MARK}{text}"
+    if not _is_over_bullet_cap(line):
+        return line
+    for separator in BULLET_SPLIT_SEPARATORS:
+        head, found, tail = text.partition(separator)
+        if found:
+            return f"{indent}{BULLET_MARK}{head}\n\n{indent}  {tail}"
+    return line
+
+
+def _is_over_bullet_cap(line):
+    return len(line) > BULLET_CAP_CHARS or len(line.split()) > BULLET_CAP_WORDS
 
 
 def _describe(record):

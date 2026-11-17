@@ -75,14 +75,15 @@ class TestRecordLineUnderEachRuledRecord:
         ("Dead code candidates", "dead_code src/a.py:7 unused_helper"),
         ("Surviving mutants", "mutation src/a.py:4 ArithmeticOperator"),
     ])
-    def test_should_print_the_records_key_on_the_line_right_under_its_bullet(
+    def test_should_print_the_records_key_under_its_bullet_after_one_blank_line(
         self, section_title, key
     ):
         lines = section(report.build_verdict(_ruled_run()), section_title).splitlines()
 
         record_line = f"  **Record**: `{key}`"
         assert record_line in lines
-        assert lines[lines.index(record_line) - 1].startswith("- ")
+        assert lines[lines.index(record_line) - 1] == ""
+        assert lines[lines.index(record_line) - 2].startswith("- ")
 
     @pytest.mark.parametrize("section_title", ["Mutants not run", "Coverage sources"])
     def test_should_print_no_record_key_in_a_section_no_judge_rules_on(self, section_title):

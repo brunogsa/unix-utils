@@ -37,6 +37,11 @@ DEFERRED_CRAP_SCORE = crap.DEFERRED_CRAP_SCORE
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 
+DOC_SCRIPTS_DIR = SCRIPTS_DIR.parent / "skills" / "doc-standards" / "scripts"
+
+# The checkers the prose-format hook runs on a .md file.
+PROSE_CHECKERS = ("check-density.sh", "check-hard-wrap.py", "check-bullet-gap.py", "check-bullet-structure.py")
+
 NODE_LINE = re.compile(r'^\s*(n\d+)\["(.*)"\]:::(\w+)$', re.M)
 
 

@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_report_support import measured, report
+from quality_metrics_report_support import DOC_SCRIPTS_DIR, PROSE_CHECKERS, measured, report
 from quality_metrics_support import (
     SCRIPTS_DIR,
     commit_all,
@@ -52,11 +52,6 @@ FIVE_PARAMETERS = (
     "    return total - total * rate\n"
 )
 PARAMETER_VIOLATION_MINUTES = 20
-
-DOC_SCRIPTS_DIR = SCRIPTS_DIR.parent / "skills" / "doc-standards" / "scripts"
-
-# The checkers the prose-format hook runs on a .md file.
-PROSE_CHECKERS = ("check-density.sh", "check-hard-wrap.py", "check-bullet-gap.py", "check-bullet-structure.py")
 
 
 def declaration_at(tmp_path):
