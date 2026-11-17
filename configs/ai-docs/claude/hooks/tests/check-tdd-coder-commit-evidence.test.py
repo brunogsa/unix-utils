@@ -1081,11 +1081,31 @@ class TestGrepForTheWordCommit:
             "grep -n commit x.py > out.txt",
             'grep -n commit "$f"',
             "grep -n commit `echo x.py`",
+            "grep commit x #\ngit commit -m x",
+            "grep commit x # ; git commit -m x",
+            "grep commit x # comment",
         ],
-        ids=["pipe", "semicolon", "and-chain", "redirect", "variable", "backtick"],
+        ids=[
+            "pipe",
+            "semicolon",
+            "and-chain",
+            "redirect",
+            "variable",
+            "backtick",
+            "comment-then-newline",
+            "comment-holding-a-semicolon",
+            "comment-alone",
+        ],
     )
     def test_should_deny_a_grep_for_the_word_commit_that_could_start_another_call(self, tmp_path, command):
         possible_commit_reason(tmp_path, command)
+
+    @pytest.mark.parametrize("is_plain", [True, False], ids=["plain-grep", "not-plain-grep"])
+    def test_should_hide_the_word_commit_only_when_the_text_reads_as_one_plain_grep(self, monkeypatch, is_plain):
+        hook = load_hook_module()
+        monkeypatch.setattr(hook, "is_plain_grep", lambda text: is_plain)
+
+        assert ("commit" in hook.hide_grep_commit_word("git commit -m x")) is not is_plain
 
     def test_should_deny_a_script_whose_text_is_one_grep_line_naming_commit(self, tmp_path):
         (tmp_path / "x.pl").write_text('grep { system "git commit -m x" } 1', encoding="utf-8")

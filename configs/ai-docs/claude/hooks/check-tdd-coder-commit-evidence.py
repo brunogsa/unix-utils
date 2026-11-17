@@ -293,11 +293,15 @@ def runs_other_git_subcommand(text: str, cwd: str | None) -> bool:
 def is_plain_grep(text: str) -> bool:
     # grep runs no program, so a git word in its arguments is
     # data. One simple command only: no separator, redirect,
-    # substitution or variable that could start another call.
+    # substitution, variable or comment that could start another
+    # call.
+    #
+    # The raw text is read, since the words drop a comment and
+    # its newline; a quoted # or ; in a pattern is denied.
     words = get_command_words(text)
     if not words or words[0] not in GREP_COMMANDS:
         return False
-    return not any(is_separator(word) or "$" in word or "`" in word for word in words)
+    return not any(character in SHELL_PUNCTUATION + "#$`" for character in text)
 
 
 def sets_git_environment(text: str) -> bool:
