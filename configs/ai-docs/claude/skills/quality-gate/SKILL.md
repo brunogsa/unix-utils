@@ -17,6 +17,8 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `auto-review` | correctness, edge cases, contract and spec conformance | `[auto-review]` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
 
+A whole run on one branch (§1 through §7, apply included) targets 20 minutes of wall-clock or less, because the user waits on it and a 2-hour run per PR stalls a stacked series of PRs. §7 measures against it; it is a target, never a reason to cut a gate short.
+
 ## Usage
 
 ```
@@ -91,7 +93,7 @@ Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
 - `agent(subAgent=code-reviewer, title=Metrics-lens review)` - follows [`references/metrics-lens.md`](references/metrics-lens.md), with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
-  - The session id is the path segment just above `scratchpad` in the main session's scratchpad path; the coders' session id, the implement state file's `session_id` and `<SESSION_ID>` are this one value.
+  - `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
   - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
 
@@ -107,7 +109,6 @@ Tell each leg the `/tmp` half too: a leg that believes only `verdict_*` is writa
 
 When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd` and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary and let the other legs stand.
-  - Never retry twice - a twice-failed leg is for the human.
 
 - **Never report from a leg's return message** - it truncates long lists; the file is the source of truth.
 
@@ -180,7 +181,7 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 
 - **`--no-ask` is mandatory here**, report-only or auto-solve alike.
 
-- **`--test-cmd` is passed** so its inference step has nothing left to prompt for.
+- **Pass `--test-cmd`**, so it has nothing to infer.
 
 It returns the ledger §7 reports from.
 
