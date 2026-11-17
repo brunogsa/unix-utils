@@ -99,13 +99,14 @@ make_hook_without_lib() {
 }
 
 # make_hook_without_format_gate - like make_hook_without_lib,
-# but keeps the two python libs the attribution check reads the
+# but keeps the python libs the attribution check reads the
 # message with, so only the comment-format gate is missing.
 make_hook_without_format_gate() {
   local hook
   hook=$(make_hook_without_lib)
   mkdir "$(dirname "$hook")/lib"
-  cp "$(dirname "$SCRIPT")/lib/parse-shell-command.py" "$(dirname "$SCRIPT")/lib/check-commit-subject-length.py" "$(dirname "$hook")/lib/"
+  cp "$(dirname "$SCRIPT")/lib/parse-shell-command.py" "$(dirname "$SCRIPT")/lib/check-commit-subject-length.py" \
+    "$(dirname "$SCRIPT")/lib/shell-stage-lexer.py" "$(dirname "$SCRIPT")/lib/commit-stage-reader.py" "$(dirname "$hook")/lib/"
   printf '%s' "$hook"
 }
 

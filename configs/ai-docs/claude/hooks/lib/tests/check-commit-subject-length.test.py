@@ -408,6 +408,11 @@ class TestFailOpen:
         lonely_checker = tmp_path / CHECKER.name
         shutil.copy(CHECKER, lonely_checker)
 
+        # Only the parse lib stays missing: the checker's own
+        # sibling modules must load for it to run at all.
+        for sibling in ("shell-stage-lexer.py", "commit-stage-reader.py"):
+            shutil.copy(LIB_DIR / sibling, tmp_path / sibling)
+
         result = _run_checker(f'git commit -m "{SUBJECT_OVER_CAP}"', checker_path=lonely_checker)
 
         assert (result.returncode, result.stdout) == (0, "")
