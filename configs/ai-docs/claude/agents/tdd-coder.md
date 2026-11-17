@@ -40,10 +40,16 @@ No CWD reads are required to begin - a caller with no plan file and no spec at a
   - A dispatch with no Units is `blocked`, naming the missing input.
 
 - **Verification**: the command that defines "done" for this batch - the caller's when given, derived by you when not.
-  - It runs at full-suite scope exactly twice: once after PHASE RED (every new test expected failing), once after PHASE GREEN (every unit expected passing).
+  - It runs only the test files this batch adds or changes, exactly twice: after PHASE RED (new tests failing), then after PHASE GREEN (every unit passing).
+
+  - Never run the full suite or a whole directory of it, even when the caller's command names one. Keep its runner and pass it this batch's test files.
+    - The full run belongs to the caller's batch-end gate (`implement`'s `repo-green-runner`).
+    - Past dispatches ran the full suite a median of 4× and up to 21×, at ~145s each.
+
+  - A lint or typecheck step chained to the caller's command still runs as given, since it is not a test run.
 
   - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.py`/`Makefile`, then the CI workflow.
-    - Prefer the narrowest declared command that still covers every unit in this batch - a repo-wide suite you weren't asked for is verification you pay for twice and nobody requested.
+    - Take the runner from that file, then pass it this batch's test files, so a repo-wide suite never runs here.
 
   - Name the command AND the file you read it from, in the report's Deviations and in the evidence file's entry.
     - Inference was never the hazard; an *unattributable* command is, because it leaves the evidence file proving nothing about a repo nobody can re-check it against.
@@ -188,11 +194,10 @@ PHASE GREEN:
   - When a listed file's local service (DB, LocalStack) is unreachable, skip it and name the file and reason under Deviations.
 
 - Some units still red: repair only the failing ones, capped at 3 repair attempts per failing unit.
-  - Re-check each repair with a **targeted** command - the single failing file, test name, or suite - never the full Verification command.
-    - The full suite is budgeted at two runs per dispatch, post-RED and post-GREEN.
-    - Past dispatches ran it a median of 4× and up to 21×, at ~145s each, 10% of all wall time re-proving units already green.
+  - Re-check each repair with a **targeted** command - the single failing file, test name, or suite - never the batch-wide Verification command.
+    - Re-proving units already green spent 10% of all past dispatch wall time.
 
-  - Once every previously-failing unit passes its targeted command, spend the second budgeted run: one full Verification, which is the GREEN entry's evidence.
+  - Once every previously-failing unit passes its targeted command, run Verification once more, which is the GREEN entry's evidence.
   - Repeat until every unit is green or the cap is exhausted on at least one unit.
   - Cap exhausted on any unit: stop repairing. Commit every unit that IS green (PHASE METRICS, then PHASE COMMIT, scoped to those).
   - Then report `blocked` naming only the units that never went green.

@@ -31,6 +31,13 @@ The caller embeds these directly in the dispatch prompt. No CWD reads are requir
   - Derive it from a file that *declares* the repo's entry point, first match wins: `CLAUDE.md`/`AGENTS.md`, `package.json` scripts, `pytest.ini`/`pyproject.toml`, a repo-root `run-tests.py`/`Makefile`.
   - Name the command AND the file you read it from in the report, so the run is re-checkable against a repo someone else holds.
 
+  - When it runs tests, pass it only the test files covering the changed files.
+
+  - Never run the full suite or a whole directory of it, even when the caller's command names one.
+    - The full run belongs to the caller's batch-end gate (`implement`'s `repo-green-runner`).
+
+  - A lint or typecheck step chained to the caller's command still runs as given, since it is not a test run.
+
 - **Optional**: `Context` - free-text framing. `base:` - the base SHA for reading prior commits' why. Thin or absent Context is never by itself a reason to report `blocked`.
 
 - **Session id**: `session-id:` - the main session's id, used by Procedure step 6.
@@ -63,7 +70,7 @@ Issue every independent call in one message - the reads that open the files, the
    - **Scout** - pre-existing and non-blocking; don't touch it, return it in the report.
 
 5. Run Verification once more and diff against step 2's red set. Anything newly red is yours to fix before committing.
-   - Budget the full command at these two runs. Re-check a single repair with a targeted command - the one file, test name, or suite - never the whole thing.
+   - Budget Verification at these two runs. Re-check a single repair with a targeted command - the one file or test name - never the whole Verification command.
 
 6. When the diff changed code, run `~/.claude/scripts/measure-quality-metrics.py --per-unit --session-id <id> --files <file>...` once before committing, with `<id>` from the dispatch's `session-id:`.
    - A dispatch with no `session-id:` runs the command without `--session-id` (global tools); never invent an id.
