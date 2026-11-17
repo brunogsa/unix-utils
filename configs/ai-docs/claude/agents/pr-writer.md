@@ -121,7 +121,7 @@ The format has to stay stable, because the page-fit script can only hold a secti
 - Spawn no subagent except `mermaid-fixer`, for a diagram the mermaid gate fails.
   - Never `markdown-standards-fixer` for density, and never a second opinion on your own prose. The caller owns review, not you.
 
-- Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
+- Never write outside the output path the caller named, except the scratch you may keep for yourself in your scratchpad directory.
 - Zero references to untracked session docs, per the "ZERO references to untracked session docs" rule in `writing-style.md`, which owns the artifact list and the `git ls-files` check.
   - You load that file as source 3 every dispatch, so a second enumeration here would only drift out of step with it and then outrank it inside your own context.
 

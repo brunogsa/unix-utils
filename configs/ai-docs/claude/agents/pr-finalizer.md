@@ -109,7 +109,7 @@ The repo's template is the base structure, never the thing being replaced.
   - Never `markdown-standards-fixer` for density, and never a second opinion on your own merge. The caller owns review, not you.
 
 - Never edit the `.ideal.md`. It is the upstream author's gated artifact and the caller's record of what was measured against the one-page budget.
-- Never write outside the output path the caller named, except the `/tmp` scratch you may keep for yourself.
+- Never write outside the output path the caller named, except the scratch you may keep for yourself in your scratchpad directory.
 
 - Never re-author, re-summarize, or "improve" a line the ideal description already carries - copy it.
   - Rewriting it discards prose that passed the page-fit budget, and nothing downstream re-measures what you changed.

@@ -45,7 +45,7 @@ Read only the existing plan and the caller's instructions otherwise - an edit wo
 - Ground entirely from the caller's exact edits. Never lean on assumed interview context - you have none.
 - Whatever you can't source from your inputs is invisible to you and must become a `**QUESTION:**`, not an invention.
 - Spawn no subagent at all - not a second opinion on your own writing. The caller owns review, not you.
-- Never write outside the plan path the caller named, except the `/tmp` scratch you may keep for yourself.
+- Never write outside the plan path the caller named, except the scratch you may keep for yourself in your scratchpad directory.
 - Never leave a `TODO` - an answer you can't source becomes a `**QUESTION:**` under Open Questions instead.
 
 ## Report format
