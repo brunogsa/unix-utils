@@ -1,6 +1,16 @@
 # Reply Patterns: templates, API, and observed behaviors
 
-Step 9's reply mechanics - templates, the `gh api` call per reply-target kind, and the signature rule - plus the real user edits that justify them.
+Step 9's reply loop and mechanics - templates, the `gh api` call per reply-target kind, and the signature rule - plus the real user edits that justify them.
+
+## Reply loop
+
+Post one reply per reply target of every cluster with a planned reply (apply/answer/drop); skip a cluster the plan marked "no reply". Loop, don't batch.
+
+A reply target is one `thread_ids` entry, one top-level comment, or one review-summary body - never a comment inside an inline thread, or the same body posts several times.
+
+On a `gh api` failure, retry once, then skip it, keep its `[Task]` open, and list it in step 10's report - the loop never stops.
+
+Once a cluster's last reply posts, or the plan marked it "no reply", mark its `[Task]` and any open sub-steps done.
 
 ## Templates, by action
 
@@ -85,7 +95,7 @@ Observed: user stripped the AI signature on cluster C3 of PR #2030 for an `answe
 
 Tagging a user-written answer as AI-assisted dilutes ownership; the reviewer discounts it. That's why text the user dictated verbatim omits the signature.
 
-A summary Claude composed from the debate is Claude's wording, even once the user approves the plan, so it keeps the signature like any other reply Claude wrote - a reviewer should know which words came from the AI.
+A summary Claude composed from the debate is Claude's wording, even once the user closes the debate, so it keeps the signature like any other reply Claude wrote - a reviewer should know which words came from the AI.
 
 ## Ownership rationale (inline threads)
 

@@ -71,7 +71,7 @@ An `AI!` note is a rule for the whole PR, not a fix for the one line it sits on.
 
 1. Write the note's general rule as a one-line `Rule:` - the class of problem, not this one line.
 
-   The user corrects an over- or under-reaching rule in the debate or the plan's review, before any edit.
+   The user corrects an over- or under-reaching rule in the debate, before any edit.
 
 2. Run `gh pr diff <n>` once per run, shared by every cluster. The sweep universe is exactly its added lines: lines starting with `+`, minus the `+++` file headers.
 

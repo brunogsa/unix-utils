@@ -14,7 +14,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative - the
 
 Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comments in the pseudo-code are the diagram's node ids, so an id with no matching comment is drift.
 
-The user is asked questions only up to step 6's plan approval. After it, every fork is decided by a rule in the steps, so the run can finish while the user is away.
+The user is asked questions only up to step 5's debate close, which approves every commit, the push and every reply. After it, every fork is decided by a rule in the steps, so the run can finish while the user is away.
 
 ## Pseudo-code
 
@@ -105,29 +105,46 @@ def address_pr_comments(pr, filters):
     # 14 · Step 5 - ONE chat message: answer EVERY AI? from its Draft answer
     #      first, then challenge each AI! that looks wrong, over-reaching, or
     #      already handled (seeded by its Concern:). Each tied to path:line.
+    #      It lists every apply cluster's Rule + Sites, contested or not, and
+    #      ends by saying that closing the debate approves the commits, the
+    #      push and the replies - the user's only look before those writes.
     send_qa_message(clusters)
 
-    while open_questions() or open_challenges():           # 15 · debate in chat
+    while True:                                            # 15 · debate in chat
         reply = read_user()
+        # 15 · only a user reply closes the debate, even with nothing to
+        #      debate: that reply is the approval
+        if not open_questions() and not open_challenges():
+            break
         if is_bare_ok(reply) and len(open_items()) > 1:    # 15a
             ask_which_items_it_closes()                    # 15a1
         elif reply.names_a_conclusion:                     # 15b
             # "change X" / "tell the reviewer Y" / "drop it" - no GitHub round-trip
-            record_planned_command_or_reply(reply)         # 15b1
+            record_planned_command_or_reply(reply)         # 15b1 · persisted to the run-state file
             TaskCreate("[Sub-Step] <conclusion>", parent=c.task)  # 15b1 · its own sub-step
         if reply.says_question_is_clear:                   # 15c
             mark_sub_step_done(reply.question)             # 15c1
 
-    # 16 · Step 6 - EnterPlanMode; the plan lists per cluster: intent
-    #      (apply / answer / drop), for apply the Rule + Sites as the debate
-    #      amended them, and a one-line reply preview per reply-patterns.md
-    #      (loaded now). Every AI? cluster: a reply, or "no reply - <reason>".
-    load_reference("reply-patterns.md")
-    plan = enter_plan_mode(clusters)
-    while not exit_plan_mode(plan).approved:               # 17
-        # 17a · feedback edits the plan and re-submits it; the debate is not
-        #       restarted. Approval gates every commit, the push, and every reply.
-        plan = edit_plan(plan, feedback)                   # 17a
+    # The debate's close approves every commit, the push and every reply:
+    # bypassPermissions means none of them fires a permission prompt.
+
+    # 16 · Step 6 - ONE Plan subagent, sonnet · medium, foreground, read-only.
+    #      Follows references/plan-draft.md: reads the run-state file +
+    #      reply-patterns.md and returns only the
+    #      plan: per cluster intent (apply / answer / drop), for apply the
+    #      Rule + Sites exactly as the file holds them, a one-line reply
+    #      preview per reply. Every AI? cluster: a reply, or "no reply - <reason>".
+    plan = dispatch("Plan · sonnet · medium", background=False, reads=state)
+
+    # 17 · nobody else reviews the plan, so main checks it against the
+    #      run-state file: same clusters, intents equal to the file's actions,
+    #      apply Sites equal to the file's, every AI? cluster covered. Main
+    #      fixes a mismatch from the file, or builds the plan from the file
+    #      itself if the agent errored or returned no plan - never
+    #      re-dispatches, never asks.
+    plan = check_against(state, plan) if plan else build_plan_from(state)   # 17
+    state.write(plan)          # 17 · steps 7, 9, 10 re-read it after a compaction
+    post_chat_line(f"next: commits, push, replies per the plan in {state.path}")  # 17 · never waits
 
     # ---- Step 7 · from here on, no questions to the user ----
     if tails_on:                                           # 18 · Step 7 opening captures
@@ -173,7 +190,7 @@ def address_pr_comments(pr, filters):
             return abort("repo-green gate HALT - surface surviving red")  # 20b1
 
     # 21 · Step 8 - single batch push, no confirmation: step 1b verified the
-    #      branch and step 6's approval covered the push.
+    #      branch and step 5's debate close covered the push.
     git("push")                                            # 21
     if push_rejected_remote_moved():                       # 22
         # 22a · the commits stand; never auto-rebase. The user resolves the
@@ -184,8 +201,9 @@ def address_pr_comments(pr, filters):
     # A target is one thread_id, one top-level comment, or one review-summary -
     # never a single comment inside a thread, which would post duplicates.
     while targets_remaining_in_planned_clusters():         # 23
-        # 23a · per reply-patterns.md templates (apply / answer / drop; reload
-        #       it if a compaction dropped it). Signature none only on text
+        # 23a · per reply-patterns.md templates (apply / answer / drop; main
+        #       loads it itself before the first reply, and reloads it if a
+        #       compaction dropped it). Signature none only on text
         #       the user dictated verbatim. Loop, never batch.
         #       inline -> GraphQL addPullRequestReviewThreadReply(thread_id)
         #       top-level / review-summary -> REST issue comment
@@ -247,17 +265,16 @@ flowchart TD
   n12a["12a. Stop - no candidate comments"]
   n12b["12b. Step 3: launch lateral learn run<br/>/improve-from-user PR &lt;OWNER_REPO&gt;#&lt;n&gt;<br/>same message as step 4, never wait on the window"]:::dispatch
   n13["13. Step 4: Create the TaskList (before any chat or edit)<br/>one parent [Task] per cluster<br/>one [Sub-Step] per marker, metadata.kind = command | question<br/>parent metadata: comment_ids, thread_ids, urls<br/>(an answer-only cluster still gets a [Task])"]:::state
-  n14["14. Step 5: ONE chat message<br/>answer EVERY AI? from its Draft answer first,<br/>then challenge each AI! that looks wrong, over-reaching,<br/>or already handled (seeded by its Concern:)<br/>each tied to path:line"]:::gate
-  n15{"15. Debate: any question<br/>or challenge still open?"}
+  n14["14. Step 5: ONE chat message<br/>answer EVERY AI? from its Draft answer first,<br/>then challenge each AI! that looks wrong, over-reaching,<br/>or already handled (seeded by its Concern:)<br/>each tied to path:line;<br/>lists every apply cluster's Rule + Sites;<br/>ends: closing the debate approves the commits, push, replies"]:::gate
+  n15{"15. User replies: any question<br/>or challenge still open?"}
   n15a{"15a. Bare ok while<br/>several items are open?"}
   n15a1["15a1. Ask which open items it closes<br/>(never guess)"]:::gate
   n15b{"15b. User names a conclusion?<br/>(change X / tell reviewer Y / drop it)"}
-  n15b1["15b1. Record as a planned command or reply<br/>(no GitHub round-trip)<br/>+ its own [Sub-Step] under the cluster's [Task]"]:::state
+  n15b1["15b1. Record as a planned command or reply,<br/>persisted to the run-state file<br/>(no GitHub round-trip)<br/>+ its own [Sub-Step] under the cluster's [Task]"]:::state
   n15c{"15c. User says a question<br/>is clear?"}
   n15c1["15c1. Mark that question's sub-step done"]:::state
-  n16["16. Step 6: Load reply-patterns.md, EnterPlanMode<br/>plan per cluster: intent apply / answer / drop;<br/>apply: Rule + Sites as the debate amended them;<br/>one-line reply preview, or explicit no reply - reason"]:::gate
-  n17{"17. ExitPlanMode<br/>approved?<br/>(gates every commit, the push, every reply)"}
-  n17a["17a. Rejection feedback edits the plan<br/>and re-submits it<br/>(debate is not restarted)"]
+  n16["16. Step 6: Dispatch Plan subagent<br/>Plan &middot; sonnet &middot; medium &middot; foreground, read-only<br/><br/>Follows references/plan-draft.md: reads the run-state file + reply-patterns.md<br/>returns only the plan: per cluster intent apply / answer / drop;<br/>apply: Rule + Sites exactly as the file holds them;<br/>one-line reply preview, or explicit no reply - reason"]:::dispatch
+  n17["17. Main checks the plan against the run-state file<br/>(same clusters, intents, apply Sites; every AI? covered)<br/>fixes a mismatch from the file, or builds the plan itself if the agent errored or returned none;<br/>persists the plan, posts one chat line<br/>next: commits, push, replies per the plan - never waits"]:::state
   n18{"18. Step 7 &middot; Tails toggle on?"}
   n18a["18a. Capture BATCH_BASE_SHA = git rev-parse HEAD<br/>before the first commit"]:::state
   n18b{"18b. Repo-green gate<br/>toggle on (step 0)?"}
@@ -275,11 +292,11 @@ flowchart TD
   n20a["20a. Dispatch repo-green-runner<br/>mode=gate (background)<br/><br/>Fixes only batch-caused red<br/>(own 3-cycle/signature budget);<br/>never touches pre-existing red"]:::dispatch
   n20b{"20b. Gate verdict?<br/>GREEN / GREEN-WITH-EXCEPTIONS / HALT"}
   n20b1["20b1. Abort: stop before push<br/>surface surviving red set<br/>never hand-fix, never auto-retry"]
-  n21["21. Step 8: git push - single batch push<br/>no confirmation (step 6 approval covered it)"]
+  n21["21. Step 8: git push - single batch push<br/>no confirmation (step 5 debate close covered it)"]
   n22{"22. Push rejected<br/>remote moved?"}
   n22a["22a. Abort: surface to user<br/>commits stand, never auto-rebase<br/>user resolves; only the push is re-attempted"]
   n23{"23. Step 9 &middot; More reply targets in<br/>clusters with a planned reply?<br/>(target = one thread_id, top-level, or review-summary)"}
-  n23a["23a. Post reply per reply-patterns.md templates<br/>apply / answer / drop<br/>signature none only on user-dictated text<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>cluster also holds an AI? &rarr; append the answer summary after the commit URL"]:::gate
+  n23a["23a. Post reply per reply-patterns.md templates<br/>(main loads it itself before the first reply)<br/>apply / answer / drop<br/>signature none only on user-dictated text<br/>inline &rarr; GraphQL addPullRequestReviewThreadReply<br/>top-level/review-summary &rarr; REST issue comment<br/>cluster also holds an AI? &rarr; append the answer summary after the commit URL"]:::gate
   n23b{"23b. gh api<br/>call failed?"}
   n23b1["23b1. Retry gh api once"]
   n23b2{"23b2. Retry<br/>succeeded?"}
@@ -334,11 +351,9 @@ flowchart TD
   n15c -->|"yes"| n15c1
   n15c1 --> n15
   n15c -->|"no"| n15
-  n15 -->|"no - all done, none open"| n16
+  n15 -->|"no - that reply closes the debate: approves every commit, the push, every reply"| n16
   n16 --> n17
-  n17 -->|"no"| n17a
-  n17a --> n16
-  n17 -->|"yes"| n18
+  n17 --> n18
   n18 -->|"yes"| n18a
   n18a --> n18b
   n18 -->|"no"| n18b

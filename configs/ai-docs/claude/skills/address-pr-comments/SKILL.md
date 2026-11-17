@@ -1,6 +1,6 @@
 ---
 name: address-pr-comments
-description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → TaskList → Q&A debate → plan approval → commit-per-cluster → batch push → AI-signed inline replies."
+description: "Address unresolved PR review comments end-to-end: fetch (filter by author/file) → semantic cluster → TaskList → Q&A debate → subagent plan → commit-per-cluster → batch push → AI-signed inline replies."
 disable-model-invocation: false
 ---
 
@@ -36,17 +36,17 @@ One live PR on the current repo's GitHub remote, self-comments included (labeled
 
 ## Execution (Hybrid)
 
-Subagents can't post replies, commit, or push (permission UIs live in main). Main runs steps 0-2 and 4-10; step 3's read-only fetch and clustering goes to a background subagent returning only the proposal block.
+Subagents can't post replies, commit, or push (permission UIs live in main). Main runs every step except two drafts: step 3's read-only fetch and clustering goes to a background subagent returning only the proposal block, and step 6's plan to a Plan subagent that main then checks.
 
-If it reports zero candidate comments, stop before step 4.
+If step 3 reports zero candidate comments, stop before step 4.
 
-After step 6's plan approval the run asks the user nothing (they may be away): a rule below decides every later fork.
+Once step 5's debate closes the run asks the user nothing (they may be away): a rule below decides every later fork.
 
 ## Run-state file + TaskList state
 
 At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` as this run's working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`).
 
-Persist as produced, never at the end: pre-flight answers, then each cluster's action, planned change (apply), drop reason, reply text, and commit SHA.
+Persist as produced, never at the end: pre-flight answers, then each cluster's title, action, marker kinds, planned change, Rule and Sites as the debate leaves them (apply), drop reason, reply text, step 6's checked plan, and commit SHA. Step 6's subagent takes every decision from this file alone, so one missing here is missing from the plan.
 
 When the repo-green gate is on, also persist its baseline and final verdict - never log content - per `references/opt-in-gates.md`.
 
@@ -129,6 +129,8 @@ This step ends only once every marker has its sub-step.
 
 Send one message (the order `address-ai-comments` step 4 uses) that answers **every** `AI?` first, from its `Draft answer`, then challenges each `AI!` you disagree with, seeded by its `Concern:`. Tie each item to its `path:line`. List the proposal's `Dropped as already answered` items; one the user names by number or URL is a candidate again.
 
+It also lists every `apply` cluster's Rule and Sites, contested or not, and ends by saying that closing the debate approves every commit, the push and every reply.
+
 The user wants to be challenged: a command that looks wrong, over-reaching, or already handled gets named out loud, never quietly queued.
 
 Debate rules:
@@ -137,25 +139,28 @@ Debate rules:
 
 - A bare "ok" while several items are open gets a clarifying question naming the open items - never a guess at which one it closes.
 
-- A conclusion the user names ("change X", "tell the reviewer Y", "drop it") becomes a planned command or reply right away, with no GitHub round-trip.
+- A conclusion the user names ("change X", "tell the reviewer Y", "drop it") becomes a planned command or reply right away, persisted to the run-state file, with no GitHub round-trip.
 
 - That conclusion gets its own `[Sub-Step]` under the cluster's `[Task]`.
 
-- Leave only when every question is done and no challenge is open.
+- Leave only on a user reply that comes once every question is done and no challenge is open - even with nothing to debate, since that reply is the approval.
 
-## Step 6: Plan Mode (main)
+That close is the user's last look and the single gate for those irreversible writes: `settings.json` runs bypassPermissions, so none fires a prompt.
 
-Call `EnterPlanMode`, then write a plan listing, per cluster:
+## Step 6: Plan subagent (dispatched by main)
 
-- Its intent: `apply`, `answer`, or `drop`.
+Dispatch `agent(subAgent=Plan, title=Draft the PR comment address plan, model=sonnet, effort=medium)` in the foreground - sonnet, since it composes reply previews - with this prompt:
 
-- For `apply`: the Rule and Sites, from the proposal as the debate amended them.
+```
+Read ~/.claude/skills/address-pr-comments/references/plan-draft.md and
+follow it for the run-state file <absolute run-state path>.
+```
 
-- A one-line preview of each reply, per `references/reply-patterns.md` - load it now. Every cluster holding an `AI?` gets a proposed reply, or an explicit "no reply - <reason>".
+Nobody else reviews the plan, so check it against the run-state file: the same clusters, intents and `apply` Sites, and a reply preview or "no reply - <reason>" on every `AI?` cluster.
 
-`ExitPlanMode` approval is the single gate for every commit, the push and every reply: `settings.json` runs bypassPermissions, so none fires a permission prompt. Approve with the option that returns to bypass permissions; the others prompt again while the user is away.
+Fix a mismatch from that file; if the agent errors or returns no plan, build the plan from it in main - never re-dispatch or ask.
 
-Rejection feedback edits the plan and re-submits it - it never restarts the debate, whose conclusions the plan holds.
+Persist the checked plan to the run-state file, where steps 7, 9 and 10 re-read it after a compaction, then post one chat line - `next: commits, push, replies per the plan in <run-state path>` - and start step 7.
 
 ## Step 7: Per-cluster commits (main, applied clusters only)
 
@@ -185,23 +190,13 @@ Runs only when step 0's "Repo-green gate after changes?" is on - otherwise go st
 
 ## Step 8: Batch push (main)
 
-After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 6's approval covered the push.
+After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 5's debate close covered the push.
 
 If the push is rejected (remote moved), abort and surface it - the commits stand. Never auto-rebase: the user resolves the divergence manually, then only the push is re-attempted, skipping step 7.
 
 ## Step 9: Post replies (main)
 
-For **every reply target in every cluster with a planned reply** (apply/answer/drop), post one reply, skipping a cluster the plan marked "no reply". Loop, don't batch.
-
-A reply target is one entry of the cluster's `thread_ids`, one top-level comment, or one review-summary body - never an individual comment inside an inline thread, or the same body posts several times.
-
-On a `gh api` failure, retry once, then skip it, keep its `[Task]` open, and list it in step 10's report - the loop never stops.
-
-Once a cluster's last reply posts, or the plan marked it "no reply", mark its parent `[Task]` and any still-open sub-steps done.
-
-### 9a. Reply mechanics - load before the first reply
-
-Templates per action, the `gh api` call per reply-target kind, and the signature rule (none only on text the user dictated verbatim) are in [`references/reply-patterns.md`](references/reply-patterns.md) - reload it if a compaction dropped it. Main reads it directly, never a subagent.
+Before the first reply, load [`references/reply-patterns.md`](references/reply-patterns.md) - step 6's subagent read never reached main - and reload it if a compaction dropped it. It holds the reply loop, templates, `gh api` calls and the signature rule.
 
 ### 9b. Optional refactor + auto-review tails (main, when step 1d's toggle is on)
 
