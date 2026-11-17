@@ -23,7 +23,7 @@ from quality_metrics.coverage_result import (
 )
 from quality_metrics.dependencies import head_tree
 from quality_metrics.dependency_trees import is_clean_checkout_of
-from quality_metrics.failures import TimeoutPolicy, ask_or_defer
+from quality_metrics.failures import TimeoutPolicy, add_ask_once, ask_or_defer
 from quality_metrics.go_coverage import collect_go
 from quality_metrics.javascript_coverage import collect_javascript, declares_npm_test
 from quality_metrics.python_coverage import collect_python
@@ -153,8 +153,24 @@ class CoverageRun:
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
         self._keep_only_killed_once_started(run["exit_class"])
+        self._ask_about_failed_related_specs(tool, run.get("failed_related_specs", []))
         result = CoverageResult(normalized_hits(run_dir, run["hits_by_file"], ""), False)
         return _Measured(result, run["exit_class"], source, None)
+
+    def _ask_about_failed_related_specs(self, tool, failed_specs):
+        """One tooling ask naming each e2e or integration spec
+        that failed or could not run, so its lost hits never
+        pass unseen; coverage keeps the other specs' figure."""
+        if not failed_specs or self.tool_map is None:
+            return
+        named_specs = "; ".join(f"{failed['spec']} ({failed['reason']})" for failed in failed_specs)
+        reason = (
+            f"e2e or integration specs importing a changed file failed or could not run: {named_specs}."
+            " Coverage counts only the specs that ran."
+        )
+        ask = ask_or_defer(self.tool_map, tool, "coverage", reason, self.environ)
+        if ask is not None:
+            add_ask_once(self, ask)
 
     def _reclaimer(self):
         if self.reclaim_leaked_processes is None:

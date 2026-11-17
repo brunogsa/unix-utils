@@ -14,11 +14,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR, install_stub_tool, make_repo
+from quality_metrics_support import SCRIPTS_DIR, coverage_records_of, coverage_run_for, install_stub_tool, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from quality_metrics.sourcing import run_repo_jest
+from quality_metrics.touched import Target
 
 # Stands in for jest, logging each call's arguments one call
 # per line, tab-separated.
@@ -199,3 +200,56 @@ class TestE2eSpecsImportingAChangedSource:
         run_repo_jest(repo, changed_paths=["pkg/src/fees.js"])
 
         assert "--runInBand" in calls().e2e_coverage_run()
+
+
+class TestE2eSpecsThatFailOrCannotRun:
+    def test_should_keep_the_unit_spec_coverage_when_an_e2e_spec_importing_the_changed_source_fails(
+        self, tmp_path, jest_stub
+    ):
+        repo = make_repo(tmp_path, fees_workspace("pkg/"))
+        jest_stub(e2e_fails=True)
+
+        run = run_repo_jest(repo, changed_paths=["pkg/src/fees.js"])
+
+        assert run["hits_by_file"]["pkg/src/fees.js"] == UNIT_HITS
+        assert run["exit_class"] == "passed"
+
+    def test_should_name_the_failed_e2e_spec_and_the_line_saying_why_it_failed(self, tmp_path, jest_stub):
+        repo = make_repo(tmp_path, fees_workspace("pkg/"))
+        jest_stub(e2e_fails=True)
+
+        run = run_repo_jest(repo, changed_paths=["pkg/src/fees.js"])
+
+        assert run["failed_related_specs"] == [{
+            "spec": "pkg/test/checkout.e2e.spec.js",
+            "reason": "PrismaClientInitializationError: Can't reach database server at localhost:5433",
+        }]
+
+    def test_should_keep_the_unit_spec_coverage_and_name_every_e2e_spec_when_the_e2e_run_times_out(
+        self, tmp_path, jest_stub
+    ):
+        repo = make_repo(tmp_path, fees_workspace("pkg/"))
+        jest_stub(e2e_hangs=True)
+
+        run = run_repo_jest(repo, timeout_seconds=2, changed_paths=["pkg/src/fees.js"])
+
+        assert run["hits_by_file"]["pkg/src/fees.js"] == UNIT_HITS
+        (failed,) = run["failed_related_specs"]
+        assert failed["spec"] == "pkg/test/checkout.e2e.spec.js"
+        assert "timed out" in failed["reason"]
+
+    def test_should_raise_one_tooling_ask_naming_the_failed_e2e_spec_and_score_the_unit_spec_coverage(
+        self, tmp_path, jest_stub
+    ):
+        repo = make_repo(tmp_path, fees_workspace(""))
+        jest_stub(e2e_fails=True)
+        coverage_run = coverage_run_for(repo, tmp_path, environ={}, changed_files={"src/fees.js": "js"})
+        target = Target(repo / "src/fees.js", "js", None, repo_path="src/fees.js")
+
+        records = coverage_records_of(tmp_path, target, coverage_run)
+
+        assert [record["value"] for record in records] == [pytest.approx(100 / 3)]
+        (ask,) = coverage_run.asks
+        assert (ask["tool"], ask["metric"]) == ("jest", "coverage")
+        assert "test/checkout.e2e.spec.js" in ask["reason"]
+        assert "Can't reach database server at localhost:5433" in ask["reason"]
