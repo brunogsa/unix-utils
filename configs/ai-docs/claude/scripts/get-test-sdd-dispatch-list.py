@@ -26,8 +26,9 @@ TEST_SDD_TAG = "test-sdd"
 
 # A heading with none of these tags reads as test-sdd, so a new
 # lens goes here as well as in the merge-check regex of
-# skills/quality-gate/SKILL.md.
-LENS_TAGS = {"auto-review", "refactor", "metrics", TEST_SDD_TAG}
+# skills/quality-gate/SKILL.md, which must list these same 5
+# tags.
+LENS_TAGS = {"auto-review", "refactor", "metrics", "scout", TEST_SDD_TAG}
 
 # Optional mark before the severity tag: [Done], or the
 # selection mark [AI!], [AI!: <message>] or [AI! <message>].

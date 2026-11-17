@@ -124,6 +124,15 @@ class TestTestSddFindingsSentToTddCoder:
             '### 4. [LOW][test-sdd] Missing planned test - task 2: "x"',
         ]
 
+    def test_should_keep_a_scout_finding_off_the_dispatch_list_since_it_is_a_lens_finding_not_a_missing_planned_test(
+        self, tmp_path
+    ):
+        _assert_nothing_dispatched(
+            tmp_path / "verdict_quality-gate_master_2026-11-17_10:00.md",
+            "### 7. [MEDIUM][scout] Stale retry comment in the invoice parser\n\n"
+            "**Scout task**: #43\n",
+        )
+
     def test_should_keep_the_unplanned_tests_finding_off_the_list_when_the_merged_verdict_tags_it_test_sdd(
         self, tmp_path
     ):
