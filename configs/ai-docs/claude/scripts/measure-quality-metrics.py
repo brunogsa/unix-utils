@@ -178,12 +178,13 @@ def _print_report(measurements, found, coverage_run, delta):
     # A pessimistic candidate stands in for a failed tool, such
     # as jscpd, so it exits 1 even when no ask was raised.
     #
-    # An opted-out mutation run measured nothing, so it exits 1
+    # A changed range no mutant ran on, whether the budget ran
+    # out or the run opted out, measured nothing, so it exits 1
     # like a failed one.
     has_deferred_candidate = any(item.get("pessimistic") for item in candidates)
     has_violation = (
         violations or gate_input_violations or coverage_run.asks
-        or has_deferred_candidate or found.get("mutation_opted_out")
+        or has_deferred_candidate or found.get("mutants_not_run")
     )
     return EXIT_VIOLATION if has_violation else EXIT_CLEAN
 

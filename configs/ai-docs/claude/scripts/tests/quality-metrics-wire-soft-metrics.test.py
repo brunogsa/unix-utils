@@ -200,14 +200,20 @@ class TestDiffWithMutation:
     ):
         fakes = FakeMeasurers()
 
-        code, report, _repo, _started = self.run_diff(tmp_path, monkeypatch, capsys, fakes)
+        _code, report, _repo, _started = self.run_diff(tmp_path, monkeypatch, capsys, fakes)
 
         assert sorted(item["file"] for item in report["surviving_mutants"]) == ["cart.js", "cart.py"]
         assert report["mutants_not_run"] == [{"file": "cart.js", "lines": "4-7", "label": NOT_RUN_LABEL}]
         assert report["mutation_summary"] == {"killed": 6, "survived": 2, "not_run_ranges": 1}
         assert report["violations"] == []
         assert report["holds_commit"] is False
-        assert code == EXIT_CLEAN
+
+    def test_should_exit_1_when_the_mutation_budget_left_a_changed_range_not_run(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        code, _report, _repo, _started = self.run_diff(tmp_path, monkeypatch, capsys, FakeMeasurers())
+
+        assert code == EXIT_VIOLATION
 
     def test_should_hand_both_languages_the_same_tree_deadline_and_changed_ranges(
         self, tmp_path, monkeypatch, capsys
