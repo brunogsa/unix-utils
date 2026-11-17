@@ -146,7 +146,7 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - Cluster related findings, and findings too small for their own RED-GREEN cycle, into the same dispatch - each still its own unit and commit.
 - Aim for ~10 units per dispatch; clustering may override.
 
-Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch and order.
+Split an entry of more than ~10 findings into sequential dispatches to its own agent - same branch and order, never one uncapped batch.
 
 Why the cap, and why code refactor findings keep their own agent: [`references/design-rationale.md`](references/design-rationale.md).
 

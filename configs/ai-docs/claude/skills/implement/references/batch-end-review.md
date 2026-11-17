@@ -39,7 +39,7 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 ## The quality-gate tail (§8.2)
 
-**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run.
+**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.3's repo-green gate so that gate gets the last word, measuring a tree that already carries the `test-sdd` leg's written tests.
 
