@@ -140,6 +140,37 @@ class TestAddressVerdictsAnnotations:
         assert_passes(check_text(tmp_path, make_verdict(finding)))
 
 
+class TestQualityGateJudgeRuling:
+    RULING = (
+        '**Standards check**: Skip - "Keep functions short"; '
+        "considered fix: split the fee calculation in two"
+    )
+    SKIPPED = "SKIPPED (judge ruled Skip)"
+
+    def _judged(self, body):
+        return f"{body}\n\n{self.RULING}\n\n{self.SKIPPED}"
+
+    def test_body_of_512_reviewer_chars_passes_with_judge_ruling_appended_and_513_still_fails(
+        self, tmp_path
+    ):
+        at_cap = padded_body(NON_MANDATORY_CAP, "RECOMMENDED")
+        assert_passes(check_text(
+            tmp_path, make_verdict(make_finding(prefix="[MEDIUM]", body=self._judged(at_cap)))))
+        over_cap = padded_body(NON_MANDATORY_CAP + 1, "RECOMMENDED")
+        lines = violations_of(check_text(
+            tmp_path, make_verdict(make_finding(prefix="[MEDIUM]", body=self._judged(over_cap)))))
+        assert len(lines) == 1
+        assert "513" in lines[0] and "512" in lines[0]
+
+    def test_line_mentioning_the_standards_check_label_mid_line_still_counts(self, tmp_path):
+        at_cap = padded_body(NON_MANDATORY_CAP, "RECOMMENDED")
+        body = f"{at_cap}\n\nSee the **Standards check**: Fix label below."
+        lines = violations_of(check_text(
+            tmp_path, make_verdict(make_finding(prefix="[MEDIUM]", body=body))))
+        assert len(lines) == 1
+        assert "512" in lines[0]
+
+
 class TestTestSddLensExemption:
     UNPLANNED_BULLETS = "\n".join(
         f"- `test_case_{index}` in `tests/billing/test_fees_{index}.py` was not in the plan"

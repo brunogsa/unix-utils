@@ -7,9 +7,10 @@ from finding_bodies.parsing import fence_body_text
 
 SEVERITY_TAG_LINE = re.compile(r"^\*\*\[([^\]]+)\]\*\*$")
 
-# Lines /address-verdicts appends after review, never part of
-# the comment a reviewer wrote.
-ANNOTATION_PREFIXES = ("APPLIED (", "SKIPPED (")
+# Lines appended after review by /address-verdicts or by the
+# quality-gate judge, never part of the comment a reviewer
+# wrote.
+ANNOTATION_PREFIXES = ("APPLIED (", "SKIPPED (", "**Standards check**: ")
 
 ORDINAL_BY_TAG = {
     "MANDATORY": "HIGH",
