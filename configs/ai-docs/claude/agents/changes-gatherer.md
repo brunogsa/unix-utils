@@ -27,6 +27,8 @@ It also names which digest format it wants; absent that, use `~/.claude/skills/c
 ## Procedure
 
 1. Resolve the base ref. If it names a remote branch that is stale or missing locally, `git fetch origin <base>` first.
+
+   Strip a leading `origin/` from `<base>` for that fetch, since `git fetch` takes the branch name on origin.
    A base that cannot be resolved is a stop condition, not something to guess around.
 
 2. Read the commit log with FULL bodies: `git log <base>..<branch> --format='%H%n%s%n%n%b%n---'`.

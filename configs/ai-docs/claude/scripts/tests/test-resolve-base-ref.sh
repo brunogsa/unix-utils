@@ -65,10 +65,53 @@ commit_on() {
 # origin/HEAD at $branch, mimicking what `git remote set-head
 # origin -a` (or a non-single-branch clone) would leave
 # behind - without needing a real second remote repo.
+#
+# It also points refs/remotes/origin/$branch at $repo's HEAD,
+# so the remote-tracking ref origin/HEAD names really exists.
 set_fake_origin_head() {
+  local repo="$1" branch="$2"
+  git -C "$repo" update-ref "refs/remotes/origin/$branch" HEAD
+  git -C "$repo" symbolic-ref "refs/remotes/origin/HEAD" \
+    "refs/remotes/origin/$branch"
+}
+
+# set_dangling_origin_head - points origin/HEAD at
+# refs/remotes/origin/$branch without creating that ref, the
+# state a pruned or deleted remote branch leaves behind.
+set_dangling_origin_head() {
   local repo="$1" branch="$2"
   git -C "$repo" symbolic-ref "refs/remotes/origin/HEAD" \
     "refs/remotes/origin/$branch"
+}
+
+# clone_with_lagging_local_main - a real bare "origin", a
+# clone of it, then one more commit pushed to origin's main
+# from elsewhere and fetched into the clone.
+#
+# The clone's local main then sits one commit behind
+# origin/main, and origin/HEAD is set the way
+# `git remote set-head origin -a` sets it.
+#
+# Echoes "<scratch dir>|<clone path>"; the caller removes the
+# scratch dir.
+clone_with_lagging_local_main() {
+  local scratch origin seed clone
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/resolve-base-ref-test.XXXXXX")"
+  origin="$scratch/origin.git"
+  seed="$scratch/seed"
+  clone="$scratch/clone"
+  git init -q --bare --initial-branch=main "$origin"
+  git init -q --initial-branch=main "$seed"
+  git -C "$seed" config user.name "Test"
+  git -C "$seed" config user.email "test@example.com"
+  git -C "$seed" commit -q --allow-empty -m "first commit on main"
+  git -C "$seed" push -q "$origin" main
+  git clone -q "$origin" "$clone"
+  git -C "$seed" commit -q --allow-empty -m "upstream commit the clone's local main lacks"
+  git -C "$seed" push -q "$origin" main
+  git -C "$clone" fetch -q origin
+  git -C "$clone" remote set-head origin -a >/dev/null
+  printf '%s|%s' "$scratch" "$clone"
 }
 
 # resolve - runs the script under test with $1 as CWD, and
@@ -92,8 +135,35 @@ it_should_prefer_origin_head_when_it_is_set() {
   commit_on "$repo" "main"
 
   assert_eq \
-    "ResolveBaseRef > happy > should print origin/HEAD's target when it is set" \
-    "trunk|0" "$(resolve "$repo")"
+    "ResolveBaseRef > happy > should print origin/HEAD's remote-tracking branch when it is set" \
+    "origin/trunk|0" "$(resolve "$repo")"
+  rm -rf "$repo"
+}
+
+it_should_print_the_remote_branch_when_local_main_lags_behind_origin() {
+  local fixture scratch clone
+  fixture="$(clone_with_lagging_local_main)"
+  scratch="${fixture%%|*}"
+  clone="${fixture#*|}"
+
+  # Printing the local main here would make every caller's
+  # main...HEAD diff include the upstream commit local main
+  # lacks, so the remote-tracking branch must win.
+  assert_eq \
+    "ResolveBaseRef > happy > should print origin/main, not the lagging local main, when origin/HEAD points at main" \
+    "origin/main|0" "$(resolve "$clone")"
+  rm -rf "$scratch"
+}
+
+it_should_fall_back_to_local_main_when_origin_head_points_at_a_missing_branch() {
+  local repo
+  repo="$(fresh_repo)"
+  commit_on "$repo" "main"
+  set_dangling_origin_head "$repo" "trunk"
+
+  assert_eq \
+    "ResolveBaseRef > fallback > should print local main when origin/HEAD points at a remote branch that no longer exists" \
+    "main|0" "$(resolve "$repo")"
   rm -rf "$repo"
 }
 
@@ -148,6 +218,8 @@ it_should_exit_one_with_no_stdout_when_none_of_the_three_exist() {
 }
 
 it_should_prefer_origin_head_when_it_is_set
+it_should_print_the_remote_branch_when_local_main_lags_behind_origin
+it_should_fall_back_to_local_main_when_origin_head_points_at_a_missing_branch
 it_should_fall_back_to_local_main_when_origin_head_is_unset
 it_should_fall_back_to_local_master_when_only_master_exists
 it_should_prefer_main_over_master_when_both_exist_locally

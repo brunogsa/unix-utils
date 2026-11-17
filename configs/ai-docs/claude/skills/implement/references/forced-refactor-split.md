@@ -22,6 +22,8 @@ Run `scripts/split-forced-refactors.py` (next to this skill's `SKILL.md`) with t
 
 - `--repo` the repo root, `--base` `origin/<base>` (the PR's base branch) after `git fetch`, since a stale local base recounts already-merged `Gate: metrics` commits, `--feature-branch` the unit's branch.
 
+  - `<base>` is the bare branch name, so a confirmed base of `origin/main` passes `origin/main`, never `origin/origin/main`.
+
 - `--refactor-branch <feature-branch>-forced-refactor`, so the new branch name traces back to its feature branch.
 
 - `--finding-out verdict_metrics-split_<branch>_<ts>.md` in CWD, with every `/` in `<branch>` replaced by `-` because a slash would name a missing subdirectory and crash the write, where a conflict writes its finding.

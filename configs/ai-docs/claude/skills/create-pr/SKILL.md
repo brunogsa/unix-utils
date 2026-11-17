@@ -176,8 +176,10 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
   - `<title>` is the line step 3's agent returned; never compose one here, never drop the flag.
     - Without it `gh` prompts for a title, and this session is not a TTY.
 
-  - `<base-branch>` is the value step 1 resolved, dropped when empty.
+  - `<base-branch>` is the value step 1 resolved, with a leading `origin/` stripped, dropped when empty.
     - A `<parent>` run → that value is the parent's head branch, resolved in step 1.
+
+    - `--base` takes a branch name on GitHub, while `resolve-base-ref.sh` prints the remote-tracking ref `origin/main` whenever origin/HEAD resolves.
 
   - The user reviews on GitHub, where the rendered body is the artifact they will judge; a chat-side approval would review a different one.
 

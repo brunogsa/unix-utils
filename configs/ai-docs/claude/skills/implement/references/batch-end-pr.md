@@ -49,9 +49,11 @@ Push and create are split owners: pushing doesn't depend on a PR being wanted, s
 
     - State this in the dispatch prompt explicitly: left unsaid, the agent pushes by default, since its own skill covers the whole flow.
 
-    - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base for a zero-parent PR or a plain `<task-ids>` run.**
+    - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base, with a leading `origin/` stripped, for a zero-parent PR or a plain `<task-ids>` run.**
       Read the parent's branch from its PR Breakdown entry's `Branch:` field - the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
       Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges - the reviewer burden a multi-PR split exists to remove.
+
+      - `--base` takes a branch name on GitHub, while `resolve-base-ref.sh`, §1.2's default, prints the remote-tracking ref `origin/main` whenever origin/HEAD resolves.
 
     - A diamond PR (2+ parents) targets its **first-listed** parent's branch.
       GitHub renders one base per PR, so other parents' commits stay in this PR's diff until merged - note it in the PR body.

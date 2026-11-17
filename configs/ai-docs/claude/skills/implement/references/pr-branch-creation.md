@@ -38,9 +38,11 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
 - Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown entry's `Depends on:` field (already open from §1.1):
 
-  - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <pr_branch> <base-branch>`.
+  - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout --no-track -b <pr_branch> <base-branch>`.
 
     - Never from current HEAD - HEAD may sit at an unrelated PR's tip.
+
+    - `--no-track` because the confirmed base is often the remote-tracking ref `origin/main`, and git would otherwise make it the new branch's upstream, so a later `git push` targets `main` or refuses.
 
     - No parent to guard against or record.
 

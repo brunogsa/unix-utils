@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# resolve-base-ref - print the CWD repo's base branch name.
+# resolve-base-ref - print the CWD repo's base ref, as a
+# revision callers diff or log against.
 #
 # Usage:
 #   resolve-base-ref.sh
@@ -8,7 +9,7 @@
 # working directory.
 #
 # Exit codes:
-#   0  base branch name printed on stdout.
+#   0  base ref printed on stdout.
 #
 #   1  none of the three lookups below resolved; nothing
 #      printed. The caller decides what to do next (ask the
@@ -18,8 +19,24 @@
 #   resolve-base-ref.sh
 #   base=$(resolve-base-ref.sh) || echo "no base branch found"
 #
-# Resolution order: origin's default branch (origin/HEAD),
-# then local main, then local master.
+# Resolution order, first match wins.
+#
+# 1. origin's default branch, printed as its remote-tracking
+#    ref (origin/main), when origin/HEAD points at a branch
+#    that exists locally as a remote-tracking ref.
+#
+# 2. local main, when step 1 does not resolve.
+#
+# 3. local master, when neither of the above resolves.
+#
+# Step 1 prints origin/main, not main, because local main
+# often lags origin/main.
+#
+# A main...HEAD diff then also carries every upstream commit
+# the branch merged in, not just the branch's own changes.
+#
+# A caller that needs a branch NAME (gh pr create --base,
+# git fetch origin <name>) strips the leading origin/ itself.
 #
 # Falling back to a local branch name is the reason this
 # script exists over the bare `git symbolic-ref
@@ -29,29 +46,17 @@
 # clone, or in any repo where `git remote set-head origin -a`
 # was never run - both far more common than "no main and no
 # master either".
-#
-# Extracted from resolve_base() in
-# open-in-tmux/scripts/diffview-in-tmux.sh, which keeps
-# its own copy rather than call out to this script.
-#
-# That caller needs the ref inline to build one `nvim -c`
-# argument, and its own file already documents why.
-#
-# ~/neovim/init.lua's get_base_branch mirrors the same
-# fallback order again, independently, in Lua, for the
-# editor's own <leader>tD diff.
-#
-# Both remaining copies are deliberate, not oversight - a
-# caller stuck on tmux/git glue or on pure Lua can't shell
-# out to this script.
 
 set -euo pipefail
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 1
 
+# A dangling origin/HEAD (its branch pruned or deleted) names
+# no commit, so it falls through to the local lookups.
 origin_head=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || true)
-if [ -n "$origin_head" ]; then
-  printf '%s\n' "${origin_head#origin/}"
+if [ -n "$origin_head" ] \
+  && git rev-parse --verify --quiet "$origin_head^{commit}" >/dev/null; then
+  printf '%s\n' "$origin_head"
   exit 0
 fi
 
