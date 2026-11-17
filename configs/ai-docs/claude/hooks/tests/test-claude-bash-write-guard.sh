@@ -392,6 +392,36 @@ it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_ta
   assert_eq "should block cp -t docs copying a /tmp scratch file whose prose breaks the markdown format rules into the repo" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "mv $outside_dir/batch.md README.md"
+  assert_eq "should allow mv moving a file whose prose passes the markdown format rules over a tracked markdown file" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_install_copying_a_file_that_passes_the_format_rules_into_the_repo() {
+  run_hook "install $outside_dir/batch.md docs/installed.md"
+  assert_eq "should allow install copying a file whose prose passes the markdown format rules into the repo" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_tmp() {
+  run_hook "cp $scratch_dir/batch.md $scratch_dir/copy.md"
+  assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules to another path under /tmp" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_outside_any_git_work_tree() {
+  run_hook "cp $scratch_dir/batch.md $outside_dir/copy.md"
+  assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules to a path outside any git work tree" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_gitignored_path() {
+  run_hook "cp $scratch_dir/batch.md build/copy.md"
+  assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules onto a git-ignored path" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_git_mv_renaming_a_tracked_markdown_file() {
+  run_hook "git mv README.md docs/README.md"
+  assert_eq "should allow git mv renaming a tracked markdown file, which is no cp, mv or install" "0" "$HOOK_EXIT"
+}
+
 # Script-shape cases: an in-place edit that is not one literal
 # replace-all over the whole file is blocked on any extension,
 # since Edit (replace_all, or a widened old_string) can always
@@ -631,6 +661,12 @@ it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tra
 it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
+it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
+it_should_allow_install_copying_a_file_that_passes_the_format_rules_into_the_repo
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_tmp
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_outside_any_git_work_tree
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_gitignored_path
+it_should_allow_git_mv_renaming_a_tracked_markdown_file
 it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit
 it_should_block_an_in_place_sed_limited_to_a_line_range
 it_should_block_an_in_place_perl_limited_to_a_line_range
