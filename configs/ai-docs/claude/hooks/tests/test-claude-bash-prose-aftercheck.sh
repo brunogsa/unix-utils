@@ -156,11 +156,37 @@ it_should_run_the_after_check_once_every_bash_call_succeeds() {
   assert_eq "should run the after-check as the PostToolUse Bash hook" "bash ~/.claude/hooks/claude-bash-prose-aftercheck.sh" "$commands"
 }
 
+# why: a non-zero exit fires PostToolUseFailure instead of
+# PostToolUse, so one trailing `false` must not hide a write.
+it_should_report_a_markdown_file_written_by_a_command_that_then_exits_non_zero() {
+  local id="toolu_01AfterCheckFailed"
+  new_fixture
+  run_marker "$repo_dir" "$id"
+  (cd "$repo_dir" && "$bash_bin" -c "cp $scratch_dir/a.md docs/x.md; false") >/dev/null 2>&1
+  AFTER_STDERR=$(
+    cd "$repo_dir" || exit 1
+    jq -n --arg id "$id" '{hook_event_name:"PostToolUseFailure",tool_name:"Bash",tool_input:{command:"cp a.md docs/x.md; false"},tool_use_id:$id,error:"Exit code 1",is_interrupt:false}' \
+      | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null
+  )
+  AFTER_EXIT=$?
+  assert_eq "should exit non-zero when a failing command left a hard-wrapped docs/x.md behind" "2" "$AFTER_EXIT"
+  assert_contains "should name x.md on stderr when a failing command left it behind" "x.md" "$AFTER_STDERR"
+  assert_eq "should remove the call's marker after checking a failed command" "no" "$([ -e "$TMPDIR/claude-bash-prose-aftercheck/$id" ] && echo yes || echo no)"
+}
+
+it_should_run_the_after_check_once_every_bash_call_fails() {
+  local commands
+  commands=$(jq -r '.hooks.PostToolUseFailure[]? | select(.matcher == "Bash") | .hooks[].command' "$SETTINGS")
+  assert_eq "should run the after-check as the PostToolUseFailure Bash hook" "bash ~/.claude/hooks/claude-bash-prose-aftercheck.sh" "$commands"
+}
+
 it_should_report_a_markdown_file_copied_into_a_directory_the_same_command_created
 it_should_report_a_markdown_file_moved_in_inside_a_directory_the_same_command_created
 it_should_report_a_markdown_file_written_from_a_heredoc
 it_should_mark_every_bash_call_before_it_runs
 it_should_run_the_after_check_once_every_bash_call_succeeds
+it_should_report_a_markdown_file_written_by_a_command_that_then_exits_non_zero
+it_should_run_the_after_check_once_every_bash_call_fails
 
 # --- stays silent when nothing it should check changed ----
 

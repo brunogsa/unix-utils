@@ -2,9 +2,13 @@
 # claude-bash-prose-aftercheck - run the prose format checker
 # on every work-tree file a Bash command changed.
 #
-# Usage (Claude Code hooks):
-#   PreToolUse  matcher Bash -> --mark stamps a marker
-#   PostToolUse matcher Bash -> checks files newer than it
+# Usage (Claude Code hooks, matcher Bash):
+#   PreToolUse         -> --mark stamps a marker
+#   PostToolUse        -> checks files newer than it
+#   PostToolUseFailure -> the same check
+#
+# PostToolUseFailure needs the check too: a trailing `false`
+# would otherwise hide any write before it.
 #
 # claude-bash-write-guard.sh decides before the command runs,
 # from its text and the disk as it is then. An earlier part
@@ -27,9 +31,6 @@
 #
 # - A file inside a directory moved in whole keeps both its
 #   stamps; the write guard blocks a directory copy it sees.
-#
-# - A command that exits non-zero fires PostToolUseFailure,
-#   not PostToolUse, so its writes go unchecked.
 #
 # Fails open like the Edit/Write after-check: no marker, no
 # work tree, or no git, jq or python3 all exit 0 silently.
