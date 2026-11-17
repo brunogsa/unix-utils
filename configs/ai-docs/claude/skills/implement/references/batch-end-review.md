@@ -60,7 +60,7 @@ It runs here, not in a subagent, for two reasons:
 
 **One of the two flags is always passed, never omitted** - omitting both makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
 
-Every leg runs regardless - the tail never skips one, and `/quality-gate` alone decides when a leg has nothing to do.
+Every leg runs regardless - the tail never skips one.
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 

@@ -79,3 +79,11 @@ An upper bound would let dropped findings pass, and the agent's own counts would
 ## Why the merged verdict still exists with no git
 
 With no git repo there is no base to diff against, so only the metrics leg can run, on the files the session edited. The verdict is still written, as `verdict_quality-gate_no-git_<ts>.md`, because stopping would hide a measurable result; the rendered file states which checks it skipped.
+
+## Why the run has a 20-minute target and per-phase notes
+
+The user waits on the run, and a 2-hour run per PR stalls a stacked series of PRs. The notes exist because the user tunes the gate from where its time goes.
+
+## Why the scout leg runs beside the others
+
+It runs in parallel so its in-goal scouts reach the same merge and the same single judge pass. A scout found while applying waits in the TaskList for the next run, so the run never loops.
