@@ -46,8 +46,11 @@ def _make_linear(
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir(exist_ok=True)
     script = bin_dir / "linear"
+
+    # && keeps a sleep killed before its subshell from writing
+    # the marker.
     child = (
-        f'(sleep 30; touch "{tmp_path}/child-finished.marker") &\n'
+        f'(sleep 30 && touch "{tmp_path}/child-finished.marker") &\n'
         f'echo $! > "{tmp_path}/child.pid"\nwait\n'
         if spawn_marker_child else ""
     )
