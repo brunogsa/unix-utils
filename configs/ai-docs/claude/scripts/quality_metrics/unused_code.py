@@ -7,11 +7,15 @@ Go has no entry: its compiler already rejects unused code.
 
 import json
 import re
+from pathlib import Path
 
 from quality_metrics.functions import measurement
 from quality_metrics.tools import ToolError, run_command
 
 METRIC = "unused_code"
+NODE_TOOLS = Path(__file__).resolve().parent / "node_tools"
+ESLINT = NODE_TOOLS / "node_modules" / ".bin" / "eslint"
+TS_ESLINT_CONFIG = NODE_TOOLS / "eslint.config.mjs"
 RUFF = "ruff@0.17.5"
 
 # The first quoted word of a tool's message names the variable.
@@ -46,8 +50,39 @@ def _ruff_findings(path):
     ]
 
 
+def _eslint_findings(command):
+    """Run eslint from the filesystem root, so its default
+    ignore of node_modules sees the file's whole path."""
+    findings = []
+    for file_result in _json_output(command, cwd="/"):
+        for message in file_result["messages"]:
+            if message["ruleId"] is None:
+                raise ToolError(f"eslint could not lint the file: {message['message']}")
+            findings.append({
+                "line": message["line"], "rule": message["ruleId"],
+                "name": _name_in(message["message"]),
+            })
+    return findings
+
+
+def _javascript_findings(path):
+    return _eslint_findings([
+        str(ESLINT), "--no-config-lookup", "--no-inline-config",
+        "--rule", '{"no-unused-vars":"error"}', "-f", "json", str(path),
+    ])
+
+
+def _typescript_findings(path):
+    return _eslint_findings([
+        str(ESLINT), "-c", str(TS_ESLINT_CONFIG), "--no-inline-config",
+        "-f", "json", str(path),
+    ])
+
+
 FINDERS = {
     "python": _ruff_findings,
+    "js": _javascript_findings,
+    "ts": _typescript_findings,
 }
 
 

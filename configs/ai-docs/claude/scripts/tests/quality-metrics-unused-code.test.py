@@ -2,6 +2,8 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import SCRIPTS_DIR
@@ -10,6 +12,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 unused_code = importlib.import_module("quality_metrics.unused_code")
 touched = importlib.import_module("quality_metrics.touched")
+tools = importlib.import_module("quality_metrics.tools")
 
 PYTHON_UNUSED_IMPORT = "import os\n\nprint(1)\n"
 PYTHON_ALL_USED = "import os\n\nprint(os.getcwd())\n"
@@ -17,6 +20,16 @@ PYTHON_ALL_USED = "import os\n\nprint(os.getcwd())\n"
 # Assembled from parts so this file itself carries no literal
 # suppression comment for the repo's suppression scanner.
 PYTHON_SUPPRESSED = "import os  # no" + "qa: F401\n\nprint(1)\n"
+JS_UNUSED_VARIABLE = "const leftover = 1;\nconsole.log(2);\n"
+TS_UNUSED_VARIABLE = "const leftover: number = 1;\nconsole.log(2);\n"
+TSX_UNUSED_VARIABLE = (
+    "const leftover = 1;\n"
+    "export const Greeting = () => <p>hello</p>;\n"
+)
+JS_SUPPRESSED = (
+    "// eslint-" + "disable-next-line no-unused-vars\n"
+    "const leftover = 1;\nconsole.log(2);\n"
+)
 
 
 def target_for(tmp_path, name, text, language):
@@ -56,6 +69,49 @@ def test_should_count_a_python_import_that_carries_a_noqa_comment(tmp_path):
     target = target_for(tmp_path, "report.py", PYTHON_SUPPRESSED, "python")
 
     assert single_record(target)["value"] == 1
+
+
+def test_should_count_an_unused_javascript_variable_on_its_line(tmp_path):
+    target = target_for(tmp_path, "cart.js", JS_UNUSED_VARIABLE, "js")
+
+    record = single_record(target)
+
+    assert record["value"] == 1
+    assert record["findings"] == [
+        {"line": 1, "rule": "no-unused-vars", "name": "leftover"}
+    ]
+
+
+def test_should_count_a_javascript_variable_under_an_inline_disable_comment(tmp_path):
+    target = target_for(tmp_path, "cart.js", JS_SUPPRESSED, "js")
+
+    assert single_record(target)["value"] == 1
+
+
+def test_should_count_an_unused_typescript_variable_on_its_line(tmp_path):
+    target = target_for(tmp_path, "cart.ts", TS_UNUSED_VARIABLE, "ts")
+
+    record = single_record(target)
+
+    assert record["value"] == 1
+    assert record["findings"] == [
+        {"line": 1, "rule": "@typescript-eslint/no-unused-vars", "name": "leftover"}
+    ]
+
+
+def test_should_parse_jsx_in_a_tsx_file_while_counting_its_unused_variable(tmp_path):
+    target = target_for(tmp_path, "greeting.tsx", TSX_UNUSED_VARIABLE, "ts")
+
+    assert single_record(target)["value"] == 1
+
+
+def test_should_raise_a_tool_error_when_eslint_ignores_the_file(tmp_path):
+    target = target_for(
+        tmp_path, "node_modules/pkg/index.js", JS_UNUSED_VARIABLE, "js"
+    )
+
+    with pytest.raises(tools.ToolError, match="ignored"):
+        unused_code.measure_unused_code(target)
 
 
 def test_should_measure_nothing_for_go_because_its_compiler_rejects_unused_code(tmp_path):
