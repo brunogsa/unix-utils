@@ -128,6 +128,14 @@ class TestStripCommitMessageHeredocBodies:
     def test_should_keep_the_body_when_an_earlier_stage_is_neither_a_cd_nor_a_plain_assignment(self, earlier_stage):
         assert _keeps_push_body(earlier_stage + " && git commit -F - <<'EOF'")
 
+    @pytest.mark.parametrize("earlier_stage", [
+        "path=/tmp/evil", "cdpath=/tmp/evil", "fpath=/tmp/evil", "manpath=/tmp/evil",
+        "module_path=/tmp/evil", "home=/tmp/evil", "editor=sh", "visual=sh", "ifs=x", "ps4=x",
+        "git_dir=/tmp/evil", "Path=/tmp/evil", "GIT_dir=/tmp/evil", "FOO=1",
+    ])
+    def test_should_keep_the_body_when_an_earlier_assignment_is_not_lowercase_or_names_a_zsh_tied_or_git_variable(self, earlier_stage):
+        assert _keeps_push_body(earlier_stage + " && git commit -q -F - <<'EOF'")
+
     def test_should_drop_the_body_when_variables_appear_only_in_the_pathspecs_after_the_double_dash(self):
         command = (
             "cd ~/unix-utils && d=configs/ai-docs/claude/skills/open-in-tmux && "

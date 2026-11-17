@@ -86,8 +86,9 @@ def strip_commit_message_heredoc_bodies(text):
       word-splits an unquoted `$e` into flags this parser never
       sees
     - an earlier stage other than `cd <dir>` or a plain
-      assignment, since `git config`, `env` or `export
-      GIT_EDITOR=sh` can set hooks or an editor that run it
+      lowercase assignment, since `git config`, `env`, `export
+      GIT_EDITOR=sh` or zsh's `path=` can set hooks, an editor
+      or a git binary that run it
     """
     return _strip_heredoc_bodies_where(text, _is_commit_message_heredoc)
 
@@ -113,9 +114,14 @@ def _is_commit_message_heredoc(kept, line, opener):
 # `export GIT_EDITOR=sh`, a write under .git - so it keeps the
 # body.
 #
-# PATH, HOME and XDG_CONFIG_HOME pick the git binary and its
-# global config, so they count as unsafe too.
-_UNSAFE_ASSIGNMENT_NAMES = {'EDITOR', 'VISUAL', 'PATH', 'HOME', 'XDG_CONFIG_HOME'}
+# Only a lowercase name counts as plain, since uppercase names
+# reach git's environment. zsh ties lowercase path, cdpath,
+# fpath, manpath and module_path to their uppercase arrays, so
+# those, home, editor, visual, ifs, ps4 and git_* stay unsafe.
+_SAFE_ASSIGNMENT_NAME = re.compile(r'[a-z_][a-z0-9_]*')
+_UNSAFE_ASSIGNMENT_NAMES = {
+    'path', 'cdpath', 'fpath', 'manpath', 'module_path', 'home', 'editor', 'visual', 'ifs', 'ps4',
+}
 _ASSIGNMENT = re.compile(r'([A-Za-z_][A-Za-z0-9_]*)=.*', re.S)
 
 
@@ -132,7 +138,9 @@ def _is_inert_earlier_stage(stage):
     if assignment is None:
         return False
     name = assignment.group(1)
-    return not name.startswith('GIT_') and name not in _UNSAFE_ASSIGNMENT_NAMES
+    if not _SAFE_ASSIGNMENT_NAME.fullmatch(name) or name.lower().startswith('git_'):
+        return False
+    return name.lower() not in _UNSAFE_ASSIGNMENT_NAMES
 
 
 # Text where bash and shlex agree on every word and separator.

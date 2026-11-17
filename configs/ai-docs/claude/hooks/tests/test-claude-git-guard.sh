@@ -728,6 +728,20 @@ it_should_block_a_push_to_main_in_a_commit_message_after_an_env_run_git_config()
   assert_eq "should deny, as a push, a commit message after env runs a git config that can point the commit at hooks running it" "yes" "$PUSH_GUARD_DENIED"
 }
 
+it_should_block_a_push_to_main_in_a_commit_message_after_a_zsh_lowercase_path_assignment() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "path=/tmp/evil && git commit -q -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message after path=/tmp/evil, which zsh ties to PATH so git can resolve to a fake binary" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_after_a_mixed_case_assignment() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "GIT_dir=/tmp/evil && git commit -q -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message after a GIT_dir= assignment that is not all lowercase" "yes" "$PUSH_GUARD_DENIED"
+}
+
 it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash() {
   local dir cmd
   dir=$(make_repo feat)
@@ -1399,6 +1413,8 @@ it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_directory_vari
 it_should_block_a_push_to_main_in_a_commit_message_after_a_git_config_that_can_set_its_hooks
 it_should_block_a_push_to_main_in_a_commit_message_whose_double_dash_directory_hides_an_editor_flag_variable
 it_should_block_a_push_to_main_in_a_commit_message_after_an_env_run_git_config
+it_should_block_a_push_to_main_in_a_commit_message_after_a_zsh_lowercase_path_assignment
+it_should_block_a_push_to_main_in_a_commit_message_after_a_mixed_case_assignment
 it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash
 it_should_allow_a_commit_whose_inline_message_mentions_git_push
 it_should_block_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main_since_any_substitution_fails_closed
