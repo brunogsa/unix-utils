@@ -229,6 +229,14 @@ def address_verdicts(arg):
 
 
 def close_with_report(arg, findings):
+    # 19a · Step 6 - outside marked mode, run the test command once, after
+    #       the last lens's dispatch returned and step 5 annotated it. Full
+    #       output goes to a /tmp file and the result is read from there.
+    #       Red is reported with each failing test and the commit range the
+    #       run covered, never fixed. No test command (--no-ask) reports
+    #       "full suite: not run (no test command)" as a failure. Marked mode
+    #       skips it: per-branch Validate and the CI watch cover it.
+    suite = run_full_suite_once(arg) if not arg.marked else None   # 19a
     # 19 · Step 6 - applied findings with their SHAs, skipped findings with
     #      their reasons, and anything that failed to apply with exactly
     #      what it needs to retry. Each finding line names its verdict file
@@ -237,7 +245,7 @@ def close_with_report(arg, findings):
     #      CI result, one line per stopped subtree (branch, step, cause,
     #      conflicting files, skipped descendants), plus every [AI!] tag
     #      ignored in a non-quality-gate file.
-    ledger = compose_ledger(findings)                       # 19
+    ledger = compose_ledger(findings, suite)                # 19
 
     if arg.invoked_by_skill:                                # 20
         # 20b · Hand it back rather than only printing it: the caller
@@ -618,6 +626,7 @@ flowchart TD
   n17{"17. Step 4 · More findings left in this lens's batch?"}
   n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
   n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the tree walk; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
+  n19a["19a. Step 6 · Outside marked mode, run the test command once, after<br/>the last lens's dispatch returned and step 5 annotated it; full output<br/>to a /tmp file. Red is reported with each failing test and the commit<br/>range, never fixed. No test command = reported as a failure,<br/>never as clean"]:::dispatch
   n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per tree branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, one line per stopped<br/>subtree (branch, step, cause, conflicting files, skipped descendants),<br/>plus every [AI!] tag ignored in a non-quality-gate file"]
   n20{"20. Step 6 · Who invoked this run?"}
   n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation. Marked mode also says every finding still<br/>tagged [AI!] is retried by the next marked run, and deleting<br/>the tag drops it - except one carrying a SKIPPED line,<br/>which stays out until the human deletes that line"])
@@ -703,7 +712,7 @@ flowchart TD
   n17 -->|"no"| n18
   n18 -->|"yes, next lens entry"| n21
   n18 -->|"no"| n18a
-  n18a -->|"single-branch flow"| n19
+  n18a -->|"single-branch flow"| n19a --> n19
   n18a -->|"quality-gate stack loop"| n1r
   n18a -->|"scouts loop"| n1y3
   n19 --> n20

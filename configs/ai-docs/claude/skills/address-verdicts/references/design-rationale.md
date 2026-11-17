@@ -122,3 +122,15 @@ Stopping on the failing branch leaves the human one place to fix, with nothing a
 ## Why a blank line precedes outcomes
 
 The prose checker reads an unseparated line as a hard-wrapped continuation.
+
+## Why the full test run happens once, at the end of §6
+
+Coders verify only the test files their batch touched, so no earlier step runs the whole suite.
+
+A run that never ran it in full could report green while a fix broke a test elsewhere.
+
+One run at the end, after the last lens, is the only full-suite check and costs one run instead of one per dispatch.
+
+Marked mode already validates each branch and watches CI, so it needs no second run.
+
+A red result is reported, not fixed, because a fix here would land after the annotations and outside any finding.
