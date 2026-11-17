@@ -19,10 +19,13 @@
 # git with anything but a fixed no-commit subcommand, or runs
 # a script file whose text does either, is a possible commit.
 #
-# So is any git call or relative script after a cd, pushd,
-# popd or chdir, any git call in a repo whose git config or
-# hooks run a program of their own, and any call that names a
-# git config path or exports a variable.
+# So is any git call after a cd, pushd, popd or chdir, and
+# any relative script after one, unless it sits in the && or
+# | chain of one leading cd to a plain absolute path.
+#
+# So is any git call in a repo whose git config or hooks run
+# a program of their own, and any call that names a git
+# config path or exports a variable.
 #
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
@@ -201,8 +204,9 @@ SCREEN_GUIDANCE = (
     "in a dir that is no repo or a bare one, names a GIT_*, IFS or already "
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
     "a command, env, export, declare -x, set -a), "
-    "runs git after cd/pushd/popd/chdir or a relative script after any but one leading "
-    "`cd /plain/absolute/path &&` with no ; or || anywhere after it (else call the script by its absolute path), names a .git, "
+    "runs git after cd/pushd/popd/chdir or a relative script anywhere but in the && or | chain right "
+    "after one leading `cd /plain/absolute/path &&`, before any later ;, ||, & or newline (else call "
+    "the script by its absolute path), names a .git, "
     "gitconfig or gitattributes path in any case, glob or splice, runs git in a repo whose git config "
     "or includes run a program or whose hooks are active or outside the default hooks dir, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
@@ -593,9 +597,10 @@ def read_script_text(path: Path) -> str | None:
 
 
 def names_commit_in_script(script: object, cwd: str | None, has_moved: bool, moved_to: str | None) -> bool:
-    # After a directory change other than one literal cd, a
-    # relative script resolves somewhere the screen cannot
-    # know, and its git calls run where no check looked.
+    # Outside the && or | chain of one leading literal cd, a
+    # relative script after a directory change resolves
+    # somewhere the screen cannot know, and its git calls run
+    # where no check looked.
     script_path = Path(str(script)).expanduser()
     is_unplaced = has_moved and moved_to is None and not script_path.is_absolute()
     if script is SCRIPT_FROM_STDIN or is_unplaced:
@@ -635,8 +640,10 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
         return True
     has_moved = changes_directory(command, " ".join(words))
     moved_to = get_literal_cd_target(command, words) if has_moved else None
-    scripts = get_scripts(words)
-    return any(names_commit_in_script(script, cwd, has_moved, moved_to) for script in scripts)
+    chain_end = get_cd_chain_end(words) if moved_to else len(words)
+    placements = [(script, moved_to) for script in get_scripts(words[:chain_end])]
+    placements += [(script, None) for script in get_scripts(words[chain_end:])]
+    return any(names_commit_in_script(script, cwd, has_moved, place) for script, place in placements)
 
 
 def hide_grep_commit_word(command: str) -> str:
@@ -647,16 +654,21 @@ def hide_grep_commit_word(command: str) -> str:
 
 
 def get_literal_cd_target(command: str, words: list[str]) -> str | None:
-    # After a failed cd, a ;, || or & still runs the rest in
-    # the payload cwd, so only && and | may follow the cd.
     match = LITERAL_CD.match(command)
     moves = DIRECTORY_CHANGE.findall(command) + DIRECTORY_CHANGE.findall(" ".join(words))
     if match is None or len(moves) != 2 or ".." in Path(match.group(1)).parts:
         return None
     target = match.group(1)
-    later_ends = [word for word in words[3:] if is_command_end(word)]
-    is_one_dir = words[:3] == ["cd", target, "&&"] and set(later_ends) <= CD_TARGET_ENDS
-    return target if is_one_dir else None
+    return target if words[:3] == ["cd", target, "&&"] else None
+
+
+def get_cd_chain_end(words: list[str]) -> int:
+    # After a failed cd, a ;, || or & still runs the rest in
+    # the payload cwd, so only the && and | chain right after
+    # the cd surely runs in its target.
+    later = range(3, len(words))
+    ends = (index for index in later if is_command_end(words[index]) and words[index] not in CD_TARGET_ENDS)
+    return next(ends, len(words))
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:

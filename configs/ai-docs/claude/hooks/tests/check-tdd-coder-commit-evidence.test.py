@@ -653,6 +653,17 @@ class TestRelativeScriptAfterOneLiteralCd:
 
         assert check_commit(tmp_path, command=f"cd {repo} && ./status.sh", cwd=str(home)) is None
 
+    def test_should_check_a_relative_script_chained_to_the_leading_cd_even_when_a_semicolon_follows_it(
+        self, tmp_path
+    ):
+        home, repo = payload_and_target_repos(tmp_path)
+        command = (
+            f"cd {repo} && ./status.sh > /tmp/x.txt 2>&1; rc=$?; "
+            'echo "exit: $rc" >> /tmp/x.txt; tail -5 /tmp/x.txt; exit $rc'
+        )
+
+        assert check_commit(tmp_path, command=command, cwd=str(home)) is None
+
     @pytest.mark.parametrize(
         "command_for",
         [
@@ -664,6 +675,10 @@ class TestRelativeScriptAfterOneLiteralCd:
             lambda repo: f"cd {repo}; ./status.sh",
             lambda repo: f"cd {repo} || ./status.sh",
             lambda repo: f"cd {repo} && true; ./status.sh",
+            lambda repo: f"cd {repo} && ./status.sh; ./status.sh",
+            lambda repo: f"cd {repo} && ./status.sh || ./status.sh",
+            lambda repo: f"cd {repo} && ./status.sh & ./status.sh",
+            lambda repo: f"cd {repo} && ./status.sh\n./status.sh",
             lambda repo: f"(cd {repo} && ./status.sh)",
             lambda repo: f"true && cd {repo} && ./status.sh",
             lambda repo: f"cd {repo}/../repo && ./status.sh",
@@ -679,6 +694,10 @@ class TestRelativeScriptAfterOneLiteralCd:
             "semicolon-after-cd",
             "or-after-cd",
             "semicolon-later",
+            "script-after-semicolon-after-chained-script",
+            "script-after-or-after-chained-script",
+            "script-after-background-after-chained-script",
+            "script-after-newline-after-chained-script",
             "subshell",
             "cd-not-first",
             "dot-dot-part",
@@ -703,14 +722,14 @@ class TestRelativeScriptAfterOneLiteralCd:
 
         possible_commit_reason(tmp_path, f"cd {repo} && ./status.sh", cwd=str(home))
 
-    def test_should_tell_the_agent_no_semicolon_or_or_may_follow_the_leading_cd_and_to_use_the_absolute_script_path(
+    def test_should_tell_the_agent_to_chain_the_script_before_any_later_command_end_or_use_its_absolute_path(
         self, tmp_path
     ):
-        command = "cd /Users/brunoagostini/unix-utils && ./run-tests.py x.py; rc=$?; exit $rc"
+        command = "cd /Users/brunoagostini/unix-utils && true; ./run-tests.py x.py; rc=$?; exit $rc"
 
         reason = possible_commit_reason(tmp_path, command, cwd="/Users/brunoagostini/unix-utils")
 
-        assert "with no ; or || anywhere after it" in reason
+        assert "before any later ;, ||, & or newline" in reason
         assert "call the script by its absolute path" in reason
 
 
