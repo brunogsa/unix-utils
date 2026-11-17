@@ -62,7 +62,7 @@ def _section_headings(out_path):
 
 
 class TestScoutsExported:
-    def test_should_export_only_pending_and_in_progress_scouts_leaving_out_completed_and_deleted_ones(
+    def test_should_export_only_pending_scouts_leaving_out_in_progress_completed_and_deleted_ones(
         self, tmp_path
     ):
         tasks_root = tmp_path / "tasks"
@@ -90,10 +90,9 @@ class TestScoutsExported:
         completed = _run(tasks_root, out_path)
 
         assert completed.returncode == 0, completed.stderr
-        assert completed.stdout == "2\n"
+        assert completed.stdout == "1\n"
         assert _section_headings(out_path) == [
             "## #3 [Scout] Stale retry comment",
-            "## #4 [Scout] Dead config key",
         ]
 
     def test_should_leave_out_an_open_task_whose_subject_is_not_marked_scout(
@@ -167,6 +166,25 @@ class TestNothingToExport:
                 _scout_subject("5", "Unused mock"),
                 status="completed",
             )
+        out_path = tmp_path / "open-scouts.md"
+
+        completed = _run(tasks_root, out_path)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout == "0\n"
+        assert not out_path.exists()
+
+
+    def test_should_print_0_and_write_no_file_when_the_only_scout_is_in_progress_because_someone_is_already_fixing_it(
+        self, tmp_path
+    ):
+        tasks_root = tmp_path / "tasks"
+        _write_task(
+            tasks_root,
+            "4",
+            _scout_subject("4", "Dead config key"),
+            status="in_progress",
+        )
         out_path = tmp_path / "open-scouts.md"
 
         completed = _run(tasks_root, out_path)

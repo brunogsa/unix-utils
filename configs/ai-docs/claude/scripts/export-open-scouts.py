@@ -9,8 +9,12 @@
 #     <out_path>
 #
 # Reads <tasks-root>/<session_id>/*.json (tasks-root defaults to
-#   ~/.claude/tasks). Keeps a task whose status is pending or
-#   in_progress and whose subject contains [Scout].
+#   ~/.claude/tasks). Keeps a task whose status is pending and
+#   whose subject contains [Scout].
+#
+# An in_progress scout is left out: a subagent or lateral
+#   session may be fixing it, and exporting it would apply the
+#   same fix twice.
 #
 # stdin: none.
 #
@@ -31,7 +35,7 @@ SCRIPT_NAME = "export-open-scouts.py"
 
 DEFAULT_TASKS_ROOT = Path.home() / ".claude/tasks"
 
-OPEN_STATUSES = {"pending", "in_progress"}
+OPEN_STATUS = "pending"
 SCOUT_MARK = "[Scout]"
 
 # The TaskList subject carries a " <n>. [#<id>]" prefix ahead of
@@ -63,7 +67,7 @@ def read_task(task_path):
 
 
 def is_open_scout(task):
-    return task["status"] in OPEN_STATUSES and SCOUT_MARK in task["subject"]
+    return task["status"] == OPEN_STATUS and SCOUT_MARK in task["subject"]
 
 
 def get_open_scouts(session_dir):
