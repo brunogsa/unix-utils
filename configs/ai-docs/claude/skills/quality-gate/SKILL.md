@@ -151,7 +151,7 @@ Verify without reading the merged file into main:
 
 **Pass** → move (never delete) the `refactor` and `auto-review` files into `<RUN_DIR>`, so `/address-verdicts` can't apply one finding from both the merged file and its source. Record the moved paths for §7.
 
-Then settle the scout tasks as [`scout-leg.md`](references/scout-leg.md) "Settle the tasks" says: delete each in-goal one the merged file carries, keep the rest, and write `<RUN_DIR>/scout-outcomes.md`.
+Then settle the scout tasks as [`scout-leg.md`](references/scout-leg.md) "Settle the tasks" says: delete each in-goal one the merged file carries, complete each already fixed, keep the rest, and write `<RUN_DIR>/scout-outcomes.md`.
 
 **Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Delete no scout task. Say so in §7.
 

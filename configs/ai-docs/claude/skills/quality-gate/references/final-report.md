@@ -44,6 +44,8 @@ Read the scout facts from `<RUN_DIR>/scout-classification.md`, and report one of
 
 - The in-goal task ids deleted.
 
+- The in-goal ids completed as already fixed, with their evidence, never reported as dropped by the merge.
+
 - The in-goal ids kept because no finding for them reached the merged file.
 
 - The off-goal ids left in the TaskList for the human, ids only, with no finding text.

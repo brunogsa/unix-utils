@@ -77,7 +77,7 @@ The source file main merges. `<ts>` is `date +%Y-%m-%d_%H:%M`.
 
 ### `<RUN_DIR>/scout-classification.md`
 
-One line per exported scout id, none omitted: `#<id> - in-goal|off-goal - <one-line reason>`. An already-fixed scout reads `in-goal, already fixed`.
+One line per exported scout id, none omitted: `#<id> - in-goal|off-goal - <one-line reason>`. An already-fixed scout reads `#<id> - in-goal, already fixed - <path:line at HEAD that shows the fix>`, and gets no finding.
 
 Main reads it for the final report and keeps it as the audit trail. It is never merged and never copied into a findings report.
 
@@ -92,7 +92,10 @@ Main runs this right after §4.1's merge passes, never later, and never on the f
 - **Delete** an id (`TaskUpdate` status `deleted`) only when all 3 hold: it has a `## #<id>` section in `<RUN_DIR>/open-scouts.md`, `<RUN_DIR>/scout-classification.md` lists it as in-goal, and the merged file carries its `**Scout task**: #<id>` line outside code fences.
   - Reason: a task that fails any check may be a mis-typed id or a finding the merge dropped, and deleting it loses the scout for good.
 
+- **Complete** an id classified `in-goal, already fixed` (`TaskUpdate` status `completed`, never `deleted`), with the evidence in its description.
+  - Reason: the branch did the work, so the task is done, and a deletion would read as the merge dropping it.
+
 - **Keep** an id that fails a check, and every off-goal id.
 
-- Write `<RUN_DIR>/scout-outcomes.md`, one line per id: `#<id> - deleted|kept|off-goal - <reason>`. Main reads it at §7.
+- Write `<RUN_DIR>/scout-outcomes.md`, one line per id: `#<id> - deleted|completed|kept|off-goal - <reason>`. Main reads it at §7.
   - Reason: after a compaction main can no longer recall which ids it deleted.
