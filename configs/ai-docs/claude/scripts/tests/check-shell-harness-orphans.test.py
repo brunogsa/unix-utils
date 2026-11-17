@@ -1,10 +1,10 @@
 """Blackbox CLI tests for check-shell-harness-orphans.py.
 
 Fixtures: none on disk except what each test writes to tmp_path.
-Directory shapes mirror three real harnesses in this repo
-(test-global-config-invariants.sh, test-check-bullet-gap-fix.sh,
-test-check-missing-why.sh) closely enough to reproduce the exact
-resolution puzzle each one poses, but every file the tests
+Directory shapes mirror the resolution puzzles real harnesses
+pose (test-global-config-invariants.sh,
+test-check-missing-why.sh, and a stem with a trailing "-fix"
+qualifier its subject lacks), but every file the tests
 write and read lives under tmp_path - never against the live
 repo tree, which concurrent sibling tasks are actively
 editing.
@@ -74,9 +74,9 @@ class TestCheckShellHarnessOrphansFailure:
     def test_should_exit_non_zero_without_inferring_a_subject_when_a_mismatched_stem_harness_has_no_override_entry(
         self, tmp_path
     ):
-        # Mirrors test-check-bullet-gap-fix.sh: the harness stem
-        # carries a trailing qualifier ("-fix") its real subject
-        # doesn't have, so naive stem-matching finds nothing.
+        # The harness stem carries a trailing qualifier
+        # ("-fix") its real subject doesn't have, so naive
+        # stem-matching finds nothing.
         #
         # The real subject genuinely exists on disk in the
         # subject dir, but with NO override entry naming it.

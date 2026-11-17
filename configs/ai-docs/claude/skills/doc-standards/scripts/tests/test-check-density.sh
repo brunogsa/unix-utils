@@ -10,8 +10,7 @@
 #
 # Exits 0 when every assertion passes, non-zero otherwise.
 # No bats dependency by design, matching this skill area's other
-# test suites (test-check-bullet-gap-fix.sh,
-# test-get-changed-lines.sh).
+# bash test suite (test-get-changed-lines.sh).
 
 set -uo pipefail
 

@@ -57,7 +57,7 @@ The caller gives you a list of files (sometimes with specific line numbers; line
   - That is silencing the check: it ships the defect the rule exists to catch and drops the guard for everyone.
 
 - After any edit to a script, run the three doc-standards script suites through `~/unix-utils/run-tests.py` in one call, and leave all three green.
-  - Pass the absolute paths of the four `fix-density-*.test.py` files, `test-check-bullet-gap-fix.sh` and `check-bullet-structure.test.py`, all in `~/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/tests/`.
+  - Pass the absolute paths of the four `fix-density-*.test.py` files, `check-bullet-gap.test.py` and `check-bullet-structure.test.py`, all in `~/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts/tests/`.
 
   - A fixer that regresses the checker breaks every future caller, which costs far more than the line it was fixing.
 
