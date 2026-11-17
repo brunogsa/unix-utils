@@ -41,6 +41,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: When uncertainty survives search, ask** -- never guess intent, requirements, or context only the user holds.
   - [Why] Confidently solving the wrong thing is the worst outcome, invisible to its author, so asking is never an interruption.
+  - [Example] A bare "retry", "yes" or "do that" with no clear antecedent: confirm which action it binds to before acting.
 
 - [Instruction] Never ask a question whose answer the invocation context, a prior answer, or an already-corrected pattern already determines - resolve it and act.
   - [Why] The ask-when-uncertain rule has no counterweight, so it drifts into asking what you could have read.
@@ -61,9 +62,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Before blocking on a question, dispatch every piece of work that does not depend on its answer.
   - [Why] A question asked while subagents run costs no wall-clock; two prompts carried 88% of that session's lost time.
 
-- [Instruction] **Ambiguous-antecedent commands trigger a clarifying question** -- "Retry"/"yes"/"do that" without a clear antecedent must be confirmed before acting.
-  - [Why] A bare "yes"/"retry" can bind to the wrong antecedent, silently applying the wrong action.
-
 ### Auditable reasoning
 
 - [Instruction] **Make your reasoning verifiable** -- back every claim with code, test, doc, or search evidence, and say why you chose a path only where a different choice was open.
@@ -72,7 +70,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
   - [Example] Bad: "the retry works", "zero violations", an AC assuming a retry re-reads. Good: the cURL or log line that showed it, or the `path:line` call chain through any queue hand-off.
 
-  - [Example] Keep "what the code says" apart from "what the run showed" - a reading of the code is not a test result.
+  - [Example] Bad: "fixed" after only reading the diff. Good: "the code reads as fixed; not run yet".
 
 - [Instruction] Count as evidence only an artifact another human can open and check without you.
   - [Why] A summary of a log asks the reader to trust you, while the raw artifact lets them rebuild the conclusion themselves.
@@ -103,9 +101,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Replace every vague word with the fact behind it** -- an amount gets its count, a judgment its measure, a claim its evidence and what you did not check.
   - [Why] A vague word hands the measuring back to me: I must re-open the source to learn what "several" or "cheap" meant.
-
-  - [Example] Bad: "Several legs show the defect, so one fix closes several entries." Good: "3 legs show the defect, so one fix closes 3 of the 149 entries."
-
 
   - [Example] Bad: "Effort: small", "Risk: low", "Prior: fix, cheap." Good: "Effort: 1 file, 12 lines", "Risk: no caller outside `sync/`", "Prior: fix - 1 file, 12 lines."
 
@@ -157,7 +152,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Robust, in-scope work
 
-- [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations - anything you build.
+- [Instruction] **Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations - anything you build.
   - [Why] In production these conditions are the norm, not rare edge cases - code without them won't survive.
 
 - [Instruction] **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
@@ -168,13 +163,9 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] A guard whose removal lives only in a tracker nobody opens when it fires outlives its rollout and pages for nothing.
   - [Example] Bad: an alarm whose removal is only a Linear issue. Good: the alarm description says "disable after <date>, once the rollout ends".
 
-### Self-describing artifacts
-
 - [Instruction] **Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, planning docs, and messages to people (Slack, review comments, reports, sheets) must stand alone without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
   - [Example] Bad: `RN-01`, `AC-8`, "the Apendice", a bare "callback" or "that flag". Good: a committed path or URL, the rule recapped inline, "error callback", `FEAT_FLAG_PIC_SYNC_<ERP>_ENABLED`.
-
-  - [Example] Bad: an abstract edge case, an unexplained "D3" label, "per my code-standards". Good: a worked example with real values, each label's meaning, the principle quoted inline.
 
 ### Single source of truth, no orphans
 
@@ -211,8 +202,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **CRITICAL: Verify everything you build, accept, or claim** -- evidence over optimism, applied at every gate.
   - [Why] Unverified beliefs compound - a wrong assumption caught late costs N× a 30-second spike.
 
-  - [Example] Before claiming a count or "complete," grep/wc the file; before trusting a README on staging, read the terraform/`.env`/manifest that actually sets it.
-
   - [Example] Bad: "updated" on a 2xx, "merged" before each PR shows synced, a silent permission block. Good: read the record back, re-fetch each PR, report blocks at once.
 
 - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction.
@@ -234,9 +223,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) - one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load, so each standard you skip is wisdom the user must repeat by hand.
-
-- [Instruction] Load a skill once per session - never re-invoke it while it remains loaded in context.
-  - [Why] Re-invoking repeats guidance already active in context, spending tokens without adding anything new.
 
 - [Instruction] After a compaction, count a skill as still loaded only when the post-compaction reminder shows its full text; one shown truncated, or not shown at all, counts as unloaded.
   - [Why] Reload-all cost 10-30k tokens per compaction, and re-invoking a skill the reminder re-injected in full pays twice.
@@ -262,9 +248,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Prefer the least-destructive action that accomplishes the change.**
   - [Why] Two actions can both be authorized while one still throws away context the other keeps.
-
-- [Instruction] Modify only the exact lines/fields/keys/entries needed for the requested change.
-  - [Why] Touching more than asked widens the review surface and buries the real change in incidental reformatting.
 
 - [Instruction] **CRITICAL: Change file contents with Edit or Write, never through Bash** (sed, awk, perl, heredoc), whatever the harness prompt allows - except an editor-style replace-all of the same text.
   - [Why] A Bash edit can silently change the wrong line or nothing, with no diff prompt, mismatch error or hook to catch it.
@@ -299,10 +282,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Note-taking discipline
 
-- [Instruction] Use the scratchpad directory named in your own system prompt as this session's note home - never invent an ad-hoc per-skill `/tmp` file path.
-  - [Why] That directory is already session- and cwd-scoped, so no path of your own needs remembering.
-
-- [Instruction] Within that directory, keep two files with two contracts: `notes.md` for terse, continuous working notes, and `<skill>-brief.md` for a zero-context hand-off.
+- [Instruction] Within your system prompt's scratchpad directory, keep two files with two contracts: `notes.md` for terse, continuous working notes, and `<skill>-brief.md` for a zero-context hand-off.
   - [Why] One file serving a terse-memory reader and a zero-context reader at once inflated notes past what the first wants.
 
 - [Instruction] Route each `notes.md` note under one fixed heading (`## Findings`, `## Decisions`, `## Rejected`, `## Open questions`, `## Artifacts`) as `trigger - short why`, aiming ~128 chars, unenforced.
@@ -391,9 +371,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks.
   - [Example] Bad: a 6-task wave run serially because the plan lists it in order. Good: group pending tasks by files touched, then dispatch every file-disjoint group at once.
 
-- [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
-  - [Why] Width multiplies count and per-subagent cost, so fanning past the independent chunks pays for nothing.
-
 - [Instruction] Execute any TaskList item whose goal diverges from main's (e.g. `[Side]`/`[Scout]`) through a subagent, or `lateral-session` only if I ask for a new session, window or tmux - never inline.
   - [Why] Inline execution pulls the off-goal task's files into the main context, taxing the budget the actual goal needs.
 
@@ -417,8 +394,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
-  - [Example] Test-presence gates, AC↔test coverage, code-review of just-written code, end-of-batch refactor + auto-review reports.
-
 - [Instruction] **Verify every subagent claim** -- check a mutation against the artifact (diff, file, output); re-run a finding at higher tier/effort, or across two subagents cross-checked in main.
   - [Why] Re-reading its files in main burns the context the delegation saved, so the check has to run outside main too.
   - [Example] A finding the user repeats back to you is still that subagent's claim, not evidence - it earns the same check.
