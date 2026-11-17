@@ -89,11 +89,10 @@ it('should filter by assignee', ...);
 - [Instruction] **Observably-non-empty BEFORE and AFTER** - for filter/transition tests (UI or API), baseline and final state must both be non-empty.
   - [Why] Empty-to-something only proves the filter renders/returns something - not that it changes the result meaningfully.
 
-- [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide - not the diff-scoped subset - before declaring done.
-  - [Why] A change's blast radius exceeds its diff: a rename or removed export breaks callers a scoped run skips.
-
 - [Instruction] Run focused suites while iterating and the full suite once at batch or PR end - or in CI when it outruns your loop or the machine is saturated.
   - [Why] A focused run covers one edit's reach at a fraction of the time and load; deferring the full run keeps its catch.
+
+  - [Example] Full suite: every tier the change could reach - unit, integration/contract, e2e - workspace-wide, never the diff-scoped subset.
 
   - [Example] Outruns the loop: wall-clock exceeds your edit-test cycle. Saturated: `check-machine-headroom.sh` reports NO-GO.
 
@@ -101,9 +100,6 @@ it('should filter by assignee', ...);
 
 - [Instruction] Prefer the project's ci/agentic test variant when one exists over the bare test runner.
   - [Why] The ci/agentic variant exits non-zero cleanly, so automation can trust its exit code instead of scraping output.
-
-- [Instruction] Flag a tier the change touches but the project has no suite for as `[Harness]`, rather than skipping it silently.
-  - [Why] A silently-skipped tier reads as "covered" when it isn't; naming the gap scales the fix to the next caller.
 
 - [Instruction] **Hold tests to the limits `metrics-review` measures, reading each from its constant in [`quality_metrics/`](../../scripts/quality_metrics/), and check them once the tests pass.**
   - [Why] Limits change often, so a copied number goes stale, while coverage and mutant limits catch what green tests miss.
@@ -201,11 +197,11 @@ describe('with FEAT_FLAG_DELIVERY_ADDRESS_ENABLED on', () => {
   - [Why] It catches only a wording edit, never behavior, since the reader of that text is a human or an LLM.
   - [Example] Bad: asserting a `.md`'s heading order or frontmatter values, or `expect(schema.errorCode.description).toContain('NO_AGREEMENT_FOUND')`. Good: asserting the schema's `type`, `required` or `enum`.
 
+  - [Example] A committed doc that must hold a shape: Bad: a test reading that one `.md`. Good: a checker over every file of its kind, tested on fixtures.
+
 A fixture-driven suite is not in this class: feeding a checker a temp-dir `.md` the test itself wrote exercises the checker, and the checker is real code.
 
 The tell is which file the assertion reads. A path into the repo's own committed docs is a doc-content contract test; a `mktemp`/`TemporaryDirectory` path is a behavior test.
-
-When a committed doc must hold a shape, encode that shape as a checker running over every file of its kind, and test the checker on fixtures.
 
 ### One test per distinct cause
 
@@ -229,48 +225,8 @@ Distinguish the two rules above: the code-path rule collapses cases that reach o
 - [Instruction] One test = one behavior asserted; a title joined by "and" (or covering two independent behaviors) splits into two tests.
   - [Why] A compound assertion hides which half broke - you re-read the body to find out, instead of scanning the title.
 
-[Example]
-```ts
-// Bad - compound assertion, hides which half failed
-it('should render entity tabs and active-tab table on cold mount', ...);
-it('should filter the table by agreementIds (or skus for the product tab)', ...);
-it('should re-derive per-tab badges and the brand-selector dropdown', ...);
-
-// Good - one observable behavior per test
-it('should render the entity tabs on cold mount', ...);
-it('should render the active-tab table on cold mount', ...);
-it('should filter the sales-agreement tab table by agreementIds', ...);
-it('should filter the product tab table by skus', ...);
-it('should re-derive per-tab badges from school-scoped summary calls', ...);
-it('should re-derive the brand-selector dropdown options from school-scoped summary calls', ...);
-```
-
 - [Instruction] Group tests by intent - happy path, corner cases, failure scenarios - using nested describe blocks.
   - [Why] Readers scanning "what does this do when it works?" shouldn't wade through error paths to find out.
-
-[Example]
-```ts
-// Bad - mixed
-describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
-  it('returns agreements + SKUs for valid input', ...);
-  it('throws BAD_REQUEST when no schools provided', ...);
-  it('attaches SKU codes returned by getSKUs', ...);
-  it('throws INTERNAL_SERVER_ERROR after retries', ...);
-});
-
-// Good - split
-describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
-  describe('happy path', () => {
-    it('returns agreements + SKUs for valid input', ...);
-    it('attaches SKU codes returned by getSKUs', ...);
-  });
-
-  describe('failure scenarios', () => {
-    it('throws BAD_REQUEST when no schools provided', ...);
-    it('throws INTERNAL_SERVER_ERROR after retries', ...);
-  });
-});
-```
 
 - [Instruction] Never repeat an enclosing test group's name - a describe/context block, test class, or parent subtest - inside a nested group or test name.
 
@@ -304,22 +260,6 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
 - [Instruction] Tests should not break when the implementation changes the order of items in a collection, unless order is part of the contract.
   - [Why] Asserting exact array order couples tests to implementation - changed iteration order shouldn't break behavior.
 
-[Example]
-```ts
-// Bad -- breaks if implementation reorders items:
-expect(result).toEqual([
-    { sku: 'CHILD-1', price: 100 },
-    { sku: 'KIT-1', price: 300 },
-]);
-
-// Good -- asserts membership and count, order-independent:
-expect(result).toHaveLength(2);
-expect(result).toEqual(expect.arrayContaining([
-    expect.objectContaining({ sku: 'CHILD-1', price: 100 }),
-    expect.objectContaining({ sku: 'KIT-1', price: 300 }),
-]));
-```
-
 ## Mocking, fixtures & test data
 
 - [Instruction] Use realistic-looking values in mock data (real-shaped names, emails, IDs, dates) - not placeholder fragments.
@@ -327,25 +267,6 @@ expect(result).toEqual(expect.arrayContaining([
 
 - [Instruction] Once a test file has a factory, reach every test state through its overrides - never monkey-patch fixture internals or spread-patch a base object in the test body.
   - [Why] A spread-patch or monkey-patch drifts from the factory and hides setup from the next reader.
-
-[Example]
-```ts
-// Bad - fixture only supports the happy path; "expired" test has to dig into internals:
-const baseAgreement = { signedAt: '2025-01-01', deadline: '2025-12-31' };
-
-it('shows expired badge when past deadline', () => {
-  const agreement = { ...baseAgreement, deadline: '2020-01-01' };
-});
-
-// Good - factory with overrides; every state is one named override away:
-function createAgreement(overrides: Partial<Agreement> = {}): Agreement {
-  return { signedAt: '2025-01-01', deadline: '2025-12-31', ...overrides };
-}
-
-it('shows expired badge when past deadline', () => {
-  const agreement = createAgreement({ deadline: '2020-01-01' });
-});
-```
 
 - [Instruction] **CRITICAL: Reference the same enums/constants as production code - in assertions, in mock factory bodies, and in fixture defaults.**
   - [Why] Hardcoding the literal means an enum rename silently breaks production while the test still passes on the old value.
@@ -399,22 +320,6 @@ expect(myFunc(items)).toEqual(expectedFiltered);
 - [Instruction] Hand-code regression baselines as explicit expected values - never `f(X) === f(X)`, which only proves `f` is deterministic and can never fail.
   - [Why] A real regression guard needs a value you wrote down that the code might get wrong.
 
-[Example]
-```ts
-// Bad -- two identical requests, asserting equal proves nothing:
-const [a, b] = await Promise.all([
-  request(app).get('/v1/things?resolved=false'),
-  request(app).get('/v1/things?resolved=false'),
-]);
-expect(a.body).toEqual(b.body);
-
-// Good -- single request + explicit hand-coded shape:
-const response = await request(app).get('/v1/things?resolved=false');
-expect(response.body.data).toHaveLength(1);
-expect(response.body.data[0].entity).toBe('order');
-expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1, totalPages: 1 });
-```
-
 - [Instruction] Don't assert that a log was emitted - log emission is not behavior the caller observes.
   - [Why] Log assertions are brittle, tautological, and clutter the suite - the behavior test carries the same signal.
 
@@ -444,9 +349,6 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
 
 - [Instruction] Delete dead skips - a stale one (old, no follow-up commits, referenced code gone or changed), or the whole file when 100% of its tests are skipped.
   - [Why] Stale skips pad the count with tests mapping to no code; a fully-skipped file is pure audit cost.
-
-- [Instruction] File a `[Scout]` whenever you judge the condition justifying a skip has lifted, naming the test and why it looks un-skippable now.
-  - [Why] Only a filed entry gets triaged - an un-skip judged in passing is lost and the skip goes unchallenged.
 
 - [Instruction] When the answer is "delete," capture the investigation (what was tried, why the skip is dead, what code it would have guarded) in the commit body.
   - [Why] The next reader who wonders why that coverage vanished needs the reasoning, or they re-litigate the same dead skip.
