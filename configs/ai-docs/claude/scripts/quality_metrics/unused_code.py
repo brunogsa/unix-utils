@@ -16,7 +16,9 @@ METRIC = "unused_code"
 NODE_TOOLS = Path(__file__).resolve().parent / "node_tools"
 ESLINT = NODE_TOOLS / "node_modules" / ".bin" / "eslint"
 TS_ESLINT_CONFIG = NODE_TOOLS / "eslint.config.mjs"
+JS_ESLINT_CONFIG = NODE_TOOLS / "eslint.js.config.mjs"
 RUFF = "ruff@0.17.5"
+RUFF_RULES = ("F401", "F841")
 
 # The first quoted word of a tool's message names the variable.
 QUOTED_NAME = re.compile(r"[`'\"]([^`'\"]+)[`'\"]")
@@ -42,12 +44,18 @@ def _json_output(command, cwd=None):
 def _ruff_findings(path):
     command = [
         "uvx", RUFF, "check", "--isolated", "--ignore-noqa",
-        "--select", "F401,F841", "--output-format", "json", str(path),
+        "--select", ",".join(RUFF_RULES), "--output-format", "json", str(path),
     ]
+    entries = _json_output(command)
+    for entry in entries:
+        # Only the selected rules are findings; a syntax error
+        # comes back as another code, or none in older ruff.
+        if entry["code"] not in RUFF_RULES:
+            raise ToolError(f"ruff could not parse {path}: {entry['message']}")
     return [
         {"line": entry["location"]["row"], "rule": entry["code"],
          "name": _name_in(entry["message"])}
-        for entry in _json_output(command)
+        for entry in entries
     ]
 
 
@@ -68,8 +76,8 @@ def _eslint_findings(command):
 
 def _javascript_findings(path):
     return _eslint_findings([
-        str(ESLINT), "--no-config-lookup", "--no-inline-config",
-        "--rule", '{"no-unused-vars":"error"}', "-f", "json", str(path),
+        str(ESLINT), "-c", str(JS_ESLINT_CONFIG), "--no-inline-config",
+        "-f", "json", str(path),
     ])
 
 
