@@ -280,6 +280,12 @@ describe('contractValidation.getSchoolsAgreementsAndSkus', () => {
 
   - [Example] Bad: `def test_invoice_parser_rejects_empty` inside `class TestInvoiceParser`. Good: `def test_rejects_empty`.
 
+- [Instruction] When a test file grows too large to scan, split its code file, each part with its own test file - never several test files for one code file.
+
+  - [Why] A test file's size mirrors how many behaviors its subject owns; splitting only the tests hides the oversized code.
+
+  - [Example] Bad: `sync.ts` tested by `sync.happy.test.ts` and `sync.errors.test.ts`. Good: `sync.ts` split into `fetch-page.ts` and `map-order.ts`, each with its own `.test.ts`.
+
 ## Determinism & flakes
 
 - [Instruction] **No shared state between tests - each test sets up and tears down its own.**
