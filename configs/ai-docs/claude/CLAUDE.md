@@ -145,6 +145,16 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations - anything you build.
   - [Why] In production these conditions are the norm, not rare edge cases - code without them won't survive.
+- [Instruction] Write each Scout entry with what is wrong, where it is (`path:line`), and the impact if it is left alone.
+  - [Why] A bare label made me ask what a Scout meant and what it risked before I could triage it.
+  - [Example] Bad: "Scout 1: SOQL limit". Good: "`getSchools` SOQL caps at 10 schools, so an 11th school's sync silently drops. Prior: fix, 1 line."
+
+- [Instruction] Fix an approved Scout whose defect already exists on the default branch in its own small PR, cut from that branch.
+  - [Why] Inside a feature PR, the fix waits on that feature's release; I restated this routing in 4 sessions.
+
+- [Instruction] Fix an approved Scout that the current change introduced inside the PR that owns that change.
+  - [Why] The fix then reviews, ships and reverts together with the code that caused it.
+
 
 - [Instruction] **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
   - [Why] Speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
