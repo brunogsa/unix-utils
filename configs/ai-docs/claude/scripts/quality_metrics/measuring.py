@@ -12,9 +12,10 @@ from pathlib import Path
 
 from quality_metrics import crap_coverage
 from quality_metrics import declaration as declaring
-from quality_metrics import dependencies
+from quality_metrics import dependencies, unused_code
 from quality_metrics.failures import (
     function_tool_failure_records,
+    static_tool_failure_records,
     unclaimed_file_records,
 )
 from quality_metrics.functions import FunctionToolError, measure_functions
@@ -40,6 +41,11 @@ DUPLICATION_MODULE = "duplication"
 # the base ref, so every file shares one run.
 DEPENDENCIES_MODULE = "dependencies"
 
+# Both read the run's checked tree or bypass repo config, so
+# neither runs per unit or on a base-side copy.
+UNUSED_CODE_MODULE = "unused_code"
+TYPE_CHECK_MODULE = "type_check"
+
 # Which module measures each metric. A declared metric with no
 # entry here and not in SKIPPED_ON_PURPOSE fails the run.
 METRIC_MODULES = {
@@ -52,6 +58,8 @@ METRIC_MODULES = {
     "code_duplication": DUPLICATION_MODULE,
     "test_duplication": DUPLICATION_MODULE,
     "dependency_direction": DEPENDENCIES_MODULE,
+    "unused_code": UNUSED_CODE_MODULE,
+    "type_errors": TYPE_CHECK_MODULE,
 }
 
 # No script module on purpose: the code-reviewer metrics
@@ -67,6 +75,7 @@ class MeasureSetup:
     mode: str
     coverage_run: object
     dependency_run: object
+    static_run: object = None
 
 
 def range_ends(diff_range):
@@ -106,10 +115,7 @@ def _measure_file(setup, path, touched_lines, head_ref, directory):
         tool_policy=setup.coverage_run.policy,
         nesting_reader=declaring.nesting_reader_for(setup.declaration, language),
     )
-    found = measure_target(
-        setup.declaration, setup.mode, target,
-        setup.coverage_run, setup.dependency_run,
-    )
+    found = measure_target(setup, target)
     if head_ref:
         # The copy is in a temp dir; name the real path.
         found = [{**item, "file": path} for item in found]
@@ -151,11 +157,11 @@ def _copy_at(ref, path, directory):
     return copy_path
 
 
-def measure_target(declaration, mode, target, coverage_run=None,
-                   dependency_run=None):
-    """Measure one target; with no `coverage_run`, score CRAP at
-    full coverage and skip coverage and duplication, and with no
-    `dependency_run`, skip dependency direction.
+def measure_target(setup, target):
+    """Measure one target; with no coverage run, score CRAP at
+    full coverage and skip coverage and duplication, with no
+    dependency run, skip dependency direction, and with no
+    static run, skip unused code and type errors.
 
     The base-side copy of a resolved function has no test run of
     its own, so scoring it against the working tree's coverage
@@ -164,10 +170,10 @@ def measure_target(declaration, mode, target, coverage_run=None,
     duplication scan would be discarded.
     """
     measurements = []
+    coverage_run = setup.coverage_run
     metrics = _metrics_binding(
-        declaration, target.language, mode, target.repo_path
+        setup.declaration, target.language, setup.mode, target.repo_path
     )
-    setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
     for module_name, module_metrics in _group_by_module(metrics).items():
         try:
             measurements += _measure_module(setup, target, module_name, module_metrics)
@@ -187,6 +193,8 @@ def _measure_module(setup, target, module_name, module_metrics):
         COVERAGE_MODULE: setup.coverage_run,
         DUPLICATION_MODULE: setup.coverage_run,
         DEPENDENCIES_MODULE: setup.dependency_run,
+        UNUSED_CODE_MODULE: setup.static_run,
+        TYPE_CHECK_MODULE: setup.static_run,
     }
     if module_name == COVERAGE_MODULE:
         return _measure_crap_and_coverage(setup, target, module_metrics)
@@ -194,7 +202,22 @@ def _measure_module(setup, target, module_name, module_metrics):
         return []
     if module_name == DEPENDENCIES_MODULE:
         return dependencies.measure(target, module_metrics, setup.dependency_run)
+    if module_name in (UNUSED_CODE_MODULE, TYPE_CHECK_MODULE):
+        return _measure_static(setup, target, module_name, module_metrics)
     return _measure_with_module_file(setup, target, module_name, module_metrics)
+
+
+def _measure_static(setup, target, module_name, module_metrics):
+    """The unused_code or type_errors record; a tool failure
+    reads as a flagged worst case plus an ask."""
+    try:
+        if module_name == UNUSED_CODE_MODULE:
+            return unused_code.measure_unused_code(target)
+        return setup.static_run.type_error_records_for(target)
+    except ToolError as error:
+        return static_tool_failure_records(
+            target, module_metrics[0], error, setup.coverage_run
+        )
 
 
 def _measure_crap_and_coverage(setup, target, module_metrics):
@@ -238,7 +261,7 @@ def _measure_at_base(declaration, mode, policy, copy_path, original_path):
     if language is None:
         return []
     return measure_target(
-        declaration, mode,
+        MeasureSetup(declaration, mode, None, None),
         Target(
             copy_path, language, WHOLE_FILE, repo_path=original_path,
             nesting_reader=declaring.nesting_reader_for(declaration, language),

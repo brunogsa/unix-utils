@@ -46,6 +46,7 @@ from quality_metrics.measuring import (
 )
 from quality_metrics.repo_paths import repo_relative
 from quality_metrics.sourcing import lazy_tool_map_for
+from quality_metrics.static_run import StaticRun
 from quality_metrics.tool_map import (
     DETECTOR_RULES_PATH,
     load_detector_rules,
@@ -78,9 +79,8 @@ def main(arguments):
         mode = declaring.PER_UNIT_MODE if options.per_unit else declaring.BATCH_END_MODE
         touched_by_file = _targets_from(options)
         head_ref = range_ends(options.diff)[1] if options.diff else None
-        coverage_run = _coverage_run_for(
-            options, judged_against, head_ref, _changed_files_by_language(declaration, touched_by_file)
-        )
+        changed_files = _changed_files_by_language(declaration, touched_by_file)
+        coverage_run = _coverage_run_for(options, judged_against, head_ref, changed_files)
         layer_map = (
             dependencies.load_layer_map(options.layers) if options.layers else None
         )
@@ -88,8 +88,13 @@ def main(arguments):
             Path.cwd(), dependencies.RefRange(judged_against, head_ref),
             declaration.excluded_paths, layer_map,
         )
-        setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
-        measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
+        static_run = _static_run_for(options, judged_against, head_ref, changed_files)
+        setup = MeasureSetup(declaration, mode, coverage_run, dependency_run, static_run)
+        try:
+            measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
+        finally:
+            if static_run:
+                static_run.close()
         measurements = with_churn(measurements)
         found = {
             "not_applicable": dependency_run.not_applicable_files,
@@ -230,6 +235,14 @@ def _coverage_run_for(options, judged_against, head_ref, changed_files):
         Path.cwd(), tool_map, base_ref=judged_against, head_ref=head_ref,
         changed_files=changed_files,
     )
+
+
+def _static_run_for(options, judged_against, head_ref, changed_files):
+    """The run unused_code and type_errors share; per unit
+    skips both, so it has none."""
+    if options.per_unit:
+        return None
+    return StaticRun(Path.cwd(), judged_against, head_ref, changed_files)
 
 
 def _targets_from(options):

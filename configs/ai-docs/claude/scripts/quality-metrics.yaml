@@ -47,11 +47,11 @@ languages:
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
     nesting_reader: min
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code]
   ts:
     extensions: [.ts, .tsx]
     nesting_reader: min
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors]
 
   # HTML and CSS have no functions: only size and code
   # duplication apply, the latter from token clones of 4 lines
@@ -71,7 +71,7 @@ languages:
   python:
     extensions: [.py]
     nesting_reader: ns
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors]
 
   # Bash declares size, counted in logical lines, crap, and code
   # duplication, from token clones of 4 lines or more, with
@@ -94,7 +94,10 @@ languages:
   bash:
     extensions: [.sh, .bash]
     token_only_duplication: true
-    metrics: [size, crap, code_duplication]
+    metrics: [size, crap, code_duplication, unused_code]
+
+  # Go's compiler rejects unused imports and variables, so
+  # unused_code does not apply. type_errors runs go vet.
   go:
     extensions: [.go]
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, type_errors]
