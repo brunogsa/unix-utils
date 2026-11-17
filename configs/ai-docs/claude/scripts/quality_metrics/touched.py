@@ -161,6 +161,15 @@ def file_text_at(ref, path):
     return _git("show", f"{ref}:./{path}")
 
 
+def commit_count_since(path, since):
+    """How many commits touched `path` (relative to the working
+    directory) since `since`, a git date such as `90.days`.
+
+    Every commit counts, a sweep across many files included.
+    """
+    return len(_git("log", f"--since={since}", "--format=%H", "--", path).split())
+
+
 def _touched_lines_in_diff(diff_text):
     touched = {}
     current_path = None

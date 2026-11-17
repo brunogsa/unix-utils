@@ -32,6 +32,7 @@ from pathlib import Path
 
 from quality_metrics import declaration as declaring
 from quality_metrics import dependencies, gate_inputs
+from quality_metrics.churn import with_churn
 from quality_metrics.collection import CoverageRun
 from quality_metrics.debt import debt_score, measured_nloc
 from quality_metrics.debt_delta import branch_debt_delta
@@ -87,6 +88,7 @@ def main(arguments):
         )
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
         measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
+        measurements = with_churn(measurements)
         found = {
             "not_applicable": dependency_run.not_applicable_files,
             "gate_input_violations": _gate_input_violations(options, judged_against, head_ref),

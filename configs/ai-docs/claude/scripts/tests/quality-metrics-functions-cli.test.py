@@ -33,7 +33,13 @@ class TestCrossPlatformMeasurement:
 
         expected = json.loads((FIXTURE_DIR / "expected-measurements.json").read_text())
         order = lambda item: (item["file"], item["scope"], item["function"] or "", item["metric"])
-        assert sorted(report["measurements"], key=order) == sorted(expected, key=order)
+
+        # Churn is repo history, not a measured value.
+        measured_values = [
+            {key: value for key, value in item.items() if key != "churn"}
+            for item in report["measurements"]
+        ]
+        assert sorted(measured_values, key=order) == sorted(expected, key=order)
         assert [item["function"] for item in report["violations"]] == ["build_report"]
 
 
