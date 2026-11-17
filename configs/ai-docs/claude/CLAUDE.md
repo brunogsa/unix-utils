@@ -138,8 +138,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Per-Scout confirmation friction tempts skipping; auto-add neutralizes the temptation and keeps commits clean.
   - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
-- [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
-  - [Why] Only the human can triage a scout as now-vs-later, and only if they see it as its own entry.
+- [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter or bundle; give each a fix-or-skip prior. Only a requested `/quality-gate` scout leg may turn in-goal ones into `[scout]` findings.
+  - [Why] An off-goal scout stays its own entry, since only the human can triage it as now-vs-later.
 
 ### Robust, in-scope work
 
