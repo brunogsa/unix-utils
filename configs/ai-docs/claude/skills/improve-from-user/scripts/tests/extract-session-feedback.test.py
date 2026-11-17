@@ -311,6 +311,33 @@ class TestSurveyEstimate:
         assert reported == len(extract_text) // 4
 
 
+class TestBrokenPipe:
+    def test_should_exit_quietly_when_the_reader_closes_stdout_early(self, tmp_path):
+        # ~150KB of output overflows the 64KB pipe buffer, so
+        # the write lands after the reader is gone.
+        lines = []
+        for n in range(30):
+            lines.append(_user_line("x" * 5000, timestamp=f"2026-01-01T00:{n:02d}:00"))
+            lines.append(_assistant_line("ack"))
+        _write_transcript(tmp_path / "big.jsonl", lines, seconds_ago=DAY)
+        env = {**os.environ}
+        env.pop("CLAUDE_CODE_SESSION_ID", None)
+
+        proc = subprocess.Popen(
+            [sys.executable, str(SCRIPT), "--since", "7", "--project-dirs", str(tmp_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        proc.stdout.readline()
+        proc.stdout.close()
+        stderr = proc.stderr.read()
+        proc.wait()
+
+        assert "Traceback" not in stderr and "BrokenPipeError" not in stderr
+
+
 class TestFailureScenarios:
     def test_should_exit_nonzero_when_given_the_removed_session_id_project_dir_and_cwd_flags(self):
         result = _run_script(["--session-id", "fake-session", "--project-dir", "/nonexistent", "--cwd", "/nonexistent"])

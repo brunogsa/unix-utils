@@ -374,4 +374,13 @@ def build_extract(paths):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        sys.stdout.flush()
+    except BrokenPipeError:
+        # The reader (e.g. `| head`) closed early. Point stdout
+        # at devnull so the exit-time flush cannot raise again.
+        # https://docs.python.org/3/library/signal.html
+        # #note-on-sigpipe
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        sys.exit(1)
