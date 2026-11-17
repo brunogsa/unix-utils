@@ -10,6 +10,8 @@ instructions-budget: 60
 
 Principles for any test work. Each section pairs a principle with its WHY, with paired examples co-located under the principle.
 
+Open `references/more-examples.md` only when a case falls outside the inline examples.
+
 ## Test types
 
 - [Instruction] Reach for a unit test to stress-test corner cases in a leaf function - a parser, normalizer, validator, or formatter - exercised in isolation.
@@ -100,8 +102,9 @@ it('should filter by assignee', ...);
 - [Instruction] Flag a tier the change touches but the project has no suite for as `[Harness]`, rather than skipping it silently.
   - [Why] A silently-skipped tier reads as "covered" when it isn't; naming the gap scales the fix to the next caller.
 
-- [Instruction] **After tests pass, check coverage if available.**
-  - [Why] Green tests prove the cases you thought of work; coverage gaps reveal the cases you didn't think of.
+- [Instruction] **Hold tests to the limits `metrics-review` measures, reading each from its constant in [`quality_metrics/`](../../scripts/quality_metrics/), and check them once the tests pass.**
+  - [Why] Limits change often, so a copied number goes stale, while coverage and mutant limits catch what green tests miss.
+  - [Example] `grep -n '^[A-Z_]*LIMIT' ~/.claude/scripts/quality_metrics/*.py` prints each limit beside its module, test-file limits included.
 
 ## Test titles
 
@@ -126,13 +129,6 @@ it('should filter by assignee', ...);
 
 - [Instruction] When a system has multiple instances of the same kind - two search fields, two filters, two query params, two endpoints - name the specific one in the title.
   - [Why] A generic noun confuses when two of the same kind exist - the reader can't tell which is pinned.
-
-[Example]
-```
-Bad:  "should AND fieldA IN with fieldB NOT IN when both provided"   (operator mechanics)
-Bad:  "regression: PR #2034 last-spread-wins on flowCode"            (session/branch history)
-Good: "should subtract excludeFlowCodes from the flowCode include set when both filters are provided"
-```
 
 [Example]
 ```ts
@@ -224,17 +220,6 @@ When a committed doc must hold a shape, encode that shape as a checker running o
   - [Why] One-per-trigger tests miss the next trigger someone adds; a test on the shared outcome covers new triggers too.
 
 Distinguish the two rules above: the code-path rule collapses cases that reach one shared branch; this one collapses independent branches that converge on a single observable outcome.
-
-[Example]
-```ts
-// Bad - three tests, one per trigger, all asserting the same behavior:
-it('should reset page to 1 when status filter changes', ...);
-it('should reset page to 1 when search input changes', ...);
-it('should reset page to 1 when sort order changes', ...);
-
-// Good - one test of the underlying invariant:
-it('should reset page to 1 on every refetch of the dataset', ...);
-```
 
 ### Splitting & grouping by behavior
 

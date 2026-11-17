@@ -17,8 +17,12 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] **CRITICAL: Minimize reviewer context - each name, helper, literal and test must read without opening another file, the plan, or a term the change coined.**
   - [Why] AI writes in seconds; the reviewer pays minutes on every read - optimize the recurring cost, not the one-time write.
 
-- [Instruction] Treat more than 2 nesting levels as a smell, more than 3 as a refactor - reduce it by extracting inner units or early returns.
+- [Instruction] Treat more than 2 nesting levels as a smell, past the measured limit below as a refactor - reduce it by extracting inner units or early returns.
   - [Why] Each nesting level multiplies the mental state the reader holds - bugs hide where "I don't understand" lives.
+
+- [Instruction] Write code within the limits `metrics-review` measures, reading each from its constant in [`quality_metrics/`](../../scripts/quality_metrics/), never from a copied number.
+  - [Why] Limits change often, so a copied number goes stale; code blind to them is reworked once the gate flags it.
+  - [Example] `grep -n '^[A-Z_]*LIMIT' ~/.claude/scripts/quality_metrics/*.py` prints each limit beside its module.
 
 - [Instruction] **CRITICAL: Split a statement that chains 2+ array operations (filter/map/flatMap/reduce/groupBy), nests callbacks, or wraps an unfamiliar API into intermediate variables, each named for what it holds, not for the operation.**
   - [Why] A chained one-liner hides what each step holds.
@@ -63,7 +67,6 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Instruction] **CRITICAL: Reject a vague, overloaded verb (`resolve`, `handle`, `process`, `manage`) in a name - name the specific operation performed instead.**
   - [Why] A vague verb could mean any of several operations, forcing the reader to open the body to learn which one happens.
-  - [Example] `resolveSoldSupplementaryChildSkus` - deleted, inlined at its call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`; `resolveMarca` → `getSharedMarca`; `resolveSerieRank` → `getSerieSortIndex`, naming the ordinal it returns.
 
 - [Instruction] Rename when a name implies the wrong concept, even when it computes the right value.
   - [Why] A reader trusts the name, not what it computes; a misleading name misdirects them even though the value is correct.
@@ -105,9 +108,6 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Instruction] **CRITICAL: One job per function, at one level of abstraction - classifying input, checking it and building the result are three jobs.**
   - [Why] A function doing two jobs has two reasons to change (SRP) - editing it for one job risks breaking the other.
-
-- [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules).
-  - [Example] "Collect" means gather only - translation and business rules belong in their own named steps.
 
 - [Instruction] **Controller (I/O, validation, logging) → Use Case (pure business logic, no I/O).**
   - [Why] I/O changes most often (HTTP → queue → CLI); pure use cases survive every swap.

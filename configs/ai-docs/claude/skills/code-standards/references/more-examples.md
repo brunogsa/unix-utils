@@ -1,3 +1,8 @@
+---
+# user-approved 2026-11-17: SKILL.md sits at its 4096 ceiling, so whole examples move here; opened only when a rule's intent is unclear
+words-budget: 2048
+---
+
 # More examples
 
 Worked bad/good contrasts moved out of `SKILL.md`, grouped by the section whose rule each one illustrates.
@@ -95,6 +100,8 @@ return (
 
 ## Name by purpose, clearly
 
+- [Example] `resolveSoldSupplementaryChildSkus` - deleted, inlined at its call site; `resolveStandaloneSeries` → `mapGroupSeriesSiglas`; `resolveMarca` → `getSharedMarca`; `resolveSerieRank` → `getSerieSortIndex`, naming the ordinal it returns.
+
 - [Example]
 ```javascript
 // Bad -- describes the mechanism (what it does internally):
@@ -164,6 +171,9 @@ if (hasNoPriceableItem) { ... }
 ```
 
 ## Layering & responsibilities
+
+- [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules).
+  - [Example] "Collect" means gather only - translation and business rules belong in their own named steps.
 
 - [Example]
 ```javascript
