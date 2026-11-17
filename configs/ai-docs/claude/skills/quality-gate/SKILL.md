@@ -82,7 +82,7 @@ If detection fails, ask which branch to diff against; under either flag, stop an
 
 First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
 
-Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review and metrics legs, `test-reviewer` for the planned-test leg - all in the **same turn**, all in the background. They are independent report-only passes.
+Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review and metrics legs, `test-reviewer` for the planned-test leg - all in the **same turn**, all in the background.
 
 - `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool) with `<BASE_REF>` as its `--base-ref`.
 
@@ -192,7 +192,7 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 
 It runs in this session, never in a subagent, because it commits and permission prompts render only in main.
 
-It returns the ledger §7 reports from: applied findings with SHAs, skipped ones with reasons, failures with retry needs.
+It returns the ledger §7 reports from.
 
 ## 7. Close with a report
 
@@ -219,7 +219,7 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - The `test-sdd` `Unplanned tests added by the branch` finding, its tests listed, never dispatched, for the human to mark `[Done]`.
 
 - Findings `/address-verdicts` skipped, with the reason, and findings whose apply failed, with what it needs to retry.
-- The statement that unannotated findings are untouched; tagging them `[AI!]` for a later `/address-verdicts` run, with a human answering, works them.
+- The statement that unannotated findings are untouched; tagging them `[AI!]` works them via a later `/address-verdicts` run.
 
 ## Flowchart (human-facing)
 
