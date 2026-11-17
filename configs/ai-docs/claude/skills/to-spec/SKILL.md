@@ -110,6 +110,8 @@ Why settle by default: the common path is a spec with no open question left, and
 
 Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
 
+Before the first gate run, copy the spec file to the session scratchpad. The spec is untracked in git, so `git diff` shows nothing, and the copy is the only baseline.
+
 Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh --spec-only <spec>`, and fix each miss through `spec-editor`. Re-run the same gates after every `spec-editor` batch in this step, and send each new miss back through `spec-editor` the same way.
 
 A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `spec-editor`, and never count the spec as gated.
@@ -120,8 +122,6 @@ Then dispatch `agent(subAgent=spec-reviewer, effort=xhigh, title=Fresh-eyes revi
 - **Only when `qualitative_pass` is true**, read back from `/tmp/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
 
 Decide each finding yourself and dispatch `spec-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
-
-Before the first `spec-editor` dispatch, copy the spec file to the session scratchpad. The spec is untracked in git, so `git diff` shows nothing, and the copy is the only baseline.
 
 After the last `spec-editor` batch and its gate re-run, run `diff -u <copy> <spec>` and dispatch `agent(subAgent=spec-reviewer, effort=xhigh, title=Fresh-eyes review of spec edits)` in the background, pointed at that diff and the spec path. It judges only the changed lines, plus enough context to read them.
 

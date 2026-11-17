@@ -127,6 +127,8 @@ Why settle by default: the common path is a plan with no open question left, and
 
 Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
 
+Before the first gate run, copy the plan file to the session scratchpad. The plan is untracked in git, so `git diff` shows nothing, and the copy is the only baseline.
+
 Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`. Re-run the same gates after every `plan-editor` batch in this step, and send each new miss back through `plan-editor` the same way.
 
 A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `plan-editor`, and never count the plan as gated.
@@ -136,8 +138,6 @@ Then dispatch `agent(subAgent=plan-reviewer, effort=xhigh, title=Fresh-eyes revi
 Its qualitative leg runs only when `qualitative_pass` is true, read back from `/tmp/sdd_<session_id>.json`; its fail-closed judged checks run regardless.
 
 Decide each finding yourself and dispatch `plan-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
-
-Before the first `plan-editor` dispatch, copy the plan file to the session scratchpad. The plan is untracked in git, so `git diff` shows nothing, and the copy is the only baseline.
 
 After the last `plan-editor` batch and its gate re-run, run `diff -u <copy> <plan>` and dispatch `agent(subAgent=plan-reviewer, effort=xhigh, title=Fresh-eyes review of plan edits)` in the background, pointed at that diff and the plan path. It judges only the changed lines, plus enough context to read them.
 
