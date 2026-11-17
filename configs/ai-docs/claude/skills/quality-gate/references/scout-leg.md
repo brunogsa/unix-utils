@@ -1,8 +1,8 @@
 # Scout leg
 
-The brief for the `code-reviewer` that `/quality-gate` §3 dispatches in the background when `export-open-scouts.py` printed a count above 0. You are one fresh-context judge of the open `[Scout]` tasks: you decide which ones belong to this branch, and turn those into findings.
+The brief for the `code-reviewer` that `/quality-gate` §3 dispatches in the background when `export-open-scouts.py` printed a count above 0. You are one fresh-context judge of the pending `[Scout]` tasks: you decide which ones belong to this branch, and turn those into findings.
 
-Main hands you `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths (either may be missing), and the export path `<RUN_DIR>/open-scouts.md`, which holds one `## #<id> <subject>` section per open scout, with its description below.
+Main hands you `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths (either may be missing), and the export path `<RUN_DIR>/open-scouts.md`, which holds one `## #<id> <subject>` section per pending scout, with its description below.
 
 ## Rules
 
@@ -70,7 +70,7 @@ The source file main merges. `<ts>` is `date +%Y-%m-%d_%H:%M`.
 
 - Number from `### 1.`, ordered by severity; main's merge agent renumbers.
 
-- With no in-goal scout that reproduces, still write `## Findings`, then the line `No in-goal scout among <N> open scouts.`, with `<N>` the exported count.
+- With no in-goal scout that reproduces, still write `## Findings`, then the line `No in-goal scout among <N> pending scouts.`, with `<N>` the exported count.
   - Reason: an empty file triggers a re-dispatch.
 
 - Run `python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py <RUN_DIR>/scout-leg_<ts>.md` and rewrite any flagged finding, at most twice.

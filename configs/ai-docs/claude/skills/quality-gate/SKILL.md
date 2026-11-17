@@ -16,7 +16,7 @@ Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `refactor` | structure, duplication, dead code, naming | `[refactor]` |
 | `auto-review` | correctness, edge cases, contract and spec conformance | `[auto-review]` |
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
-| `scout` | open `[Scout]` tasks that belong to this branch, judged fresh | `[scout]` |
+| `scout` | pending `[Scout]` tasks that belong to this branch, judged fresh | `[scout]` |
 
 A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less; it is a target, never a reason to cut a gate short.
 
@@ -89,13 +89,13 @@ First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/qua
 
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
-Then export the open scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of open `[Scout]` tasks.
+Then export the pending scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of pending `[Scout]` tasks.
 - **No git repo** → skip the export and dispatch no scout leg, since it needs `git diff`; §7 reads `scout leg: not run (no git)`.
 
 - **Non-zero exit** → dispatch no scout leg; §7 reads `scout leg: FAIL (export exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
 
-- **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no open scout)`.
-  - When `~/.claude/tasks/<SESSION_ID>/` does not exist, §7 reads `scout leg: not run (no task directory for session <SESSION_ID>)` instead, so a wrong session id never reads as "no open scout".
+- **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no pending scout)`.
+  - When `~/.claude/tasks/<SESSION_ID>/` does not exist, §7 reads `scout leg: not run (no task directory for session <SESSION_ID>)` instead, so a wrong session id never reads as "no pending scout".
 
 Spawn each leg as its own agent, all in the **same turn**, all in the background.
 

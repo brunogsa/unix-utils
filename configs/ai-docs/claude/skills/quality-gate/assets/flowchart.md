@@ -70,11 +70,11 @@ def quality_gate(arg):
                 return
             BASE_REF = ask("which branch to diff against?")  # 8c · ask which branch
 
-    # ---- Step 3 - mint the run directory FIRST, export the open scouts,
+    # ---- Step 3 - mint the run directory FIRST, export the pending scouts,
     #      then dispatch every leg in the SAME turn. ----
     run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 9 · minted before any dispatch; step 4.1 reuses it
     # 10 · export-open-scouts.py <SESSION_ID> run_dir/open-scouts.md prints
-    #      the count of open [Scout] tasks.
+    #      the count of pending [Scout] tasks.
     rc, out, err = sh_rc(f"~/.claude/scripts/export-open-scouts.py {session_id} {run_dir}/open-scouts.md")
     open_scouts = None
     if rc != 0:                                              # 10a · export failed?
@@ -82,10 +82,10 @@ def quality_gate(arg):
         scout_report = f"scout leg: FAIL (export exited {rc}: {err})"
     else:
         open_scouts = int(out)
-        if open_scouts == 0:                                 # 11 · no open scout?
+        if open_scouts == 0:                                 # 11 · no pending scout?
             # 11a · the scout leg is not dispatched; a missing task directory is
-            #       reported apart, so a wrong session id never reads as "no open scout"
-            scout_report = ("scout leg: not run (no open scout)" if exists(f"~/.claude/tasks/{session_id}/")
+            #       reported apart, so a wrong session id never reads as "no pending scout"
+            scout_report = ("scout leg: not run (no pending scout)" if exists(f"~/.claude/tasks/{session_id}/")
                             else f"scout leg: not run (no task directory for session {session_id})")
 
     # Independent report-only passes, no ordering between them. Each leg IS
@@ -95,7 +95,7 @@ def quality_gate(arg):
         ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 12b · leg dispatch
         # 12c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
-        # 12d · scout-leg.md: classifies each open scout in-goal or off-goal, writes a
+        # 12d · scout-leg.md: classifies each pending scout in-goal or off-goal, writes a
         #       finding per in-goal scout; dispatched ONLY when open_scouts > 0. Report-only:
         #       it writes just the two files below and never edits the TaskList.
         ("code-reviewer", "scout",       "references/scout-leg.md", f"{run_dir}/scout-leg_{ts}.md + scout-classification.md"),
@@ -247,8 +247,8 @@ def quality_gate(arg):
     #      never-judged findings on a report-only run, judge and fix-review
     #      status, [QUESTION] findings, the unplanned-tests finding for the
     #      human to mark [Done], what /address-verdicts skipped or failed,
-    #      and the scout leg: deleted in-goal ids, in-goal ids kept, off-goal
-    #      ids left in the TaskList (ids only), or "not run (no open scout)".
+    #      and the scout leg: deleted, completed and kept in-goal ids, off-goal
+    #      ids left in the TaskList (ids only), a merge fallback, or "not run (no pending scout)".
     return report(ledger)
 ```
 
@@ -275,18 +275,18 @@ flowchart TD
   n8c["8c. Ask which branch to diff against"]:::gate
 
   n9["9. Step 3 · Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
-  n10["10. Run export-open-scouts.py with the session id and<br/>RUN_DIR/open-scouts.md; it prints the count of<br/>open Scout tasks in the TaskList"]:::hook
+  n10["10. Run export-open-scouts.py with the session id and<br/>RUN_DIR/open-scouts.md; it prints the count of<br/>pending Scout tasks in the TaskList"]:::hook
   n10a{"10a. Export exited non-zero?"}
   n10b["10b. Do not dispatch the scout leg;<br/>the report reads scout leg: FAIL (export exited rc: its stderr)"]
   n11{"11. Count is 0?"}
-  n11a["11a. Do not dispatch the scout leg; the report reads<br/>scout leg: not run (no open scout), or not run (no task directory<br/>for session id) when ~/.claude/tasks/id/ does not exist"]
+  n11a["11a. Do not dispatch the scout leg; the report reads<br/>scout leg: not run (no pending scout), or not run (no task directory<br/>for session id) when ~/.claude/tasks/id/ does not exist"]
 
   subgraph legs["12. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
     n12a["12a. code-reviewer · reads refactor/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
     n12b["12b. code-reviewer · reads auto-review/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
     n12c["12c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
-    n12d["12d. code-reviewer · follows references/scout-leg.md<br/>(agent-pinned, background, ∥): classifies each open scout<br/>in-goal or off-goal (in doubt, off-goal), verifies in-goal ones<br/>against the code, report-only<br/>→ RUN_DIR/scout-leg_&lt;ts&gt;.md + scout-classification.md<br/>ONLY when the export count is above 0"]:::dispatch
+    n12d["12d. code-reviewer · follows references/scout-leg.md<br/>(agent-pinned, background, ∥): classifies each pending scout<br/>in-goal or off-goal (in doubt, off-goal), verifies in-goal ones<br/>against the code, report-only<br/>→ RUN_DIR/scout-leg_&lt;ts&gt;.md + scout-classification.md<br/>ONLY when the export count is above 0"]:::dispatch
     n12e["12e. Main runs the metrics-review skill (no-git or not, plan or no plan),<br/>which dispatches the read-only metrics-tool-inspector (Explore) only when the<br/>per-session tool map has no entry for this repo, then a code-reviewer<br/>following metrics-lens.md (script run with --mutation) with RUN_DIR, BASE_REF, HEAD<br/>(background, ∥) → RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md.<br/>Main double-checks the inspector's report and commits any detector edit"]:::dispatch
   end
 
@@ -357,7 +357,7 @@ flowchart TD
   end
 
   n19["19. Step 6.1 · Fix review over every applied commit:<br/>DISABLED since 2026-11-17 while the user finds out what<br/>makes a run slow. Skip it; the report says<br/>fix review: disabled"]:::gate
-  n20(["20. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named). Then read references/final-report.md<br/>and report each item it lists: verdict paths, metrics results,<br/>applied findings with SHAs, judge Skips, never-judged findings on a<br/>report-only run, judge and fix-review status, QUESTION findings,<br/>the unplanned-tests finding for the human to mark Done,<br/>what /address-verdicts skipped or failed, and the scout leg:<br/>deleted in-goal ids, in-goal ids kept, off-goal ids left in<br/>the TaskList (ids only), or not run (no open scout)"])
+  n20(["20. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named). Then read references/final-report.md<br/>and report each item it lists: verdict paths, metrics results,<br/>applied findings with SHAs, judge Skips, never-judged findings on a<br/>report-only run, judge and fix-review status, QUESTION findings,<br/>the unplanned-tests finding for the human to mark Done,<br/>what /address-verdicts skipped or failed, and the scout leg:<br/>deleted, completed and kept in-goal ids, off-goal ids left in<br/>the TaskList (ids only), a merge fallback, or not run (no pending scout)"])
 
   n1 --> n2
   n2 -->|"yes"| n2a

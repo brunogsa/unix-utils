@@ -41,7 +41,7 @@ What `SKILL.md` §7 closes the run with, read at §7 so the list loads fresh aft
 Report the outcome that happened, and every bucket of ids that had members. Read the ids from `<RUN_DIR>/scout-outcomes.md`, never from memory.
 
 - A run outcome, one of:
-  - `scout leg: not run (no open scout)`.
+  - `scout leg: not run (no pending scout)`.
   - `scout leg: not run (no task directory for session <SESSION_ID>)`.
   - `scout leg: not run (no git)`.
   - `scout leg: FAIL (export exited <rc>: <stderr>)`, a failing outcome, never a clean one.
