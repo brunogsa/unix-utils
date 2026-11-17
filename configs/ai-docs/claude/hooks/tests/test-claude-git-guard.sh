@@ -278,6 +278,14 @@ CMD
   assert_eq "should block an unattributed commit on the line after a comment that starts right after a redirect" "2" "$HOOK_EXIT"
 }
 
+# An escaped metacharacter is part of the word, so a # right
+# after it opens no comment. The apostrophe after it then opens
+# a quote that closes on the next line, before the commit.
+it_should_block_an_unattributed_commit_after_a_hash_that_follows_an_escaped_semicolon() {
+  run_hook "$(printf "echo x\\\\;#'\n'; git commit -m 'fix bug'")"
+  assert_eq "should block an unattributed commit after a hash glued to a backslash-escaped semicolon" "2" "$HOOK_EXIT"
+}
+
 # A case pattern's ")" inside "$(...)" does not close the
 # substitution, so the commit in the case branch runs.
 it_should_block_an_unattributed_commit_in_a_case_branch_inside_a_double_quoted_command_substitution() {
@@ -987,6 +995,7 @@ it_should_block_an_unattributed_commit_inside_a_double_quoted_command_substituti
 it_should_block_an_unattributed_commit_in_a_function_called_from_a_command_substitution
 it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_closing_paren
 it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_redirect
+it_should_block_an_unattributed_commit_after_a_hash_that_follows_an_escaped_semicolon
 it_should_block_an_unattributed_commit_in_a_case_branch_inside_a_double_quoted_command_substitution
 it_should_block_a_guarded_git_command_that_only_the_line_by_line_reading_sees
 it_should_block_an_unattributed_commit_after_a_comment_holding_an_apostrophe

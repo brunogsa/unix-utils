@@ -162,14 +162,14 @@ def blank(char):
     return char if char == "\n" else "x"
 
 
-def scan_code(text, j, stack):
+def scan_code(text, j, stack, at_word_start):
     """Return the output and length of the token at j, outside
     quotes."""
     c, following = text[j], text[j + 1 : j + 2]
     depth = stack[-1]
     if c == "\\":
         return text[j : j + 2], 2
-    if c == "#" and (j == 0 or text[j - 1] in WORD_START):
+    if c == "#" and at_word_start:
         stack.append("comment")
         return c, 1
     if c == "$" and following == "\x27":
@@ -217,10 +217,16 @@ def blank_quotes_across_lines(text):
     Raise CannotClassify on a closing paren the scan cannot place."""
     if HEREDOC_OPENER.search(text.replace(HERESTRING_OPENER, "")):
         return None
-    out, stack, j = [], [0], 0
+    out, stack, j, at_word_start = [], [0], 0, True
     while j < len(text):
-        scan = scan_code if isinstance(stack[-1], int) else scan_quoted
-        piece, length = scan(text, j, stack)
+        if isinstance(stack[-1], int):
+            piece, length = scan_code(text, j, stack, at_word_start)
+        else:
+            piece, length = scan_quoted(text, j, stack)
+        token = text[j : j + length]
+        # A word starts only after a metacharacter bash really read
+        # as one, never after an escaped one or a closed quote.
+        at_word_start = token[0] != "\\" and token[-1] in WORD_START
         out.append(piece)
         j += length
     if stack[-1] == "comment":
