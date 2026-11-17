@@ -372,6 +372,26 @@ it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tr
   assert_eq "should block cp copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
 }
 
+it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "mv $scratch_dir/batch.md README.md"
+  assert_eq "should block mv moving a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "install $scratch_dir/batch.md README.md"
+  assert_eq "should block install copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory() {
+  run_hook "cp $scratch_dir/batch.md docs"
+  assert_eq "should block cp copying a /tmp scratch file whose prose breaks the markdown format rules into a repo directory, which writes docs/batch.md" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t() {
+  run_hook "cp -t docs $scratch_dir/batch.md"
+  assert_eq "should block cp -t docs copying a /tmp scratch file whose prose breaks the markdown format rules into the repo" "2" "$HOOK_EXIT"
+}
+
 # Script-shape cases: an in-place edit that is not one literal
 # replace-all over the whole file is blocked on any extension,
 # since Edit (replace_all, or a widened old_string) can always
@@ -607,6 +627,10 @@ it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
 it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit
 it_should_block_an_in_place_sed_limited_to_a_line_range
 it_should_block_an_in_place_perl_limited_to_a_line_range

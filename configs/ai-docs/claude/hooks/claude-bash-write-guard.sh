@@ -60,8 +60,10 @@
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
-# A bare system `cp` onto a guarded path gets the same check:
-# each literal source must pass the destination's checker.
+# A bare system `cp`, `mv` or `install` into a guarded path
+# gets the same check: each literal source must pass the
+# checker of the file it lands as. A directory destination or
+# `-t DIR` lands it as DIR/<source basename>.
 #
 # An inline python or node program (`python3 -c`, a
 # `python3 -` heredoc, `node -e`) writing a guarded path is
@@ -91,7 +93,7 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 # reach no write form this guard knows, so it skips the Python
 # parse.
 printf '%s' "$CMD" \
-  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node|cp)([^A-Za-z0-9_-]|$)' \
+  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node|cp|mv|install)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
 # Resolved via BASH_SOURCE (never `$0`, which breaks under
@@ -155,7 +157,7 @@ WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 # by that name, which can write any text it likes.
 SYSTEM_BINARY_DIRECTORIES = ('', '/bin/', '/usr/bin/')
 
-FILE_COPY_COMMANDS = ('cp',)
+FILE_COPY_COMMANDS = ('cp', 'mv', 'install')
 
 PROSE_FORMAT_HOOK = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'claude-prose-format-posttool-hook.sh')
 
@@ -633,12 +635,13 @@ def literal_existing_file(cwd, source):
 
 
 def copy_operands(arguments):
-    """The operands of a cp argument list."""
+    """(operands, target directory or None) of a cp, mv or install argument list."""
     # why: flags are skipped, not rejected - unlike `cat -n`, no
     # flag of these copiers rewrites the copied text. A flag's
     # own argument (`-S .bak`) reads as a missing source, which
     # blocks, the conservative side.
     operands = []
+    target_directory = None
     index = 0
     is_past_options = False
     while index < len(arguments):
@@ -648,25 +651,41 @@ def copy_operands(arguments):
             operands.append(token)
         elif token == '--':
             is_past_options = True
-    return operands
+        elif token in ('-t', '--target-directory'):
+            target_directory = arguments[index] if index < len(arguments) else None
+            index += 1
+        elif token.startswith('--target-directory='):
+            target_directory = token.split('=', 1)[1]
+        elif token.startswith('-t'):
+            target_directory = token[2:]
+    return operands, target_directory
 
 
 def copy_destinations(exe, tokens, cwd):
-    """(destination, source path or None) per file a cp segment writes; None marks a source no check can vouch for."""
+    """(destination, source path or None) per file a cp, mv or install segment writes; None marks a source no check can vouch for."""
     if exe not in FILE_COPY_COMMANDS:
         return []
     executable_index = next(index for index, token in enumerate(tokens)
                             if os.path.basename(token) == exe)
     arguments = without_redirects(tokens[executable_index + 1:])
-    sources = copy_operands(arguments)
-    if len(sources) < 2:
-        return []
-    destination = sources.pop()
+    sources, target_directory = copy_operands(arguments)
+    if target_directory is None:
+        if len(sources) < 2:
+            return []
+        destination = sources.pop()
+        is_into_directory = (len(sources) > 1 or destination.endswith('/')
+                             or os.path.isdir(absolute_path(cwd, destination)))
+    else:
+        destination = target_directory
+        is_into_directory = True
     is_trusted_copier = is_system_executable(tokens[0], exe)
     pairs = []
     for source in sources:
+        target = destination
+        if is_into_directory:
+            target = os.path.join(destination, os.path.basename(source.rstrip('/')))
         source_path = literal_existing_file(cwd, source) if is_trusted_copier else None
-        pairs.append((destination, source_path))
+        pairs.append((target, source_path))
     return pairs
 
 
@@ -887,7 +906,7 @@ if blocked:
     if not GUARDED_EXTENSIONS:
         message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
     if format_reports:
-        message.append('A `cat` or `cp` copy of existing files passes only when every source passes the destination format checker; these did not:')
+        message.append('A `cat`, `cp`, `mv` or `install` copy of existing files passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
 if script_shape_blocked:
     message.append('bash write guard blocked this in-place sed/perl edit - its script is not one literal text replaced across the whole file:')
