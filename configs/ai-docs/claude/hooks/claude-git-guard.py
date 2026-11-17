@@ -18,6 +18,7 @@ import shlex
 import subprocess
 import sys
 from collections.abc import Set as AbstractSet
+from itertools import dropwhile
 from pathlib import Path
 
 LIB_DIR = Path(__file__).resolve().parent / "lib"
@@ -27,17 +28,22 @@ MAY_NAME_GIT = re.compile(r"\b(git|aigitcommit)\b")
 UNPARSED_GUARDED = re.compile(r"\b(git\b.*?\b(" + "|".join(GUARDED) + r")|aigitcommit)\b", re.S)
 GUARDED_WORD = re.compile(r"\b(" + "|".join(GUARDED) + r")\b")
 
-# A reader that runs a heredoc body as code, anywhere on the
-# opener line: `bash <<X`, `cat <<X | sh`, `python3 <<X`.
-EXECUTING_READER = re.compile(
-    r"(^|[\s;&|(/])(bash|sh|zsh|dash|ksh|fish|ssh|sudo|env|exec|eval|source|xargs"
-    r"|python[\d.]*|node|deno|perl|ruby|php|lua|osascript)\b|(^|\s)\.(\s|$)")
+# The only heredoc readers whose body is never run as code;
+# any other reader keeps its body in the text the guard reads.
+INERT_READER = re.compile(r"cat( >>? ?[\w./~-]+)?|tee( -a)? [\w./~-]+|git commit( [\w-]+)* -F -")
 HEREDOC_START = re.compile(r"(?<!<)<<(?!<)")
+HEREDOC_DELIMITER = re.compile(r"-?\s*(['\"]?)\w+\1")
+REDIRECT_TO_FILE = re.compile(r"\s*(>>?\s*[\w./~-]+)?\s*")
 
 # Ways to point git at config that defines an alias, so that
 # an unguarded-looking `git p` runs `git push`.
 ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*=")
-CONFIG_ROUTE = re.compile(r"alias\.|^(GIT_CONFIG\w*|HOME|XDG_CONFIG_HOME)=", re.I)
+CONFIG_ROUTE = re.compile(r"alias\.|include(if)?\.|^(GIT_CONFIG\w*|HOME|XDG_CONFIG_HOME)=", re.I)
+
+# A word the shell rewrites before running it: a variable, a
+# substitution, or a glob or brace pattern.
+REWRITTEN_CHARS = "$`*?[{"
+LITERAL_COMMANDS = {"git", "git-hunk"}
 OPERATOR_CHARS = "();<>|&\n"
 WRAPPERS = {"sh", "bash", "zsh", "eval"}
 GLOBALS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
@@ -75,7 +81,7 @@ def block(rule, subcommand: str | None = "commit"):
     sys.exit(2)
 
 
-def tokenize(command):
+def tokenize(command, commenters=""):
     """Split a command into shell words and operator tokens.
 
     Raises ValueError when the command does not parse.
@@ -83,8 +89,12 @@ def tokenize(command):
     lexer = shlex.shlex(command, posix=True, punctuation_chars=OPERATOR_CHARS)
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
-    lexer.commenters = ""
+    lexer.commenters = commenters
     return list(lexer)
+
+
+def dequote(text):
+    return re.sub(r"[\"'\\]", "", text)
 
 
 def is_operator(token):
@@ -224,6 +234,8 @@ def check_checkout(args, base_dir):
         return "git checkout -- needs named paths, never the whole tree, a pattern, or an option"
     if len(positionals) > 1 or not (options or positionals):
         return "git checkout takes one branch, or -b <branch> [<start>]"
+    if not all(pathspec_is_safe(name, base_dir) for name in positionals):
+        return "git checkout takes a branch name, never a pathspec pattern or the whole tree"
     if not options and os.path.lexists(os.path.join(base_dir, positionals[0])):
         return (f"{positionals[0]} is a path here, and git checkout of a path discards its changes;"
                 " use git restore <file> or git switch <branch>")
@@ -350,64 +362,100 @@ def load_strip_heredoc_bodies():
     return module.strip_heredoc_bodies
 
 
-def parses(text):
+def same_tokens_with_comments(text):
+    """True when text parses, and reads the same whether `#`
+    starts a comment or not, so no comment hides a quote."""
     try:
-        tokenize(text)
+        return tokenize(text) == tokenize(text, "#")
     except ValueError:
         return False
-    return True
+
+
+def heredoc_is_inert(command, opener):
+    """True only when the `<<` at opener is a real heredoc read
+    by cat, tee or git commit -F -, with nothing after its
+    delimiter but a redirect to a file."""
+    line_start = command.rfind("\n", 0, opener.start()) + 1
+    line_end = command.find("\n", opener.end())
+    after = command[opener.end():line_end if line_end != -1 else len(command)]
+    delimiter = HEREDOC_DELIMITER.match(after)
+    if not delimiter or not REDIRECT_TO_FILE.fullmatch(after[delimiter.end():]):
+        return False
+    prefix = command[:opener.start()]
+    if same_tokens_with_comments(prefix):
+        reader = re.split(r"(?<!\\)[;&|(\n]", prefix)[-1]
+
+    # Inside an open double quote only a $( substitution runs
+    # a command, so the reader is whatever follows it.
+    elif same_tokens_with_comments(prefix + '"') and "$(" in command[line_start:opener.start()]:
+        reader = prefix.rpartition("$(")[2]
+    else:
+        return False
+    return bool(INERT_READER.fullmatch(" ".join(reader.split())))
 
 
 def strip_inert_heredocs(command, strip_heredoc_bodies):
     """Return the command with its heredoc bodies dropped, and
-    False; or the command whole, and True, when any `<<` is
-    quoted, commented, or on a line that runs a shell or an
-    interpreter, so a body that runs as code is still read."""
-    for opener in HEREDOC_START.finditer(command):
-        line_start = command.rfind("\n", 0, opener.start()) + 1
-        line_end = command.find("\n", opener.end())
-        line = command[line_start:line_end if line_end != -1 else len(command)]
-        prefix = command[:opener.start()]
-        if EXECUTING_READER.search(line) or "#" in prefix or not parses(prefix):
-            return command, True
-    return strip_heredoc_bodies(command), False
+    False; or the command whole, and True, when any heredoc
+    may not be inert, so a body that runs as code is read."""
+    if all(heredoc_is_inert(command, opener) for opener in HEREDOC_START.finditer(command)):
+        return strip_heredoc_bodies(command), False
+    return command, True
 
 
 def may_run_git(command):
     """False only when no word can spell git: quotes and
-    backslashes removed, no git, and no $ or backtick."""
-    plain = re.sub(r"[\"'\\]", "", command)
-    return bool(MAY_NAME_GIT.search(plain)) or "$" in command or "`" in command
+    backslashes removed, no git, no $ or backtick, and no
+    glob or brace pattern beside a guarded word."""
+    plain = dequote(command)
+    if MAY_NAME_GIT.search(plain) or "$" in command or "`" in command:
+        return True
+    return any(char in command for char in REWRITTEN_CHARS) and bool(GUARDED_WORD.search(plain))
 
 
 def unparsed_is_risky(text):
-    is_dynamic = ("$" in text or "`" in text) and GUARDED_WORD.search(text)
-    names_alias = MAY_NAME_GIT.search(text) and CONFIG_ROUTE.search(text)
-    return bool(UNPARSED_GUARDED.search(text) or is_dynamic or names_alias)
+    plain = dequote(text)
+    is_rewritten = any(char in text for char in REWRITTEN_CHARS) and GUARDED_WORD.search(plain)
+    names_alias = MAY_NAME_GIT.search(plain) and CONFIG_ROUTE.search(text)
+    return bool(UNPARSED_GUARDED.search(plain) or is_rewritten or names_alias)
 
 
 def runs_git(tokens):
     return any(token == "git" or token.endswith("/git") for token in tokens)
 
 
-def check_config_routes(tokens):
+def check_git_words(tokens):
+    """Blocks a git whose subcommand the shell rewrites, or
+    whose config can define an alias that renames one."""
     for index, token in enumerate(tokens):
         if token == "git" or token.endswith("/git"):
-            options, _ = skip_globals(tokens, index + 1)
+            options, sub_index = skip_globals(tokens, index + 1)
             if any(option == "-c" or option.startswith("--config-env") for option in options):
                 block("git -c and --config-env can define an alias; run git without them", None)
+            if sub_index < len(tokens) and any(char in tokens[sub_index] for char in REWRITTEN_CHARS):
+                block("git's subcommand must be a plain word, never built from $, a backtick,"
+                      " a glob or braces", None)
     if runs_git(tokens) and any(CONFIG_ROUTE.search(token) for token in tokens):
-        block("a git alias or a GIT_CONFIG, HOME or XDG_CONFIG_HOME override can rename"
-              " a guarded subcommand; leave git config alone", None)
+        block("a git alias or include, or a GIT_CONFIG, HOME or XDG_CONFIG_HOME override, can"
+              " rename a guarded subcommand; leave git config alone", None)
 
 
-def check_dynamic_command_words(segments):
+def check_command_words(segments, text):
+    """Blocks a guarded word that a literal git may not be
+    the one to run: after any other command, or beside a
+    command name the shell rewrites."""
+    names_guarded = GUARDED_WORD.search(text)
     for segment in segments:
-        words = [token for token in segment if not ASSIGNMENT.match(token)]
-        is_dynamic = words and ("$" in words[0] or "`" in words[0])
-        if is_dynamic and any(word in GUARDED for word in words):
-            block("a command name built from $ or a backtick runs beside a guarded git word;"
-                  " run git by name", None)
+        words = list(dropwhile(ASSIGNMENT.match, segment))
+        if not words:
+            continue
+        if names_guarded and any(char in words[0] for char in REWRITTEN_CHARS):
+            block("a command name built from $, a backtick, a glob or braces runs beside a"
+                  " guarded git word; run git by name", None)
+        guarded = next((word for word in words[1:] if word in GUARDED), None)
+        if guarded and words[0] not in LITERAL_COMMANDS:
+            block(f"{words[0]} comes before the guarded word {guarded}; run git {guarded}"
+                  " with nothing before git", guarded)
 
 
 def check_wrappers(segments, strip_heredoc_bodies):
@@ -430,25 +478,43 @@ def check_shape(command, segments, operators, first_guarded, cwd):
         check_single(segments[0], first_guarded, cwd)
 
 
+def substitution_bodies(text):
+    """Yield the text inside each backtick or $( ) substitution;
+    one whose end cannot be found runs to the end of text."""
+    for match in re.finditer(r"`([^`]*)`?", text):
+        yield match.group(1)
+    for match in re.finditer(r"\$\(", text):
+        depth, end = 1, match.end()
+        while end < len(text) and depth:
+            depth += {"(": 1, ")": -1}.get(text[end], 0)
+            end += 1
+        body = text[match.end():end - 1 if depth == 0 else end]
+        yield body if same_tokens_with_comments(body) else text[match.end():]
+
+
 def check_text(text, kept_heredocs):
     """Blocks a guarded git command hidden from the tokens: in
     a backtick or $( ) substitution, or in a heredoc body
-    that runs as code."""
-    if ("`" in text or "$(" in text) and UNPARSED_GUARDED.search(text):
-        block("a guarded git command inside a backtick or $( ) substitution; run git directly", None)
-    if kept_heredocs and UNPARSED_GUARDED.search(text):
+    that may run as code."""
+    for body in substitution_bodies(text):
+        plain = dequote(body)
+        is_rewritten = GUARDED_WORD.search(plain) and any(char in body for char in REWRITTEN_CHARS)
+        if UNPARSED_GUARDED.search(plain) or is_rewritten:
+            block("a guarded git command inside a backtick or $( ) substitution; run git directly", None)
+    if kept_heredocs and UNPARSED_GUARDED.search(dequote(text)):
         block("a guarded git command inside a heredoc that may run as code; run git directly", None)
 
 
-def check_tokens(tokens, segments, strip_heredoc_bodies):
+def check_tokens(tokens, segments, text, strip_heredoc_bodies):
     if any(token == "aigitcommit" or token.endswith("/aigitcommit") for token in tokens):
         block("aigitcommit is never allowed; run git commit directly")
     check_wrappers(segments, strip_heredoc_bodies)
-    check_dynamic_command_words(segments)
-    check_config_routes(tokens)
+    check_command_words(segments, text)
+    check_git_words(tokens)
 
 
 def check(command, cwd):
+    command = command.replace("\\\n", "")
     if not may_run_git(command):
         return
     strip_heredoc_bodies = load_strip_heredoc_bodies()
@@ -462,7 +528,7 @@ def check(command, cwd):
         return
     check_text(text, kept_heredocs)
     segments, operators = split_segments(tokens)
-    check_tokens(tokens, segments, strip_heredoc_bodies)
+    check_tokens(tokens, segments, text, strip_heredoc_bodies)
     found = guarded_subcommands(tokens)
     if not found:
         return

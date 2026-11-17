@@ -374,10 +374,43 @@ def test_blocks_subject_over_64_characters_with_the_lib_reason(repo):
         pytest.param("git push origin feature~1", id="push a ~ form"),
         pytest.param("git push origin feature^", id="push a ^ form"),
         pytest.param("git checkout notes.txt", id="checkout of an existing file name"),
+        pytest.param("env git push --force origin master", id="env prefix"),
+        pytest.param("command git push --force origin master", id="command prefix"),
+        pytest.param("exec git reset --hard", id="exec prefix"),
+        pytest.param("nohup git push --force origin master", id="nohup prefix"),
+        pytest.param("time git clean -fdx", id="time prefix"),
+        pytest.param("nice git checkout .", id="nice prefix"),
+        pytest.param("sudo git push --force origin master", id="sudo prefix"),
+        pytest.param("echo push --force origin master | xargs git", id="xargs feeds the subcommand to git"),
+        pytest.param("/usr/bin/g?t push --force origin master", id="glob spelling git"),
+        pytest.param("{git,x} push --force origin master", id="brace expansion spelling git"),
+        pytest.param("git pu?h --force origin master", id="glob spelling the subcommand"),
+        pytest.param("echo push --force origin master | xargs g?t", id="xargs feeds a glob-spelled git"),
+        pytest.param("git config include.path /tmp/aliases", id="git config writes include.path"),
+        pytest.param("git config includeIf.gitdir:/tmp/.path /tmp/aliases", id="git config writes includeIf"),
+        pytest.param("tclsh <<'EOF'\nexec git push --force origin master\nEOF", id="heredoc fed to a reader not listed"),
+        pytest.param("tee notes.txt <<'EOF' | sh\ngit push --force origin master\nEOF", id="heredoc tee piped on to sh"),
+        pytest.param(
+            "echo \"; cat <<'EOF'\n\"; git push --force origin master\nEOF", id="cat opener inside an open quote"
+        ),
+        pytest.param("git checkout ':/'", id="checkout of a pathspec magic name"),
+        pytest.param("git checkout '*.txt'", id="checkout of a glob"),
+        pytest.param("echo `g''it push -f origin master`", id="backtick with git split by quotes"),
+        pytest.param("x=`g''it push -f origin master`", id="backtick in an assignment"),
+        pytest.param('echo "$(g\\it push -f origin master)"', id="substitution with git split by a backslash"),
+        pytest.param("P=push; git $P --force origin master", id="variable as the subcommand"),
+        pytest.param("git $'push' --force origin master", id="ANSI-C quoted subcommand"),
+        pytest.param("gi\\\nt push --force origin master", id="backslash-newline splitting git"),
     ],
 )
 def test_blocks_each_way_around_the_guard(repo, command):
     assert_blocked(run_hook(command, repo))
+
+
+def test_blocks_a_prefixed_git_and_prints_the_allowed_forms(repo):
+    result = run_hook("env git push origin feature", repo)
+    assert_blocked(result)
+    assert "Allowed forms:" in result.stderr
 
 
 def test_blocks_restore_of_the_repository_root_by_absolute_path(repo):
@@ -397,6 +430,14 @@ def test_blocks_checkout_of_an_existing_directory_and_names_the_safe_commands(re
         pytest.param('"$HOME/bin/tool" --help', id="variable in command position without git"),
         pytest.param("git restore sub/notes.txt", id="restore of a named path in a subdirectory"),
         pytest.param("git push origin feature/main-menu", id="push a branch whose name contains main"),
+        pytest.param(
+            "gh pr create --title t --body \"$(cat <<'EOF'\nRun git add, then git commit and git push.\nEOF\n)\"",
+            id="pull request body in a cat heredoc that mentions git commit",
+        ),
+        pytest.param(
+            "cat > notes.md <<'EOF'\nthen git push --force origin master\nEOF", id="cat heredoc written to a file"
+        ),
+        pytest.param("git status; echo \"$(date)\"", id="unrelated substitution beside git"),
     ],
 )
 def test_still_allows_near_misses(repo, command):
