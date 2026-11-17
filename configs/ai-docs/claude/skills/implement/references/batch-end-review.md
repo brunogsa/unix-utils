@@ -128,9 +128,9 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 - **Missing planned tests** - the `test-sdd` leg's misses, called out on their own line, not buried in the finding list; the gap this batch exists to close, attempted every run.
 
 - **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.3) - this run never fixes one.
-  - Off-goal scouts stay in the TaskList for the human.
+  - Off-goal ones stay in the TaskList for the human; the gate's scout leg turns an in-goal one into a `[scout]` finding.
+  - Find it in the merged verdict by its `**Scout task**: #<id>` line; the gate may apply it and delete the task.
 
-  - The gate's scout leg turns an in-goal one into a `[scout]` finding in the merged verdict, found by its `**Scout task**: #<id>` line, which the gate may apply and then delete the task.
 - **The literal diff range** - print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted.
 - **"Unexpected extras"** - §8.3's runner's Fixed list: each commit it produced to reach green, with the failure that commit closed.
 - **Repo-green result** - carries §8.3's verdict, its log path, and final pass/fail counts into the package.
