@@ -131,8 +131,7 @@ segment keeps runs from different branches distinguishable, and the timestamp
 preserves order when the user runs several reviews on the same branch in one
 CWD.
 
-File one `[Scout]` TaskList entry per file listed in that summary's
-doc-standards-flags block, naming the file and what is off standard.
+List one scout per file in that summary's doc-standards-flags block in your report, naming the file, what is off standard and a fix-or-skip prior. The caller (main) files each as a `[Scout]` TaskList entry, since a `code-reviewer` leg has no task tools.
 
 The pipeline always runs isolated here, so its own TaskList write never
 reaches the user - this session is the first that can raise those flags, and
