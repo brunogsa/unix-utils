@@ -95,7 +95,7 @@ Every `convert` verdict below targets `py` - no script in either repo carries a 
 | `configs/ai-docs/claude/hooks/tests/test-subagent-model-guard.sh` | convert | py | jq+here-doc | Delete - subject already converted to `subagent-model-guard.py` |
 | `configs/ai-docs/claude/scripts/resolve-base-ref.sh` | stays-sh | py | no risky construct, <=128 lines | - |
 | `configs/ai-docs/claude/scripts/statusline-tier.sh` | convert | py | awk+jq+here-doc; 827 lines (>128) | - |
-| `configs/ai-docs/claude/scripts/tests/test-resolve-base-ref.sh` | convert | py | 157 lines (>128) | Port to pytest - subject stays `.sh` |
+| `configs/ai-docs/claude/scripts/tests/test-resolve-base-ref.sh` | convert | py | 157 lines (>128) | Ported to pytest as `resolve-base-ref.test.py` - port already done |
 | `configs/ai-docs/claude/scripts/tests/test-statusline-tier.sh` | convert | py | awk+jq+sed -E+here-doc; 2164 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/scripts/tests/test-tmux-window-title.sh` | convert | py | 742 lines (>128) | Delete alongside subject's conversion |
 | `configs/ai-docs/claude/scripts/tmux-window-title.sh` | convert | py | awk+sed -E; 526 lines (>128) | - |
