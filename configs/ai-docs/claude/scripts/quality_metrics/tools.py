@@ -3,6 +3,8 @@ output."""
 
 import csv
 import io
+import os
+import signal
 import subprocess
 
 # Columns of `shellmetrics --csv`; its pseudo-rows are not
@@ -21,18 +23,35 @@ def run_command(command, input_text=None, cwd=None, env=None, timeout=None):
     code.
 
     Raises subprocess.TimeoutExpired once `timeout` seconds
-    pass.
+    pass, after killing the command's whole process group: a
+    test runner's workers outlive a kill of the runner alone.
 
     A binary or Latin-1 file must not crash the run, so bytes
     that are not UTF-8 decode to a replacement character.
     """
     try:
-        return subprocess.run(
-            command, capture_output=True, text=True,
-            encoding="utf-8", errors="replace", input=input_text, cwd=cwd, env=env, timeout=timeout,
+        process = subprocess.Popen(
+            command, stdin=None if input_text is None else subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            text=True, encoding="utf-8", errors="replace", cwd=cwd, env=env,
+            start_new_session=True,
         )
     except FileNotFoundError as error:
         raise ToolError(f"'{command[0]}' is not installed; run install.sh") from error
+    try:
+        stdout, stderr = process.communicate(input_text, timeout=timeout)
+    except BaseException:
+        _kill_process_group(process)
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def _kill_process_group(process):
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
 
 
 def run_tool(command, input_text=None, cwd=None, timeout=None):

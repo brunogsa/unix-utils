@@ -1,5 +1,8 @@
+import os
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -402,6 +405,34 @@ def test_should_flag_a_test_file_function_size_against_the_test_function_limit_w
     )
 
     assert (record["limit"], record["value"]) == (TEST_FUNCTION_LINES_LIMIT, TEST_FUNCTION_LINES_LIMIT + 1)
+
+
+def _is_running(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def test_should_kill_the_child_processes_a_command_spawned_when_it_times_out(tmp_path):
+    # A jest run leaves its workers behind when only jest itself
+    # is killed, so the whole process group must go.
+    pid_file = tmp_path / "child.pid"
+    spawns_a_sleeping_child = f"sleep 20 & echo $! > {pid_file}; wait"
+    child_pid = None
+    try:
+        with pytest.raises(subprocess.TimeoutExpired):
+            run_command(["bash", "-c", spawns_a_sleeping_child], timeout=1)
+        child_pid = int(pid_file.read_text())
+        deadline = time.monotonic() + 5
+        while _is_running(child_pid) and time.monotonic() < deadline:
+            time.sleep(0.1)
+
+        assert not _is_running(child_pid)
+    finally:
+        if child_pid and _is_running(child_pid):
+            os.kill(child_pid, signal.SIGKILL)
 
 
 def test_should_name_a_dirty_tracked_file_and_an_untracked_file_by_repo_root_path_when_run_from_a_subdirectory(
