@@ -34,6 +34,9 @@ configs/ai-docs/claude/scripts/quality_metrics/node_tools/package-lock.json
 # Pyright does not expand ${env:HOME} inside pyrightconfig.json, so no
 # committed literal resolves on both macOS and Linux.
 pyrightconfig.json
+# These two hold only repo-relative extraPaths, so they resolve on both OSes.
+!configs/ai-docs/claude/scripts/pyrightconfig.json
+!configs/ai-docs/claude/skills/implement/scripts/pyrightconfig.json
 # Anthropic's skill sync writes upstream-owned skills here through the
 # symlinked skills/ tree. The next sync re-pushes them, so committing is churn.
 configs/ai-docs/claude/skills/synced/
