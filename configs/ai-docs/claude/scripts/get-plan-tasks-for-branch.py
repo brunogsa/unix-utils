@@ -9,9 +9,9 @@
 #
 # stdout: the task ids of the "## PR Breakdown" entry whose
 #   **Branch**: line equals <branch>, comma-separated with no
-#   spaces (e.g. 10,11);
+#   spaces (e.g. 10,11).
 #
-#   empty when no entry names the branch or the plan has no
+#   Empty when no entry names the branch or the plan has no
 #   PR breakdown.
 #
 # exit: 0 success, 1 unreadable plan, branch named by 2+
@@ -26,7 +26,6 @@ SCRIPT_NAME = "get-plan-tasks-for-branch.py"
 
 PR_BREAKDOWN_HEADING = "## PR Breakdown"
 
-# A level-1 or level-2 heading ends the PR Breakdown section.
 SECTION_END = re.compile(r"^#{1,2} ")
 
 PR_ENTRY_HEADING = re.compile(r"^### (?P<title>.*?)\s*$")
@@ -82,8 +81,9 @@ def iter_pr_breakdown_lines(plan_text):
 
 
 def list_pr_entries(plan_text):
-    """Each entry: heading title, branch (None when no Branch
-    line), and tasks text (None when no Tasks line)."""
+    """Each entry: heading title, branch (None when the Branch
+    line is absent or blank, so no branch name matches it),
+    and tasks text (None when no Tasks line)."""
     entries = []
     for line in iter_pr_breakdown_lines(plan_text):
         heading = PR_ENTRY_HEADING.match(line)
@@ -95,7 +95,8 @@ def list_pr_entries(plan_text):
         branch = BRANCH_LINE.match(line)
         tasks = TASKS_LINE.match(line)
         if branch:
-            entries[-1]["branch"] = branch["value"].strip().strip("`").strip()
+            branch_name = branch["value"].strip().strip("`").strip()
+            entries[-1]["branch"] = branch_name or None
         elif tasks:
             entries[-1]["tasks"] = tasks["value"]
     return entries

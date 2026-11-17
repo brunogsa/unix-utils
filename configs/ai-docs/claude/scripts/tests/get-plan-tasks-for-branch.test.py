@@ -165,6 +165,22 @@ class TestFallbackToEveryTask:
         assert completed.returncode == 0, completed.stderr
         assert completed.stdout == ""
 
+    def test_should_print_nothing_and_succeed_for_an_empty_branch_name_while_several_pr_entries_have_no_branch_yet(
+        self, tmp_path
+    ):
+        plan = _write_plan(
+            tmp_path,
+            _plan_with_breakdown(
+                _pr_entry("PR-11. Script CNPJs by brand", "**Tasks**: 15", "**Branch**:"),
+                _pr_entry("PR-12. Script agreements by CNPJ", "**Tasks**: 16", "**Branch**:"),
+            ),
+        )
+
+        completed = _run(plan, "")
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout == ""
+
     def test_should_print_nothing_and_succeed_when_the_plan_has_no_pr_breakdown(
         self, tmp_path
     ):
