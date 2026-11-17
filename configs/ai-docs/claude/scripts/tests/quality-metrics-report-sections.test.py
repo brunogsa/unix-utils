@@ -333,6 +333,7 @@ class TestRankedSectionTitles:
 
     def test_should_title_every_metric_the_declaration_lists_so_a_new_metric_cannot_render_a_raw_key(self):
         declaration = yaml.safe_load(DECLARATION.read_text())
+        assert isinstance(declaration, dict)
         declared = {
             metric
             for language in declaration["languages"].values()
