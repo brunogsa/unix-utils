@@ -93,7 +93,7 @@ def quality_gate(arg):
     legs = dispatch_parallel(background=True, legs=[
         ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 12a · leg dispatch
         ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 12b · leg dispatch
-        # 12c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
+        # 12c · scoped by --tasks (derived by get-plan-tasks-for-branch.py when omitted), passed --out-dir run_dir, dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
         # 12d · scout-leg.md: classifies each pending scout in-goal or off-goal, writes a
         #       finding per in-goal scout; dispatched ONLY when open_scouts > 0. Report-only:
@@ -291,7 +291,7 @@ flowchart TD
     direction TB
     n12a["12a. code-reviewer · reads refactor/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
     n12b["12b. code-reviewer · reads auto-review/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
-    n12c["12c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
+    n12c["12c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks (omitted: main derives it with<br/>get-plan-tasks-for-branch.py; non-zero exit = no leg, FAIL),<br/>passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
     n12d["12d. code-reviewer · follows references/scout-leg.md<br/>(agent-pinned, background, ∥): classifies each pending scout<br/>in-goal or off-goal (in doubt, off-goal), verifies in-goal ones<br/>against the code, report-only<br/>→ RUN_DIR/scout-leg_&lt;ts&gt;.md + scout-classification.md<br/>ONLY when the export count is above 0"]:::dispatch
     n12e["12e. Main runs the metrics-review skill (no-git or not, plan or no plan),<br/>which dispatches the read-only metrics-tool-inspector (Explore) only when the<br/>per-session tool map has no entry for this repo, then a code-reviewer<br/>following metrics-lens.md (script run with --mutation) with RUN_DIR, BASE_REF, HEAD<br/>(background, ∥) → RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md.<br/>Main runs check-metrics-judge-coverage.py on the judge file;<br/>non-zero after one re-dispatch fails the leg.<br/>Main double-checks the inspector's report and commits any detector edit"]:::dispatch
   end

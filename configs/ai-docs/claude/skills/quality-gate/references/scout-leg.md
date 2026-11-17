@@ -113,3 +113,14 @@ Main runs this right after §4.1's merge passes, never later, and never on the f
 
 - Write `<RUN_DIR>/scout-outcomes.md`, one line per id: `#<id> - deleted|completed|kept|off-goal - <reason>`. Main reads it at §7.
   - Reason: after a compaction main can no longer recall which ids it deleted.
+
+## Export outcomes
+
+What `SKILL.md` §3 does with `export-open-scouts.py`'s result:
+
+- **No git repo** → skip the export and dispatch no scout leg, since it needs `git diff`; §7 reads `scout leg: not run (no git)`.
+
+- **Non-zero exit** → dispatch no scout leg; §7 reads `scout leg: FAIL (export exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
+
+- **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no pending scout)`.
+  - When `~/.claude/tasks/<SESSION_ID>/` does not exist, §7 reads `scout leg: not run (no task directory for session <SESSION_ID>)` instead, so a wrong session id never reads as "no pending scout".

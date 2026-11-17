@@ -49,6 +49,8 @@ Report the outcome that happened, and every bucket of ids that had members. Read
   - `scout leg: not run (no git)`.
   - `scout leg: FAIL (export exited <rc>: <stderr>)`, a failing outcome, never a clean one.
   - `scout leg: merge fell back, no scout task deleted`.
+  - `test-sdd: every plan task (no PR entry names <branch>)`.
+  - `test-sdd leg: FAIL (task scoping exited <rc>: <stderr>)`, a failing outcome, never a clean one.
 
 - After a merge that passed, each of these that is not empty:
   - The in-goal ids deleted, with the merged verdict path where their findings live.

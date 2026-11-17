@@ -30,7 +30,7 @@ Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it
 
 - `spec` / `plan` - paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
 
-- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg; omitted, every task.
+- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg; omitted, the ids `get-plan-tasks-for-branch.py` derives from the plan's PR entry for the current branch, else every task when no entry names it.
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
@@ -90,12 +90,8 @@ First mint the run directory: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. �
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
 Then export the pending scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of pending `[Scout]` tasks.
-- **No git repo** → skip the export and dispatch no scout leg, since it needs `git diff`; §7 reads `scout leg: not run (no git)`.
 
-- **Non-zero exit** → dispatch no scout leg; §7 reads `scout leg: FAIL (export exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
-
-- **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no pending scout)`.
-  - When `~/.claude/tasks/<SESSION_ID>/` does not exist, §7 reads `scout leg: not run (no task directory for session <SESSION_ID>)` instead, so a wrong session id never reads as "no pending scout".
+With no git, skip the export. Settle each outcome per [`scout-leg.md`](references/scout-leg.md) "Export outcomes".
 
 Spawn each leg as its own agent, all in the **same turn**, all in the background.
 
@@ -103,7 +99,12 @@ Spawn each leg as its own agent, all in the **same turn**, all in the background
 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>`, the resolved spec/plan paths and `<SESSION_ID>` pushed in.
 
-- `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
+- **Scope the test-sdd leg** (plan resolved, no `--tasks`): main runs `~/.claude/scripts/get-plan-tasks-for-branch.py <plan> "$(git branch --show-current)"`.
+  - **Non-empty output** → pass it as the leg's `--tasks`.
+  - **Empty output, exit 0** → no `--tasks`; §7 reads `test-sdd: every plan task (no PR entry names <branch>)`.
+  - **Non-zero exit** → dispatch no test-sdd leg; §7 reads `test-sdd leg: FAIL (task scoping exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
+
+- `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, its `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
 - `agent(subAgent=code-reviewer, title=Scout-lens review)` - follows [`references/scout-leg.md`](references/scout-leg.md), with `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths, and the export path pushed in.
   - Dispatch it only when the export printed a count above 0.
@@ -139,7 +140,7 @@ Count findings fence-aware, since a finding may quote a `### 1.` line in a fence
 
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
-Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only the run's tooling problems above `## Findings`; the full render stays in `<RUN_DIR>`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
+Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only tooling problems above `## Findings`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
 
 Verify without reading the merged file into main:
 
