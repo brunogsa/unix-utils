@@ -80,10 +80,10 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Highlight assumptions** -- explicitly name what you assumed.
   - [Why] Unspoken assumptions silently drive the wrong outcome.
+  - [Example] Bad: calling `customerCPF_CNPJ` "invoice-to" in a draft for another team. Good: the payload's own field name, or "`customerCPF_CNPJ` (our reading: the school served)".
 
 - [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, then sweep our changes and every later case.**
   - [Why] Deferring the sweep cost four repeat comments in one review; the peers are in front of you now, not later.
-  - [Example] Bad: calling `customerCPF_CNPJ` "invoice-to" in a draft for another team. Good: the payload's own field name, or "`customerCPF_CNPJ` (our reading: the school served)".
 
 ### Async iteration
 
@@ -145,10 +145,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
   - [Why] Only the human, or a qualified fresh judge they requested, triages a scout as now-vs-later - each as its own entry.
 
-### Robust, in-scope work
-
-- [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations - anything you build.
-  - [Why] In production these conditions are the norm, not rare edge cases - code without them won't survive.
 - [Instruction] Write each Scout entry with what is wrong, where it is (`path:line`), and the impact if it is left alone.
   - [Why] A bare label made me ask what a Scout meant and what it risked before I could triage it.
   - [Example] Bad: "Scout 1: SOQL limit". Good: "`getSchools` SOQL caps at 10 schools, so an 11th school's sync silently drops. Prior: fix, 1 line."
@@ -159,9 +155,14 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Fix an approved Scout that the current change introduced inside the PR that owns that change.
   - [Why] The fix then reviews, ships and reverts together with the code that caused it.
 
+### Robust, in-scope work
+
+- [Instruction] **CRITICAL: Handle failures, corner cases, unexpected states** -- applies to code paths, user flows, scripts, processes, integrations - anything you build.
+  - [Why] In production these conditions are the norm, not rare edge cases - code without them won't survive.
 
 - [Instruction] **CRITICAL: No speculative scope** -- don't add features, configurability, abstractions, comments, tests, or principles the user didn't ask for. Every line should trace to the request.
   - [Why] Speculative additions inflate diff size, dilute review attention, and ship code with no real caller.
+  - [Example] Bad: an ERP in scope without the bug in production; a requested field no flow reads. Good: a log line proving the bug per system, a traced consumer per field.
 
 - [Instruction] Give every temporary guard - a rollout alarm, a kill-switch flag, a workaround - its removal date inside the guard itself, where on-call reads it.
   - [Why] A guard whose removal lives only in a tracker nobody opens when it fires outlives its rollout and pages for nothing.
@@ -173,10 +174,11 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
   - [Example] Bad: `RN-01`, `AC-8`, "the Apendice", a bare "callback" or "that flag". Good: a committed path or URL, the rule recapped inline, "error callback", `FEAT_FLAG_PIC_SYNC_<ERP>_ENABLED`.
 
+  - [Example] Bad: an abstract edge case, an unexplained "D3" label, "per my code-standards". Good: a worked example with real values, each label's meaning, the principle quoted inline.
+
 ### Single source of truth, no orphans
 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
-  - [Example] Bad: an ERP in scope without the bug in production; a requested field no flow reads. Good: a log line proving the bug per system, a traced consumer per field.
   - [Why] The gap should teach the next reader once; the "blocks the task" trigger keeps the fix in scope, not a derail.
 
 - [Instruction] When a tool in my global setup is missing or crashes mid-task, ask me "fix now or defer" before patching it, even when it blocks the task.
@@ -189,8 +191,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
-  - [Example] Bad: an abstract edge case, an unexplained "D3" label, "per my code-standards". Good: a worked example with real values, each label's meaning, the principle quoted inline.
-
 
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
@@ -213,6 +213,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
   - [Example] Before claiming a count or "complete," grep/wc the file; before trusting a README on staging, read the terraform/`.env`/manifest that actually sets it.
 
+  - [Example] Bad: "updated" on a 2xx, "merged" before each PR shows synced, a silent permission block. Good: read the record back, re-fetch each PR, report blocks at once.
+
 - [Instruction] **Fresh evidence only** -- re-run verification if stale since your latest change; re-read the actual code on contradiction.
   - [Why] Prior-turn output proves the past state, not the current one; stale evidence ships the regression you just introduced.
 
@@ -229,8 +231,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 ## Tool Use
 
 ### Skills & standards loading
-
-  - [Example] Bad: "updated" on a 2xx, "merged" before each PR shows synced, a silent permission block. Good: read the record back, re-fetch each PR, report blocks at once.
 
 - [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) - one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load, so each standard you skip is wisdom the user must repeat by hand.
@@ -389,6 +389,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Default to parallel fan-out** -- when a task splits into independent chunks (one per file/module/target/ERP/service), dispatch one subagent each, all in a single message.
   - [Why] Wall-clock, not token spend, is the real cost of serializing independent chunks.
+  - [Example] Bad: a 6-task wave run serially because the plan lists it in order. Good: group pending tasks by files touched, then dispatch every file-disjoint group at once.
 
 - [Instruction] Weigh total subagent count against per-subagent cost, inherited advisor cost included, before dispatching a wide fan-out.
   - [Why] Width multiplies count and per-subagent cost, so fanning past the independent chunks pays for nothing.
@@ -408,7 +409,6 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Size every dispatch to finish well inside the 64-turn subagent cap - 4-6 files per mechanical batch, an explicit stop criterion for any collection or checker loop.
   - [Why] Five sessions hit the cap or a silent 45-minute agent, each losing the whole slice's work.
 
-  - [Example] Bad: a 6-task wave run serially because the plan lists it in order. Good: group pending tasks by files touched, then dispatch every file-disjoint group at once.
 - [Instruction] Treat a turn-cap stop, or a subagent 30 minutes past its last output, as a stall - kill it and re-dispatch a smaller slice, never wait it out.
   - [Why] "Kill your general-purpose sub-agent, 45min is too long" - waiting past the stall buys nothing but wall-clock.
 
