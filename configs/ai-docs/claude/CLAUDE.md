@@ -213,6 +213,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Skills & standards loading
 
+  - [Example] Bad: "updated" on a 2xx, "merged" before each PR shows synced, a silent permission block. Good: read the record back, re-fetch each PR, report blocks at once.
+
 - [Instruction] Load every `*-standards` skill whose trigger fires (`agent/code/doc/test/commit/debug/skill-standards`) - one change can fire several; when in doubt, load it.
   - [Why] They encode hard-won wisdom but lazy-load, so each standard you skip is wisdom the user must repeat by hand.
 
