@@ -36,14 +36,6 @@ class TestTruncatedValueDisplay:
         assert "89.99 " in violations
         assert "89.996" not in violations
 
-    def test_should_show_a_crap_of_7_996_in_the_ranking_as_7_99(self):
-        run = measured(crap_record("src/report.py", "buildReport", 7.996))
-
-        verdict = report.build_verdict(run)
-
-        assert "CRAP 7.99 " in section(verdict, "Ranked: CRAP")
-        assert "7.996" not in verdict
-
     def test_should_show_a_whole_number_metric_without_decimals_and_drop_trailing_zeros(self):
         run = measured(
             function_record("src/report.py", "nested", "nesting", 4, 3),

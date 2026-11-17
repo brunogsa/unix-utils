@@ -88,7 +88,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _duplication_section(report.get("duplication_candidates", []), numbers),
         *_new_candidate_sections(report, numbers),
         _not_applicable_section(report.get("not_applicable", []), numbers),
-        *_ranked_sections(report["measurements"], numbers),
+        _not_measured_section(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
         *_leaked_processes_sections(report.get("leaked_processes"), numbers),
         _debt_section(report),
@@ -307,30 +307,21 @@ def _describe_gate_input(item):
     return f"{item['kind']} in {item['file']} - {item['value']}"
 
 
-def _ranked_sections(measurements, numbers):
-    """One list per metric and scope, worst first.
+def _not_measured_section(measurements, numbers):
+    """Limited records with no value, deferred or pessimistic.
 
-    A limit of 0 or none has no ranking, nor has a neutral
-    record.
+    The violations list holds only records with a value, so
+    this is the one place the verdict names them.
+
+    A measurement within its limit is never listed.
     """
-    records_by_title = {}
-    for record in measurements:
-        if _is_rankable(record):
-            records_by_title.setdefault(_metric_name(record), []).append(record)
-    return [
-        _ranked_section(title, records, numbers)
-        for title, records in sorted(records_by_title.items())
-    ]
+    unmeasured = [record for record in measurements if _is_unmeasured(record)]
+    return _counted_section("Not measured", unmeasured, numbers, _describe)
 
 
-def _ranked_section(title, records, numbers):
-    worst_first = sorted(records, key=hotspots.badness, reverse=True)
-    entries = [_entry(next(numbers), _describe(record)) for record in worst_first]
-    return _section(f"Ranked: {title}", entries)
-
-
-def _is_rankable(record):
-    return bool(record["limit"]) and record["limit"] > 0 and not hotspots.is_neutral(record)
+def _is_unmeasured(record):
+    has_limit = bool(record["limit"]) and record["limit"] > 0
+    return has_limit and record["value"] is None and not hotspots.is_neutral(record)
 
 
 def _debt_section(report):

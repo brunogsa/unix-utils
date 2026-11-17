@@ -101,7 +101,6 @@ class TestExceptions:
         assert "mergeRows" in merge_rows
         assert "splitCells" in split_cells
         assert "exception rejected" in split_cells
-        assert verdict.index("## Open violations") < verdict.index("## Ranked: CRAP")
 
 
 class TestDeferredMetrics:
@@ -142,13 +141,18 @@ class TestDeferredMetrics:
         assert entry_headings(deferred_section) == []
         assert "buildReport" in section(verdict, "Open violations")
 
-    def test_should_mark_a_failed_test_runs_unlabelled_0_percent_coverage_as_pessimistic_in_the_ranking(self):
-        failed_run = {**file_record("src/report.py", "coverage", 0, 80), "pessimistic": True}
-        measured_zero = file_record("src/other.py", "coverage", 0, 80)
+    def test_should_mark_a_failed_test_runs_unlabelled_0_percent_coverage_as_pessimistic_in_the_open_violations(self):
+        failed_run = {
+            **file_record("src/report.py", "coverage", 0, 80),
+            "flagged_below_limit": True, "pessimistic": True,
+        }
+        measured_zero = {
+            **file_record("src/other.py", "coverage", 0, 80), "flagged_below_limit": True,
+        }
 
         verdict = report.build_verdict(measured(failed_run, measured_zero))
 
-        entries = entry_headings(section(verdict, "Ranked: Coverage"))
+        entries = entry_headings(section(verdict, "Open violations"))
         [failed_entry] = [entry for entry in entries if "src/report.py" in entry]
         [measured_entry] = [entry for entry in entries if "src/other.py" in entry]
         assert "Coverage 0 (pessimistic)" in failed_entry
@@ -209,7 +213,7 @@ class TestDeferredMetrics:
         assert f" - {title} " in entry
         assert "File size" not in entry
 
-    def test_should_print_the_deferred_label_once_on_a_valueless_deferred_violation(self):
+    def test_should_print_the_deferred_label_once_on_a_valueless_deferred_record(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
         run = measured(
             deferred_records.deferred_measurement(
@@ -219,7 +223,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(run)
 
-        [entry] = entry_headings(section(verdict, "Ranked: CRAP"))
+        [entry] = entry_headings(section(verdict, "Not measured"))
         assert entry.count(DEFERRED_LABEL) == 1
 
 
@@ -282,7 +286,7 @@ class TestGateInputViolations:
 
 
 class TestDuplicationCandidates:
-    def test_should_list_each_clone_in_its_own_section_after_the_gate_inputs_and_before_the_ranked_sections(self):
+    def test_should_list_each_clone_in_its_own_section_after_the_gate_inputs(self):
         run = measured(
             crap_record("src/report.py", "buildReport", 42),
             file_record("src/pricing.py", "code_duplication", 0.91, 0.82),
@@ -297,7 +301,6 @@ class TestDuplicationCandidates:
         assert first.startswith("### 2.") and "src/pricing.py" in first
         assert second.startswith("### 3.") and "tests/test_pricing.py" in second
         assert verdict.index("## Gate input violations") < verdict.index("## Duplication candidates")
-        assert verdict.index("## Duplication candidates") < verdict.index("## Ranked: CRAP")
 
     def test_should_keep_a_clone_out_of_the_open_violations(self):
         run = measured(file_record("src/pricing.py", "code_duplication", 0.91, 0.82))
@@ -361,22 +364,49 @@ class TestNoGitVerdict:
         assert "Skipped" not in report.build_verdict(run)
 
 
-class TestRankedSectionTitles:
-    @pytest.mark.parametrize("metric, title, make_record", [
-        ("cognitive_complexity", "Cognitive complexity",
+class TestWithinLimitMeasurements:
+    def test_should_name_no_measurement_within_its_limit_and_keep_the_over_limit_and_valueless_ones(self):
+        function = FunctionMeasure("unmeasured", 4, 30, 26, 12, None, None)
+        run = measured(
+            crap_record("src/report.py", "tidyHelper", 3),
+            crap_record("src/report.py", "tangledBuild", 42),
+            deferred_records.deferred_measurement(
+                target("src/deferred.py"), "crap", CRAP_LIMIT, function
+            ),
+        )
+
+        verdict = report.build_verdict(run)
+
+        assert "## Ranked" not in verdict
+        assert "tidyHelper" not in verdict
+        assert "tangledBuild" in section(verdict, "Open violations")
+        [unmeasured] = entry_headings(section(verdict, "Not measured"))
+        assert "unmeasured" in unmeasured
+        assert f"no value ({DEFERRED_LABEL})" in unmeasured
+
+    def test_should_show_0_unmeasured_records_when_every_record_has_a_value(self):
+        verdict = report.build_verdict(measured(crap_record("src/report.py", "tidyHelper", 3)))
+
+        assert "(0)" in section(verdict, "Not measured").splitlines()[0]
+
+
+class TestMetricTitles:
+    @pytest.mark.parametrize("metric, title, section_title, make_record", [
+        ("cognitive_complexity", "Cognitive complexity", "Open violations",
          lambda metric: function_record("src/report.py", "build", metric, 30, 10)),
-        ("code_duplication", "Code duplication",
+        ("code_duplication", "Code duplication", "Duplication candidates",
          lambda metric: file_record("src/report.py", metric, 30, 10)),
     ])
-    def test_should_title_a_ranked_section_with_the_display_name_not_the_raw_metric_key(
-        self, metric, title, make_record
+    def test_should_title_a_listed_measurement_with_the_display_name_not_the_raw_metric_key(
+        self, metric, title, section_title, make_record
     ):
         record = make_record(metric)
 
         verdict = report.build_verdict(measured(record))
 
-        assert f"## Ranked: {title}" in verdict
-        assert f"Ranked: {metric}" not in verdict
+        listed = section(verdict, section_title)
+        assert f" - {title} " in listed
+        assert metric not in listed
 
     def test_should_title_every_metric_the_declaration_lists_so_a_new_metric_cannot_render_a_raw_key(self):
         declaration = yaml.safe_load(DECLARATION.read_text())

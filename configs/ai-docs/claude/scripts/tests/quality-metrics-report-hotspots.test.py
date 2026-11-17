@@ -1,4 +1,3 @@
-import re
 import shutil
 import subprocess
 import sys
@@ -28,27 +27,6 @@ from quality_metrics_support import (
     verdict_entry_headings as entry_headings,
     verdict_section as section,
 )
-
-
-class TestRankedLists:
-    def test_should_rank_each_metric_in_its_own_list_worst_first_as_markable_metrics_entries(self):
-        run = measured(
-            crap_record("src/low.py", "tidy", 3),
-            crap_record("src/worst.py", "tangle", 14),
-            crap_record("src/middle.py", "branchy", 9),
-            file_record("src/grown.py", "size", 400, FILE_LINES_LIMIT),
-        )
-
-        verdict = report.build_verdict(run)
-
-        crap_entries = entry_headings(section(verdict, "Ranked: CRAP"))
-        assert [entry.split("] ")[1].split(" ")[0] for entry in crap_entries] == [
-            "tangle", "branchy", "tidy",
-        ]
-        assert all(re.match(r"### \d+\. \[metrics\] ", entry) for entry in crap_entries)
-        [file_size_entry] = entry_headings(section(verdict, "Ranked: File size"))
-        assert "src/grown.py" in file_size_entry
-        assert "400" in file_size_entry
 
 
 HOTSPOT_RUN = measured(
@@ -106,7 +84,7 @@ class TestHotspotLabels:
 
 
 class TestCoverageDirection:
-    def test_should_rank_a_failing_20_percent_coverage_above_a_passing_99_percent_one(self):
+    def test_should_list_a_failing_20_percent_coverage_as_open_and_leave_a_passing_99_percent_one_out(self):
         run = measured(
             coverage.coverage_record(target("src/solid.py"), 99),
             coverage.coverage_record(target("src/untested.py"), 20),
@@ -114,9 +92,9 @@ class TestCoverageDirection:
 
         verdict = report.build_verdict(run)
 
-        first, second = entry_headings(section(verdict, "Ranked: Coverage"))
-        assert "src/untested.py" in first
-        assert "src/solid.py" in second
+        [entry] = entry_headings(section(verdict, "Open violations"))
+        assert "src/untested.py" in entry
+        assert "src/solid.py" not in entry
 
     def test_should_draw_a_file_by_its_amber_crap_when_its_coverage_of_95_percent_passes(self):
         run = measured(
@@ -132,7 +110,7 @@ class TestCoverageDirection:
 
 
 class TestNoValueRecords:
-    def test_should_skip_a_coverage_with_no_coverable_line_in_the_ranking_and_the_colors(self):
+    def test_should_skip_a_coverage_with_no_coverable_line_in_the_unmeasured_list_and_the_colors(self):
         run = measured(
             coverage.not_applicable_record(target("src/prose_only.py")),
             crap_record("src/prose_only.py", "tidy", 3),
@@ -140,7 +118,7 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        assert "Ranked: Coverage" not in verdict
+        assert "src/prose_only.py" not in section(verdict, "Not measured")
         assert nodes_by_file(mermaid_block(verdict)) == {"src/prose_only.py": "green"}
 
     def test_should_print_a_pessimistic_coverage_with_no_executable_code_by_its_status(self):
@@ -153,10 +131,10 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        (heading,) = entry_headings(section(verdict, "Ranked: Coverage"))
+        (heading,) = entry_headings(section(verdict, "Not measured"))
         assert f"no value ({coverage.NO_EXECUTABLE_CODE})" in heading
 
-    def test_should_rank_a_deferred_crap_first_print_it_as_no_value_and_paint_its_file_red(self):
+    def test_should_list_a_deferred_crap_as_not_measured_print_it_as_no_value_and_paint_its_file_red(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
         run = measured(
             crap_record("src/known.py", "branchy", 7),
@@ -167,7 +145,7 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        first, _ = entry_headings(section(verdict, "Ranked: CRAP"))
+        [first] = entry_headings(section(verdict, "Not measured"))
         assert "tangle" in first
         assert f"no value ({DEFERRED_LABEL})" in first
         colors = nodes_by_file(mermaid_block(verdict))
