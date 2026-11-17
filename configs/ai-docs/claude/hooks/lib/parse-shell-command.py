@@ -19,6 +19,7 @@
 # it could not parse" means fail-open or fail-closed.
 
 import re
+import shlex
 
 HEREDOC_OPENER = re.compile(r'<<(-?)\s*(["\'])?([A-Za-z_][A-Za-z0-9_]*)\2')
 
@@ -51,6 +52,73 @@ def strip_heredoc_bodies_for_sinks(text, sink_pattern):
     (to still catch a dangerous command smuggled through
     `bash <<EOF`) passes a sink_pattern that excludes them.
     """
+    return _strip_heredoc_bodies_where(
+        text, lambda kept, line, opener: sink_pattern.search(line[:opener.start()]))
+
+
+def strip_commit_message_heredoc_bodies(text):
+    """Drop the body of every heredoc that is the commit message
+    a `git commit -F -` reads from stdin.
+
+    git stores that body as the message and never runs it, so
+    prose there (e.g. "git push origin main stays blocked")
+    must not be scanned as code.
+
+    A body is dropped only when its delimiter is quoted, since
+    an unquoted one lets bash run `$(...)` inside it. The `<<`
+    must also belong to that commit, not to a later stage such
+    as `git commit ...; bash <<'EOF'`, and sit outside quotes.
+    """
+    return _strip_heredoc_bodies_where(text, _is_commit_message_heredoc)
+
+
+def _is_commit_message_heredoc(kept, line, opener):
+    if not opener.group(2):
+        return False
+
+    # Earlier lines count too: a quote opened on one of them may
+    # still be open at the `<<`.
+    before_opener = '\n'.join(kept[:-1] + [line[:opener.start()]])
+    owning_stage = split_into_pipelines(before_opener)[-1][-1]
+    if _OPENS_A_NESTED_COMMAND.search(owning_stage):
+        return False
+    try:
+        tokens = shlex.split(owning_stage)
+    except ValueError:
+        return False
+    return _is_git_commit_reading_stdin(tokens)
+
+
+# A stage that opens a subshell, command substitution or group
+# may hand the heredoc to a command inside it rather than to
+# the commit, and a `#` may turn the `<<` into comment text.
+_OPENS_A_NESTED_COMMAND = re.compile(r'[(){}`#]')
+
+_ENV_ASSIGNMENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+_GIT_OPTIONS_TAKING_A_VALUE = {'-C', '-c'}
+_STDIN_MESSAGE_FORMS = {('-F', '-'), ('--file', '-')}
+_STDIN_MESSAGE_WORDS = {'-F-', '--file=-'}
+
+
+def _is_git_commit_reading_stdin(tokens):
+    index = 0
+    while index < len(tokens) and _ENV_ASSIGNMENT.match(tokens[index]):
+        index += 1
+    if index >= len(tokens) or tokens[index] != 'git':
+        return False
+    index += 1
+    while index < len(tokens) and tokens[index].startswith('-'):
+        index += 2 if tokens[index] in _GIT_OPTIONS_TAKING_A_VALUE else 1
+    if index >= len(tokens) or tokens[index] != 'commit':
+        return False
+    commit_args = tokens[index + 1:]
+    if '--' in commit_args:
+        commit_args = commit_args[:commit_args.index('--')]
+    adjacent_pairs = set(zip(commit_args, commit_args[1:]))
+    return bool(adjacent_pairs & _STDIN_MESSAGE_FORMS) or bool(set(commit_args) & _STDIN_MESSAGE_WORDS)
+
+
+def _strip_heredoc_bodies_where(text, should_strip):
     lines = text.split('\n')
     kept = []
     index = 0
@@ -60,7 +128,7 @@ def strip_heredoc_bodies_for_sinks(text, sink_pattern):
         kept.append(line)
         opener = HEREDOC_OPENER.search(line)
         index += 1
-        if not opener or not sink_pattern.search(line[:opener.start()]):
+        if not opener or not should_strip(kept, line, opener):
             continue
         dash, _quote, delimiter = opener.groups()
         while index < total:

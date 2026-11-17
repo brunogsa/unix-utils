@@ -510,6 +510,118 @@ it_should_block_unparseable_segment_naming_git_and_push() {
   assert_eq "should block a segment shlex cannot parse that names git and push" "2" "$HOOK_EXIT"
 }
 
+it_should_block_an_unparseable_push_after_an_attributed_heredoc_commit() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -F - <<'EOF'" \
+    "docs(readme): it's the since-last-push diff now" \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF' \
+    'git push origin "main')
+  run_hook "$cmd" "$dir"
+  assert_eq "should block an unparseable git push segment that runs after a commit message heredoc" "2" "$HOOK_EXIT"
+}
+
+### Allow: "push" only inside a commit message
+
+# stdin_heredoc_commit - prints a commit command that reads
+# its message from a quoted heredoc on stdin, with the given
+# body line between the subject and the attribution.
+stdin_heredoc_commit() {
+  printf '%s\n' \
+    "git commit --allow-empty -q -F - <<'EOF'" \
+    'docs(open-in-tmux): drop stale "matches <leader>tD" claims' \
+    '' \
+    "$1" \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF'
+}
+
+it_should_allow_a_stdin_heredoc_commit_message_with_an_apostrophe_naming_git_and_push() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(stdin_heredoc_commit "neovim's <leader>tD now shows the since-last-push diff git computes.")" "$dir"
+  assert_eq "should allow a commit whose stdin heredoc message has an apostrophe and names git and push" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_stdin_heredoc_commit_message_line_that_reads_as_a_push_to_main() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(stdin_heredoc_commit 'git push origin main stays blocked by the guard.')" "$dir"
+  assert_eq "should allow a commit whose stdin heredoc message has a line reading git push origin main" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_stdin_heredoc_commit_message_that_names_a_force_push() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook "$(stdin_heredoc_commit 'The guard still blocks git push --force here.')" "$dir"
+  assert_eq "should allow a commit whose stdin heredoc message names git push --force" "0" "$HOOK_EXIT"
+}
+
+### Block: a real push next to a commit
+
+it_should_block_a_push_to_master_chained_after_a_commit() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook 'git commit --allow-empty -m "docs: x" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" && git push origin master' "$dir"
+  assert_eq "should block git push origin master chained after an attributed commit" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_force_push_after_a_commit_whose_message_is_push() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook 'git commit --allow-empty -m "push" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" ; git push -f' "$dir"
+  assert_eq "should block git push -f run after a commit whose message is the word push" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_push_to_main_on_the_line_after_a_heredoc_commit_message() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -F - <<'EOF'" \
+    'docs(readme): mention push' \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF' \
+    'git push origin main')
+  run_hook "$cmd" "$dir"
+  assert_eq "should block git push origin main on the line after a commit message heredoc closes" "2" "$HOOK_EXIT"
+}
+
+# The commit and the heredoc share a line, but bash, not the
+# commit, reads the heredoc, so its body runs.
+it_should_block_a_push_to_main_in_a_bash_heredoc_opened_after_a_commit() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -F - -m x -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'; bash <<'EOF'" \
+    'git push origin main' \
+    'EOF')
+  run_hook "$cmd" "$dir"
+  assert_eq "should block git push origin main in a bash heredoc opened on the same line as a commit" "2" "$HOOK_EXIT"
+}
+
+# The << sits inside a quoted -m value, so no heredoc opens and
+# the next line runs as a command.
+it_should_block_a_push_to_main_after_a_quoted_heredoc_marker_in_a_commit_message() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -F - -m \"<<'EOF'\"" \
+    'git push origin main' \
+    'EOF')
+  run_hook "$cmd" "$dir"
+  assert_eq "should block git push origin main on the line after a commit message quoting a heredoc marker" "2" "$HOOK_EXIT"
+}
+
+it_should_block_git_dash_c_absolute_path_push_to_main() {
+  run_hook "git -C /some/repo push origin main"
+  assert_eq "should block git -C /some/repo push origin main, whatever the directory" "2" "$HOOK_EXIT"
+}
+
 ### Allow: exact branch-name match only, never substring
 
 it_should_allow_git_push_origin_feature_main_fix() {
@@ -1051,6 +1163,16 @@ it_should_block_command_prefixed_push_to_main
 it_should_block_git_dash_c_config_push_to_main
 it_should_block_implicit_push_with_unresolvable_cwd
 it_should_block_unparseable_segment_naming_git_and_push
+it_should_block_an_unparseable_push_after_an_attributed_heredoc_commit
+it_should_allow_a_stdin_heredoc_commit_message_with_an_apostrophe_naming_git_and_push
+it_should_allow_a_stdin_heredoc_commit_message_line_that_reads_as_a_push_to_main
+it_should_allow_a_stdin_heredoc_commit_message_that_names_a_force_push
+it_should_block_a_push_to_master_chained_after_a_commit
+it_should_block_a_force_push_after_a_commit_whose_message_is_push
+it_should_block_a_push_to_main_on_the_line_after_a_heredoc_commit_message
+it_should_block_a_push_to_main_in_a_bash_heredoc_opened_after_a_commit
+it_should_block_a_push_to_main_after_a_quoted_heredoc_marker_in_a_commit_message
+it_should_block_git_dash_c_absolute_path_push_to_main
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch

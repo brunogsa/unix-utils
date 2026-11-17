@@ -31,9 +31,11 @@
 #   an implicit push with unknown cwd/branch fails closed.
 #
 # Every "is this a dangerous invocation" check below matches
-# against CMD_STRUCT, not the raw command: heredoc bodies fed to
-# a non-executing sink (cat, python3) are dropped, and
-# quoted-string contents are blanked to a placeholder.
+# against CMD_STRUCT, not the raw command. It drops heredoc
+# bodies fed to a non-executing sink (cat, python3) or read as
+# the message of a git commit -F -.
+#
+# It also blanks quoted-string contents to a placeholder.
 #
 # Otherwise text that only ever appears as *data* - a scratchpad
 # doc line mentioning "git commit", a test string containing
@@ -102,6 +104,7 @@ _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
 _parse_shell_command = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_parse_shell_command)
 strip_heredoc_bodies_for_sinks = _parse_shell_command.strip_heredoc_bodies_for_sinks
+strip_commit_message_heredoc_bodies = _parse_shell_command.strip_commit_message_heredoc_bodies
 NON_EXECUTING_SINK_PATTERN = _parse_shell_command.NON_EXECUTING_SINK_PATTERN
 
 
@@ -269,7 +272,8 @@ GUARDED_GIT_COMMAND = re.compile(
 )
 
 cmd = os.environ.get('CLAUDE_GIT_CMD', '')
-stripped = strip_heredoc_bodies_for_sinks(cmd, NON_EXECUTING_SINK_PATTERN)
+stripped = strip_commit_message_heredoc_bodies(
+    strip_heredoc_bodies_for_sinks(cmd, NON_EXECUTING_SINK_PATTERN))
 line_view = [drop_git_global_options(blank_quotes(line)) for line in stripped.split('\n')]
 try:
     blanked = blank_quotes_across_lines(stripped)
@@ -304,6 +308,7 @@ _spec = importlib.util.spec_from_file_location('parse_shell_command', _lib_path)
 _parse_shell_command = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_parse_shell_command)
 strip_heredoc_bodies_for_sinks = _parse_shell_command.strip_heredoc_bodies_for_sinks
+strip_commit_message_heredoc_bodies = _parse_shell_command.strip_commit_message_heredoc_bodies
 split_into_pipelines = _parse_shell_command.split_into_pipelines
 NON_EXECUTING_SINK_PATTERN = _parse_shell_command.NON_EXECUTING_SINK_PATTERN
 
@@ -490,7 +495,8 @@ def process_command(text, base_cwd):
             process_git_tokens(toks, cwd)
 
 
-cmd = strip_heredoc_bodies_for_sinks(os.environ.get('CLAUDE_GIT_CMD', ''), NON_EXECUTING_SINK_PATTERN)
+cmd = strip_commit_message_heredoc_bodies(
+    strip_heredoc_bodies_for_sinks(os.environ.get('CLAUDE_GIT_CMD', ''), NON_EXECUTING_SINK_PATTERN))
 base_cwd = os.environ.get('CLAUDE_GIT_PUSH_CWD', '') or os.getcwd()
 process_command(cmd, base_cwd)
 
