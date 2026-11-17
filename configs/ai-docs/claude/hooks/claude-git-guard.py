@@ -12,8 +12,10 @@
 
 import importlib.util
 import json
+import os
 import re
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -30,6 +32,8 @@ PROTECTED_BRANCHES = {"main", "master", "HEAD"}
 BRANCH_LISTING = {"-a", "--all", "-r", "--remotes", "-l", "--list", "-v", "-vv", "--verbose",
                   "--show-current", "--merged", "--no-merged", "--contains"}
 COMMIT_CHAIN = "git diff --cached --quiet && git add <paths> (or git-hunk stage <ids>) && git commit ..."
+ATTRIBUTION_RULE = ("git commit needs Co-Authored-By: Claude ... as its own last -m,"
+                    " or as the last paragraph of the -F file")
 
 FORMS = {
     "commit": ['git commit [-q] -m "<subject>" [-m "<body>"] -m "Co-Authored-By: Claude ..."',
@@ -267,6 +271,28 @@ def check_chain(segments, operators):
     check_form("commit", commit_args)
 
 
+def run_lib(args, cwd):
+    env = {**os.environ, "CLAUDE_GIT_COMMIT_CWD": cwd}
+    return subprocess.run([sys.executable, str(LIB_DIR / "check-commit-subject-length.py"), *args],
+                          env=env, capture_output=True, text=True)
+
+
+def check_commit_content(command, cwd):
+    attribution = run_lib(["--attributed", command], cwd)
+    if attribution.returncode != 0 or attribution.stdout.strip() != "attributed":
+        block(ATTRIBUTION_RULE)
+    subject = run_lib([command], cwd)
+    if subject.returncode == 0 and subject.stdout.strip():
+        block(subject.stdout.strip().rstrip("."))
+    try:
+        staged = subprocess.run(["bash", str(LIB_DIR / "check-staged-comment-format.sh"), command],
+                                cwd=cwd or ".", stdout=sys.stderr)
+    except OSError:
+        return
+    if staged.returncode == 1:
+        block("the staged files break the comment format (report above)")
+
+
 def load_strip_heredoc_bodies():
     spec = importlib.util.spec_from_file_location("parse_shell_command", LIB_DIR / "parse-shell-command.py")
     module = importlib.util.module_from_spec(spec)
@@ -294,7 +320,7 @@ def check_shape(command, segments, operators, first_guarded):
         check_single(segments[0], first_guarded)
 
 
-def check(command):
+def check(command, cwd):
     if not MAY_NAME_GIT.search(command):
         return
     strip_heredoc_bodies = load_strip_heredoc_bodies()
@@ -313,6 +339,8 @@ def check(command):
     if not found:
         return
     check_shape(command, segments, operators, found[0])
+    if "commit" in found:
+        check_commit_content(command, cwd or "")
 
 
 def main():
@@ -323,7 +351,7 @@ def main():
     tool_input = payload.get("tool_input") if isinstance(payload, dict) else None
     command = tool_input.get("command") if isinstance(tool_input, dict) else None
     if isinstance(command, str) and command:
-        check(command)
+        check(command, payload.get("cwd"))
     return 0
 
 

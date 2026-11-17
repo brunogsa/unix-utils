@@ -291,3 +291,29 @@ def test_block_message_prints_the_allowed_push_form_in_six_lines_or_fewer(repo):
     assert_blocked(result)
     assert "git push [-u|--set-upstream] [--force-with-lease] origin <branch>" in result.stderr
     assert len(result.stderr.strip().splitlines()) <= 6
+
+
+# Commit content
+
+
+def test_blocks_commit_without_attribution_trailer(repo):
+    result = run_hook(f'git commit -m "{SUBJECT}"', repo)
+    assert_blocked(result)
+    assert "Co-Authored-By" in result.stderr
+
+
+def test_blocks_attribution_glued_onto_a_body_line(repo):
+    result = run_hook(f'git commit -m "{SUBJECT}" -m "Explain the change. {ATTRIBUTION}"', repo)
+    assert_blocked(result)
+
+
+def test_allows_message_file_whose_last_paragraph_is_the_trailer(repo):
+    (repo / "msg.txt").write_text(f"{SUBJECT}\n\nExplain the change.\n\n{ATTRIBUTION}\n", encoding="utf-8")
+    assert_allowed(run_hook("git commit -F msg.txt", repo))
+
+
+def test_blocks_subject_over_64_characters_with_the_lib_reason(repo):
+    long_subject = "fix(git-guard): stop a commit whose subject is longer than a cap."
+    result = run_hook(f'git commit -m "{long_subject}" {TRAILER}', repo)
+    assert_blocked(result)
+    assert "over the 64-character cap" in result.stderr
