@@ -121,7 +121,7 @@ Tell each leg the `/tmp` half too: a leg that believes only `verdict_*` is writa
 
 ## 4. Collect the reports
 
-When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd`, `scout` (`scout-leg_*.md`) and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
+When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd`, `scout` (`scout-leg_<ts>.md` and `scout-classification.md`, each counting) and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary and let the other legs stand.
 
 - **Never report from a leg's return message** - it truncates long lists.
