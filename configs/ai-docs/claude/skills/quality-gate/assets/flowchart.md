@@ -19,7 +19,9 @@ Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comm
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
 
 ```python
-# 1 · Entry: /quality-gate <spec> <plan> --tasks <ids>
+# 1 · Entry (a whole run targets 20 minutes or less; main notes each
+#     phase's start and end with date +%H:%M:%S as it happens):
+#     /quality-gate <spec> <plan> --tasks <ids>
 #     --base-ref <ref> --auto-solve | --report-only, or
 #     another skill's batch-end dispatch.
 def quality_gate(arg):
@@ -200,7 +202,11 @@ def quality_gate(arg):
     #       Skipped; the report says "fix review: disabled". The step's text
     #       stays in SKILL.md until the user re-enables it.
 
-    # 14 · Step 7 - close with a report: every verdict path (the merged
+    # 14 · Step 7 - close with a report that OPENS with a timing table
+    #      (phase, start, end, minutes) built from the start/end times main
+    #      noted per phase (each leg, merge, judge, each /address-verdicts
+    #      dispatch, report): last row = total vs the 20-minute target,
+    #      slowest phase named. Then: every verdict path (the merged
     #      file, the rendered metrics verdict and judge file in run_dir, the
     #      moved source paths, the fallback if it happened, + any leg that
     #      failed to produce one - a failed metrics leg reads "metrics: not
@@ -220,7 +226,7 @@ def quality_gate(arg):
 
 ```mermaid
 flowchart TD
-  n1(["1. /quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt;<br/>--auto-solve | --report-only<br/><br/>or another skill's batch-end dispatch"]):::start
+  n1(["1. A whole run targets 20 minutes or less; main notes each<br/>phase's start and end (date +%H:%M:%S) as it happens<br/><br/>/quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt;<br/>--auto-solve | --report-only<br/><br/>or another skill's batch-end dispatch"]):::start
   n2{"2. Both --auto-solve and<br/>--report-only passed?"}
   n2a(["2a. STOP - contradiction, not a<br/>precedence puzzle. Print and halt."])
   n3{"3. Either --auto-solve or<br/>--report-only passed?"}
@@ -297,7 +303,7 @@ flowchart TD
     n13a --> n13b --> n13c --> n13d --> n13e --> n13f --> n13g
   end
 
-  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs, fix review: disabled,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n14(["14. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named), built from the start and end times<br/>main noted per phase. Then: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs, fix review: disabled,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a

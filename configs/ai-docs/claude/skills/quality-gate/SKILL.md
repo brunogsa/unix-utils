@@ -19,6 +19,8 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 
 A whole run on one branch (§1 through §7, apply included) targets 20 minutes of wall-clock or less, because the user waits on it and a 2-hour run per PR stalls a stacked series of PRs. §7 measures against it; it is a target, never a reason to cut a gate short.
 
+Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it happens, because the user tunes the gate from where its time goes: each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch's start and end, §6.1 when it runs, and §7.
+
 ## Usage
 
 ```
@@ -34,7 +36,7 @@ A whole run on one branch (§1 through §7, apply included) targets 20 minutes o
 - `--auto-solve` - skip the interview; a judge rules each `refactor`, `auto-review` and `metrics` finding Fix or Skip, and every Fix applies.
 
 - `--report-only` - skip the interview the other way; only `test-sdd` findings apply.
-  - A skill caller that already asked its human passes one flag, so §1 never stalls a batch on an unwatched prompt.
+  - A skill caller that already asked its human passes one flag, so §1 never stalls a batch.
 
   - Both flags at once is a contradiction - stop and say so.
 
@@ -61,7 +63,7 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 ```
 
 - **Exactly one spec and one plan** → use both; print the resolved paths, no prompt.
-- **Zero of a kind** → proceed without it, and say so plainly.
+- **Zero of a kind** → proceed without it, and say so.
   - No spec: the `auto-review` leg runs without spec-conformance context.
   - No plan: the `test-sdd` leg does not run at all.
 
@@ -84,9 +86,9 @@ If detection fails, ask which branch to diff against; under either flag, stop an
 
 First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
 
-Spawn each leg as its own agent - `code-reviewer` for the refactor, auto-review and metrics legs, `test-reviewer` for the planned-test leg - all in the **same turn**, all in the background.
+Spawn each leg as its own agent, all in the **same turn**, all in the background.
 
-- `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill (via the Skill tool) with `<BASE_REF>` as its `--base-ref`.
+- `agent(subAgent=code-reviewer, title=Refactor-lens review)` - invokes and executes the `refactor` skill with `<BASE_REF>` as its `--base-ref`.
 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>`, the resolved spec/plan paths and `<SESSION_ID>` pushed in.
 
@@ -110,18 +112,18 @@ Tell each leg the `/tmp` half too: a leg that believes only `verdict_*` is writa
 When each leg returns, confirm its file exists and is non-empty: `refactor` and `auto-review` in CWD, `test-sdd` and `metrics` in `<RUN_DIR>` (`verdict_{metrics,quality-gate_no-git}_*.md` plus `metrics-judge_*.md`).
 - **A leg's file is missing or empty** → re-dispatch once; still missing → flag it in the summary and let the other legs stand.
 
-- **Never report from a leg's return message** - it truncates long lists; the file is the source of truth.
+- **Never report from a leg's return message** - it truncates long lists.
 
 ### 4.1. Merge the legs' files into one verdict
 
-**No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform, on report-only and auto-solve runs alike.
+**No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform on every run.
 
 Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review` and `test-sdd` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on the rendered metrics verdict to get k (0 with none).
 
-Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1, and merges reports only.
+Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
 Then assemble: `cat <rendered> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
 
@@ -147,7 +149,7 @@ On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: n
 
 ## 5. Assemble the apply list
 
-Compose and print the whole list before applying anything. The groups below enter on different terms.
+Compose and print the whole list before applying anything.
 
 ### 5.1. Every missing-planned-test finding goes in, without triage
 
@@ -157,7 +159,7 @@ One exception: a planned test whose target is prose is never written, because CL
 
 ### 5.2. Fix-ruled findings go in on an auto-solve run
 
-Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. Entries under the duplication, dead code and mutant sections do not enter the apply list; only the judge's `[metrics]` findings do.
+Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. Entries under the duplication, dead code and mutant sections do not enter; only the judge's `[metrics]` findings do.
 
 Report-only adds nothing else.
 
@@ -169,21 +171,19 @@ Print the composed list, one line per finding, before applying.
 
 **Applying is not this skill's job** - `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
 
-Resolve the repo's test command first - a `package.json` script, a Makefile target, the repo's own CLAUDE.md - then invoke, **in this session**:
+Resolve the repo's test command first, then invoke, **in this session**:
 
 ```
 /address-verdicts <every finding identifier §5 assembled, with their verdict file paths - the merged file's path for merged findings> --no-ask --test-cmd <cmd>
 ```
 
-**Pass the whole list in one invocation**, never one call per lens. That skill groups the list by lens itself.
+**Pass the whole list in one invocation**, never one call per lens.
 
 - **The list is explicit** - each finding named as its report names it.
 
 - **`--no-ask` is mandatory here**, report-only or auto-solve alike.
 
 - **Pass `--test-cmd`**, so it has nothing to infer.
-
-It returns the ledger §7 reports from.
 
 ### 6.1. One fix review over every applied commit
 
@@ -196,6 +196,8 @@ Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the 
 ## 7. Close with a report
 
 Compose this from the ledger `/address-verdicts` returned, not from a second reading of the verdict files.
+
+- **Open with a timing table** from the notes above: phase, start, end, minutes. Its last row is the total against the 20-minute target, and the report names the slowest phase.
 
 - Every verdict file path this run produced: the merged file, the rendered metrics verdict and judge file (now in `<RUN_DIR>`), the source paths §4.1 moved, and the fallback when it happened.
   - Also any leg that failed to produce a file, and the `test-sdd` leg when §2 resolved no plan.
@@ -212,7 +214,7 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - Findings the judge ruled Skip, with their `**Standards check**` line - they stay open in the merged file.
 
 - **On a report-only run, every `refactor`, `auto-review` and `metrics` finding, under a heading naming them as never judged.**
-  - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`, now the default.
+  - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
 
 - `judge: FAIL (<reason>)` or `judge: not run (merge fell back)` when that happened; on a failure, say to fix the judge and re-run `/quality-gate`.
 
