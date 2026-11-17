@@ -28,6 +28,9 @@ is_over_limit = importlib.import_module("quality_metrics.functions").is_over_lim
 coverage = importlib.import_module("quality_metrics.coverage")
 deferred_records = importlib.import_module("quality_metrics.deferred")
 dependencies = importlib.import_module("quality_metrics.dependencies")
+DUPLICATION_METRICS = importlib.import_module(
+    "quality_metrics.duplication"
+).DUPLICATION_METRICS
 FunctionMeasure = importlib.import_module("quality_metrics.functions").FunctionMeasure
 Target = importlib.import_module("quality_metrics.touched").Target
 
@@ -65,9 +68,15 @@ def target(file):
 def measured(*records):
     """A measure report: every record, and the over-limit ones
     as violations."""
+    over_limit = [item for item in records if is_over_limit(item)]
     return {
         "measurements": list(records),
-        "violations": [item for item in records if is_over_limit(item)],
+        "violations": [
+            item for item in over_limit if item["metric"] not in DUPLICATION_METRICS
+        ],
+        "duplication_candidates": [
+            item for item in over_limit if item["metric"] in DUPLICATION_METRICS
+        ],
         "gate_input_violations": [],
     }
 

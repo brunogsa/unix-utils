@@ -193,6 +193,38 @@ class TestGateInputViolations:
         assert "(0)" in section(verdict, "Gate input violations").splitlines()[0]
 
 
+class TestDuplicationCandidates:
+    def test_should_list_each_clone_in_its_own_section_after_the_gate_inputs_and_before_the_ranked_sections(self):
+        run = measured(
+            crap_record("src/report.py", "buildReport", 42),
+            file_record("src/pricing.py", "code_duplication", 0.91, 0.82),
+            file_record("tests/test_pricing.py", "test_duplication", 0.88, 0.82),
+        )
+
+        verdict = report.build_verdict(run)
+
+        candidates = section(verdict, "Duplication candidates")
+        assert "(2)" in candidates.splitlines()[0]
+        first, second = entry_headings(candidates)
+        assert first.startswith("### 2.") and "src/pricing.py" in first
+        assert second.startswith("### 3.") and "tests/test_pricing.py" in second
+        assert verdict.index("## Gate input violations") < verdict.index("## Duplication candidates")
+        assert verdict.index("## Duplication candidates") < verdict.index("## Ranked: CRAP")
+
+    def test_should_keep_a_clone_out_of_the_open_violations(self):
+        run = measured(file_record("src/pricing.py", "code_duplication", 0.91, 0.82))
+
+        verdict = report.build_verdict(run)
+
+        assert "(0)" in section(verdict, "Open violations").splitlines()[0]
+        assert "src/pricing.py" not in section(verdict, "Open violations")
+
+    def test_should_show_0_duplication_candidates_when_the_report_has_none(self):
+        verdict = report.build_verdict(measured())
+
+        assert "(0)" in section(verdict, "Duplication candidates").splitlines()[0]
+
+
 class TestNoGitVerdict:
     def test_should_name_the_no_git_verdict_and_state_the_removed_code_check_and_base_ref_reads_were_skipped(self):
         run = measured(crap_record("tool.sh", "main", 3))

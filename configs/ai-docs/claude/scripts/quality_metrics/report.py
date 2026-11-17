@@ -74,6 +74,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _exceptions_section(accepted, numbers),
         _violations_section(open_violations, numbers),
         _gate_inputs_section(report.get("gate_input_violations", []), numbers),
+        _duplication_section(report.get("duplication_candidates", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
         _debt_section(report),
@@ -178,6 +179,10 @@ def _describe_open(violation_and_rejection):
     return _describe(item) + (REJECTED_NOTE if is_rejected else "")
 
 
+def _duplication_section(candidates, numbers):
+    return _counted_section("Duplication candidates", candidates, numbers, _describe)
+
+
 def _gate_inputs_section(gate_input_violations, numbers):
     return _counted_section(
         "Gate input violations", gate_input_violations, numbers, _describe_gate_input
@@ -215,7 +220,8 @@ def _is_rankable(record):
 
 
 def _debt_section(report):
-    score = debt.debt_score(report["violations"], debt.measured_nloc(report["measurements"]))
+    counted = report["violations"] + report.get("duplication_candidates", [])
+    score = debt.debt_score(counted, debt.measured_nloc(report["measurements"]))
     if score["ratio"] is None:
         text = f"{score['minutes']} min of remediation; ratio not computable, no file size was measured"
     else:
