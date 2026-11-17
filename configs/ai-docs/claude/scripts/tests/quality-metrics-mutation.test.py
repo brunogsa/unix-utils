@@ -208,7 +208,7 @@ class TestStrykerReport:
         assert result is None
 
     def test_raises_a_tool_error_when_stryker_crashes_without_a_report(self, tmp_path):
-        crashed = lambda *a, **k: type("R", (), {"killed": False, "returncode": 1, "stderr": "boom"})()
+        crashed = lambda *a, **k: type("R", (), {"killed": False, "returncode": 1, "stdout": "", "stderr": "boom"})()
 
         with pytest.raises(ToolError, match="boom"):
             run_stryker_batch(

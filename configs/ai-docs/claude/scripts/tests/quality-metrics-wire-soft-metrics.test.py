@@ -259,7 +259,7 @@ class TestDiffWithMutation:
 
         def crashing_stryker(tree, path, ranges, deadline):
             def crash(*args, **kwargs):
-                return type("R", (), {"killed": False, "returncode": 1, "stderr": "boom"})()
+                return type("R", (), {"killed": False, "returncode": 1, "stdout": "", "stderr": "boom"})()
 
             tools = mutation.StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=crash)
             return mutation.run_stryker_batch(tree, path, ranges, deadline, tools=tools)
