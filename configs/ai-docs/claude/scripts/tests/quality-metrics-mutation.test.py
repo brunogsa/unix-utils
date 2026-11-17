@@ -215,6 +215,21 @@ class TestStrykerReport:
                 tools=StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=crashed),
             )
 
+    # With allowEmpty, a dry run that runs no test ends Stryker
+    # with exit 0 and no report, so nothing measured the file.
+    def test_reports_a_file_whose_related_tests_ran_nothing_as_having_no_related_test(self, tmp_path):
+        ran_nothing = lambda *a, **k: type("R", (), {"killed": False, "returncode": 0, "stderr": ""})()
+
+        result = run_stryker_batch(
+            tmp_path, "src/types.ts", [(1, 40)], time.monotonic() + 60,
+            tools=StrykerTools(list_tests=lambda tree, path: ["/src/types.test.ts"], run=ran_nothing),
+        )
+
+        assert result.killed == 0
+        assert [(s["file"], s["line"], s["status"]) for s in result.survivors] == [
+            ("src/types.ts", 1, "no related test"),
+        ]
+
 
 # Stands in for the repo's installed jest: logs its real cwd,
 # its arguments and TZ, then lists the specs RELATED_SPECS_FILE
@@ -395,6 +410,17 @@ class TestStrykerJestConfigOverride:
         )
 
         assert config["inPlace"] is True
+
+    # Stryker aborts its dry run when jest runs no test, as for
+    # a type-only file the related tests import only for types.
+    def test_lets_stryker_finish_a_batch_whose_related_tests_run_nothing(self, tmp_path):
+        config = stryker_config(
+            path="src/types.ts", ranges=[(1, 40)],
+            jest_options=jest_runner_options(tests=["/repo/src/types.test.ts"], config_file="jest.config.js"),
+            report_path=tmp_path / "r.json", minutes_left=4.2,
+        )
+
+        assert config["allowEmpty"] is True
 
 
 def crashing_batch(failing_paths, message):

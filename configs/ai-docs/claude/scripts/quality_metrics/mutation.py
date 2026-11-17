@@ -100,11 +100,16 @@ def stryker_config(path, ranges, jest_options, report_path, minutes_left):
 
     `inPlace` keeps the workspace config able to require files
     above it; the tree is a throwaway copy.
+
+    `allowEmpty` lets a batch whose tests run nothing exit 0
+    with no report, which the batch reads as no related test,
+    rather than Stryker aborting with an error.
     """
     return {
         "testRunner": "jest",
         "jest": jest_options,
         "inPlace": True,
+        "allowEmpty": True,
         "mutate": [f"{path}:{start}-{end}" for start, end in ranges],
         "coverageAnalysis": "perTest",
         "reporters": ["json"],
@@ -186,7 +191,9 @@ def run_stryker_batch(tree, path, ranges, deadline, tools=StrykerTools()):
         result = tools.run([str(STRYKER), "run", str(config_path)], deadline, run_dir, jest_env(tree, run_dir))
         if result.killed:
             return None
-        if result.returncode != 0 or not report_path.is_file():
+        if result.returncode == 0 and not report_path.is_file():
+            return _no_related_test_result(path, ranges)
+        if result.returncode != 0:
             raise ToolError(f"Stryker failed on {path}: {result.stderr.strip()}")
         report = _report_keyed_by_repo_path(json.loads(report_path.read_text()), workspace)
         killed, survivors = survivors_from_report(report, path, ranges)
