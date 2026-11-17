@@ -75,16 +75,18 @@ def _eslint_findings(command):
 
 
 def _javascript_findings(path):
+    # Absolute, because eslint runs from / and a relative path
+    # would resolve there instead of against the caller's cwd.
     return _eslint_findings([
         str(ESLINT), "-c", str(JS_ESLINT_CONFIG), "--no-inline-config",
-        "-f", "json", str(path),
+        "-f", "json", str(Path(path).absolute()),
     ])
 
 
 def _typescript_findings(path):
     return _eslint_findings([
         str(ESLINT), "-c", str(TS_ESLINT_CONFIG), "--no-inline-config",
-        "-f", "json", str(path),
+        "-f", "json", str(Path(path).absolute()),
     ])
 
 

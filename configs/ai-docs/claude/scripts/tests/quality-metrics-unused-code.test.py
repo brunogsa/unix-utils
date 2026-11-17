@@ -106,6 +106,22 @@ def test_should_parse_jsx_in_a_tsx_file_while_counting_its_unused_variable(tmp_p
     assert single_record(target)["value"] == 1
 
 
+@pytest.mark.parametrize("name, text, language, rule", [
+    ("cart.js", JS_UNUSED_VARIABLE, "js", "no-unused-vars"),
+    ("cart.ts", TS_UNUSED_VARIABLE, "ts", "@typescript-eslint/no-unused-vars"),
+])
+def test_should_lint_a_relative_target_path_like_its_absolute_form(
+    tmp_path, monkeypatch, name, text, language, rule
+):
+    target_for(tmp_path, f"src/{name}", text, language)
+    monkeypatch.chdir(tmp_path)
+    relative = touched.Target(Path("src") / name, language, None)
+
+    record = single_record(relative)
+
+    assert record["findings"] == [{"line": 1, "rule": rule, "name": "leftover"}]
+
+
 def test_should_raise_a_tool_error_when_eslint_ignores_the_file(tmp_path):
     target = target_for(
         tmp_path, "node_modules/pkg/index.js", JS_UNUSED_VARIABLE, "js"
