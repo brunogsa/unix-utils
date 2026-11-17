@@ -115,6 +115,14 @@ RIPGREP_CONFIG_ENV = "RIPGREP_CONFIG_PATH"
 # may then give a search command's name to another program.
 COMPOUND_COMMAND_TEXT = re.compile(r"[;&|\n`(){}]")
 
+# command -v and -V only look a name up, unless the command
+# makes command a function or an alias, or runs text the guard
+# cannot read, which may do either.
+NAME_LOOKUP_OPTIONS = frozenset({"-v", "-V"})
+COMMAND_REDEFINITION_TEXT = re.compile(
+    r"(?<![\w.-])command\s*\(\s*\)|(?<![\w.-])(function|alias|source|eval)(?![\w.-])"
+)
+
 # git, its global options, then the name it runs, read from
 # the raw text of a command the lexer cannot split.
 GIT_SUBCOMMAND_TEXT = re.compile(r"(?<![\w.-])git(?:\s+-\S+(?:\s+[^\s-]\S*)?)*?\s+([^\s-]\S*)")
@@ -863,14 +871,28 @@ def _may_git_run_commit(words, options_start):
     return subcommand.is_expandable or subcommand.text not in UNALIASABLE_GIT_COMMANDS
 
 
-def _may_run_commit(stage, is_text_reader_trusted):
+def _is_name_lookup(words):
+    """True when the stage is command -v or command -V, which
+    print what each name is and run none of them."""
+    if len(words) < 2 or any(word.is_expandable for word in words[:2]):
+        return False
+    return words[0].text == "command" and words[1].text in NAME_LOOKUP_OPTIONS
+
+
+def _may_run_commit(stage, is_text_reader_trusted, is_lookup_trusted):
     """True when a stage may run git commit, as it may when a
     wrapper option hides which word the wrapper runs.
 
     is_text_reader_trusted is False when the command may have
     given a search command's name to another program.
+    is_lookup_trusted is False when the command may have made
+    command a function or an alias that runs its arguments.
     """
     words = stage.words
+    if is_lookup_trusted and _is_name_lookup(words):
+        # A git word among the names is still read as git may
+        # run it, so a lookup never widens what passes.
+        return _names_commit(words) or _may_later_git_run_commit(words)
     try:
         index = _command_word_index(words, SCREENED_WRAPPERS)
     except UnknownWrapperOption:
@@ -976,9 +998,10 @@ def _read_commit_stages(command, cwd):
         return None
     state = ShellState(cwd or os.getcwd(), _is_assignment_order_known(text))
     is_text_reader_trusted = _is_lone_search_command(command, stages)
+    is_lookup_trusted = not COMMAND_REDEFINITION_TEXT.search(command)
     commits = []
     for stage, is_piped in stages:
-        if _may_run_commit(stage, is_text_reader_trusted):
+        if _may_run_commit(stage, is_text_reader_trusted, is_lookup_trusted):
             commits.append(_commit(stage, values, state))
         _update_state(stage, is_piped, state)
     return commits

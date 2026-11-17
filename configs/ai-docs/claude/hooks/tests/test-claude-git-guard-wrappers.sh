@@ -224,6 +224,49 @@ it_should_allow_a_wrapper_running_no_git_alias() {
   done
 }
 
+# command -v and command -V only print what a name is, and
+# never run it, so a variable after them cannot be git commit.
+it_should_allow_a_command_lookup_of_a_name_held_in_a_variable() {
+  local cmd
+  for cmd in \
+    'command -v $t >/dev/null' \
+    'command -V $t' \
+    "for t in ruff pyright mypy; do printf '%s: ' \$t; command -v \$t >/dev/null && echo yes || echo no; done"; do
+    run_hook "$cmd"
+    assert_eq "should allow a command lookup of a name held in a variable: $cmd" "0" "$HOOK_EXIT"
+  done
+}
+
+# Without -v or -V, command runs the word after it, which a
+# variable may set to git.
+it_should_block_the_command_wrapper_running_a_name_held_in_a_variable() {
+  run_hook 'command $t -m x'
+  assert_eq "should block the command wrapper running a name held in a variable" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_git_commit_run_through_the_command_wrapper() {
+  run_hook 'command git commit -m x'
+  assert_eq "should block an unattributed git commit run through the command wrapper" "2" "$HOOK_EXIT"
+}
+
+# A function named command runs its arguments, so command -v
+# there no longer only looks a name up.
+it_should_block_a_command_lookup_once_the_command_redefines_command() {
+  local cmd
+  for cmd in \
+    'command() { shift; "$@"; }; command -v $t -m x' \
+    'function command { shift; "$@"; }; command -v $t -m x' \
+    'alias command=eval; command -v $t -m x'; do
+    run_hook "$cmd"
+    assert_eq "should block a command lookup once the command redefines command: $cmd" "2" "$HOOK_EXIT"
+  done
+}
+
+it_should_block_an_unattributed_git_commit_chained_after_a_command_lookup() {
+  run_hook 'command -v git && git commit -m x'
+  assert_eq "should block an unattributed git commit chained after a command lookup" "2" "$HOOK_EXIT"
+}
+
 it_should_block_a_git_alias_run_through_a_bare_wrapper
 it_should_block_a_git_alias_run_through_a_wrapper_given_its_options
 it_should_allow_read_only_git_output_piped_into_xargs_n1_running_a_non_git_command
@@ -242,6 +285,11 @@ it_should_block_a_later_git_word_after_a_search_command_that_is_not_the_whole_co
 it_should_block_a_later_git_word_after_rg_when_the_environment_names_an_rg_config
 it_should_block_a_later_git_word_naming_no_git_builtin_after_a_command_that_may_run_it
 it_should_allow_a_wrapper_running_no_git_alias
+it_should_allow_a_command_lookup_of_a_name_held_in_a_variable
+it_should_block_the_command_wrapper_running_a_name_held_in_a_variable
+it_should_block_an_unattributed_git_commit_run_through_the_command_wrapper
+it_should_block_a_command_lookup_once_the_command_redefines_command
+it_should_block_an_unattributed_git_commit_chained_after_a_command_lookup
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
