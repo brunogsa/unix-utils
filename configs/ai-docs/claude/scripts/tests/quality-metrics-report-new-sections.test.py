@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_report_support import file_record, measured, report
 from quality_metrics_support import (
-    verdict_entry_headings as entry_headings,
+    verdict_record_bullets as record_bullets,
     verdict_section as section,
 )
 
@@ -45,7 +45,7 @@ class TestDeadCodeCandidates:
         text = section(report.build_verdict(run), "Dead code candidates")
 
         assert "(2)" in text.splitlines()[0]
-        first, second = entry_headings(text)
+        first, second = record_bullets(text)
         assert "src/a.py:7" in first and "unused_helper" in first
         assert "function" in first and "vulture" in first
         assert "web/b.ts:3" in second and "export" in second and "knip" in second
@@ -79,13 +79,13 @@ class TestMutantSections:
 
         survivors = section(verdict, "Surviving mutants")
         assert "(2)" in survivors.splitlines()[0]
-        first, second = entry_headings(survivors)
+        first, second = record_bullets(survivors)
         assert "src/a.py:4" in first and "ArithmeticOperator" in first
         assert "a - b" in first and "survived" in first
         assert "src/b.ts:9" in second and "no coverage" in second
         not_run = section(verdict, "Mutants not run")
         assert not_run.splitlines()[0] == "## Mutants not run (1)"
-        [entry] = entry_headings(not_run)
+        [entry] = record_bullets(not_run)
         assert "src/c.ts" in entry and "10-20" in entry
 
     def test_should_render_neither_section_when_the_report_has_no_mutation_keys(self):
@@ -135,7 +135,7 @@ class TestLeakedProcesses:
 
         text = section(report.build_verdict(run), "Leaked processes")
 
-        [entry] = entry_headings(text)
+        [entry] = record_bullets(text)
         assert "pid 48211" in entry and LEAKED_JEST_WORKER["command"] in entry
         assert "RSS 792 MB" in entry and "age 90 min" in entry
         assert "repo /Users/dev/integrator" in entry

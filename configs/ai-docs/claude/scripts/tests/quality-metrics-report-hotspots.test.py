@@ -24,7 +24,7 @@ from quality_metrics_report_support import (
     target,
 )
 from quality_metrics_support import (
-    verdict_entry_headings as entry_headings,
+    verdict_record_bullets as record_bullets,
     verdict_section as section,
 )
 
@@ -92,7 +92,7 @@ class TestCoverageDirection:
 
         verdict = report.build_verdict(run)
 
-        [entry] = entry_headings(section(verdict, "Open violations"))
+        [entry] = record_bullets(section(verdict, "Open violations"))
         assert "src/untested.py" in entry
         assert "src/solid.py" not in entry
 
@@ -131,7 +131,7 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        (heading,) = entry_headings(section(verdict, "Not measured"))
+        (heading,) = record_bullets(section(verdict, "Not measured"))
         assert f"no value ({coverage.NO_EXECUTABLE_CODE})" in heading
 
     def test_should_list_a_deferred_crap_as_not_measured_print_it_as_no_value_and_paint_its_file_red(self):
@@ -145,7 +145,7 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        [first] = entry_headings(section(verdict, "Not measured"))
+        [first] = record_bullets(section(verdict, "Not measured"))
         assert "tangle" in first
         assert f"no value ({DEFERRED_LABEL})" in first
         colors = nodes_by_file(mermaid_block(verdict))

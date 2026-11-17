@@ -21,6 +21,7 @@ from quality_metrics_report_support import (
 )
 from quality_metrics_support import (
     verdict_entry_headings as entry_headings,
+    verdict_record_bullets as record_bullets,
     verdict_section as section,
 )
 from quality_metrics.collection import CoverageRun
@@ -73,7 +74,7 @@ class TestExceptions:
         assert "(0)" in section(verdict, "Exceptions").splitlines()[0]
         violations = section(verdict, "Open violations")
         assert "(1)" in violations.splitlines()[0]
-        [entry] = entry_headings(violations)
+        [entry] = record_bullets(violations)
         assert "buildReport" in entry
         assert "CRAP 42" in entry
 
@@ -97,7 +98,7 @@ class TestExceptions:
         assert "(0)" in section(verdict, "Exceptions").splitlines()[0]
         violations = section(verdict, "Open violations")
         assert "(2)" in violations.splitlines()[0]
-        merge_rows, split_cells = sorted(entry_headings(violations))
+        merge_rows, split_cells = sorted(record_bullets(violations))
         assert "mergeRows" in merge_rows
         assert "splitCells" in split_cells
         assert "exception rejected" in split_cells
@@ -152,7 +153,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(measured(failed_run, measured_zero))
 
-        entries = entry_headings(section(verdict, "Open violations"))
+        entries = record_bullets(section(verdict, "Open violations"))
         [failed_entry] = [entry for entry in entries if "src/report.py" in entry]
         [measured_entry] = [entry for entry in entries if "src/other.py" in entry]
         assert "Coverage 0 (pessimistic)" in failed_entry
@@ -165,7 +166,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(run)
 
-        entries = entry_headings(section(verdict, "Open violations"))
+        entries = record_bullets(section(verdict, "Open violations"))
         [deferred_entry] = [entry for entry in entries if "buildReport" in entry]
         [measured_entry] = [entry for entry in entries if "mergeRows" in entry]
         assert deferred_entry.count(DEFERRED_LABEL) == 1
@@ -184,7 +185,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(measured(*records))
 
-        [entry] = entry_headings(section(verdict, "Open violations"))
+        [entry] = record_bullets(section(verdict, "Open violations"))
         assert "src/deferred.py" in entry
         assert "Nesting" in entry
         assert entry.count(DEFERRED_LABEL) == 1
@@ -209,7 +210,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(measured(*records))
 
-        [entry] = entry_headings(section(verdict, "Open violations"))
+        [entry] = record_bullets(section(verdict, "Open violations"))
         assert f" - {title} " in entry
         assert "File size" not in entry
 
@@ -223,7 +224,7 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(run)
 
-        [entry] = entry_headings(section(verdict, "Not measured"))
+        [entry] = record_bullets(section(verdict, "Not measured"))
         assert entry.count(DEFERRED_LABEL) == 1
 
 
@@ -272,7 +273,7 @@ class TestGateInputViolations:
 
         gate_section = section(verdict, "Gate input violations")
         assert "(2)" in gate_section.splitlines()[0]
-        first, second = entry_headings(gate_section)
+        first, second = record_bullets(gate_section)
         assert "declaration_change" in first and "layers.yaml" in first
         assert "excluded_paths" in first
         assert "opt_out" in second and "layers.yaml" in second
@@ -297,9 +298,9 @@ class TestDuplicationCandidates:
 
         candidates = section(verdict, "Duplication candidates")
         assert "(2)" in candidates.splitlines()[0]
-        first, second = entry_headings(candidates)
-        assert first.startswith("### 2.") and "src/pricing.py" in first
-        assert second.startswith("### 3.") and "tests/test_pricing.py" in second
+        first, second = record_bullets(candidates)
+        assert "src/pricing.py" in first
+        assert "tests/test_pricing.py" in second
         assert verdict.index("## Gate input violations") < verdict.index("## Duplication candidates")
 
     def test_should_keep_a_clone_out_of_the_open_violations(self):
@@ -380,7 +381,7 @@ class TestWithinLimitMeasurements:
         assert "## Ranked" not in verdict
         assert "tidyHelper" not in verdict
         assert "tangledBuild" in section(verdict, "Open violations")
-        [unmeasured] = entry_headings(section(verdict, "Not measured"))
+        [unmeasured] = record_bullets(section(verdict, "Not measured"))
         assert "unmeasured" in unmeasured
         assert f"no value ({DEFERRED_LABEL})" in unmeasured
 
@@ -388,6 +389,116 @@ class TestWithinLimitMeasurements:
         verdict = report.build_verdict(measured(crap_record("src/report.py", "tidyHelper", 3)))
 
         assert "(0)" in section(verdict, "Not measured").splitlines()[0]
+
+
+def every_section_run(tmp_path):
+    """A report filling every verdict section, with
+    `buildReport` accepted as an exception through a saved
+    split diff."""
+    split_diff = tmp_path / "split_buildReport.diff"
+    split_diff.write_text("--- a/src/report.py\n+++ b/src/report.py\n")
+    claim = {
+        "file": "src/report.py", "function": "buildReport", "metric": "crap",
+        "split_value": 6, "diff_path": str(split_diff),
+    }
+    deferred = {
+        **crap_record("src/deferred.py", "mergeRows", DEFERRED_CRAP_SCORE),
+        "pessimistic": True, "label": DEFERRED_LABEL,
+    }
+    valueless = deferred_records.deferred_measurement(
+        target("src/deferred.py"), "crap", CRAP_LIMIT,
+        FunctionMeasure("tangle", 4, 30, 26, 12, None, None),
+    )
+    run = {
+        **measured(
+            crap_record("src/report.py", "buildReport", 42),
+            crap_record("src/cells.py", "splitCells", 36),
+            deferred,
+            valueless,
+            file_record("src/pricing.py", "code_duplication", 0.91, 0.82),
+        ),
+        "asks": [{"tool": "c8", "metric": "coverage", "reason": "c8 crashed with exit 1"}],
+        "gate_input_violations": [
+            {"kind": "opt_out", "file": "layers.yaml", "value": "ts.size"}
+        ],
+        "dead_code_candidates": [{
+            "file": "src/a.py", "line": 7, "function": None, "scope": "file",
+            "metric": "dead_code", "value": 1, "limit": 0,
+            "name": "unused_helper", "kind": "function", "tool": "vulture",
+        }],
+        "surviving_mutants": [{
+            "file": "src/a.py", "line": 4, "scope": "file", "metric": "mutation",
+            "value": 1, "limit": 0, "mutator": "ArithmeticOperator",
+            "replacement": "a - b", "status": "survived",
+        }],
+        "mutants_not_run": [
+            {"file": "src/c.ts", "lines": "10-20", "label": "not run (budget)"}
+        ],
+        "not_applicable": [{
+            "file": "tools/sync.py", "metric": "dependency_direction",
+            "reason": "outside every package",
+        }],
+        "sources": [{
+            "metric": "coverage", "language": "python",
+            "source": {"kind": "repo", "tool": "pytest-cov"},
+            "exit_class": None, "side_pr_candidate": None,
+        }],
+        "leaked_processes": {"killed": [{
+            "pid": 48211, "command": "node processChild.js",
+            "rss_kb": 811008, "age_seconds": 5400,
+            "repo": "/Users/dev/integrator", "is_repo_scout_candidate": False,
+        }]},
+    }
+    return run, [claim]
+
+
+class TestRawRecordBullets:
+    def test_should_number_only_the_deferred_metrics_the_tooling_asks_and_the_exceptions(self, tmp_path):
+        run, exceptions = every_section_run(tmp_path)
+
+        verdict = report.build_verdict(run, exceptions=exceptions)
+
+        deferred, ask, exception = entry_headings(verdict)
+        assert deferred.startswith("### 1. [metrics] CRAP - ")
+        assert ask.startswith("### 2. [metrics] c8 (coverage)")
+        assert exception.startswith("### 3. [metrics] buildReport in src/report.py")
+
+    @pytest.mark.parametrize("section_title, record_key", [
+        ("Open violations", "splitCells in src/cells.py - CRAP 36"),
+        ("Gate input violations", "opt_out in layers.yaml - ts.size"),
+        ("Duplication candidates", "src/pricing.py - Code duplication 0.91"),
+        ("Dead code candidates", "src/a.py:7 - unused_helper"),
+        ("Surviving mutants", "src/a.py:4 - ArithmeticOperator -> a - b"),
+        ("Mutants not run", "src/c.ts lines 10-20"),
+        ("Not applicable", "tools/sync.py - Dependency direction"),
+        ("Not measured", "tangle in src/deferred.py - CRAP no value"),
+        ("Coverage sources", "python - measured by repo pytest-cov"),
+        ("Leaked processes", "pid 48211 - node processChild.js"),
+    ])
+    def test_should_list_each_raw_record_as_one_unnumbered_bullet_led_by_its_key(
+        self, tmp_path, section_title, record_key
+    ):
+        run, exceptions = every_section_run(tmp_path)
+
+        listed = section(report.build_verdict(run, exceptions=exceptions), section_title)
+
+        bullets = record_bullets(listed)
+        assert entry_headings(listed) == []
+        assert f"({len(bullets)})" in listed.splitlines()[0]
+        assert any(bullet.startswith(f"- {record_key}") for bullet in bullets)
+
+    def test_should_indent_the_uncovered_lines_and_the_finding_lines_under_their_records_bullet(self):
+        risky = {**crap_record("src/report.py", "buildReport", 42), "uncovered_lines": ["7-9"]}
+        unused = file_record("src/a.py", "unused_code", 2, 0)
+        unused["findings"] = [{"line": 3, "rule": "F401", "name": "os"}]
+
+        violations = section(report.build_verdict(measured(risky, unused)), "Open violations")
+
+        lines = violations.splitlines()
+        assert len(record_bullets(violations)) == 2
+        assert f"- buildReport in src/report.py - CRAP 42 (limit {CRAP_LIMIT:g})" in lines
+        assert "  Uncovered lines: 7-9" in lines
+        assert "  - line 3: F401 os" in lines
 
 
 class TestMetricTitles:

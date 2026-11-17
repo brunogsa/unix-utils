@@ -56,7 +56,7 @@ class TestCoverageSources:
 
         sources_section = section(verdict, "Coverage sources")
         assert "(2)" in sources_section.splitlines()[0]
-        js_entry, python_entry = entry_headings(sources_section)
+        js_entry, python_entry = support.verdict_record_bullets(sources_section)
         assert "js" in js_entry
         assert "global c8" in js_entry
         assert "crash" in js_entry

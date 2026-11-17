@@ -83,14 +83,14 @@ def build_verdict(report, exceptions=(), in_git=True):
         _deferred_section(report["measurements"], numbers),
         _asks_section(report.get("asks", []), numbers),
         _exceptions_section(accepted, numbers),
-        _violations_section(open_violations, numbers),
-        _gate_inputs_section(report.get("gate_input_violations", []), numbers),
-        _duplication_section(report.get("duplication_candidates", []), numbers),
-        *_new_candidate_sections(report, numbers),
-        _not_applicable_section(report.get("not_applicable", []), numbers),
-        _not_measured_section(report["measurements"], numbers),
-        _sources_section(report.get("sources", []), numbers),
-        *_leaked_processes_sections(report.get("leaked_processes"), numbers),
+        _violations_section(open_violations),
+        _gate_inputs_section(report.get("gate_input_violations", [])),
+        _duplication_section(report.get("duplication_candidates", [])),
+        *_new_candidate_sections(report),
+        _not_applicable_section(report.get("not_applicable", [])),
+        _not_measured_section(report["measurements"]),
+        _sources_section(report.get("sources", [])),
+        *_leaked_processes_sections(report.get("leaked_processes")),
         _debt_section(report),
         _design_section(report["measurements"]),
     ]
@@ -155,23 +155,27 @@ def _deferred_section(measurements, numbers):
     return _section(f"Deferred metrics ({len(entries)})", entries)
 
 
-def _counted_section(title, items, numbers, describe_item):
-    """A titled section with one numbered entry per item, the
-    title carrying the entry count."""
-    entries = [_entry(next(numbers), describe_item(item)) for item in items]
-    return _section(f"{title} ({len(entries)})", entries)
+def _counted_section(title, items, describe_item):
+    """A titled section with one bullet per raw record, the
+    title carrying the record count.
+
+    Records are not findings, so they carry no `### N.` number.
+    """
+    bullets = [_bullet(describe_item(item)) for item in items]
+    return _section(f"{title} ({len(bullets)})", bullets)
 
 
 def _asks_section(asks, numbers):
-    return _counted_section("Tooling asks", asks, numbers, _describe_ask)
+    entries = [_entry(next(numbers), _describe_ask(ask)) for ask in asks]
+    return _section(f"Tooling asks ({len(entries)})", entries)
 
 
 def _describe_ask(ask):
     return f"{ask['tool']} ({ask['metric']}) - {ask['reason']}"
 
 
-def _sources_section(sources, numbers):
-    return _counted_section("Coverage sources", sources, numbers, _describe_source)
+def _sources_section(sources):
+    return _counted_section("Coverage sources", sources, _describe_source)
 
 
 def _describe_source(item):
@@ -184,8 +188,8 @@ def _describe_source(item):
     return text
 
 
-def _violations_section(violations, numbers):
-    return _counted_section("Open violations", violations, numbers, _describe_open)
+def _violations_section(violations):
+    return _counted_section("Open violations", violations, _describe_open)
 
 
 def _describe_open(violation_and_rejection):
@@ -193,11 +197,11 @@ def _describe_open(violation_and_rejection):
     return _describe(item) + (REJECTED_NOTE if is_rejected else "")
 
 
-def _duplication_section(candidates, numbers):
-    return _counted_section("Duplication candidates", candidates, numbers, _describe)
+def _duplication_section(candidates):
+    return _counted_section("Duplication candidates", candidates, _describe)
 
 
-def _new_candidate_sections(report, numbers):
+def _new_candidate_sections(report):
     """Dead code and mutation sections; the mutation keys are
     absent until `--mutation` runs, and then so are the
     sections."""
@@ -205,7 +209,6 @@ def _new_candidate_sections(report, numbers):
         _counted_section(
             "Dead code candidates",
             report.get("dead_code_candidates", []),
-            numbers,
             _describe_dead_code,
         )
     ]
@@ -213,26 +216,22 @@ def _new_candidate_sections(report, numbers):
     not_run = report.get("mutants_not_run", [])
     if survivors or not_run:
         sections.append(
-            _counted_section(
-                "Surviving mutants", survivors, numbers, _describe_mutant
-            )
+            _counted_section("Surviving mutants", survivors, _describe_mutant)
         )
         sections.append(
-            _counted_section(
-                "Mutants not run", not_run, numbers, _describe_not_run
-            )
+            _counted_section("Mutants not run", not_run, _describe_not_run)
         )
     return sections
 
 
-def _leaked_processes_sections(leaked, numbers):
+def _leaked_processes_sections(leaked):
     """The leaked test workers killed before the repo test run,
     and the busiest processes when it still never started; no
     section when no reclaim ran."""
     if leaked is None:
         return []
     section = _counted_section(
-        "Leaked processes", leaked["killed"], numbers, _describe_leaked_process
+        "Leaked processes", leaked["killed"], _describe_leaked_process
     )
     busiest = [
         f"- busiest by {label}: {_describe_busy_process(item)}"
@@ -284,12 +283,10 @@ def _describe_not_run(item):
     return f"{item['file']} lines {item['lines']} - {item['label']}"
 
 
-def _not_applicable_section(items, numbers):
+def _not_applicable_section(items):
     """Files a metric could not judge: listed so a reader sees
     they were not measured, never counted as violations."""
-    return _counted_section(
-        "Not applicable", items, numbers, _describe_not_applicable
-    )
+    return _counted_section("Not applicable", items, _describe_not_applicable)
 
 
 def _describe_not_applicable(item):
@@ -297,9 +294,9 @@ def _describe_not_applicable(item):
     return f"{item['file']} - {title} - not applicable: {item['reason']}"
 
 
-def _gate_inputs_section(gate_input_violations, numbers):
+def _gate_inputs_section(gate_input_violations):
     return _counted_section(
-        "Gate input violations", gate_input_violations, numbers, _describe_gate_input
+        "Gate input violations", gate_input_violations, _describe_gate_input
     )
 
 
@@ -307,7 +304,7 @@ def _describe_gate_input(item):
     return f"{item['kind']} in {item['file']} - {item['value']}"
 
 
-def _not_measured_section(measurements, numbers):
+def _not_measured_section(measurements):
     """Limited records with no value, deferred or pessimistic.
 
     The violations list holds only records with a value, so
@@ -316,7 +313,7 @@ def _not_measured_section(measurements, numbers):
     A measurement within its limit is never listed.
     """
     unmeasured = [record for record in measurements if _is_unmeasured(record)]
-    return _counted_section("Not measured", unmeasured, numbers, _describe)
+    return _counted_section("Not measured", unmeasured, _describe)
 
 
 def _is_unmeasured(record):
@@ -384,6 +381,13 @@ def _section(title, entries):
 
 def _entry(number, text):
     return f"### {number}. {METRICS_TAG} {text}"
+
+
+def _bullet(text):
+    """`text`'s first line as a `- ` bullet, its other lines
+    indented under it so they stay part of that record."""
+    first, *continuations = text.split("\n")
+    return "\n".join([f"- {first}", *(f"  {line}" for line in continuations)])
 
 
 def _describe(record):

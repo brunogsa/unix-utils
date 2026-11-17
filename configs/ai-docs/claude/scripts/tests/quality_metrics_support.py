@@ -335,6 +335,13 @@ def verdict_entry_headings(text):
     return re.findall(r"^### \d+\. .*$", text, re.M)
 
 
+def verdict_record_bullets(text):
+    """The unindented `- ` lines of `text`: one per raw record,
+    its continuation lines indented under it.
+    """
+    return re.findall(r"^- .*$", text, re.M)
+
+
 def measure_report(repo, declaration_path, *arguments, env=None):
     """The measure script's parsed JSON report; fails loudly on
     no output.
