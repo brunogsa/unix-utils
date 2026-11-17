@@ -56,11 +56,11 @@ Its `auto-review` leg then runs without spec-conformance context - documented, n
 It runs here, not in a subagent, for two reasons:
 
 - Its `test-sdd` leg's write-permission prompt only renders in the main session.
-- Its five legs are already fresh-context subagents - wrapping it would spend a nesting level deciding nothing.
+- Four of its five legs are already fresh-context subagents, and the fifth (metrics) runs in main and dispatches its own reviewer - wrapping it would spend a nesting level deciding nothing.
 
 **One of the two flags is always passed, never omitted** - omitting both makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
 
-Every leg runs regardless - the tail never skips one.
+Every leg runs regardless - the tail never skips one, and the gate itself skips only the scout leg, when its open-scout export prints `0`.
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 

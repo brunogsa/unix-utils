@@ -1,6 +1,6 @@
 ---
 name: quality-gate
-description: "Run the full quality sweep over a branch - refactor, auto-review, planned tests, metrics - in parallel, writing missing tests, optionally auto-solving the rest. Triggers: /quality-gate, 'run the quality gate', 'full review pass', batch-end dispatch."
+description: "Run the quality sweep over a branch - refactor, auto-review, planned tests, scouts, metrics - in parallel, writing missing tests, optionally auto-solving the rest. Triggers: /quality-gate, 'run the quality gate', 'full review pass', batch-end."
 disable-model-invocation: false
 ---
 
