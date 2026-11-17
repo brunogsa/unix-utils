@@ -721,7 +721,7 @@ it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpr
 # files with `cd ~/<repo>/<dir> && python3 - <<'E'`, the path
 # held in a variable and relative to that `cd`.
 it_should_block_a_python_heredoc_rewriting_a_markdown_file_named_by_a_variable_after_a_home_relative_cd() {
-  local home_relative_docs="~/${fixture_base#"$HOME"/}/repo/docs"
+  local home_relative_docs='~'"/${fixture_base#"$HOME"/}/repo/docs"
   run_hook "$(printf "cd %s && python3 - <<'E'\np='SKILL.md'; s=open(p).read()\ns=s.replace(\"a\",\"b\",1)\nopen(p,'w').write(s)\nE\n" "$home_relative_docs")"
   assert_eq "should block a python heredoc that rewrites a markdown file named by a variable, after a cd into a home-relative repo directory" "2" "$HOOK_EXIT"
 }
@@ -792,7 +792,7 @@ it_should_block_a_node_write_whose_target_path_is_a_variable() {
 }
 
 it_should_allow_a_python_heredoc_that_only_reads_a_markdown_file_named_by_a_variable_after_a_home_relative_cd() {
-  local home_relative_repo="~/${fixture_base#"$HOME"/}/repo"
+  local home_relative_repo='~'"/${fixture_base#"$HOME"/}/repo"
   run_hook "$(printf "cd %s && python3 - <<'E'\np='README.md'; s=open(p).read()\nprint(s.count('Readme'))\nE\n" "$home_relative_repo")"
   assert_eq "should allow a python heredoc that only reads a markdown file named by a variable, after a home-relative cd" "0" "$HOOK_EXIT"
 }
