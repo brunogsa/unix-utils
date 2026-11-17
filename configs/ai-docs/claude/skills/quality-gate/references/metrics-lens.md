@@ -31,7 +31,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
   - Exit 1 is a violation, gate-input violation, or open ask: still valid JSON; render it (section 3).
   - Exit 2 means the run did not measure: read stderr, report the failure, and never read it as a pass.
 
-Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `asks`.
+Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `duplication_candidates`, `asks`.
 
 Return each `asks` entry verbatim as an `ask` record in your final message; main raises it (`metrics-leg.md` §2).
 
@@ -104,6 +104,11 @@ Run these on every function the branch touches and every test it adds, even when
   - A pair is one call to the code under test followed by an assertion on it.
   - A guard assertion that follows no call forms no pair.
   - A parametrized test, or a `for` loop over a table, counts each case or row as its own test.
+
+- **Duplication candidate**: a clone over its limit, listed under the rendered verdict's `## Duplication candidates (<n>)` heading as `### N. ...` entries. It is no violation, so the script gates nothing on it and you rule each one.
+  - Apply `code-standards`' rule "Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars", reading the clone's code at every location.
+  - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
+  - Leave: write one line of reason in the judge file and no finding.
 
 ## 5. Opt-outs are proposals
 

@@ -132,7 +132,7 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
   - It applies the changes itself and confirms tests are green before and after.
 
 - **`metrics` entry** (a `[metrics]` merged finding), split by what the fix edits - a default classification, not a spec rule:
-  - Size, nesting, complexity or duplication violations, and hotspots → `refactor`.
+  - Size, nesting or complexity violations, extract-a-helper findings for duplicate code, and hotspots → `refactor`.
   - Coverage or CRAP violations whose fix is a missing, vacuous or entangled test → `tdd-coder`.
   - A prose or config target → `direct-coder`.
 

@@ -163,6 +163,8 @@ Print the rejected list the same way, with the rejection reason. On the fallback
 
 The plan approval already asked for measured quality, so no triage runs. Enter every entry under the rendered file's `## Open violations` and `## Gate input violations`, plus every `[metrics]` judge finding.
 
+Entries under `## Duplication candidates` do not enter the apply list themselves; only the judge's "extract" `[metrics]` findings do.
+
 Ranked lists, exceptions and deferred entries stay out: they repeat a violation or are rulings. List the numbers with the awk in [`references/metrics-leg.md`](references/metrics-leg.md) §5.
 
 An entry the fix cannot clear, or a rejected exception, stays unmarked, open and first, and nothing blocks the PR.
