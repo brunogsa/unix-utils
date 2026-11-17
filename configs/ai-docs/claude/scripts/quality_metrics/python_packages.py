@@ -29,21 +29,6 @@ def is_outside_every_package(repo_path, package_roots):
     )
 
 
-def count_python_files_outside(tree, package_roots):
-    return sum(
-        1 for repo_path in _python_file_paths(tree)
-        if is_outside_every_package(repo_path, package_roots)
-    )
-
-
-def _python_file_paths(tree):
-    for directory, subdirectories, files in os.walk(tree):
-        subdirectories[:] = _walkable(subdirectories)
-        relative_dir = Path(directory).relative_to(tree)
-        python_names = [name for name in files if name.endswith(".py")]
-        yield from ((relative_dir / name).as_posix() for name in python_names)
-
-
 def _walkable(directory_names):
     return [
         name for name in directory_names

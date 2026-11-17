@@ -13,7 +13,9 @@ from quality_metrics_dependencies_support import (
     env_with_stub_tools,
     env_without_tool,
     measure_branch,
+    report_for_branch,
 )
+from quality_metrics_support import make_repo, run_measure
 
 # Stands in for lint-imports: it records its arguments, then
 # reports one contract kept, as a run with nothing to flag does.
@@ -57,55 +59,56 @@ def env_with_lint_imports_stub(tmp_path, script):
     )
 
 
-def test_scores_a_python_file_as_a_deferred_violation_when_the_tree_has_no_package(tmp_path):
+def test_flags_nothing_for_a_python_file_when_the_tree_has_no_package(tmp_path):
     change = BranchChange(
         {"tools/sync.py": "SYNC = 1\n"}, {"tools/sync.py": "SYNC = 2\n"}
     )
 
-    violations = measure_branch(tmp_path, PYTHON_DECLARATION, change)
+    report = report_for_branch(tmp_path, PYTHON_DECLARATION, change)
 
-    assert len(violations) == 1
-    deferred = violations[0]
-    assert deferred["metric"] == "dependency_direction"
-    assert deferred["file"] == "tools/sync.py"
-    assert deferred["pessimistic"] is True
-    assert "deferred" in deferred["label"]
+    assert report["violations"] == []
+    assert report["measurements"] == []
 
 
-def test_scores_a_python_file_outside_every_package_as_a_deferred_tool_failure(tmp_path):
+def test_flags_nothing_for_a_python_file_outside_every_package(tmp_path):
     base_files = {**PYTHON_CYCLE_BASE_FILES, "tools/sync.py": "SYNC = 1\n"}
     change = BranchChange(base_files, {"tools/sync.py": "SYNC = 2\n"})
 
-    violations = measure_branch(tmp_path, PYTHON_DECLARATION, change)
+    report = report_for_branch(tmp_path, PYTHON_DECLARATION, change)
 
-    assert len(violations) == 1
-    deferred = violations[0]
-    assert deferred["metric"] == "dependency_direction"
-    assert deferred["file"] == "tools/sync.py"
-    assert deferred["kind"] == "tool-failure"
-    assert "outside any Python package" in deferred["detail"]
-    assert deferred["other_file"] is None
-    assert deferred["layer_map_source"] is None
-    assert deferred["pessimistic"] is True
-    assert "deferred" in deferred["label"]
+    assert report["violations"] == []
+    assert report["measurements"] == []
+    assert report["holds_commit"] is False
 
 
-def test_scores_loose_python_scripts_as_one_deferred_record_not_one_per_file(tmp_path):
+def test_lists_each_loose_python_script_as_not_applicable_with_its_reason(tmp_path):
     scripts = ("a.py", "b.py", "c.py")
     change = BranchChange(
         {f"tools/{name}": "X = 1\n" for name in scripts},
         {f"tools/{name}": "X = 2\n" for name in scripts},
     )
 
-    violations = measure_branch(tmp_path, PYTHON_DECLARATION, change)
+    report = report_for_branch(tmp_path, PYTHON_DECLARATION, change)
 
-    assert len(violations) == 1
-    deferred = violations[0]
-    assert deferred["metric"] == "dependency_direction"
-    assert deferred["pessimistic"] is True
-    assert "deferred" in deferred["label"]
-    assert deferred["file"].startswith("tools/")
-    assert "3 Python files" in deferred["detail"]
+    assert report["not_applicable"] == [
+        {
+            "file": f"tools/{name}",
+            "metric": "dependency_direction",
+            "reason": "outside every package",
+        }
+        for name in scripts
+    ]
+
+
+def test_exits_clean_on_a_batch_with_only_a_loose_python_script(tmp_path):
+    repo = make_repo(tmp_path, {"tools/sync.py": "SYNC = 1\n"})
+    (repo / "tools/sync.py").write_text("SYNC = 2\n")
+    declaration_path = tmp_path / "quality-metrics.yaml"
+    declaration_path.write_text(PYTHON_DECLARATION)
+
+    result = run_measure(repo, declaration_path, "--batch-end")
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_runs_lint_imports_directly_without_going_through_uv(tmp_path):

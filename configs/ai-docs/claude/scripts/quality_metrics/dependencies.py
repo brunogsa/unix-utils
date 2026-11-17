@@ -37,7 +37,6 @@ from quality_metrics.layer_map import load_layer_map
 from quality_metrics.python_packages import (
     NoPythonPackageError,
     OutsidePackageError,
-    count_python_files_outside,
     is_outside_every_package,
     python_package_roots,
 )
@@ -65,6 +64,8 @@ TOOL_BY_LANGUAGE = {
 # not read as clean then, so a failure scores as a deferred
 # violation.
 DEFERRABLE_TOOLS = (GO_ARCH_LINT, IMPORT_LINTER)
+
+NOT_APPLICABLE_REASON = "outside every package"
 
 OUTSIDE_PACKAGE_DETAIL = (
     "file sits outside any Python package, so import-linter "
@@ -94,7 +95,7 @@ class DependencyRun:
         self.excluded_paths = excluded_paths
         self.layer_map = layer_map
         self._problems_by_tool = {}
-        self._is_loose_python_reported = False
+        self._not_applicable = []
 
     def problems_by(self, tool):
         """The head's problems, each marked `is_introduced` or
@@ -140,31 +141,18 @@ class DependencyRun:
         ):
             raise OutsidePackageError(OUTSIDE_PACKAGE_DETAIL)
 
-    def claim_loose_python_report(self):
-        """True for the first caller only.
+    def mark_not_applicable(self, repo_path):
+        """Record a file the metric cannot judge, so the report
+        lists it as not measured instead of scoring it."""
+        self._not_applicable.append({
+            "file": repo_path,
+            "metric": METRIC,
+            "reason": NOT_APPLICABLE_REASON,
+        })
 
-        Python files outside every package share one deferred
-        record per run, not one record each.
-        """
-        if self._is_loose_python_reported:
-            return False
-        self._is_loose_python_reported = True
-        return True
-
-    def loose_python_detail(self):
-        count = self._loose_python_file_count
-        noun = "file" if count == 1 else "files"
-        return (
-            f"{count} Python {noun} sit outside any Python package, "
-            "so import-linter cannot check their imports"
-        )
-
-    @cached_property
-    def _loose_python_file_count(self):
-        with self._head_tree() as tree:
-            return count_python_files_outside(
-                tree, self._head_package_roots
-            )
+    @property
+    def not_applicable_files(self):
+        return list(self._not_applicable)
 
     @cached_property
     def _head_package_roots(self):
@@ -209,12 +197,8 @@ def measure(target, metrics, dependency_run):
         problems = dependency_run.problems_by(tool)
         dependency_run.require_checkable(tool, repo_path)
     except (NoPythonPackageError, OutsidePackageError):
-        if not dependency_run.claim_loose_python_report():
-            return []
-        return [deferred_tool_failure(
-            target, repo_path, dependency_run.loose_python_detail(),
-            layer_map_source,
-        )]
+        dependency_run.mark_not_applicable(repo_path)
+        return []
     except ToolError as error:
         if tool not in DEFERRABLE_TOOLS:
             raise
