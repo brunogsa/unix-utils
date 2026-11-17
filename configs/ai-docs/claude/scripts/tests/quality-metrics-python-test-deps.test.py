@@ -91,6 +91,7 @@ def test_should_report_a_red_build_naming_the_usage_error_when_the_repo_declares
     result = collect_python(repo)
 
     assert result.has_failed_tests
+    assert result.failure_reason is not None
     assert "pytest exited 4" in result.failure_reason
 
 

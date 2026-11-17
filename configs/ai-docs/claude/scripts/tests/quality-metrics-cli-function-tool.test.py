@@ -60,6 +60,7 @@ def make_function_tool_time_out(monkeypatch):
     depends on how long a stub takes to start under load.
     """
     def run_tool(command, input_text=None, timeout=None):
+        assert timeout is not None
         raise subprocess.TimeoutExpired(command, timeout)
 
     monkeypatch.setattr("quality_metrics.functions.run_tool", run_tool)

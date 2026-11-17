@@ -90,6 +90,7 @@ def install_repo_tool_that_always_times_out(tmp_path, monkeypatch):
             return tools.run_command(command, *args, timeout=timeout, **options)
         with (tmp_path / "attempts.log").open("a") as attempt_log:
             attempt_log.write("attempt\n")
+        assert timeout is not None
         raise subprocess.TimeoutExpired(command, timeout)
 
     monkeypatch.setattr("quality_metrics.sourcing.run_command", run_command)

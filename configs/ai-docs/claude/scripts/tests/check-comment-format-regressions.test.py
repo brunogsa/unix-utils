@@ -120,6 +120,7 @@ def test_untracked_yml_file_is_scanned_by_the_gate(tmp_path):
 
 def _load_script():
     spec = importlib.util.spec_from_file_location("regressions", SCRIPT)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
