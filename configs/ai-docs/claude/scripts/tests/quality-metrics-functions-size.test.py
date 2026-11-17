@@ -62,15 +62,15 @@ class TestSizeLimits:
             item["value"] for item in file_report["measurements"] if item["file"] == "at_limit.go"
         ] == [300]
 
-    def test_should_pass_a_1024_line_test_file_and_flag_a_1025_line_test_file_but_keep_300_for_code(
+    def test_should_pass_a_2048_line_test_file_and_flag_a_2049_line_test_file_but_keep_300_for_code(
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
         (repo / "at_limit_test.go").write_text(
-            PACKAGE_LINE + "".join(f"var at_limit_{n} = {n}\n" for n in range(1, 1024))
+            PACKAGE_LINE + "".join(f"var at_limit_{n} = {n}\n" for n in range(1, 2048))
         )
         (repo / "over_limit_test.go").write_text(
-            PACKAGE_LINE + "".join(f"var over_limit_{n} = {n}\n" for n in range(1, 1025))
+            PACKAGE_LINE + "".join(f"var over_limit_{n} = {n}\n" for n in range(1, 2049))
         )
         (repo / "code_over_limit.go").write_text(
             PACKAGE_LINE + "".join(f"var code_{n} = {n}\n" for n in range(1, 301))
@@ -85,10 +85,10 @@ class TestSizeLimits:
         assert [
             (item["file"], item["value"], item["limit"])
             for item in file_report["violations"]
-        ] == [("over_limit_test.go", 1025, 1024), ("code_over_limit.go", 301, 300)]
+        ] == [("over_limit_test.go", 2049, 2048), ("code_over_limit.go", 301, 300)]
         assert [
             item["value"] for item in file_report["measurements"] if item["file"] == "at_limit_test.go"
-        ] == [1024]
+        ] == [2048]
 
     def test_should_count_html_and_css_size_as_non_blank_non_comment_lines(self, tmp_path):
         repo = make_repo(tmp_path, {"README.txt": "base\n"})

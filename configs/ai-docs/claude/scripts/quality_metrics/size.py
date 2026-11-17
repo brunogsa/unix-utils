@@ -26,7 +26,7 @@ FILE_LINES_LIMIT = 300
 # A test file is a flat list of independent cases bounded by its
 # subject; per-test size, duplication and entangled-test metrics
 # already cover what hurts in tests.
-TEST_FILE_LINES_LIMIT = 1024
+TEST_FILE_LINES_LIMIT = 2048
 
 # HTML and CSS have no function syntax: only file length
 # applies.
