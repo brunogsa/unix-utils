@@ -1001,6 +1001,31 @@ class TestGrepForTheWordGit:
         possible_commit_reason(tmp_path, "./release.sh", cwd=str(repo))
 
 
+class TestGrepForTheWordCommit:
+    def test_should_let_a_plain_grep_for_the_word_commit_through(self, tmp_path):
+        assert check_commit(tmp_path, command="grep -n commit quality_metrics/x.py") is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "grep -n commit x.py | head -1",
+            "grep -n commit x.py; echo done",
+            "grep -n commit x.py && echo done",
+            "grep -n commit x.py > out.txt",
+            'grep -n commit "$f"',
+            "grep -n commit `echo x.py`",
+        ],
+        ids=["pipe", "semicolon", "and-chain", "redirect", "variable", "backtick"],
+    )
+    def test_should_deny_a_grep_for_the_word_commit_that_could_start_another_call(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command)
+
+    def test_should_deny_a_script_whose_text_is_one_grep_line_naming_commit(self, tmp_path):
+        (tmp_path / "x.pl").write_text('grep { system "git commit -m x" } 1', encoding="utf-8")
+
+        possible_commit_reason(tmp_path, "perl x.pl")
+
+
 class TestScriptFileScreen:
     @pytest.fixture
     def release_script(self, tmp_path):

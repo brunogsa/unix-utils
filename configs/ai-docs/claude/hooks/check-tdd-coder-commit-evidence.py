@@ -612,15 +612,22 @@ def is_possible_commit(command: str, cwd: str | None) -> bool:
     # The raw text includes heredoc bodies and quoted code, so
     # a script fed to any interpreter is screened with it.
     words = get_command_words(command)
-    if may_commit(command, cwd) or words is None or writes_program_input(words):
+    if may_commit(hide_grep_commit_word(command), cwd) or words is None or writes_program_input(words):
         return True
 
     # The words are the text after quote removal, so gi""t
     # com""mit reads as the git commit the shell runs.
-    if may_commit(" ".join(words), cwd):
+    if may_commit(hide_grep_commit_word(" ".join(words)), cwd):
         return True
     has_moved = changes_directory(command, " ".join(words))
     return any(names_commit_in_script(script, cwd, has_moved) for script in get_scripts(words))
+
+
+def hide_grep_commit_word(command: str) -> str:
+    # A plain grep runs no program, so commit in its words is
+    # data. Script text never gets this: perl reads grep as
+    # code that can run anything.
+    return COMMIT_WORD.sub(" ", command) if is_plain_grep(command) else command
 
 
 def get_agent_transcript_path(payload: dict) -> Path | None:
