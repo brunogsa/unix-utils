@@ -31,6 +31,10 @@ METRIC_TITLES = {
     ("code_duplication", "file"): "Code duplication",
     ("test_duplication", "file"): "Test duplication",
     ("dependency_direction", "file"): "Dependency direction",
+    ("unused_code", "file"): "Unused code",
+    ("type_errors", "file"): "Type errors",
+    ("dead_code", "file"): "Dead code",
+    ("mutation", "file"): "Surviving mutant",
 }
 
 PESSIMISTIC_NOTE = "pessimistic"
