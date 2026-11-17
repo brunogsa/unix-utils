@@ -198,6 +198,37 @@ it_should_allow_a_dangerous_phrase_inside_a_quoted_argument() {
   assert_eq "should allow a dangerous phrase that only appears inside a quoted argument" "0" "$HOOK_EXIT"
 }
 
+# Inside "$(...)" bash opens a fresh quoting context, so the
+# '"'"' idiom there pairs as three strings, not as a closing ".
+it_should_allow_quoted_prose_in_a_command_substitution_that_uses_the_apostrophe_idiom() {
+  local cmd
+  cmd=$(cat <<'CMD'
+echo "x: $(wc -w 'it'"'"'s a commit')"
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should allow prose naming commit, quoted with the '\"'\"' apostrophe idiom inside a double-quoted command substitution" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_multi_line_quoted_prose_that_names_git_show_and_commit() {
+  local cmd
+  cmd=$(cat <<'CMD'
+c(){ printf "%s\n" "$1" | wc -w | tr -d ' '; }
+echo "s8: $(c 'Main dispatches you with their commit SHAs.
+
+For each SHA, read `git show <sha>` and the finding it fixed.
+- **Hollow split**, by section 4'"'"'s signs.')"
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should allow a word count of multi-line quoted prose that names git show and commit" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_here_string_of_multi_line_prose_that_names_commit() {
+  run_hook "$(printf "wc -w <<< 'first line\nthe commit SHAs'")"
+  assert_eq "should allow a word count of a multi-line here-string whose prose names commit" "0" "$HOOK_EXIT"
+}
+
 it_should_still_block_a_dangerous_git_op_smuggled_through_a_bash_heredoc() {
   local cmd
   cmd=$(printf "bash <<'EOF'\ngit push --force\nEOF\n")
@@ -860,6 +891,9 @@ it_should_allow_a_cat_heredoc_that_only_mentions_a_git_phrase
 it_should_allow_a_python_heredoc_that_only_mentions_a_git_phrase
 it_should_allow_a_cat_heredoc_fed_through_a_command_substitution
 it_should_allow_a_dangerous_phrase_inside_a_quoted_argument
+it_should_allow_quoted_prose_in_a_command_substitution_that_uses_the_apostrophe_idiom
+it_should_allow_multi_line_quoted_prose_that_names_git_show_and_commit
+it_should_allow_a_here_string_of_multi_line_prose_that_names_commit
 it_should_still_block_a_dangerous_git_op_smuggled_through_a_bash_heredoc
 it_should_block_git_push_origin_main
 it_should_block_git_push_origin_master

@@ -129,6 +129,105 @@ def blank_quotes(line):
     return "".join(out)
 
 
+# A quote opened on one line closes on a later one, and a command
+# substitution inside double quotes starts a fresh quoting context,
+# so only a scan of the whole command pairs quotes as bash does.
+# Read line by line, a quoted line of prose reads as commands, and
+# the closing line of a multi-line string hides the commands after
+# it.
+#
+# A heredoc body left in place holds text, not shell quotes, so
+# that command keeps the line-by-line reading.
+#
+# Parens are written as escapes: bash 3.2 counts them inside this
+# heredoc, since it sits in a command substitution.
+OPEN_PAREN = "\x28"
+CLOSE_PAREN = "\x29"
+SUBSTITUTION_OPENER = "$" + OPEN_PAREN
+HEREDOC_OPENER = re.compile(r"\x3C\x3C")
+HERESTRING_OPENER = "\x3C\x3C\x3C"
+# Bash starts a comment after any metacharacter, so a # glued to
+# one of these opens a comment.
+WORD_START = " \t\n;&|\x3C\x3E" + OPEN_PAREN + CLOSE_PAREN
+# A case pattern ends in a closing paren that does not close the substitution
+# it sits in, and this scan does not track case nesting.
+CASE_WORD = re.compile(r"\bcase\s")
+
+
+class CannotClassify(Exception):
+    """The scan cannot pair the quotes as bash does."""
+
+
+def blank(char):
+    return char if char == "\n" else "x"
+
+
+def scan_code(text, j, stack):
+    """Return the output and length of the token at j, outside
+    quotes."""
+    c, following = text[j], text[j + 1 : j + 2]
+    depth = stack[-1]
+    if c == "\\":
+        return text[j : j + 2], 2
+    if c == "#" and (j == 0 or text[j - 1] in WORD_START):
+        stack.append("comment")
+        return c, 1
+    if c == "$" and following == "\x27":
+        stack.append("ansi-c")
+        return c + following, 2
+    if c in ("\x27", "\""):
+        stack.append(c)
+        return c, 1
+    if c == OPEN_PAREN:
+        stack[-1] = depth + 1
+    elif c == CLOSE_PAREN and depth > 0:
+        stack[-1] = depth - 1
+    elif c == CLOSE_PAREN and len(stack) > 1:
+        if CASE_WORD.search(text, 0, j):
+            raise CannotClassify()
+        # It closes a substitution back into its double-quoted string.
+        stack.pop()
+    return c, 1
+
+
+def scan_quoted(text, j, stack):
+    """Return the output and length at j inside a quote or comment,
+    blanking quoted text as blank_quotes does."""
+    state, c = stack[-1], text[j]
+    if state == "comment":
+        if c == "\n":
+            stack.pop()
+        return c, 1
+    if c == "\\" and state in ("\"", "ansi-c") and j + 1 < len(text):
+        return blank(c) + blank(text[j + 1]), 2
+    if c == ("\x27" if state == "ansi-c" else state):
+        stack.pop()
+        return c, 1
+    if state == "\"" and text.startswith(SUBSTITUTION_OPENER, j):
+        # The $ stays blanked, as blank_quotes leaves it, so only
+        # the commands inside the substitution become visible.
+        stack.append(0)
+        return "xx", 2
+    return blank(c), 1
+
+
+def blank_quotes_across_lines(text):
+    """Blank quoted contents as bash pairs the quotes, or return
+    None when a heredoc remains or the scan ends inside a quote.
+    Raise CannotClassify on a closing paren the scan cannot place."""
+    if HEREDOC_OPENER.search(text.replace(HERESTRING_OPENER, "")):
+        return None
+    out, stack, j = [], [0], 0
+    while j < len(text):
+        scan = scan_code if isinstance(stack[-1], int) else scan_quoted
+        piece, length = scan(text, j, stack)
+        out.append(piece)
+        j += length
+    if stack[-1] == "comment":
+        stack.pop()
+    return "".join(out) if stack == [0] else None
+
+
 # A quoted value is already blanked to one token, so each option
 # ends at whitespace; -Cr or -ca.b=c is not a git option and stays.
 GIT_OPTION_VALUE = r"(?:\x22[^\x22]*\x22|\x27[^\x27]*\x27|\S+)"
@@ -146,9 +245,28 @@ def drop_git_global_options(line):
     return GIT_GLOBAL_OPTIONS.sub("git", line)
 
 
+# Either reading of the quotes can be wrong, so a guarded git
+# command the line-by-line reading sees stays visible even when
+# the whole-command reading puts it inside a quoted string.
+GUARDED_GIT_COMMAND = re.compile(
+    r"\bgit\s+(?:commit|push|reset|clean|worktree|branch|checkout|restore)\b"
+    r"|\baigitcommit\b"
+)
+
 cmd = os.environ.get('CLAUDE_GIT_CMD', '')
 stripped = strip_heredoc_bodies_for_sinks(cmd, NON_EXECUTING_SINK_PATTERN)
-print('\n'.join(drop_git_global_options(blank_quotes(line)) for line in stripped.split('\n')))
+line_view = [drop_git_global_options(blank_quotes(line)) for line in stripped.split('\n')]
+try:
+    blanked = blank_quotes_across_lines(stripped)
+except CannotClassify:
+    # Fail closed: an unclassified command keeps every word visible.
+    blanked = stripped
+if blanked is None:
+    lines = line_view
+else:
+    lines = [drop_git_global_options(line) for line in blanked.split('\n')]
+    lines += [line for line in line_view if GUARDED_GIT_COMMAND.search(line)]
+print('\n'.join(lines))
 PYEOF
 ) || CMD_STRUCT="$CMD"
 
