@@ -237,6 +237,7 @@ NODE_FS_WRITE_CALL = re.compile(
 
 UNREADABLE_DIRECTORY_REASON = '{} (relative to a directory the guard cannot resolve)'
 UNEXPANDED_PATH_REASON = '{} (a shell expansion the guard cannot read)'
+PLAIN_FILE_NAME = re.compile(r'^[A-Za-z0-9_.-]+$')
 
 
 def heredoc_bodies(text):
@@ -974,12 +975,17 @@ def interpreter_write_targets(exe, tokens, stdin_bodies):
 
 def interpreter_write_reason(cwd, target):
     """block_reason for a literal interpreter write target, where cwd None means a directory the guard could not follow."""
-    name = os.path.basename(target)
-    may_be_guarded = '.' not in name or guarded_extension(target)
-    if re.search(r'[$`]', target):
+    last_expansion = max(target.rfind('$'), target.rfind('`'))
+    if last_expansion >= 0:
         # why: the shell may expand it into any path before the
         # program runs, and guarded_tree_path allows such a path.
-        return UNEXPANDED_PATH_REASON.format(target) if may_be_guarded else None
+        # Only a plain name typed after the last expansion keeps
+        # its extension once expanded.
+        name = target[target.rfind('/') + 1:]
+        is_name_literal = target.rfind('/') > last_expansion and PLAIN_FILE_NAME.match(name)
+        if is_name_literal and '.' in name and not guarded_extension(name):
+            return None
+        return UNEXPANDED_PATH_REASON.format(target)
     is_cwd_independent = os.path.isabs(target) or target == '~' or target.startswith('~/')
     if cwd is not None or is_cwd_independent:
         return block_reason(cwd or '/', target)
