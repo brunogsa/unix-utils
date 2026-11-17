@@ -99,9 +99,15 @@
 # `fs.writeFileSync` / `fs.appendFileSync`.
 #
 # It is the same skipped checker behind an interpreter call, so
-# the same allow-list applies; a path not built only from string
-# literals, a non-literal mode, a script file or a `chdir` all
-# fail open.
+# the same allow-list applies.
+#
+# A write whose path or mode the guard cannot read off the
+# program, a `chdir` inside it, or a relative guarded path
+# after a `cd` the guard cannot follow all fail closed: an
+# agent can always rewrite the program with a literal path.
+#
+# A script file fails open, since its program is not on the
+# command line.
 #
 # Examples (pipe JSON, check exit code):
 #   echo '{"tool_input":{"command":"echo hi > notes.md"}}' \
@@ -223,6 +229,13 @@ PATHLIB_WRITERS = ('write_text', 'write_bytes')
 NODE_FS_WRITE = re.compile(
     r'''(?:\bfs|require\(\s*['"](?:node:)?fs['"]\s*\))\s*\.\s*(?:writeFileSync|appendFileSync)'''
     r'''\s*\(\s*(['"])([^'"\\$`]+)\1''')
+
+# Every node fs write call, literal path or not, so a call the
+# literal pattern above misses still counts as a write.
+NODE_FS_WRITE_CALL = re.compile(
+    r'''(?:\bfs|require\(\s*['"](?:node:)?fs['"]\s*\))\s*\.\s*(?:writeFileSync|appendFileSync)\s*\(''')
+
+UNREADABLE_DIRECTORY_REASON = '{} (relative to a directory the guard cannot resolve)'
 
 
 def heredoc_bodies(text):
@@ -905,44 +918,71 @@ def python_literal_bindings(tree):
     return bindings
 
 
-def python_call_write_target(call, bindings):
-    """The literal path one python call writes, or None when it only reads or its path or mode is not literal."""
+def python_written_path_expression(call):
+    """The path expression a python call writes through, or None when the call cannot write."""
     function = call.func
     if isinstance(function, ast.Attribute) and function.attr in PATHLIB_WRITERS:
-        return literal_python_path(function.value, bindings)
+        return function.value
     if not (isinstance(function, ast.Name) and function.id == 'open'):
         return None
     keywords = {keyword.arg: keyword.value for keyword in call.keywords}
     path = call.args[0] if call.args else keywords.get('file')
     mode = call.args[1] if len(call.args) > 1 else keywords.get('mode')
-    is_literal_mode = isinstance(mode, ast.Constant) and isinstance(mode.value, str)
-    if path is None or not is_literal_mode or not set(mode.value) & WRITE_MODE_CHARACTERS:
+    if path is None or mode is None:
         return None
-    return literal_python_path(path, bindings)
+    is_literal_mode = isinstance(mode, ast.Constant) and isinstance(mode.value, str)
+    if is_literal_mode and not set(mode.value) & WRITE_MODE_CHARACTERS:
+        return None
+    # why: a mode the guard cannot read may be a write mode.
+    return path
 
 
-def interpreter_write_targets(exe, tokens, stdin_bodies):
-    """Every literal path an inline python or node program writes, or [] when the guard cannot read it off the program."""
-    if exe is None:
-        return []
-    program = interpreter_program(exe, arguments_after(exe, tokens), stdin_bodies)
-    if program is None:
-        return []
-    language, code = program
-    if 'chdir' in code:
-        # The program's cwd is unknown from here on, the same
-        # reason a failed `cd` stops the segment loop.
-        return []
-    if language == 'node':
-        return [match.group(2) for match in NODE_FS_WRITE.finditer(code)]
+def python_write_targets(code):
+    """(literal paths, has unreadable write) for a python program, as interpreter_write_targets returns."""
     try:
         tree = ast.parse(code)
     except (SyntaxError, ValueError):
-        return []
+        return [], False
     bindings = python_literal_bindings(tree)
-    targets = [python_call_write_target(node, bindings)
-               for node in ast.walk(tree) if isinstance(node, ast.Call)]
-    return [target for target in targets if target]
+    path_expressions = [python_written_path_expression(node)
+                        for node in ast.walk(tree) if isinstance(node, ast.Call)]
+    written_paths = [literal_python_path(expression, bindings)
+                     for expression in path_expressions if expression is not None]
+    literal_paths = [path for path in written_paths if path]
+    return literal_paths, len(literal_paths) < len(written_paths)
+
+
+def interpreter_write_targets(exe, tokens, stdin_bodies):
+    """(literal paths, has unreadable write) for an inline python or node program; ([], False) when no program is on the command line.
+
+    An unreadable write is one whose path or mode the guard cannot read off the program.
+    """
+    if exe is None:
+        return [], False
+    program = interpreter_program(exe, arguments_after(exe, tokens), stdin_bodies)
+    if program is None:
+        return [], False
+    language, code = program
+    if language == 'node':
+        literal_paths = [match.group(2) for match in NODE_FS_WRITE.finditer(code)]
+        has_unreadable_write = len(literal_paths) < len(NODE_FS_WRITE_CALL.findall(code))
+    else:
+        literal_paths, has_unreadable_write = python_write_targets(code)
+    if 'chdir' in code and literal_paths:
+        # why: after a chdir inside the program, no relative path
+        # can be resolved against the command's cwd.
+        return [], True
+    return literal_paths, has_unreadable_write
+
+
+def interpreter_write_reason(cwd, target):
+    """block_reason for a literal interpreter write target, where cwd None means a `cd` the guard could not follow."""
+    is_cwd_independent = os.path.isabs(target) or target == '~' or target.startswith('~/')
+    if cwd is not None or is_cwd_independent:
+        return block_reason(cwd or '/', target)
+    if not guarded_extension(target):
+        return None
+    return UNREADABLE_DIRECTORY_REASON.format(target)
 
 
 def record_write(reason, sources):
@@ -971,6 +1011,7 @@ def record_directory_copy(path):
 blocked = []
 directory_copies = []
 script_shape_blocked = []
+unreadable_interpreter_writes = []
 format_reports = []
 has_repo_move_block = False
 cwd = os.getcwd()
@@ -992,24 +1033,26 @@ for segment, is_piped_into in segments:
     segment_opener_count = len(HEREDOC_OPENER.findall(segment))
     stdin_bodies = [body for body in heredoc_body_queue[:segment_opener_count] if body]
     heredoc_body_queue = heredoc_body_queue[segment_opener_count:]
-    for target in interpreter_write_targets(exe, tokens, stdin_bodies):
-        reason = block_reason(cwd, target)
+    literal_paths, has_unreadable_write = interpreter_write_targets(exe, tokens, stdin_bodies)
+    if has_unreadable_write:
+        unreadable_interpreter_writes.append(exe)
+    for target in literal_paths:
+        reason = interpreter_write_reason(cwd, target)
         if reason and reason not in blocked:
             blocked.append(reason)
+    if cwd is None:
+        # why: only an interpreter write fails closed under an
+        # unknown cwd; resolving any other relative path against
+        # the old cwd invents a repo path the command never
+        # writes, the false block that gets a guard switched off.
+        continue
     if exe == 'cd':
         arguments = positional_arguments(arguments_after(exe, tokens))
         if not arguments:
             destination = os.path.expanduser('~')
         else:
-            destination = os.path.normpath(os.path.join(cwd, arguments[0]))
-        if not os.path.isdir(destination):
-            # The cwd is now unknown, so every later relative
-            # path is unknown too. Resolving one against the
-            # old cwd invents a repo path the command never
-            # writes, which is the false block that gets a
-            # guard switched off.
-            break
-        cwd = destination
+            destination = absolute_path(cwd, arguments[0])
+        cwd = destination if os.path.isdir(destination) else None
         continue
     sources = copied_source_paths(exe, tokens, cwd, is_piped_into)
     previous_cat_sources = sources
@@ -1037,10 +1080,14 @@ for segment, is_piped_into in segments:
             if reason and reason not in script_shape_blocked:
                 script_shape_blocked.append(reason)
 
-if not blocked and not script_shape_blocked:
+if not blocked and not script_shape_blocked and not unreadable_interpreter_writes:
     sys.exit(0)
 
 message = []
+if unreadable_interpreter_writes:
+    message.append('bash write guard blocked this inline {} program - it writes a file whose path or mode the guard cannot read off the program, so it may be a guarded file.'.format(
+        ' / '.join(sorted(set(unreadable_interpreter_writes)))))
+    message.append('Use the Edit or Write tool for repo files. For scratch, name the path as a string literal under /tmp, or assign that literal to a variable exactly once.')
 if blocked:
     message.append('bash write guard blocked this command - these paths must be written through the Edit or Write tool:')
     for path in blocked:

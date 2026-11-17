@@ -653,9 +653,9 @@ it_should_allow_a_python_one_liner_that_only_reads_a_repo_source_file() {
   assert_eq "should allow a python one-liner that opens a repo file only for reading" "0" "$HOOK_EXIT"
 }
 
-it_should_allow_a_python_write_whose_target_path_is_built_at_runtime() {
+it_should_block_a_python_write_whose_target_path_is_built_at_runtime() {
   run_hook "python3 -c \"import os; open(os.path.join('src', 'new.ts'), 'w').write('x')\""
-  assert_eq "should allow a python write whose path is computed at runtime, since the guard cannot read it off the script" "0" "$HOOK_EXIT"
+  assert_eq "should block a python write whose path is computed at runtime, since the guard cannot rule out a guarded file" "2" "$HOOK_EXIT"
 }
 
 it_should_block_a_python_pathlib_write_text_onto_a_repo_source_file() {
@@ -715,6 +715,65 @@ it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpr
     *Edit\ or\ Write*) names_tools="yes" ;;
   esac
   assert_eq "should name the Edit or Write tool when it blocks a python write to a repo file" "yes" "$names_tools"
+}
+
+# The 2026-11-17 bypass: a subagent rewrote tracked markdown
+# files with `cd ~/<repo>/<dir> && python3 - <<'E'`, the path
+# held in a variable and relative to that `cd`.
+it_should_block_a_python_heredoc_rewriting_a_markdown_file_named_by_a_variable_after_a_home_relative_cd() {
+  local home_relative_docs="~/${fixture_base#"$HOME"/}/repo/docs"
+  run_hook "$(printf "cd %s && python3 - <<'E'\np='SKILL.md'; s=open(p).read()\ns=s.replace(\"a\",\"b\",1)\nopen(p,'w').write(s)\nE\n" "$home_relative_docs")"
+  assert_eq "should block a python heredoc that rewrites a markdown file named by a variable, after a cd into a home-relative repo directory" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_heredoc_writing_a_markdown_file_after_a_cd_into_a_directory_it_cannot_resolve() {
+  run_hook "$(printf "cd \"\$SKILL_DIR\" && python3 - <<'E'\nq='references/scout-leg.md'; t=open(q).read()\nopen(q,'w').write(t)\nE\n")"
+  assert_eq "should block a python heredoc writing a relative markdown path after a cd whose directory the guard cannot resolve" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_heredoc_writing_a_json_file_after_a_cd_into_a_directory_it_cannot_resolve() {
+  run_hook "$(printf "cd \"\$SKILL_DIR\" && python3 - <<'E'\nopen('settings.json','w').write('{}')\nE\n")"
+  assert_eq "should allow a python heredoc writing a json file, which no prose checker handles, after a cd the guard cannot resolve" "0" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_one_liner_writing_a_markdown_file_named_by_a_variable() {
+  run_hook "python3 -c \"p='docs/notes.md'; open(p,'w').write('# Notes')\""
+  assert_eq "should block a python one-liner that writes a repo markdown file named by a variable" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_pathlib_write_text_onto_a_path_taken_from_the_command_line() {
+  run_hook "python3 -c \"import pathlib, sys; p = sys.argv[1]; pathlib.Path(p).write_text('# Notes')\" docs/notes.md"
+  assert_eq "should block a python pathlib write_text whose path comes from a command-line argument the guard cannot read" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_open_for_writing_whose_mode_is_not_a_literal() {
+  run_hook "python3 -c \"import sys; m = sys.argv[1]; open('README.md', m).write('x')\" w"
+  assert_eq "should block a python open of a tracked markdown file whose mode the guard cannot read, since it may write" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_write_after_the_program_changes_its_own_directory() {
+  run_hook "python3 -c \"import os; os.chdir('docs'); open('notes.md', 'w').write('# Notes')\""
+  assert_eq "should block a python write that follows a chdir inside the program, since its directory is unknown" "2" "$HOOK_EXIT"
+}
+
+it_should_block_a_node_write_whose_target_path_is_a_variable() {
+  run_hook "node -e \"const fs = require('fs'); const p = process.argv[1]; fs.writeFileSync(p, '# Notes')\" docs/notes.md"
+  assert_eq "should block a node writeFileSync whose path is a variable the guard cannot read" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_a_python_heredoc_that_only_reads_a_markdown_file_named_by_a_variable_after_a_home_relative_cd() {
+  local home_relative_repo="~/${fixture_base#"$HOME"/}/repo"
+  run_hook "$(printf "cd %s && python3 - <<'E'\np='README.md'; s=open(p).read()\nprint(s.count('Readme'))\nE\n" "$home_relative_repo")"
+  assert_eq "should allow a python heredoc that only reads a markdown file named by a variable, after a home-relative cd" "0" "$HOOK_EXIT"
+}
+
+it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_a_write_to_an_unreadable_path() {
+  run_hook_capturing_stderr "python3 -c \"import sys; open(sys.argv[1], 'w').write('x')\" docs/notes.md"
+  local names_tools="no"
+  case "$HOOK_STDERR" in
+    *Edit\ or\ Write*) names_tools="yes" ;;
+  esac
+  assert_eq "should name the Edit or Write tool when it blocks a python write whose path it cannot read" "yes" "$names_tools"
 }
 
 setup_fixtures
@@ -810,7 +869,7 @@ it_should_block_a_python_one_liner_opening_a_repo_source_file_for_writing
 it_should_block_a_python_one_liner_appending_to_a_tracked_markdown_file
 it_should_block_a_python_heredoc_script_rewriting_a_repo_file_named_by_a_variable
 it_should_allow_a_python_one_liner_that_only_reads_a_repo_source_file
-it_should_allow_a_python_write_whose_target_path_is_built_at_runtime
+it_should_block_a_python_write_whose_target_path_is_built_at_runtime
 it_should_block_a_python_pathlib_write_text_onto_a_repo_source_file
 it_should_block_a_python_path_write_bytes_onto_a_repo_markdown_file_after_importing_path
 it_should_block_a_node_one_liner_writing_a_repo_source_file
@@ -822,6 +881,16 @@ it_should_allow_a_python_write_onto_an_extension_the_prose_checkers_ignore
 it_should_allow_a_node_write_into_a_scratch_directory
 it_should_allow_a_python_script_that_only_reads_and_prints_a_repo_file
 it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpreter_write
+it_should_block_a_python_heredoc_rewriting_a_markdown_file_named_by_a_variable_after_a_home_relative_cd
+it_should_block_a_python_heredoc_writing_a_markdown_file_after_a_cd_into_a_directory_it_cannot_resolve
+it_should_allow_a_python_heredoc_writing_a_json_file_after_a_cd_into_a_directory_it_cannot_resolve
+it_should_block_a_python_one_liner_writing_a_markdown_file_named_by_a_variable
+it_should_block_a_python_pathlib_write_text_onto_a_path_taken_from_the_command_line
+it_should_block_a_python_open_for_writing_whose_mode_is_not_a_literal
+it_should_block_a_python_write_after_the_program_changes_its_own_directory
+it_should_block_a_node_write_whose_target_path_is_a_variable
+it_should_allow_a_python_heredoc_that_only_reads_a_markdown_file_named_by_a_variable_after_a_home_relative_cd
+it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_a_write_to_an_unreadable_path
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
