@@ -38,14 +38,17 @@ What `SKILL.md` §7 closes the run with, read at §7 so the list loads fresh aft
 
 ## Scout leg
 
-Read the scout facts from `<RUN_DIR>/scout-classification.md`, and report one of:
+Report the outcome that happened, and every bucket of ids that had members. Read the ids from `<RUN_DIR>/scout-outcomes.md`, never from memory.
 
-- `scout leg: not run (no open scout)`.
+- A run outcome, one of:
+  - `scout leg: not run (no open scout)`.
+  - `scout leg: not run (no task directory for session <SESSION_ID>)`.
+  - `scout leg: not run (no git)`.
+  - `scout leg: FAIL (export exited <rc>: <stderr>)`, a failing outcome, never a clean one.
+  - `scout leg: merge fell back, no scout task deleted`.
 
-- The in-goal task ids deleted.
-
-- The in-goal ids completed as already fixed, with their evidence, never reported as dropped by the merge.
-
-- The in-goal ids kept because no finding for them reached the merged file.
-
-- The off-goal ids left in the TaskList for the human, ids only, with no finding text.
+- After a merge that passed, each of these that is not empty:
+  - The in-goal ids deleted, with the merged verdict path where their findings live.
+  - The in-goal ids completed as already fixed, with their evidence, never reported as dropped by the merge.
+  - The ids kept because the merge dropped them or they failed the id check, each with its reason.
+  - The off-goal ids left in the TaskList for the human, ids only, with no finding text.
