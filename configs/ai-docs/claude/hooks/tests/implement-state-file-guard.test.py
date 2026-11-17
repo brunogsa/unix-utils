@@ -263,22 +263,6 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
         marker_path(self.sid).write_text("")
         return marker_path(self.sid)
 
-    def write_scratchpad(self, offset_seconds):
-        """Write the §2.3 scratchpad with an mtime offset from
-        the marker's.
-
-        Positive means "written after this run's /implement
-        prompt" - real §2.3 evidence. Negative means a leftover
-        from an EARLIER /implement in the same session, which
-        must not disarm the guard for the new run.
-        """
-        path = scratchpad_path(self.sid)
-        path.write_text("# implement scratchpad\n")
-        marker_mtime = marker_path(self.sid).stat().st_mtime
-        stamp = marker_mtime + offset_seconds
-        os.utime(path, (stamp, stamp))
-        return path
-
     def write_state(self, phase):
         state_path(self.sid).write_text(json.dumps({
             "version": 4, "session_id": self.sid, "slug": "demo",
@@ -336,41 +320,19 @@ class StopHookStateFileGuardTestCase(unittest.TestCase):
             msg="consuming the marker on the first block would reopen the gap: the "
                 "very batch this guard exists for may stop only once")
 
-    def test_should_allow_the_stop_when_a_fresh_scratchpad_shows_2_3_ran_and_the_state_file_was_disposed(self):
+    def test_should_still_block_when_a_newer_tmp_md_exists_because_the_hook_no_longer_reads_it(self):
         self.arm()
-        self.write_scratchpad(offset_seconds=+30)
-
-        result = run_stop_hook(sid=self.sid)
-
-        self.assertEqual(result.returncode, 0, msg=result.stderr)
-        self.assertEqual(
-            result.stdout, "",
-            msg="§8.4 trashes the state file but not the scratchpad, so a completed "
-                "run whose only Stop is the batch-end one must not be blocked")
-
-    def test_should_disarm_the_marker_once_a_fresh_scratchpad_has_witnessed_2_3(self):
-        self.arm()
-        self.write_scratchpad(offset_seconds=+30)
-
-        run_stop_hook(sid=self.sid)
-
-        self.assertFalse(
-            marker_path(self.sid).exists(),
-            msg="a marker that outlives its run would false-block every later stop")
-
-    def test_should_still_block_when_the_only_scratchpad_predates_this_implement_invocation(self):
-        stale = scratchpad_path(self.sid)
-        stale.write_text("# leftover from an earlier run\n")
-        self.arm()
-        stale_stamp = marker_path(self.sid).stat().st_mtime - 600
-        os.utime(stale, (stale_stamp, stale_stamp))
+        notes = scratchpad_path(self.sid)
+        notes.write_text("# not the implement skill's notes file any more\n")
+        stamp = marker_path(self.sid).stat().st_mtime + 30
+        os.utime(notes, (stamp, stamp))
 
         decision = self.decision(run_stop_hook(sid=self.sid))
 
         self.assertIsNotNone(
             decision,
-            msg="a second /implement in the same session must not be disarmed by "
-                "the first run's leftover scratchpad")
+            msg="the implement skill keeps its notes in the harness scratchpad, never "
+                "/tmp, so a /tmp .md is no witness; §8.4 trashes the marker itself")
         assert decision is not None
         self.assertEqual(decision["decision"], "block")
 

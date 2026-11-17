@@ -187,6 +187,8 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
 4. **Finalize the phase.**
    - Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
    - It lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
+   - With the last unit's state file, also `trash /tmp/implement_<session_id>.expected` when it still exists.
+   - Left armed, that marker makes the Stop hook block the batch-end Stop for lacking a state file.
    - The Stop hook releases on this phase; a presented batch is never resumed.
    - **`presented` is written here and nowhere earlier.**
    - Written before the gates, it would let a run stop with its gates unrun and its PR already open - the state §8.1's early push otherwise makes reachable.

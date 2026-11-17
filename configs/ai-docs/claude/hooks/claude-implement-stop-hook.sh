@@ -103,24 +103,20 @@
 # - Marker absent → unchanged: silent exit 0, one failed glob
 #   and nothing else.
 #
-# - Marker present, and no §2.3 witness → block, naming the
+# - Marker present, and no state file → block, naming the
 #   exact missing path and both fixes (write the state file; or
 #   trash the marker if no run is actually in flight).
 #
-#   Two artifacts count as a §2.3 witness,
-#   because §2.3 writes two:
+#   The only §2.3 witness is a state file,
+#   /tmp/implement_<session_id>*.json.
 #
-# - Any /tmp/implement_<session_id>*.json state file.
-# - /tmp/implement_<session_id>.md, the scratchpad - NEWER than
-#   the marker.
+#   §8.4 trashes the marker with the last state file, so a
+#   completed run leaves no marker to false-block its batch-end
+#   Stop.
 #
-#     §8.4 trashes the state file but nothing disposes of the
-#     scratchpad, so it is the only witness left at the
-#     batch-end Stop of a run that ended no turn mid-flight.
-#
-#     The newer-than test is what stops a leftover scratchpad
-#     from an earlier /implement in the same session from
-#     disarming a later one.
+#   The implement skill's notes live in the harness scratchpad,
+#   whose path a hook cannot derive from its payload, so no
+#   notes file is a witness.
 #
 #   No grace stop, on purpose: a design that let the first
 #   qualifying Stop pass would eat the only Stop such a batch
@@ -241,12 +237,9 @@ shopt -s nullglob
 state_files=(/tmp/implement_"$session_id"*.json)
 shopt -u nullglob
 
-# The two §2.3 witnesses, and the marker that makes them
-# meaningful.
-# See the "§2.3-skip guard" block in the header for why each one
-# is here.
+# The marker that makes an absent state file meaningful.
+# See the "§2.3-skip guard" block in the header for why.
 marker="/tmp/implement_${session_id}.expected"
-scratchpad="/tmp/implement_${session_id}.md"
 
 if [ "${#state_files[@]}" -eq 0 ]; then
   # Marker absent → no /implement was invoked in this session:
@@ -254,18 +247,6 @@ if [ "${#state_files[@]}" -eq 0 ]; then
   # Query mode never blocks, so it takes this path too.
   if [ "$mode" != "gate" ] || [ ! -f "$marker" ]; then
     leave_not_mid_flight
-  fi
-
-  # §8.4 trashes the state file but leaves the scratchpad, so a
-  # completed run whose only Stop is the batch-end one still has
-  # a witness.
-  #
-  # It must be NEWER than the marker: a leftover scratchpad from
-  # an earlier /implement in the same session would otherwise
-  # disarm this run permanently.
-  if [ -f "$scratchpad" ] && [ "$scratchpad" -nt "$marker" ]; then
-    rm -f "$marker" 2>/dev/null || true
-    exit 0
   fi
 
   reason="Implement run (session $session_id): /implement was invoked in this \

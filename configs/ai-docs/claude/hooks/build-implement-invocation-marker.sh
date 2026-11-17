@@ -48,22 +48,18 @@
 # Marker lifecycle (deliberately asymmetric - this hook only
 # ever arms):
 #
-# - Written here, on every /implement invocation, truncating any
-#   earlier marker so its mtime always tracks the CURRENT
-#   invocation.
-#
-#   The Stop hook compares the §2.3 scratchpad against that
-#   mtime, so a stale marker would let an earlier run's
-#   leftovers disarm a later run.
+# - Written here, on every /implement invocation, so a second
+#   /implement in the same session re-arms the guard.
 #
 # - Removed by claude-implement-stop-hook.sh, in gate mode only,
-#   the moment it witnesses §2.3 (a state file exists, or the
-#   scratchpad is newer than this marker).
+#   the moment it sees a state file (the §2.3 witness).
 #
-#   Removing it there and nowhere else is what stops a marker
-#   from outliving its run: §8.4 trashes the state file at batch
-#   end, so a marker still armed afterwards would false-block
-#   every later Stop in the session.
+# - Also trashed by the implement skill's §8.4, together with
+#   the last state file, so a run that stops only once at batch
+#   end leaves no marker behind.
+#
+#   Without that, a marker still armed after §8.4 would
+#   false-block every later Stop in the session.
 #
 # - NEVER consumed by a block.
 #   A batch whose orchestrator ends no turn mid-flight stops
@@ -168,10 +164,6 @@ fi
 
 marker="/tmp/implement_${session_id}.expected"
 
-# Truncating write, not `touch`: a second /implement in the same
-# session must reset the mtime the Stop hook compares the
-# scratchpad against.
-#
 # The content is for a human who finds the file in /tmp - never
 # the prompt itself, which can carry anything the human typed.
 printf '%s\n' \

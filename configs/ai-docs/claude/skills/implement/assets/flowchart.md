@@ -373,6 +373,8 @@ def run_unit(unit):
     delete(state_file)              #       earlier: above the gates it would free
                                     #       the Stop hook with them unrun and a PR
                                     #       already open
+    if last_unit:                   #       the last unit's deletion also trashes the
+        delete(expected_marker)     #       .expected marker, else the hook blocks
 
 
 def run_one_task(task):
@@ -653,7 +655,7 @@ flowchart TD
     n44c{"44c. Did 37 open a draft PR?"}
     n44d["44d. Refresh that PR's body through the same<br/>pr-creator dispatch: the gate commits land under its<br/>'Unexpected extras' section"]:::dispatch
     n45["45. Step 8.4 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit -<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
-    n45a["45a. Step 8.4 · phase=presented - written HERE and<br/>nowhere earlier: set above the gates it would free the<br/>Stop hook with them unrun and a PR already open.<br/>Then DELETE this unit's state file"]:::state
+    n45a["45a. Step 8.4 · phase=presented - written HERE and<br/>nowhere earlier: set above the gates it would free the<br/>Stop hook with them unrun and a PR already open.<br/>Then DELETE this unit's state file; with the last<br/>unit's, also the .expected marker"]:::state
   end
 
   n46{"46. PR-label run with PRs remaining?"}
