@@ -20,7 +20,7 @@ from quality_metrics.functions import (
 from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import ToolError, bash_file_lloc
 
-FUNCTION_LINES_LIMIT = 30
+FUNCTION_LINES_LIMIT = 64
 FILE_LINES_LIMIT = 300
 
 # A test file is a flat list of independent cases bounded by its

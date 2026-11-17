@@ -15,14 +15,14 @@ from quality_metrics_support import head_of, make_repo, measure_report
 
 
 class TestSizeLimits:
-    def test_should_pass_30_lines_and_5_parameters_and_flag_31_lines_and_6_parameters(
+    def test_should_pass_64_lines_and_5_parameters_and_flag_65_lines_and_6_parameters(
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
         functions_text = "".join(
             [
-                go_function_with_lines("lines_30", 30),
-                go_function_with_lines("lines_31", 31),
+                go_function_with_lines("lines_64", 64),
+                go_function_with_lines("lines_65", 65),
                 go_function_with_parameters("parameters_5", 5),
                 go_function_with_parameters("parameters_6", 6),
             ]
@@ -36,7 +36,7 @@ class TestSizeLimits:
             entry for entry in violation_summary(function_report) if entry[0] is not None
         ]
         assert function_violations == [
-            ("lines_31", "size", 31, 30),
+            ("lines_65", "size", 65, 64),
             ("parameters_6", "parameters", 6, 5),
         ]
 
@@ -180,26 +180,26 @@ class TestBashSize:
         repo = make_repo(
             tmp_path,
             {
-                "report.sh": bash_function_with_statements("untouched_big", 35)
-                + bash_function_with_statements("with_heredoc", 31, with_heredoc=True)
+                "report.sh": bash_function_with_statements("untouched_big", 70)
+                + bash_function_with_statements("with_heredoc", 65, with_heredoc=True)
             },
         )
         base = head_of(repo)
         edited_tail = (
-            bash_function_with_statements("with_heredoc", 31, with_heredoc=True)
+            bash_function_with_statements("with_heredoc", 65, with_heredoc=True)
             .replace("total + 29", "total + 290")
         )
         (repo / "report.sh").write_text(
-            bash_function_with_statements("untouched_big", 35)
+            bash_function_with_statements("untouched_big", 70)
             + edited_tail
-            + bash_function_with_statements("statements_30", 30)
+            + bash_function_with_statements("statements_64", 64)
         )
         declaration_path = write_declaration(tmp_path, ["size"])
 
         report = measure_report(repo, declaration_path, "--per-unit", "--base", base)
 
-        assert measured_functions(report, "size") == ["statements_30", "with_heredoc"]
-        assert violation_summary(report) == [("with_heredoc", "size", 31, 30)]
+        assert measured_functions(report, "size") == ["statements_64", "with_heredoc"]
+        assert violation_summary(report) == [("with_heredoc", "size", 65, 64)]
 
     def test_should_count_a_bash_file_in_logical_lines_and_flag_301_but_not_300(self, tmp_path):
         repo = make_repo(tmp_path, {"README.txt": "base\n"})

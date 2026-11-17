@@ -65,20 +65,20 @@ class TestNestedFunctionSize:
         self, tmp_path
     ):
         sizes, flagged = size_report(
-            tmp_path, "nested.py", python_outer_with_nested(20, 15)
+            tmp_path, "nested.py", python_outer_with_nested(50, 15)
         )
 
         assert sizes["outer.inner"] == 15
-        assert sizes["outer"] == 35
+        assert sizes["outer"] == 65
         assert flagged == ["outer"]
 
     def test_should_count_a_nested_javascript_arrow_in_the_enclosing_function(
         self, tmp_path
     ):
         sizes, flagged = size_report(
-            tmp_path, "nested.js", javascript_outer_with_nested(20, 15)
+            tmp_path, "nested.js", javascript_outer_with_nested(50, 15)
         )
 
         assert sizes["inner"] == 15
-        assert sizes["outer"] == 35
+        assert sizes["outer"] == 65
         assert flagged == ["outer"]
