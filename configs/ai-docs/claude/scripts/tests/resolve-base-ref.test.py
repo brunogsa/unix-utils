@@ -76,7 +76,7 @@ def _set_dangling_origin_head(repo, branch):
 
 
 def _clone_with_lagging_local_main(tmp_path):
-    """Clone whose local main sits one commit behind origin/main."""
+    """Clone whose local main lags origin/main by one commit."""
     origin = tmp_path / "origin.git"
     seed = tmp_path / "seed"
     clone = tmp_path / "clone"
