@@ -23,11 +23,36 @@ METRIC_NAMES = (
     "test_duplication",
     "entangled_tests",
     "dependency_direction",
+    "unused_code",
+    "type_errors",
+    "dead_code",
+    "mutation",
+)
+
+# A soft metric never fails a run: a fresh-context judge rules
+# on its records, which the report lists under the mapped key.
+SOFT_METRIC_KEYS = {
+    "code_duplication": "duplication_candidates",
+    "test_duplication": "duplication_candidates",
+    "dead_code": "dead_code_candidates",
+    "mutation": "surviving_mutants",
+}
+
+# Too slow, or too judgment-bound, to run on every unit.
+NEVER_PER_UNIT_METRICS = (
+    "code_duplication",
+    "test_duplication",
+    "unused_code",
+    "type_errors",
+    "dead_code",
+    "mutation",
 )
 
 # A test file skips CRAP and coverage: both ask how well tests
 # cover production code, which a test file is not.
-SOURCE_ONLY_METRICS = ("crap", "coverage")
+# Dead code treats tests as roots, and mutating tests measures
+# nothing, so those two skip test files as well.
+SOURCE_ONLY_METRICS = ("crap", "coverage", "dead_code", "mutation")
 TEST_DIRECTORY_NAMES = ("tests", "test", "__tests__")
 
 PER_UNIT_MODE = "per-unit"
@@ -72,7 +97,7 @@ class Declaration:
 def load_declaration(path):
     raw = read_yaml(Path(path))
     ignored_extensions = tuple(raw.get("ignored_extensions") or ())
-    per_unit = _validate_metric_names("per_unit", raw.get("per_unit") or ())
+    per_unit = _validate_per_unit(raw.get("per_unit") or ())
     languages = _build_languages(raw.get("languages") or {}, ignored_extensions)
     return Declaration(
         languages=languages,
@@ -192,6 +217,17 @@ def _validate_metric_names(entry_name, metrics):
                 f"known metrics: {', '.join(METRIC_NAMES)}"
             )
     return tuple(metrics)
+
+
+def _validate_per_unit(metrics):
+    names = _validate_metric_names("per_unit", metrics)
+    for metric in names:
+        if metric in NEVER_PER_UNIT_METRICS:
+            raise DeclarationError(
+                f"entry 'per_unit' names '{metric}', which may never run "
+                f"per unit: {', '.join(NEVER_PER_UNIT_METRICS)}"
+            )
+    return names
 
 
 def _build_languages(raw_languages, ignored_extensions):

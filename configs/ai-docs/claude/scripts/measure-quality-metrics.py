@@ -36,7 +36,6 @@ from quality_metrics.churn import with_churn
 from quality_metrics.collection import CoverageRun
 from quality_metrics.debt import debt_score, measured_nloc
 from quality_metrics.debt_delta import branch_debt_delta
-from quality_metrics.duplication import DUPLICATION_METRICS
 from quality_metrics.failures import holds_commit
 from quality_metrics.functions import is_over_limit
 from quality_metrics.measuring import (
@@ -137,12 +136,16 @@ def _print_report(measurements, found, coverage_run, delta):
     """
     gate_input_violations = found["gate_input_violations"]
     over_limit = [item for item in measurements if is_over_limit(item)]
-    candidates = [item for item in over_limit if item["metric"] in DUPLICATION_METRICS]
-    violations = [item for item in over_limit if item["metric"] not in DUPLICATION_METRICS]
+    soft = {key: [] for key in declaring.SOFT_METRIC_KEYS.values()}
+    violations = []
+    for item in over_limit:
+        key = declaring.SOFT_METRIC_KEYS.get(item["metric"])
+        (soft[key] if key else violations).append(item)
+    candidates = [item for items in soft.values() for item in items]
     report = {
         "measurements": measurements,
         "violations": violations,
-        "duplication_candidates": candidates,
+        **soft,
         "holds_commit": holds_commit(measurements),
         "debt": {
             **debt_score(violations + candidates, measured_nloc(measurements)),
