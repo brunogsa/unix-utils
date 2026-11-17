@@ -12,7 +12,8 @@
 # Each is a read-only judge.
 #
 # Its write affordances are exactly three:
-#   1. persisting a verdict to a verdict file,
+#   1. persisting a verdict to a verdict file, in the working
+#      directory or at the git repo root,
 #
 #   2. persisting an inferred layer map to a
 #      layers_inferred_*.yaml file, and
@@ -78,6 +79,26 @@ is_in_cwd_top_level() {
   [[ "$path" != *..* && ( "$path" != */* || "${path%/*}" == "$CWD" ) ]]
 }
 
+# A verdict file may also sit at the top level of the git
+# work tree holding the working directory.
+#
+# A reviewer started from a subdirectory is told to save its
+# verdict "in the repo path", and a .md written into that
+# subdirectory can break the checks that audit it.
+#
+# Fails closed: outside a git repo only the working directory
+# counts.
+#
+# The directory is compared by its physical path, since git
+# prints the root with symlinks resolved (macOS /tmp, /var).
+is_in_repo_root_top_level() {
+  local path="$1" root dir
+  [[ "$path" == /* && "$path" != *..* ]] || return 1
+  root=$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null) || return 1
+  dir=$(cd "${path%/*}" 2>/dev/null && pwd -P) || return 1
+  [ -n "$root" ] && [ "$dir" = "$root" ]
+}
+
 # Prints the allow reason for a write target, or nothing when
 # the target is not one this reviewer may write.
 #
@@ -88,7 +109,7 @@ is_in_cwd_top_level() {
 allowed_write_reason() {
   local path="$1" base="${1##*/}"
   if [[ "$base" == verdict_*.md || "$base" == verdict_*.html ]] \
-    && is_in_cwd_top_level "$path"; then
+    && { is_in_cwd_top_level "$path" || is_in_repo_root_top_level "$path"; }; then
     echo "this reviewer may persist its verdict to its verdict file ($base)"
   elif [[ "$base" == layers_inferred_*.yaml ]] \
     && is_in_cwd_top_level "$path"; then
@@ -438,5 +459,5 @@ fi
 
 # Any other write target is a repo-source/artifact mutation -
 # deny it outright.
-echo "Blocked: this reviewer may write only verdict_*.md, verdict_*.html, layers_inferred_*.yaml in the working directory, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
+echo "Blocked: this reviewer may write only verdict_*.md or verdict_*.html at the git repo root, verdict_*.md, verdict_*.html or layers_inferred_*.yaml in the working directory, or scratch under /tmp (attempted: ${FILE_PATH:-<no path>})" >&2
 exit 2

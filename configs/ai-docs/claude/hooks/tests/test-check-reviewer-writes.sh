@@ -90,7 +90,40 @@ assert_eq "blocks a verdict file in a directory other than the working one" \
 assert_eq "blocks a verdict file reached through a parent-directory hop" \
   "2 no-allow" "$(run_hook "/work/repo/sub/../verdict_x.md")"
 
-# run_bash - feeds a Bash payload with one command and the
+# A reviewer dispatched from a subdirectory is told to save
+# its verdict "in the repo path", so the repo root is a
+# second allowed spot. The fixture is a real git repo, since
+# the hook asks git where the root is.
+repo_root="$(mktemp -d)"
+trap 'rm -rf "$repo_root"' EXIT
+git -C "$repo_root" init -q
+mkdir -p "$repo_root/sub/dir" "$repo_root/other"
+non_repo_root="$(mktemp -d)"
+trap 'rm -rf "$repo_root" "$non_repo_root"' EXIT
+mkdir -p "$non_repo_root/sub"
+
+assert_eq "allows a verdict file at the repo root when the working directory is a subdirectory" \
+  "0 allow" "$(run_hook "$repo_root/verdict_x.md" "$repo_root/sub/dir")"
+
+assert_eq "allows an html verdict file at the repo root when the working directory is a subdirectory" \
+  "0 allow" "$(run_hook "$repo_root/verdict_x.html" "$repo_root/sub/dir")"
+
+assert_eq "blocks a verdict file in a repo directory that is neither the root nor the working one" \
+  "2 no-allow" "$(run_hook "$repo_root/other/verdict_x.md" "$repo_root/sub/dir")"
+
+assert_eq "blocks a repo-root verdict file reached through a parent-directory hop" \
+  "2 no-allow" "$(run_hook "$repo_root/sub/dir/../../verdict_x.md" "$repo_root/sub/dir")"
+
+assert_eq "blocks an inferred layer map at the repo root when the working directory is a subdirectory" \
+  "2 no-allow" "$(run_hook "$repo_root/layers_inferred_x.yaml" "$repo_root/sub/dir")"
+
+assert_eq "blocks a non-verdict file at the repo root when the working directory is a subdirectory" \
+  "2 no-allow" "$(run_hook "$repo_root/config.md" "$repo_root/sub/dir")"
+
+assert_eq "blocks a verdict file one level up when the working directory is outside any git repo" \
+  "2 no-allow" "$(run_hook "$non_repo_root/verdict_x.md" "$non_repo_root/sub")"
+
+# run_bash- feeds a Bash payload with one command and the
 # session cwd; prints the exit code.
 run_bash() {
   local command="$1" cwd="${2:-/work/repo}" code
