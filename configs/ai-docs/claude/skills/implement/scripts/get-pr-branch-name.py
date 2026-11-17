@@ -16,6 +16,7 @@
 import re
 import subprocess
 import sys
+from typing import NoReturn
 
 PR_LABEL = re.compile(r"PR-([0-9]+)")
 LAYER_SUFFIX = re.compile(r"-t[0-9]+$")
@@ -31,7 +32,7 @@ PR_SEPARATOR = "-pr"
 USAGE = "usage: get-pr-branch-name.py <PR-N>"
 
 
-def fail(message):
+def fail(message: str) -> NoReturn:
     print(f"error: {message}", file=sys.stderr)
     sys.exit(2)
 
