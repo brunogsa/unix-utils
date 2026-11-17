@@ -71,6 +71,9 @@ setup_fixtures() {
   # reaches a copy unchecked unless the guard checks it.
   scratch_dir=$(mktemp -d /tmp/claude-bash-write-guard-scratch.XXXXXX)
   printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/batch.md"
+  printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/draft"
+  mkdir -p "$scratch_dir/notes"
+  printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/notes/batch.md"
   printf '{"name": "old-name"}\n' > "$scratch_dir/config.json"
 }
 
@@ -392,6 +395,36 @@ it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_ta
   assert_eq "should block cp -t docs copying a /tmp scratch file whose prose breaks the markdown format rules into the repo" "2" "$HOOK_EXIT"
 }
 
+# why: `644` is the mode, not a second source, so the copy
+# still lands on README.md and the extensionless draft must be
+# checked as README.md.
+it_should_block_install_with_a_mode_copying_an_extensionless_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "install -m 644 $scratch_dir/draft README.md"
+  assert_eq "should block install -m 644 copying an extensionless /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
+# why: a directory copy writes files the guard cannot list one
+# by one, so any directory landing in the repo blocks.
+it_should_block_cp_recursively_copying_a_scratch_directory_into_a_repo_directory() {
+  run_hook "cp -r $scratch_dir/notes docs"
+  assert_eq "should block cp -r copying a /tmp scratch directory of markdown files into a repo directory" "2" "$HOOK_EXIT"
+}
+
+it_should_block_mv_moving_a_scratch_directory_into_the_repo() {
+  run_hook "mv $scratch_dir/notes docs/notes"
+  assert_eq "should block mv moving a /tmp scratch directory of markdown files into the repo, which needs no recursive flag" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_directory() {
+  run_hook "cp -a \$NOTES_DIR docs"
+  assert_eq "should block cp -a copying a source named by a shell variable into a repo directory, since it may be a directory" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_install_with_a_mode_copying_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "install -m 644 $outside_dir/batch.md README.md"
+  assert_eq "should allow install -m 644 copying a file whose prose passes the markdown format rules over a tracked markdown file" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file() {
   run_hook "mv $outside_dir/batch.md README.md"
   assert_eq "should allow mv moving a file whose prose passes the markdown format rules over a tracked markdown file" "0" "$HOOK_EXIT"
@@ -415,6 +448,16 @@ it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_outside_a
 it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_gitignored_path() {
   run_hook "cp $scratch_dir/batch.md build/copy.md"
   assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules onto a git-ignored path" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_recursively_copying_a_scratch_directory_onto_a_gitignored_path() {
+  run_hook "cp -r $scratch_dir/notes build/"
+  assert_eq "should allow cp -r copying a /tmp scratch directory of markdown files onto a git-ignored path" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_recursively_copying_a_scratch_directory_into_tmp() {
+  run_hook "cp -R $scratch_dir/notes $scratch_dir/notes-copy"
+  assert_eq "should allow cp -R copying a /tmp scratch directory of markdown files to another path under /tmp" "0" "$HOOK_EXIT"
 }
 
 it_should_allow_git_mv_renaming_a_tracked_markdown_file() {
@@ -661,11 +704,18 @@ it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tra
 it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
+it_should_block_install_with_a_mode_copying_an_extensionless_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_allow_install_with_a_mode_copying_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
+it_should_block_cp_recursively_copying_a_scratch_directory_into_a_repo_directory
+it_should_block_mv_moving_a_scratch_directory_into_the_repo
+it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_directory
 it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
 it_should_allow_install_copying_a_file_that_passes_the_format_rules_into_the_repo
 it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_tmp
 it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_outside_any_git_work_tree
 it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_gitignored_path
+it_should_allow_cp_recursively_copying_a_scratch_directory_onto_a_gitignored_path
+it_should_allow_cp_recursively_copying_a_scratch_directory_into_tmp
 it_should_allow_git_mv_renaming_a_tracked_markdown_file
 it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit
 it_should_block_an_in_place_sed_limited_to_a_line_range

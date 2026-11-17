@@ -65,6 +65,10 @@
 # checker of the file it lands as. A directory destination or
 # `-t DIR` lands it as DIR/<source basename>.
 #
+# A directory source, or `cp -r`, `-R` or `-a`, blocks whenever
+# it lands in a git work tree: its files cannot be checked one
+# by one.
+#
 # An inline python or node program (`python3 -c`, a
 # `python3 -` heredoc, `node -e`) writing a guarded path is
 # also blocked.
@@ -158,6 +162,14 @@ WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 SYSTEM_BINARY_DIRECTORIES = ('', '/bin/', '/usr/bin/')
 
 FILE_COPY_COMMANDS = ('cp', 'mv', 'install')
+
+# The flags that take the next token as their argument, on
+# both BSD and GNU.
+COPY_OPTION_ARGUMENT_FLAGS = {
+    'cp': ('-S',),
+    'mv': ('-S',),
+    'install': ('-m', '-o', '-g'),
+}
 
 PROSE_FORMAT_HOOK = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'claude-prose-format-posttool-hook.sh')
 
@@ -354,9 +366,14 @@ def absolute_path(cwd, target):
 
 def block_reason(cwd, target):
     """Why this write target must go through Edit/Write, or None when it is allowed."""
-    if re.search(r'[$`*?\[]', target):
-        return None
     if not guarded_extension(target):
+        return None
+    return guarded_tree_path(cwd, target)
+
+
+def guarded_tree_path(cwd, target):
+    """The absolute path of `target` when it sits in a git work tree, outside scratch and not git-ignored, else None."""
+    if re.search(r'[$`*?\[]', target):
         return None
     path = absolute_path(cwd, target)
     if is_under_scratch(path):
@@ -634,14 +651,23 @@ def literal_existing_file(cwd, source):
     return path
 
 
-def copy_operands(arguments):
-    """(operands, target directory or None) of a cp, mv or install argument list."""
+def is_recursive_copy_flag(exe, token):
+    if exe != 'cp':
+        return False
+    if token in ('--recursive', '--archive'):
+        return True
+    return re.fullmatch(r'-[A-Za-z]*[rRa][A-Za-z]*', token) is not None
+
+
+def copy_operands(exe, arguments):
+    """(operands, target directory or None, is recursive) of a cp, mv or install argument list."""
     # why: flags are skipped, not rejected - unlike `cat -n`, no
-    # flag of these copiers rewrites the copied text. A flag's
-    # own argument (`-S .bak`) reads as a missing source, which
-    # blocks, the conservative side.
+    # flag of these copiers rewrites the copied text. The
+    # argument of a flag missing from COPY_OPTION_ARGUMENT_FLAGS
+    # reads as a source that is no file, which blocks.
     operands = []
     target_directory = None
+    is_recursive = False
     index = 0
     is_past_options = False
     while index < len(arguments):
@@ -658,35 +684,53 @@ def copy_operands(arguments):
             target_directory = token.split('=', 1)[1]
         elif token.startswith('-t'):
             target_directory = token[2:]
-    return operands, target_directory
+        elif token in COPY_OPTION_ARGUMENT_FLAGS[exe]:
+            index += 1
+        elif is_recursive_copy_flag(exe, token):
+            is_recursive = True
+    return operands, target_directory, is_recursive
+
+
+def is_directory_source(cwd, source, is_recursive):
+    """Whether `source` may be a directory, whose copied files no check can list."""
+    if re.search(r'[$`*?\[(]', source):
+        return is_recursive
+    return os.path.isdir(absolute_path(cwd, source))
 
 
 def copy_destinations(exe, tokens, cwd):
-    """(destination, source path or None) per file a cp, mv or install segment writes; None marks a source no check can vouch for."""
+    """(destination, source path or None, is directory) per path a cp, mv or install segment writes; None marks a source no check can vouch for."""
     if exe not in FILE_COPY_COMMANDS:
         return []
     executable_index = next(index for index, token in enumerate(tokens)
                             if os.path.basename(token) == exe)
     arguments = without_redirects(tokens[executable_index + 1:])
-    sources, target_directory = copy_operands(arguments)
+    sources, target_directory, is_recursive = copy_operands(exe, arguments)
     if target_directory is None:
         if len(sources) < 2:
             return []
         destination = sources.pop()
-        is_into_directory = (len(sources) > 1 or destination.endswith('/')
+        # why: 2+ sources alone never mark a directory - a misread
+        # flag argument would turn README.md into README.md/<src>.
+        is_into_directory = (destination.endswith('/')
                              or os.path.isdir(absolute_path(cwd, destination)))
     else:
         destination = target_directory
         is_into_directory = True
     is_trusted_copier = is_system_executable(tokens[0], exe)
-    pairs = []
+    writes = []
     for source in sources:
+        if is_directory_source(cwd, source, is_recursive):
+            # why: the destination itself, since a source named by
+            # a variable leaves DIR/<source basename> unreadable.
+            writes.append((destination, None, True))
+            continue
         target = destination
         if is_into_directory:
             target = os.path.join(destination, os.path.basename(source.rstrip('/')))
         source_path = literal_existing_file(cwd, source) if is_trusted_copier else None
-        pairs.append((target, source_path))
-    return pairs
+        writes.append((target, source_path, False))
+    return writes
 
 
 def format_report(source, destination):
@@ -842,7 +886,17 @@ def record_write(reason, sources):
         blocked.append(reason)
 
 
+def record_directory_copy(path):
+    """Block `path`, a directory copied into the repo, since no check can list the files it writes."""
+    if not path:
+        return
+    directory_copies.append(path)
+    if path not in blocked:
+        blocked.append(path)
+
+
 blocked = []
+directory_copies = []
 script_shape_blocked = []
 format_reports = []
 cwd = os.getcwd()
@@ -883,8 +937,11 @@ for segment, is_piped_into in segments:
     sources = copied_source_paths(exe, tokens, cwd, is_piped_into)
     for target in write_targets(exe, tokens, cwd):
         record_write(block_reason(cwd, target), sources)
-    for target, source in copy_destinations(exe, tokens, cwd):
-        record_write(block_reason(cwd, target), None if source is None else [source])
+    for target, source, is_directory in copy_destinations(exe, tokens, cwd):
+        if is_directory:
+            record_directory_copy(guarded_tree_path(cwd, target))
+        else:
+            record_write(block_reason(cwd, target), None if source is None else [source])
     arguments = arguments_after(exe, tokens) if exe else []
     edited_files = in_place_edit_targets(exe, arguments, cwd)
     if edited_files and not is_plain_replace_all(exe, arguments):
@@ -908,6 +965,8 @@ if blocked:
     if format_reports:
         message.append('A `cat`, `cp`, `mv` or `install` copy of existing files passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
+    if directory_copies:
+        message.append('A directory copy (a directory source, or cp -r, -R or -a) into a git work tree always blocks, since its files cannot be checked one by one - copy each file by name instead.')
 if script_shape_blocked:
     message.append('bash write guard blocked this in-place sed/perl edit - its script is not one literal text replaced across the whole file:')
     for path in script_shape_blocked:
