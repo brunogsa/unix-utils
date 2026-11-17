@@ -1371,6 +1371,9 @@ class TestProseOnlyCommitWithNoEvidence:
             f"git commit {PROSE_MESSAGE} -- $F",
             "git add -A",
             "git add -- lib.py NEW.md",
+            "git commit -- SKILL.md",
+            "git commit --trailer 'Co-Authored-By: Claude' -- SKILL.md",
+            "git commit --trailer -m -- SKILL.md",
         ],
         ids=[
             "prose-and-code",
@@ -1390,16 +1393,25 @@ class TestProseOnlyCommitWithNoEvidence:
             "variable-path",
             "add-all",
             "add-code",
+            "no-message-opens-the-editor",
+            "trailer-without-a-message-opens-the-editor",
+            "message-flag-as-a-trailer-value-opens-the-editor",
         ],
     )
     def test_should_still_deny_a_commit_or_add_that_can_reach_a_non_prose_file(self, tmp_path, command):
         possible_commit_reason(tmp_path, command, cwd=str(prose_repo(tmp_path)))
 
-    def test_should_still_deny_a_prose_only_commit_in_a_repo_whose_config_runs_a_program(self, tmp_path):
+    @pytest.mark.parametrize(
+        "key",
+        ["core.fsmonitor", "trailer.x.cmd", "trailer.x.command"],
+        ids=["fsmonitor", "trailer-cmd", "trailer-command"],
+    )
+    def test_should_still_deny_a_prose_only_commit_in_a_repo_whose_config_runs_a_program(self, tmp_path, key):
         repo = prose_repo(tmp_path)
-        git(repo, "config", "core.fsmonitor", "./release.sh")
+        git(repo, "config", key, "./release.sh")
+        command = f"git commit {PROSE_MESSAGE} --trailer 'x: y' -- SKILL.md"
 
-        possible_commit_reason(tmp_path, f"git commit {PROSE_MESSAGE} -- SKILL.md", cwd=str(repo))
+        possible_commit_reason(tmp_path, command, cwd=str(repo))
 
     def test_should_still_deny_a_prose_only_commit_in_a_repo_with_an_active_hook(self, tmp_path):
         repo = prose_repo(tmp_path)

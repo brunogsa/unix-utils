@@ -149,7 +149,7 @@ CONFIG_PROGRAM_KEY = re.compile(
     r"core\.fsmonitor|core\.pager|pager\..+|diff\.external"
     r"|diff\..+\.(?:textconv|command)|filter\..+\.(?:smudge|clean|process)"
     r"|gpg\.(?:.+\.)?program|merge\..+\.driver|interactive\.difffilter"
-    r"|include\.path|includeif\..+\.path",
+    r"|include\.path|includeif\..+\.path|trailer\..+\.(?:cmd|command)",
     re.IGNORECASE,
 )
 SAMPLE_HOOK_SUFFIX = ".sample"
@@ -257,7 +257,8 @@ UNREADABLE_WORD = re.compile(r"[*?\[\]{}~$`\\]")
 PROSE_GUIDANCE = (
     "A prose-only call needs no evidence: one plain `git commit <paths> -m <message>` or "
     f"`git add <paths>` whose every path is a literal {' or '.join(suppression_patterns.PROSE_SUFFIXES)} "
-    "file, with no option but -m, --message, --trailer, -q or --, and no separator, redirect, "
+    "file, with at least one -m or --message on a commit, no option but -m, --message, --trailer, "
+    "-q or --, and no separator, redirect, "
     "glob, $, backtick, backslash or #"
 )
 
@@ -912,17 +913,24 @@ def get_commit_option_width(word: str) -> int | None:
     # 0 marks a path, None an option no prose-only call takes.
     if word in PROSE_COMMIT_VALUE_OPTIONS:
         return 2
-    is_short_message = word.startswith("-m") and not word.startswith("--")
-    is_attached_value = is_short_message or word.startswith(("--message=", "--trailer="))
+    is_attached_value = is_message_option(word) or word.startswith("--trailer=")
     if is_attached_value or word in PROSE_COMMIT_FLAGS:
         return 1
     return None if word.startswith("-") else 0
 
 
+def is_message_option(word: str) -> bool:
+    is_short_message = word.startswith("-m") and not word.startswith("--")
+    return is_short_message or word == "--message" or word.startswith("--message=")
+
+
 def get_commit_paths(arguments: list[str]) -> list[str] | None:
     # git commit reads paths before and after its options, and
-    # every word after -- as a path.
+    # every word after -- as a path. With no -m or --message
+    # it opens an editor, a program of its own, so no prose
+    # path applies.
     paths = []
+    has_message = False
     index = 0
     while index < len(arguments) and arguments[index] != END_OF_OPTIONS:
         width = get_commit_option_width(arguments[index])
@@ -930,8 +938,9 @@ def get_commit_paths(arguments: list[str]) -> list[str] | None:
             return None
         if width == 0:
             paths.append(arguments[index])
+        has_message = has_message or (width > 0 and is_message_option(arguments[index]))
         index += max(width, 1)
-    return paths + arguments[index + 1 :]
+    return paths + arguments[index + 1 :] if has_message else None
 
 
 def get_add_paths(arguments: list[str]) -> list[str]:
