@@ -8,9 +8,9 @@ Python (`python_coverage`), c8 for JavaScript and TypeScript
 they share, and says how a run with no data or red tests scores.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from quality_metrics.coverage_result import (
     DEFERRED_COVERAGE,
@@ -32,6 +32,7 @@ from quality_metrics.sourcing import (
     FALL_THROUGH_REASONS,
     JEST,
     MUTATION_OPT_OUT_REASONS,
+    NO_HEADROOM,
     REPO_COVERAGE_RUNNERS,
     RepoToolFailure,
     global_tool_for,
@@ -80,6 +81,11 @@ class CoverageRun:
     A repo test run that timed out or never started sets
     `mutation_opt_out_reason`, which opts mutation out.
 
+    When headroom reads NO-GO before the repo test run,
+    `reclaim_leaked_processes(repo_dir)` kills leaked test
+    workers once; `leaked_processes` keeps what it killed, plus
+    the busiest processes when the run still never started.
+
     With a `head_ref`, tests run on an export of that ref, so an
     uncommitted file cannot change the coverage of the range.
 
@@ -94,6 +100,8 @@ class CoverageRun:
     policy: Optional[TimeoutPolicy] = None
     environ: Optional[dict] = None
     changed_files: dict = field(default_factory=dict)
+    reclaim_leaked_processes: Optional[Callable[[Path], dict]] = None
+    leaked_processes: Optional[dict] = field(default=None, init=False)
     sources: list = field(default_factory=list, init=False)
     asks: list = field(default_factory=list, init=False)
     mutation_opt_out_reason: Optional[str] = field(default=None, init=False)
@@ -133,15 +141,35 @@ class CoverageRun:
         )
         run_dir = self._repo_tool_run_dir(tool, tree, changed_paths)
         try:
-            run = run_repo_coverage_under_policy(tool, run_dir, self.policy, self.base_ref, changed_paths)
+            policy = replace(self.policy, on_no_headroom=self._reclaimer())
+            run = run_repo_coverage_under_policy(
+                tool, run_dir, policy, self.base_ref, changed_paths,
+            )
         except RepoToolFailure as failure:
+            self._keep_only_killed_once_started(failure.exit_class)
             if failure.exit_class == FAILED_TESTS:
                 return _Measured(RED_BUILD, FAILED_TESTS, source, None)
             self.mutation_opt_out_reason = MUTATION_OPT_OUT_REASONS.get(failure.exit_class)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
+        self._keep_only_killed_once_started(run["exit_class"])
         result = CoverageResult(normalized_hits(run_dir, run["hits_by_file"], ""), False)
         return _Measured(result, run["exit_class"], source, None)
+
+    def _reclaimer(self):
+        if self.reclaim_leaked_processes is None:
+            return None
+
+        def reclaim():
+            self.leaked_processes = self.reclaim_leaked_processes(self.repo_dir)
+
+        return reclaim
+
+    def _keep_only_killed_once_started(self, exit_class):
+        """Drop the busiest lists once the run started: they
+        explain only a run that never did."""
+        if self.leaked_processes is not None and exit_class != NO_HEADROOM:
+            self.leaked_processes = {"killed": self.leaked_processes["killed"]}
 
     def _repo_tool_run_dir(self, tool, tree, changed_paths):
         """Where the repo tool runs: the checkout itself for

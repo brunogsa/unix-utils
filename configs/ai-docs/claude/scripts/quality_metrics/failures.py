@@ -14,7 +14,7 @@ import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.declaration import SOFT_METRIC_KEYS, NoLanguageEntryError, language_for_file
@@ -295,11 +295,13 @@ class TimeoutPolicy:
 
     `headroom_is_go` and `sleep` are injected so tests never
     wait on a real clock or on this machine's load.
+    `on_no_headroom()` may free headroom before a wait.
     """
 
     timeout_seconds: float = TOOL_TIMEOUT_SECONDS
     headroom_is_go: Callable[[], bool] = machine_has_headroom
     sleep: Callable[[float], None] = time.sleep
+    on_no_headroom: Optional[Callable[[], None]] = None
 
     def run(self, attempt):
         """Return `attempt(timeout_seconds)`, retrying a timeout
@@ -337,11 +339,14 @@ class TimeoutPolicy:
         A heavy run must not start on a saturated machine, and
         a retry of a run that already took its whole budget
         doubles the wait for a number it will not produce
-        either.
+        either. `on_no_headroom()` runs once, before the wait,
+        when the first check reads NO-GO.
         Raises subprocess.TimeoutExpired past the budget, and
         RunNeverStarted, with no attempt made, when headroom
         stays NO-GO past HEADROOM_MAX_WAIT_SECONDS.
         """
+        if self.on_no_headroom is not None and not self.headroom_is_go():
+            self.on_no_headroom()
         try:
             self._wait_for_headroom(0, "the run never started")
         except ToolTimedOutTwice as error:

@@ -38,6 +38,7 @@ from quality_metrics.debt import debt_score, measured_nloc
 from quality_metrics.debt_delta import branch_debt_delta
 from quality_metrics.failures import holds_commit
 from quality_metrics.functions import is_over_limit
+from quality_metrics.leaked_processes import reclaim_leaked_processes
 from quality_metrics.measuring import (
     MeasureSetup,
     measure_files,
@@ -167,6 +168,7 @@ def _print_report(measurements, found, coverage_run, delta):
         **found,
         "sources": coverage_run.sources,
         "asks": coverage_run.asks,
+        "leaked_processes": coverage_run.leaked_processes,
     }
     print(json.dumps(report, indent=2))
 
@@ -249,14 +251,17 @@ def _coverage_run_for(options, judged_against, head_ref, changed_files):
     """The coverage run; with a session id it reads the
     repo's tool map."""
     if options.session_id is None:
-        return CoverageRun(Path.cwd(), head_ref=head_ref, changed_files=changed_files)
+        return CoverageRun(
+            Path.cwd(), head_ref=head_ref, changed_files=changed_files,
+            reclaim_leaked_processes=reclaim_leaked_processes,
+        )
     tool_map = lazy_tool_map_for(
         Path.cwd(), load_detector_rules(DETECTOR_RULES_PATH),
         options.session_id, options.map_dir, judged_against,
     )
     return CoverageRun(
         Path.cwd(), tool_map, base_ref=judged_against, head_ref=head_ref,
-        changed_files=changed_files,
+        changed_files=changed_files, reclaim_leaked_processes=reclaim_leaked_processes,
     )
 
 

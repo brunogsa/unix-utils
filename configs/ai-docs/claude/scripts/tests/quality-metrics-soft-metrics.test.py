@@ -62,7 +62,7 @@ def print_report_for(metric, capsys):
         "resolved": [],
         "unclaimed_files": [],
     }
-    coverage_run = SimpleNamespace(sources=[], asks=[])
+    coverage_run = SimpleNamespace(sources=[], asks=[], leaked_processes=None)
 
     exit_code = script._print_report([over_limit_record(metric)], found, coverage_run, None)
 

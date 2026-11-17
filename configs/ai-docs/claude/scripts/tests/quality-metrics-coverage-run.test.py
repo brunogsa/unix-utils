@@ -223,6 +223,69 @@ def test_should_name_a_repo_test_run_that_never_started_for_lack_of_headroom_apa
     }]
 
 
+def leaked_process_report(killed_pids):
+    return {
+        "killed": [{"pid": pid, "command": "node jest-worker/processChild.js"} for pid in killed_pids],
+        "busiest_by_cpu": [{"pid": 501, "command": "Slack"}],
+        "busiest_by_rss": [{"pid": 502, "command": "Google Chrome"}],
+    }
+
+
+def reclaimer_recording(calls, report):
+    def reclaim(repo_dir):
+        calls.append(repo_dir)
+        return report
+
+    return reclaim
+
+
+def test_should_reclaim_leaked_test_workers_then_start_the_repo_test_run_once_headroom_reads_go_again(
+    tmp_path, monkeypatch
+):
+    polls = iter([False, True])
+    reclaims = []
+    policy = TimeoutPolicy(timeout_seconds=60, headroom_is_go=lambda: next(polls), sleep=lambda seconds: None)
+
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy,
+        reclaim_leaked_processes=reclaimer_recording(reclaims, leaked_process_report([4242])),
+    )
+
+    assert len(reclaims) == 1
+    assert attempts_in(tmp_path) == 1
+    assert coverage_run.leaked_processes == {"killed": leaked_process_report([4242])["killed"]}
+
+
+def test_should_list_the_busiest_processes_when_headroom_stays_no_go_after_reclaiming_leaked_test_workers(
+    tmp_path, monkeypatch
+):
+    reclaims = []
+    policy = TimeoutPolicy(timeout_seconds=60, headroom_is_go=lambda: False, sleep=lambda seconds: None)
+
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy,
+        reclaim_leaked_processes=reclaimer_recording(reclaims, leaked_process_report([])),
+    )
+
+    assert len(reclaims) == 1
+    assert attempts_in(tmp_path) == 0
+    assert coverage_run.leaked_processes == leaked_process_report([])
+    assert coverage_run.sources[0]["exit_class"] == "no_headroom"
+
+
+def test_should_never_reclaim_processes_when_headroom_reads_go_before_the_repo_test_run(tmp_path, monkeypatch):
+    reclaims = []
+    policy = TimeoutPolicy(timeout_seconds=60, headroom_is_go=lambda: True)
+
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy,
+        reclaim_leaked_processes=reclaimer_recording(reclaims, leaked_process_report([4242])),
+    )
+
+    assert reclaims == []
+    assert coverage_run.leaked_processes is None
+
+
 def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(
     tmp_path, monkeypatch
 ):

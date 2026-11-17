@@ -90,6 +90,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _not_applicable_section(report.get("not_applicable", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
+        *_leaked_processes_sections(report.get("leaked_processes"), numbers),
         _debt_section(report),
         _design_section(report["measurements"]),
     ]
@@ -222,6 +223,41 @@ def _new_candidate_sections(report, numbers):
             )
         )
     return sections
+
+
+def _leaked_processes_sections(leaked, numbers):
+    """The leaked test workers killed before the repo test run,
+    and the busiest processes when it still never started; no
+    section when no reclaim ran."""
+    if leaked is None:
+        return []
+    section = _counted_section(
+        "Leaked processes", leaked["killed"], numbers, _describe_leaked_process
+    )
+    busiest = [
+        f"- busiest by {label}: {_describe_busy_process(item)}"
+        for label, key in (("CPU", "busiest_by_cpu"), ("RSS", "busiest_by_rss"))
+        for item in leaked.get(key, [])
+    ]
+    return ["\n\n".join([section, *busiest]) if busiest else section]
+
+
+def _describe_leaked_process(item):
+    repo = item["repo"] or "unknown"
+    text = (
+        f"pid {item['pid']} - {item['command']} - RSS {item['rss_kb'] // 1024} MB, "
+        f"age {item['age_seconds'] // 60} min, repo {repo}"
+    )
+    if item["is_repo_scout_candidate"]:
+        return f"{text} (candidate repo scout)"
+    return text
+
+
+def _describe_busy_process(item):
+    return (
+        f"pid {item['pid']} - {item['command']} - CPU {item['cpu_percent']}%, "
+        f"RSS {item['rss_kb'] // 1024} MB"
+    )
 
 
 def _describe_dead_code(item):

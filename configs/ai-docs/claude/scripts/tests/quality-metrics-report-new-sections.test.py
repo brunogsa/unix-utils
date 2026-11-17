@@ -119,3 +119,47 @@ class TestFindingLines:
 
         assert "line 5: reportArgumentType - str is not int" in text
         assert "line 12: reportCallIssue - too many args" in text
+
+
+LEAKED_JEST_WORKER = {
+    "pid": 48211,
+    "command": "node /Users/dev/integrator/node_modules/jest-worker/build/workers/processChild.js",
+    "rss_kb": 811008, "age_seconds": 5400,
+    "repo": "/Users/dev/integrator", "is_repo_scout_candidate": True,
+}
+
+
+class TestLeakedProcesses:
+    def test_should_list_each_killed_process_with_its_command_memory_age_and_repo(self):
+        run = with_extras(leaked_processes={"killed": [LEAKED_JEST_WORKER]})
+
+        text = section(report.build_verdict(run), "Leaked processes")
+
+        [entry] = entry_headings(text)
+        assert "pid 48211" in entry and LEAKED_JEST_WORKER["command"] in entry
+        assert "RSS 792 MB" in entry and "age 90 min" in entry
+        assert "repo /Users/dev/integrator" in entry
+
+    def test_should_mark_a_killed_process_inside_the_measured_repo_as_a_repo_scout_candidate(self):
+        run = with_extras(leaked_processes={"killed": [LEAKED_JEST_WORKER]})
+
+        text = section(report.build_verdict(run), "Leaked processes")
+
+        assert "candidate repo scout" in text
+
+    def test_should_list_the_busiest_processes_when_headroom_stayed_no_go(self):
+        run = with_extras(leaked_processes={
+            "killed": [],
+            "busiest_by_cpu": [{"pid": 501, "command": "Slack", "cpu_percent": 87.5, "rss_kb": 409600}],
+            "busiest_by_rss": [{"pid": 502, "command": "Google Chrome", "cpu_percent": 3.0, "rss_kb": 2097152}],
+        })
+
+        text = section(report.build_verdict(run), "Leaked processes")
+
+        assert "busiest by CPU: pid 501 - Slack - CPU 87.5%, RSS 400 MB" in text
+        assert "busiest by RSS: pid 502 - Google Chrome - CPU 3.0%, RSS 2048 MB" in text
+
+    def test_should_render_no_leaked_process_section_when_no_reclaim_ran(self):
+        verdict = report.build_verdict(with_extras(leaked_processes=None))
+
+        assert "Leaked processes" not in verdict

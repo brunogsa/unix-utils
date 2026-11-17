@@ -596,7 +596,7 @@ def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_pa
     repo_test_policy = replace(policy, timeout_seconds=REPO_TEST_TIMEOUT_SECONDS)
     try:
         return repo_test_policy.run_once_after_headroom(
-            lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths)
+            lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths),
         )
     except RunNeverStarted as error:
         raise RepoToolFailure(NO_HEADROOM, str(error)) from error
