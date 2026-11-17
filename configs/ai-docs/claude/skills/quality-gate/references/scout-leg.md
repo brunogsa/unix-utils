@@ -14,6 +14,15 @@ Main hands you `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths (either may be
 
 - Read the whole export file, never a summary of it.
 
+## The binding rule
+
+The user's rule on scouts, which the global `CLAUDE.md` points here for.
+
+- **In-goal** (serves this branch's goal): a `[scout]` finding in the merged report, its task removed.
+  - The LLM judge may rule on it and apply it, even on auto-solve.
+
+- **Off-goal**: never in any findings report. Its task stays in the TaskList, and the human judges it unless the human asks otherwise.
+
 ## Classify each scout
 
 Read `git diff <BASE_REF>...HEAD`, then the spec and the plan when they resolved. Mark each exported scout in-goal or off-goal.
