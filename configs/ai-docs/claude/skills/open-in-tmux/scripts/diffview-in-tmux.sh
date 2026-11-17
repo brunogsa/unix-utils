@@ -10,9 +10,9 @@
 # branch, tag, SHA, HEAD~5, a `git merge-base` output, etc.
 # Optional.
 #
-#        Omitted → the repo's base branch (origin/HEAD → main →
-#        master), i.e. the whole-branch diff, matching neovim's
-#        <leader>tD.
+#        Omitted → the repo's base ref (origin/HEAD → main →
+#        master), i.e. the whole-branch diff, the same view as
+#        `:DiffviewOpen origin/<default>` in neovim.
 #
 # What it does:
 #   Resolves <ref>, finds the repo root, then opens a
@@ -31,9 +31,11 @@
 #   resolves. The human says "review since X";
 #
 #   the caller (Claude) turns X into a ref (a SHA, a
-#   merge-base, a branch), and this script does the rest. The
-#   base-branch order mirrors get_base_branch in
-#   ~/neovim/init.lua so the pane matches the <leader>tD diff.
+#   merge-base, a branch), and this script does the rest.
+#
+#   The base-branch order mirrors get_base_branch in
+#   ~/neovim/init.lua, the base neovim's <leader>th
+#   history uses.
 #
 # Exit codes:
 #   0  pane opened (or, outside tmux, open-in-tmux.sh's exit 2
@@ -64,8 +66,8 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not inside a git wor
 
 # Base ref: origin's default branch as its remote-tracking
 # ref (origin/main) → local main → local master.
-# Mirrors get_base_branch in ~/neovim/init.lua so this pane
-# matches the <leader>tD "vs base branch" diff.
+# Mirrors get_base_branch in ~/neovim/init.lua, the base
+# neovim's <leader>th "commits since base" history uses.
 #
 # origin/main, not main, because local main often lags it,
 # and a diff against it then also shows upstream commits the

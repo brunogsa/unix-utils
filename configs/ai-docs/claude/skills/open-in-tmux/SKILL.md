@@ -52,7 +52,9 @@ For the common "let me review what you did" case - the whole-branch diff, or the
 ~/.claude/skills/open-in-tmux/scripts/diffview-in-tmux.sh [<ref>]
 ```
 
-- No `<ref>` → diffs the working tree vs the repo's base branch (origin/HEAD → main → master), i.e. the whole-branch diff. Matches neovim's `<leader>tD`.
+- No `<ref>` → diffs the working tree vs the repo's base branch (origin/HEAD → main → master), i.e. the whole-branch diff.
+  - Same base as neovim's `<leader>th` history; `<leader>tD` now diffs since the last push instead.
+
 - With `<ref>` → diffs the working tree vs that commit-ish (a SHA, a `git merge-base` output, a branch, a tag).
   - When the user says "since X", YOU resolve X to that ref and pass it.
   - "Review this session" / "let me review" with no explicit ref: resolve `<ref>` yourself, don't ask which ref.
