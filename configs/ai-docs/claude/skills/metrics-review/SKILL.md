@@ -1,6 +1,6 @@
 ---
 name: metrics-review
-description: "USE to measure and judge a branch's code metrics (size, complexity, coverage, duplication, dependency direction, mutants) and render a verdict. Triggers: /metrics-review, 'review the metrics', 'measure this branch'. Also the metrics leg of /quality-gate."
+description: "USE to measure and judge a branch's code metrics (size, complexity, coverage, duplication, dependency direction, mutants) and render a verdict. Triggers: /metrics-review, 'review the metrics', 'measure this branch'. Also /quality-gate's metrics leg."
 disable-model-invocation: false
 ---
 
