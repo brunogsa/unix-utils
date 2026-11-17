@@ -71,6 +71,7 @@ def test_hands_go_arch_lint_a_config_where_each_layer_may_depend_on_itself_and_t
     )
 
     config = yaml.safe_load(capture_path.read_text())
+    assert isinstance(config, dict)
     assert config["version"] == 3
     assert config["components"] == {
         "infra": {"in": ["infra/**"]},
