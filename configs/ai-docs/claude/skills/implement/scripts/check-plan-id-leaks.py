@@ -21,9 +21,10 @@ Usage:
   check-plan-id-leaks.py [--base <ref>] [--exclude <glob>]...
 
   --base     ref to diff from as `<ref>...HEAD`; default: the
-             repo's base branch from
-             ~/.claude/scripts/resolve-base-ref.sh, preferring
-             `origin/<name>` over the local `<name>`
+             ref ~/.claude/scripts/resolve-base-ref.sh prints
+             (`origin/<name>` when origin/HEAD is set); when it
+             falls back to a bare local `<name>`,
+             `origin/<name>` is still preferred if fetched
   --exclude  extra fnmatch glob of paths to skip, repeatable;
              spec_*.md, plan_*.md and docs/designs/** are
              always skipped
@@ -79,13 +80,22 @@ def is_commit(ref):
 
 
 def find_default_base():
-    """`origin/<base>` when fetched, else the local `<base>`;
-    None when the repo names no base branch."""
+    """The resolver's ref as printed when it is already
+    `origin/<name>`; for a bare `<name>`, `origin/<name>` when
+    fetched, else the local `<name>`; None when the repo names
+    no base branch."""
     result = subprocess.run(["bash", str(RESOLVE_BASE_REF)], capture_output=True, text=True)
     branch = result.stdout.strip()
     if result.returncode != 0 or not branch:
         return None
-    for candidate in (f"origin/{branch}", branch):
+
+    # The resolver prints origin/<name> itself when origin/HEAD
+    # is set; only its bare-name fallback (origin/HEAD unset)
+    # still needs origin/<name> tried first, since a local
+    # branch can lag its fetched remote.
+
+    candidates = (branch,) if branch.startswith("origin/") else (f"origin/{branch}", branch)
+    for candidate in candidates:
         if is_commit(candidate):
             return candidate
     return None
