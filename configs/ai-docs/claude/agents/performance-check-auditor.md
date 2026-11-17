@@ -39,10 +39,10 @@ That is what the opus pin buys.
 - `bash scripts/check.sh` / `bash scripts/check.sh <path>` under
   `~/.claude/skills/performance-check-principles-and-skills/` - the
   measurement oracle. The script measures; you propose.
-- The `performance-check-principles-and-skills` skill loads with you. Its
-  trim hierarchy, "Surface width, not a shortlist", and "Quote both sides,
-  never cite by line number" sections govern this report - follow them
-  rather than restating them here.
+
+- The `performance-check-principles-and-skills` skill loads with you. Its trim hierarchy, "Surface width, grouped least lossy first", and "Quote both sides, never cite by line number" sections govern this report.
+  - Follow them rather than restating them here.
+
 - Load the `skill-standards` skill before judging any `SKILL.md` candidate -
   it holds the marker-splitting/nesting rules a trim must not violate.
 - Read and Grep on the files the report names. Write reaches only your
