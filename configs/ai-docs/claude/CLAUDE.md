@@ -48,6 +48,9 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Pair every question to me with your recommended option and the reasoning behind it.
   - [Why] You hold the context the options came from, so an unranked menu pushes that analysis back onto me.
 
+- [Instruction] When recommending one option, list the alternatives you weighed, each with what doing it and not doing it costs.
+  - [Why] A pre-filtered shortlist hides the decision from me; twice I had to ask for the trade-offs.
+
 - [Instruction] Make every question self-contained: say why the decision exists, what changes per option, and quote the thing decided on rather than naming it by id or line number.
   - [Why] "I did not get what under :202 means" and "sry, repeat your question" are round-trips a self-contained one avoids.
   - [Example] Bad: "Which CRAP limit: 4, 8 or 12?" Good: "Under 8 passes complexity ≤7 fully covered and ≤2 uncovered; McCabe/NIST's baseline is 10."
