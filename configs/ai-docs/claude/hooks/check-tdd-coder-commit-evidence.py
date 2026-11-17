@@ -559,15 +559,33 @@ def read_backtick_body(text: str, index: int, bodies: list[str]) -> int | None:
         end += 2 if text[end] == "\\" else 1
     if end >= len(text):
         return None
-    bodies.append(BACKTICK_ESCAPE.sub(r"\1", text[index:end]))
+    body = BACKTICK_ESCAPE.sub(r"\1", text[index:end])
+    if has_comment_or_cannot_scan(body):
+        return None
+    bodies.append(body)
     return end + 1
+
+
+def has_comment_or_cannot_scan(body: str) -> bool:
+    # A comment inside a substitution body is cut only at the
+    # top level, so a quote inside it would reach the word split
+    # and could pair with a quote in another body, hiding the
+    # words between them.
+    #
+    # Such a comment has no use in a commit
+    # call, so the scan fails closed on it instead.
+    comments: list[int] = []
+    end = scan_shell_text(body, 0, [], closes_paren=False, comments=comments)
+    return end is None or bool(comments)
 
 
 def read_command_substitution_body(text: str, index: int, bodies: list[str]) -> int | None:
     # The body's own substitutions are found when it is split
-    # in turn, so this scan keeps none of them.
-    end = scan_shell_text(text, index, [], closes_paren=True)
-    if end is None or UNCOUNTED_PAREN_CONSTRUCT.search(text, index, end):
+    # in turn, so this scan keeps none of them. A comment in it
+    # fails the scan, as has_comment_or_cannot_scan explains.
+    comments: list[int] = []
+    end = scan_shell_text(text, index, [], closes_paren=True, comments=comments)
+    if end is None or comments or UNCOUNTED_PAREN_CONSTRUCT.search(text, index, end):
         return None
     bodies.append(text[index:end])
     return end + 1

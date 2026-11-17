@@ -844,6 +844,8 @@ class TestConfigPlantWithNoGitWord:
             f"{PLANT_FSMONITOR}~/.config/*/config; ./status.sh",
             f"echo ${{#x}}; {PLANT_FSMONITOR}.g*/config; ./status.sh",
             f"echo a#b; {PLANT_FSMONITOR}.g*/config",
+            f"echo $(true # a'\n); {PLANT_FSMONITOR}.g*/config; echo $(true # b'\n)",
+            f"echo `true # a'`; {PLANT_FSMONITOR}.g*/config; echo `true # b'`",
         ],
         ids=[
             "plain-path",
@@ -856,6 +858,8 @@ class TestConfigPlantWithNoGitWord:
             "xdg-config-glob",
             "after-a-mid-word-hash-in-a-parameter-length",
             "after-a-mid-word-hash-in-a-plain-word",
+            "between-quotes-hidden-in-command-substitution-comments",
+            "between-quotes-hidden-in-backtick-comments",
         ],
     )
     def test_should_deny_a_config_plant_before_a_trusted_script_that_runs_git(self, tmp_path, command):
