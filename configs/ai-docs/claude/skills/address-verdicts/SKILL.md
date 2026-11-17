@@ -17,16 +17,12 @@ disable-model-invocation: false
 
   - The colon is optional: `[AI! <message>]` works the same.
 
-  - Each quality-gate finding is applied on the branch its file reviewed, then pushed and merged forward into its child PRs (§1).
-
-  - A scouts finding goes on its `##` section heading's branch, pushed alone with no merge-up.
-
-  - Before the first apply, it launches one lateral `/improve-from-user` run over every file's `[AI!]` marks and notes, no ask, and carries on.
+  - Branch, push, merge-up and learn run: `references/stack-mode.md`.
 
   - An unmarked finding is never selected. With no `[AI!]` anywhere, stop and say to mark one - never fall back to `all`.
 
 - `all` - every finding in every located verdict file, on the current branch.
-- A lens name, `refactor`, `auto-review`, `test-sdd`, `metrics`, or `quality-gate` - every finding in that lens's file only.
+- A lens name, `refactor`, `auto-review`, `test-sdd`, `metrics`, `scout`, or `quality-gate` - every finding in that lens's file only.
   - `quality-gate` selects every finding in the newest merged file. A lens name selects the findings of whichever source §1 picks for it, merged or standalone.
 
 - A severity floor, e.g. `high`/`high+` - every finding at or above it, only when the report labels severity (see §2).
@@ -41,7 +37,7 @@ disable-model-invocation: false
 
 ## What this is
 
-This is the only apply step for any `verdict_*.md` (`/refactor`, `/auto-review`, `/test-sdd`, `/quality-gate` and its metrics leg), so the routing, commit, and annotation rules have one home.
+This is the only apply step for any `verdict_*.md` (`/refactor`, `/auto-review`, `/test-sdd`, `/quality-gate` and its metrics and scout legs), so the routing, commit, and annotation rules have one home.
 
 `/quality-gate` triages, then calls this skill with that list plus `--no-ask`; a human picks with `<which ones>` and may get §2's clarifying question.
 
@@ -89,9 +85,9 @@ Before applying, create one entry per lens that contributed a finding to §2's s
  <id>. [#<returned-id>][Task] Apply all <N> <lens> findings
 ```
 
-A merged-file finding joins the entry its heading tag names (`### 1. [HIGH][refactor] <title>`: `auto-review`, `refactor`, `test-sdd` or `metrics`), never a `quality-gate` entry. A heading with none of the four is an ambiguity: ask, or under `--no-ask` annotate `SKIPPED (no lens tag)`.
+A merged-file finding joins the entry its heading tag names (`### 1. [HIGH][refactor] <title>`: `auto-review`, `refactor`, `test-sdd`, `metrics` or `scout`), never a `quality-gate` entry. A heading with none of the five is an ambiguity: ask, or under `--no-ask` annotate `SKIPPED (no lens tag)`.
 
-Seed them in this fixed order, §4's dispatch order too: **`test-sdd`, `auto-review`, `refactor`, then `metrics`** - each stage hands the next a stronger safety net.
+Seed them in this fixed order, §4's dispatch order too: **`test-sdd`, `auto-review`, `refactor`, `metrics`, then `scout`** - each stage hands the next a stronger safety net.
 
 A lens with no finding gets no entry. The first entry is `in_progress`, the rest `pending`.
 
@@ -138,6 +134,11 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
   - Size, nesting or complexity violations, extract-a-helper findings for duplicate code, and hotspots → `refactor`.
   - Coverage or CRAP violations whose fix is a missing, vacuous or entangled test → `tdd-coder`.
   - A prose or config target → `direct-coder`.
+
+- **`scout` entry** (a `[scout]` merged finding), split by what the fix edits:
+  - A behavior change → `tdd-coder`.
+  - A structure-only change → `refactor`.
+  - A document, prose, config or comment change → `direct-coder`.
 
 **Size every entry to the same cap** before dispatching - neither `tdd-coder` nor the `refactor` agent splits an oversized batch itself.
 
@@ -199,6 +200,7 @@ One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<
 State plainly, every time:
 
 - Every finding not selected in §2 is untouched and carries no annotation.
+- A scout found while applying goes to the TaskList, never into this run.
 
 In marked mode, also report one line per tree branch and stopped subtree, per [`references/stack-mode.md`](references/stack-mode.md).
 
