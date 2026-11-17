@@ -88,6 +88,7 @@ def main(arguments):
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run)
         measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
         found = {
+            "not_applicable": dependency_run.not_applicable_files,
             "gate_input_violations": _gate_input_violations(options, judged_against, head_ref),
             "resolved": resolved_since(declaration, mode, options.diff, coverage_run.policy),
             "unclaimed_files": unclaimed,
@@ -127,7 +128,7 @@ def _print_report(measurements, found, coverage_run, delta):
     it earns.
 
     `found` holds the report keys gate_input_violations,
-    resolved and unclaimed_files.
+    not_applicable, resolved and unclaimed_files.
     """
     gate_input_violations = found["gate_input_violations"]
     over_limit = [item for item in measurements if is_over_limit(item)]
