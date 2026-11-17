@@ -274,10 +274,14 @@ def _entry(number, text):
 def _describe(record):
     subject = record["function"] or record["file"]
     where = f" in {record['file']}" if record["function"] else ""
-    return (
+    heading = (
         f"{subject}{where} - {_metric_name(record)} {_shown_value(record)} "
         f"(limit {record['limit']:g})"
     )
+    uncovered_lines = record.get("uncovered_lines")
+    if not uncovered_lines:
+        return heading
+    return f"{heading}\nUncovered lines: {', '.join(uncovered_lines)}"
 
 
 def _shown_value(record):

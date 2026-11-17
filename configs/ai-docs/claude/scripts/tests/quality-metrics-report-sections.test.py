@@ -166,6 +166,37 @@ class TestDeferredMetrics:
         assert entry.count(DEFERRED_LABEL) == 1
 
 
+class TestUncoveredLinesInVerdict:
+    def test_should_show_the_uncovered_ranges_under_a_coverage_and_a_crap_entry(self):
+        low_coverage = {
+            **file_record("src/untested.py", "coverage", 40, 90),
+            "flagged_below_limit": True,
+            "uncovered_lines": ["12-15", "40"],
+        }
+        risky = {**crap_record("src/report.py", "buildReport", 42), "uncovered_lines": ["7-9"]}
+
+        verdict = report.build_verdict(measured(low_coverage, risky))
+
+        violations = section(verdict, "Open violations")
+        assert "Uncovered lines: 12-15, 40" in violations
+        assert "Uncovered lines: 7-9" in violations
+
+    def test_should_omit_the_uncovered_line_when_nothing_is_uncovered_or_nothing_was_measured(self):
+        all_covered = {
+            **file_record("src/tested.py", "coverage", 100, 90),
+            "flagged_below_limit": True,
+            "uncovered_lines": [],
+        }
+        not_measured = {
+            **crap_record("src/report.py", "buildReport", 42),
+            "uncovered_lines": None,
+        }
+
+        verdict = report.build_verdict(measured(all_covered, not_measured))
+
+        assert "Uncovered lines" not in verdict
+
+
 class TestGateInputViolations:
     def test_should_list_each_gate_input_violation_in_its_own_section_after_the_open_violations(self):
         run = {
