@@ -192,10 +192,10 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Why] Orphan code/configs/mocks accumulate as "is this still used?" debt - readers spend cycles auditing dead weight.
   - [Example] Bad: a read of a field the new data model drops, left to degrade to a placeholder plus a `warn`. Good: delete every such read, found by grep.
 
-- [Instruction] Put ephemeral scratch - throwaway scripts, debug dumps - in /tmp, never the repo or CWD, UNLESS user-reviewed, then left untracked in CWD; see Note-taking discipline.
+- [Instruction] Put ephemeral scratch - throwaway scripts, debug dumps - in your system prompt's scratchpad directory, never the repo or CWD, UNLESS user-reviewed, then left untracked in CWD.
   - [Why] Unreviewed scratch in the repo gets committed by accident or rots as orphan debt.
 
-  - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, an `evidence_<slug>.md` manual verification. Never-reviewed → /tmp: debug dumps, one-off scripts, diff snapshots.
+  - [Example] User-reviewed → CWD: a `to-spec` spec or `to-plan` plan, an `evidence_<slug>.md` manual verification. Never-reviewed → scratchpad: debug dumps, one-off scripts, diff snapshots.
 
 ### Verify before done
 
@@ -268,7 +268,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 - [Instruction] Persist machine-checkable task state - step counters, gate outcomes, attempt counts, decisions, artifact/experiment links - in the task's `metadata` field, not in prose subjects or descriptions.
   - [Why] Metadata survives compaction and reads back as structured fields, so a resumed skill needn't re-parse prose.
 
-- [Instruction] Split durable state by surface - the TaskList carries status plus machine-checkable metadata; the `/tmp` scratchpad carries narrative findings, evidence, and decision rationale.
+- [Instruction] Split durable state by surface - the TaskList carries status plus machine-checkable metadata; the session scratchpad carries narrative findings, evidence, and decision rationale.
   - [Why] Narrative in the TaskList taxes every turn; the scratchpad reads on demand (https://code.claude.com/docs/en/memory).
 
 - [Instruction] Cross-reference the two surfaces by task id and file path - never duplicate the same content on both.
@@ -308,12 +308,12 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Slow commands
 
-- [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused `/tmp/` path, then filter from the file.
+- [Instruction] **Save slow command output, verify from the file** -- any command taking 4+ seconds: redirect full output to a stable, reused scratchpad path, then filter from the file.
   - [Why] Rerunning is costly, and the exit code lies twice: a partial-failure runner exits 0, and so does a trailing `echo`.
 
-  - [Example] `<slow-cmd> > /tmp/out.txt 2>&1; rc=$?; echo "exit: $rc" >> /tmp/out.txt; tail -<N> /tmp/out.txt; exit $rc` - `exit $rc` must stay last; choose N to fit the summary.
+  - [Example] `<slow-cmd> > <scratchpad>/out.txt 2>&1; rc=$?; echo "exit: $rc" >> <scratchpad>/out.txt; tail -<N> <scratchpad>/out.txt; exit $rc` - `exit $rc` must stay last; choose N to fit the summary.
 
-  - [Example] Bad: `<slow-cmd>; tail -<N> /tmp/out.txt; echo "exit: $?"` - reports tail's `0`, not the command's. Also don't pipe straight to `grep`/`head` - a wrong filter discards output, forcing a rerun.
+  - [Example] Bad: `<slow-cmd>; tail -<N> <scratchpad>/out.txt; echo "exit: $?"` - reports tail's `0`, not the command's. Also don't pipe straight to `grep`/`head` - a wrong filter discards output, forcing a rerun.
 
 - [Instruction] Leave me CPU, RAM and disk to work with - run one heavy command at a time, and start a second only after `check-machine-headroom.sh` reports room.
   - [Why] This is my daily driver, not a build box - a saturated machine stalls my work, not just yours.
