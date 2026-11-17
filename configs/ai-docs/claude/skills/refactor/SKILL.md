@@ -33,7 +33,8 @@ Direct `/refactor` invocation, phrases like "refactor this" / "clean this up" / 
 
 - No argument: scan all unpushed + uncommitted files
 - With argument: scan only the specified path(s)
-- `--metrics`: also measure the branch's size, nesting, complexity and duplication, so findings cite measured values. Off by default, because `/quality-gate` measures in its own `metrics` leg; without the flag the skill runs exactly as before.
+- `--metrics`: also measure the branch's size, nesting, complexity and duplication, so findings cite measured values.
+  - Off by default, because `/quality-gate` measures in its own `metrics` leg; without the flag the skill runs exactly as before.
 
 ## Process
 

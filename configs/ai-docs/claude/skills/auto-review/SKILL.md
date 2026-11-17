@@ -19,7 +19,8 @@ See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` f
 - `base-ref` defaults to the repo's default branch (auto-detected; works
   for `main`, `master`, or anything else).
 
-- `--metrics` - also measure size, nesting, complexity and duplication with `measure-quality-metrics.py`, so the design review cites measured values. Off by default, because `/quality-gate` measures in its own `metrics` leg and a second run costs about 6 minutes.
+- `--metrics` - also measure size, nesting, complexity and duplication with `measure-quality-metrics.py`, so the design review cites measured values.
+  - Off by default, because `/quality-gate` measures in its own `metrics` leg and a second run costs about 6 minutes.
   - It runs the measuring script only; the `metrics-review` skill's judge and verdict stay out of it.
 
 Every invocation runs isolated - there is no in-session mode left to opt
