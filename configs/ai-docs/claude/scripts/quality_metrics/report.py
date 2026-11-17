@@ -82,6 +82,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _violations_section(open_violations, numbers),
         _gate_inputs_section(report.get("gate_input_violations", []), numbers),
         _duplication_section(report.get("duplication_candidates", []), numbers),
+        _not_applicable_section(report.get("not_applicable", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
         _debt_section(report),
@@ -188,6 +189,19 @@ def _describe_open(violation_and_rejection):
 
 def _duplication_section(candidates, numbers):
     return _counted_section("Duplication candidates", candidates, numbers, _describe)
+
+
+def _not_applicable_section(items, numbers):
+    """Files a metric could not judge: listed so a reader sees
+    they were not measured, never counted as violations."""
+    return _counted_section(
+        "Not applicable", items, numbers, _describe_not_applicable
+    )
+
+
+def _describe_not_applicable(item):
+    title = METRIC_TITLES[(item["metric"], "file")]
+    return f"{item['file']} - {title} - not applicable: {item['reason']}"
 
 
 def _gate_inputs_section(gate_input_violations, numbers):

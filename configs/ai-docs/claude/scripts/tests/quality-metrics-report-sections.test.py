@@ -266,6 +266,34 @@ class TestDuplicationCandidates:
         assert "(0)" in section(verdict, "Duplication candidates").splitlines()[0]
 
 
+class TestNotApplicable:
+    def test_should_list_each_not_applicable_file_with_its_reason_outside_the_open_violations(self):
+        run = {
+            **measured(),
+            "not_applicable": [
+                {
+                    "file": "tools/sync.py",
+                    "metric": "dependency_direction",
+                    "reason": "outside every package",
+                }
+            ],
+        }
+
+        verdict = report.build_verdict(run)
+
+        listed = section(verdict, "Not applicable")
+        assert "(1)" in listed.splitlines()[0]
+        assert "tools/sync.py" in listed
+        assert "Dependency direction" in listed
+        assert "not applicable: outside every package" in listed
+        assert "tools/sync.py" not in section(verdict, "Open violations")
+
+    def test_should_show_0_not_applicable_files_when_the_report_has_none(self):
+        verdict = report.build_verdict(measured())
+
+        assert "(0)" in section(verdict, "Not applicable").splitlines()[0]
+
+
 class TestNoGitVerdict:
     def test_should_name_the_no_git_verdict_and_state_the_removed_code_check_and_base_ref_reads_were_skipped(self):
         run = measured(crap_record("tool.sh", "main", 3))
