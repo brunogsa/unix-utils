@@ -1,4 +1,4 @@
-"""Blackbox CLI tests for resolve-subagent-compaction-bump.py.
+"""Blackbox tests for resolve-subagent-compaction-bump.py.
 
 The hook is the only production caller of
 tmux-window-title.sh's --bump-subagent-counter, so these
@@ -15,20 +15,27 @@ subagent half is ever right:
     the same agent, since Claude Code fires SubagentStop again
     every time a resumed agent stops.
 
-Every test drives a COPY of the hook under tmp_path, beside a
-stub tmux-window-title.sh that records its argv instead of
-driving tmux, and with HOME pointed at a throwaway directory -
-so no assertion can reach the developer's real tmux window or
-real ~/.claude state.
+Every test runs the real hook source file in-process: the hook
+does all its work, then calls sys.exit(0), at import time, so
+loading it IS running it, and coverage measures it there. Each
+run feeds the payload through a replaced sys.stdin, points HOME
+at a throwaway directory, and swaps the hook's title-script
+path for a stub that records its argv instead of driving tmux
+- so no assertion can reach the developer's real tmux window
+or real ~/.claude state.
 
 Usage:
   ./run-tests.py <this file>
 """
 
+import contextlib
+import importlib.util
+import io
 import json
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -40,17 +47,11 @@ SESSION_ID = "e9373a7e-046b-4807-b242-ddeb49455a43"
 AGENT_ID = "a859f1768d6aa9f18"
 
 
-def _install_hook(tmp_path, title_exit=0):
-    """Mirror the real hooks/ + scripts/ sibling layout the
-    hook resolves its title script against, with the title
-    script stubbed out to append its argv to a capture file."""
-    hooks_dir = tmp_path / "hooks"
+def _install_title_stub(tmp_path, title_exit=0):
+    """Write a stand-in for tmux-window-title.sh that appends
+    its argv to a capture file, and return both paths."""
     scripts_dir = tmp_path / "scripts"
-    hooks_dir.mkdir(parents=True, exist_ok=True)
     scripts_dir.mkdir(parents=True, exist_ok=True)
-
-    hook_copy = hooks_dir / HOOK_SOURCE.name
-    hook_copy.write_text(HOOK_SOURCE.read_text(encoding="utf-8"), encoding="utf-8")
 
     capture_path = tmp_path / "title-script-argv.txt"
     stub = scripts_dir / "tmux-window-title.sh"
@@ -62,22 +63,43 @@ def _install_hook(tmp_path, title_exit=0):
     )
     stub.chmod(0o755)
 
-    return hook_copy, capture_path
+    return stub, capture_path
 
 
-def _run_hook(hook_copy, payload, home_dir):
-    """Feed one SubagentStop payload to the hook copy.
+def _run_hook(title_stub, payload, home_dir):
+    """Feed one SubagentStop payload to the real hook source.
     `payload` is a dict (serialized here) or a raw string for
-    malformed-stdin cases."""
+    malformed-stdin cases. Returns the hook's exit code and
+    captured stdout/stderr."""
     stdin = payload if isinstance(payload, str) else json.dumps(payload)
     home_dir.mkdir(parents=True, exist_ok=True)
+    real_run = subprocess.run
 
-    return subprocess.run(
-        [sys.executable, str(hook_copy)],
-        input=stdin,
-        capture_output=True,
-        text=True,
-        env={"HOME": str(home_dir), "PATH": "/usr/bin:/bin:/usr/local/bin"},
+    def run_stub_in_place_of_title_script(command, **kwargs):
+        # Only the script path is swapped; the hook's own
+        # flag and run options pass through untouched.
+        return real_run([command[0], str(title_stub), *command[2:]], **kwargs)
+
+    spec = importlib.util.spec_from_file_location("resolve_subagent_compaction_bump", HOOK_SOURCE)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot build an import spec for {HOOK_SOURCE}")
+    hook = importlib.util.module_from_spec(spec)
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("HOME", str(home_dir))
+        patch.setattr(sys, "stdin", io.StringIO(stdin))
+        patch.setattr(subprocess, "run", run_stub_in_place_of_title_script)
+
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with pytest.raises(SystemExit) as exit_info:
+                spec.loader.exec_module(hook)
+
+    return SimpleNamespace(
+        returncode=exit_info.value.code,
+        stdout=stdout.getvalue(),
+        stderr=stderr.getvalue(),
     )
 
 
@@ -178,7 +200,7 @@ class TestResolveSubagentCompactionBumpHappy:
     def test_should_bump_the_subagent_counter_once_per_compaction_the_transcript_records_and_stay_silent_when_that_same_subagent_stops_again(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=2)
         home = tmp_path / "fake_home"
 
@@ -195,7 +217,7 @@ class TestResolveSubagentCompactionBumpHappy:
     def test_should_bump_only_the_compaction_appended_since_the_previous_stop_when_a_resumed_subagent_compacts_again(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=1)
         home = tmp_path / "fake_home"
 
@@ -210,7 +232,7 @@ class TestResolveSubagentCompactionBumpHappy:
     def test_should_not_bump_the_subagent_counter_when_the_subagent_never_compacted(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=0)
 
         result = _run_hook(hook, _payload(transcript), tmp_path / "fake_home")
@@ -221,7 +243,7 @@ class TestResolveSubagentCompactionBumpHappy:
     def test_should_leave_stdout_empty_so_the_hook_adds_no_context_to_the_session(
         self, tmp_path
     ):
-        hook, _ = _install_hook(tmp_path)
+        hook, _ = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=1)
 
         result = _run_hook(hook, _payload(transcript), tmp_path / "fake_home")
@@ -233,7 +255,7 @@ class TestResolveSubagentCompactionBumpCorner:
     def test_should_count_two_subagents_of_one_session_separately_rather_than_charging_one_for_the_others_compactions(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         home = tmp_path / "fake_home"
         first_agent = "a2453ade78294120c"
         second_agent = "af6cf3725e1603b98"
@@ -248,7 +270,7 @@ class TestResolveSubagentCompactionBumpCorner:
     def test_should_count_the_same_agent_id_seen_under_two_sessions_separately_so_a_second_session_starts_from_zero(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         home = tmp_path / "fake_home"
         other_session = "b7c1f0d2-3a45-4e6b-8c9d-0e1f2a3b4c5d"
         transcript = _transcript_with(tmp_path, boundary_count=1)
@@ -261,7 +283,7 @@ class TestResolveSubagentCompactionBumpCorner:
     def test_should_still_count_the_readable_compactions_when_one_transcript_line_is_truncated_json(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = tmp_path / "transcripts" / SESSION_ID / f"agent-{AGENT_ID}.jsonl"
         transcript.parent.mkdir(parents=True, exist_ok=True)
         transcript.write_text(
@@ -283,7 +305,7 @@ class TestResolveSubagentCompactionBumpCorner:
         # whole history on every later stop, so a failed
         # title call still counts as reported.
         failing_tree = tmp_path / "failing"
-        hook, capture = _install_hook(failing_tree, title_exit=1)
+        hook, capture = _install_title_stub(failing_tree, title_exit=1)
         transcript = _transcript_with(tmp_path, boundary_count=1)
         home = tmp_path / "fake_home"
 
@@ -293,7 +315,7 @@ class TestResolveSubagentCompactionBumpCorner:
         assert _bump_calls(capture) == [BUMP_FLAG]
 
         working_tree = tmp_path / "working"
-        working_hook, working_capture = _install_hook(working_tree)
+        working_hook, working_capture = _install_title_stub(working_tree)
         _run_hook(working_hook, _payload(transcript), home)
 
         assert _bump_calls(working_capture) == []
@@ -303,7 +325,7 @@ class TestResolveSubagentCompactionBumpFailure:
     def test_should_exit_0_without_bumping_when_the_transcript_line_only_mentions_compact_boundary_in_conversation_text(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _write_transcript(
             tmp_path / "transcripts" / SESSION_ID / f"agent-{AGENT_ID}.jsonl",
             [_decoy_entry(AGENT_ID)],
@@ -320,7 +342,7 @@ class TestResolveSubagentCompactionBumpFailure:
     def test_should_exit_0_without_bumping_when_the_payload_omits_a_field_the_count_cannot_be_keyed_without(
         self, tmp_path, missing_field
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=2)
         payload = _payload(transcript)
         del payload[missing_field]
@@ -333,7 +355,7 @@ class TestResolveSubagentCompactionBumpFailure:
     def test_should_exit_0_without_bumping_when_the_agent_transcript_file_does_not_exist(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         missing = tmp_path / "transcripts" / SESSION_ID / f"agent-{AGENT_ID}.jsonl"
 
         result = _run_hook(hook, _payload(missing), tmp_path / "fake_home")
@@ -347,7 +369,7 @@ class TestResolveSubagentCompactionBumpFailure:
     def test_should_exit_0_without_bumping_when_stdin_is_not_a_readable_hook_payload_object(
         self, tmp_path, malformed_stdin
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
 
         result = _run_hook(hook, malformed_stdin, tmp_path / "fake_home")
 
@@ -357,7 +379,7 @@ class TestResolveSubagentCompactionBumpFailure:
     def test_should_exit_0_without_bumping_when_an_agent_id_carries_path_separators_that_would_escape_the_count_store(
         self, tmp_path
     ):
-        hook, capture = _install_hook(tmp_path)
+        hook, capture = _install_title_stub(tmp_path)
         transcript = _transcript_with(tmp_path, boundary_count=2)
 
         result = _run_hook(
