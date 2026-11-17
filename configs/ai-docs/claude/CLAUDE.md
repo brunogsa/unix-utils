@@ -80,6 +80,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: When I tweak, edit, reject, reword, or hand-edit your output, infer the general rule behind my change, then sweep our changes and every later case.**
   - [Why] Deferring the sweep cost four repeat comments in one review; the peers are in front of you now, not later.
+  - [Example] Bad: calling `customerCPF_CNPJ` "invoice-to" in a draft for another team. Good: the payload's own field name, or "`customerCPF_CNPJ` (our reading: the school served)".
 
 ### Async iteration
 
