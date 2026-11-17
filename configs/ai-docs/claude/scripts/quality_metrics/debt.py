@@ -40,6 +40,8 @@ REMEDIATION_MINUTES = {
     "dependency_direction": 60,
     "unused_code": 5,
     "type_errors": 10,
+    "dead_code": 10,
+    "mutation": 15,
 }
 
 
