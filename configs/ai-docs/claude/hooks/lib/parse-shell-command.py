@@ -76,6 +76,11 @@ def strip_commit_message_heredoc_bodies(text):
     - a commit other than `git [-C <dir>] commit` with known
       flags, since an env assignment, `git -c` or `--edit` can
       run an editor or hooks on the message
+    - a `$` in any commit word before `--`, since bash
+      word-splits an unquoted `$e` into flags this parser never
+      sees
+    - an earlier `git config` stage, since it can set hooks that
+      run the message
     """
     return _strip_heredoc_bodies_where(text, _is_commit_message_heredoc)
 
@@ -86,12 +91,24 @@ def _is_commit_message_heredoc(kept, line, opener):
     before_opener = '\n'.join(kept[:-1] + [line[:opener.start()]])
     if not _PLAIN_SHELL_TEXT.fullmatch(before_opener):
         return False
-    owning_stage = split_into_pipelines(before_opener)[-1][-1]
+    stages = [stage for statement in split_into_pipelines(before_opener) for stage in statement]
+    if any(_runs_git_config(stage) for stage in stages[:-1]):
+        return False
     try:
-        tokens = shlex.split(owning_stage)
+        tokens = shlex.split(stages[-1])
     except ValueError:
         return False
     return _is_plain_git_commit_reading_stdin(tokens)
+
+
+# An earlier `git config` can set core.hooksPath to hooks that
+# run the message file, so the body is code after all.
+def _runs_git_config(stage):
+    try:
+        tokens = shlex.split(stage)
+    except ValueError:
+        return True
+    return tokens[:1] == ['git'] and 'config' in tokens
 
 
 # Text where bash and shlex agree on every word and separator.
@@ -107,12 +124,22 @@ _MESSAGE_INERT_COMMIT_FLAGS = {
 
 
 def _is_plain_git_commit_reading_stdin(tokens):
+    if _has_variable_before_pathspecs(tokens):
+        return False
     index = 1 if tokens[:1] == ['git'] else len(tokens)
     while tokens[index:index + 1] == ['-C']:
         index += 2
     if tokens[index:index + 1] != ['commit']:
         return False
     return _reads_message_from_stdin_with_inert_flags(tokens[index + 1:])
+
+
+# bash word-splits an unquoted `$e` that shlex keeps as one
+# token, so `e=-e; git commit $e -F -` opens an editor. After
+# `--` every word is a pathspec, which runs nothing.
+def _has_variable_before_pathspecs(tokens):
+    options = tokens[:tokens.index('--')] if '--' in tokens else tokens
+    return any('$' in token for token in options)
 
 
 def _reads_message_from_stdin_with_inert_flags(args):

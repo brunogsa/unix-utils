@@ -672,6 +672,82 @@ it_should_block_a_push_to_main_on_the_lines_after_a_here_string() {
   assert_eq "should block git push origin main on the lines after a here-string, which bash runs as commands" "2" "$HOOK_EXIT"
 }
 
+# The attribution check can deny these shapes on its own, so
+# each test reads the push guard's own denial from stderr.
+PUSH_GUARD_DENIAL='git push to main/master is never allowed'
+
+# run_hook_reading_push_verdict - like run_hook, but sets
+# PUSH_GUARD_DENIED to yes when the push guard denied.
+run_hook_reading_push_verdict() {
+  local command="$1" cwd="${2:-}" stdin_json stderr_text
+  if [ -n "$cwd" ]; then
+    stdin_json=$(jq -n --arg c "$command" --arg d "$cwd" '{tool_input: {command: $c}, cwd: $d}')
+  else
+    stdin_json=$(jq -n --arg c "$command" '{tool_input: {command: $c}}')
+  fi
+  stderr_text=$(printf '%s' "$stdin_json" | "$bash_bin" "$SCRIPT" 2>&1 >/dev/null)
+  HOOK_EXIT=$?
+  case "$stderr_text" in
+    *"$PUSH_GUARD_DENIAL"*) PUSH_GUARD_DENIED=yes ;;
+    *) PUSH_GUARD_DENIED=no ;;
+  esac
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_variable_splits_into_an_editor_flag() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "export GIT_EDITOR=sh; e=-e; git commit \$e -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message that an unquoted \$e splitting into -e hands to the editor" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_directory_variable_splits_into_git_options() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "d='x -c core.editor=sh'; git -C \$d commit -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message whose unquoted -C \$d splits into git -c core.editor=sh" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_commit_message_after_a_git_config_that_can_set_its_hooks() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook_reading_push_verdict "$(push_in_heredoc_opened_by "git config core.hooksPath /tmp/hooks && git commit -F - <<'EOF'")" "$dir"
+  assert_eq "should deny, as a push, a commit message after a git config that can point the commit at hooks running it" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "cd $dir && d=docs && git commit -q -F - -- \"\$d/SKILL.md\" \"\$d/scripts/diffview-in-tmux.sh\" <<'EOF'" \
+    'docs(open-in-tmux): name the since-last-push diff' \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF')
+  run_hook "$cmd" "$dir"
+  assert_eq "should allow a stdin heredoc commit whose \$d variables appear only in pathspecs after --" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_commit_whose_inline_message_mentions_git_push() {
+  local dir
+  dir=$(make_repo feat)
+  run_hook 'git commit --allow-empty -m "docs: mention git push in readme" -m "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"' "$dir"
+  assert_eq "should allow a commit whose -m message only mentions git push" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main() {
+  local dir cmd
+  dir=$(make_repo feat)
+  cmd=$(printf '%s\n' \
+    "git commit --allow-empty -m \"\$(cat <<'EOF'" \
+    'docs(readme): git push origin main stays blocked' \
+    '' \
+    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
+    'EOF' \
+    ')"')
+  run_hook "$cmd" "$dir"
+  assert_eq "should allow a commit whose \$(cat <<'EOF') message names git push origin main" "0" "$HOOK_EXIT"
+}
+
 ### Allow: exact branch-name match only, never substring
 
 it_should_allow_git_push_origin_feature_main_fix() {
@@ -1228,6 +1304,12 @@ it_should_block_a_push_to_main_after_a_heredoc_marker_inside_a_comment
 it_should_block_a_push_to_main_in_a_commit_message_that_an_env_set_editor_runs
 it_should_block_a_push_to_main_in_a_commit_message_that_a_dash_c_editor_runs
 it_should_block_a_push_to_main_on_the_lines_after_a_here_string
+it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_variable_splits_into_an_editor_flag
+it_should_block_a_push_to_main_in_a_commit_message_whose_unquoted_directory_variable_splits_into_git_options
+it_should_block_a_push_to_main_in_a_commit_message_after_a_git_config_that_can_set_its_hooks
+it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash
+it_should_allow_a_commit_whose_inline_message_mentions_git_push
+it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch

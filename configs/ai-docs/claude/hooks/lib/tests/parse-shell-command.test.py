@@ -92,6 +92,25 @@ class TestStripCommitMessageHeredocBodies:
     def test_should_keep_the_lines_after_a_here_string_since_bash_runs_them_as_commands(self):
         assert _keeps_push_body("git commit -F - <<<'EOF'")
 
+    def test_should_keep_the_body_when_an_unquoted_variable_before_the_commit_options_can_split_into_an_editor_flag(self):
+        assert _keeps_push_body("e=-e; git commit $e -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_the_commits_directory_is_an_unquoted_variable_that_can_split_into_git_options(self):
+        assert _keeps_push_body("d='x -c core.editor=sh'; git -C $d commit -F - <<'EOF'")
+
+    def test_should_keep_the_body_when_an_earlier_git_config_can_point_the_commit_at_hooks_that_run_the_message(self):
+        assert _keeps_push_body("git config core.hooksPath /tmp/hooks && git commit -F - <<'EOF'")
+
+    def test_should_drop_the_body_when_variables_appear_only_in_the_pathspecs_after_the_double_dash(self):
+        command = (
+            "cd ~/unix-utils && d=configs/ai-docs/claude/skills/open-in-tmux && "
+            "git commit -q -F - -- \"$d/SKILL.md\" \"$d/scripts/diffview-in-tmux.sh\" <<'EOF'\n"
+            "docs(open-in-tmux): name the since-last-push diff\n"
+            "EOF"
+        )
+
+        assert "since-last-push" not in parse_shell_command.strip_commit_message_heredoc_bodies(command)
+
 
 class TestStripHeredocBodiesForSinks:
     def test_should_keep_the_lines_after_a_here_string_fed_to_cat_since_bash_runs_them(self):
