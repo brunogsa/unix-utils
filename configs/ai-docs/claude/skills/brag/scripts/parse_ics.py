@@ -7,7 +7,8 @@ Usage:
   parse_ics.py ~/cal.ics 2026-03-15 2026-03-21
 
 Examples:
-  parse_ics.py /tmp/brag-cal/calendar.ics 2026-03-15 2026-03-22
+  parse_ics.py <scratchpad>/brag-cal/calendar.ics \
+    2026-03-15 2026-03-22
   # Outputs JSON array of {start, summary, duration_min}
   # sorted by start time
 """

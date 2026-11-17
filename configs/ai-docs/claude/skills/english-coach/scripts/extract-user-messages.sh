@@ -4,7 +4,8 @@
 #
 # Usage:
 #   extract-user-messages.sh
-#   extract-user-messages.sh > /tmp/english-coach-input.txt
+#   extract-user-messages.sh \
+#     > <scratchpad>/english-coach-input.txt
 #
 # Examples:
 #   d=~/.claude/skills/english-coach/scripts

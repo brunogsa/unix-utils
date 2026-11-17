@@ -29,7 +29,7 @@ Why: the flowchart is read *instead of* the numbered steps - a pointer into SKIL
 
 ## Every node carries an id
 
-Prefix each label with its id and `. ` (`5. Persist all 3 answers to /tmp/sdd_&lt;session_id&gt;.json`).
+Prefix each label with its id and `. ` (`5. Persist all 3 answers to scratchpad/sdd_session.json`).
 
 Ids are diagram-local, ordered top to bottom (`1`, `2`, `3`, …), one per main-line node including triggers and decisions.
 
