@@ -54,6 +54,10 @@ STATIC_TOOLS = {
     ("type_errors", "python"): "pyright",
     ("type_errors", "ts"): "tsc",
     ("type_errors", "go"): "go vet",
+    ("dead_code", "python"): "vulture",
+    ("dead_code", "js"): "knip",
+    ("dead_code", "ts"): "knip",
+    ("dead_code", "go"): "deadcode",
 }
 STATIC_METRIC_LIMIT = 0
 
@@ -145,8 +149,14 @@ def _ask_once(coverage_run, tool, metric, reason):
     ask = ask_or_defer(
         coverage_run.tool_map, tool, metric, reason, coverage_run.environ
     )
+    if ask:
+        add_ask_once(coverage_run, ask)
+
+
+def add_ask_once(coverage_run, ask):
+    """Add `ask` to the run unless its tool already asked."""
     known_tools = [known["tool"] for known in coverage_run.asks]
-    if ask and ask["tool"] not in known_tools:
+    if ask["tool"] not in known_tools:
         coverage_run.asks.append(ask)
 
 

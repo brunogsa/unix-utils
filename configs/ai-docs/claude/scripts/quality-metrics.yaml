@@ -47,11 +47,11 @@ languages:
   js:
     extensions: [.js, .jsx, .mjs, .cjs]
     nesting_reader: min
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, dead_code, mutation]
   ts:
     extensions: [.ts, .tsx]
     nesting_reader: min
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors, dead_code, mutation]
 
   # HTML and CSS have no functions: only size and code
   # duplication apply, the latter from token clones of 4 lines
@@ -71,7 +71,7 @@ languages:
   python:
     extensions: [.py]
     nesting_reader: ns
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, unused_code, type_errors, dead_code, mutation]
 
   # Bash declares size, counted in logical lines, crap, and code
   # duplication, from token clones of 4 lines or more, with
@@ -88,7 +88,10 @@ languages:
   # - cognitive_complexity: no Bash tool measures it.
   # - dependency direction: Bash has no imports to follow.
   # - duplicated tests: Bash has no test-suite structure.
+  #
   # - entangled tests: Bash has no test-suite structure.
+  # - dead_code: no tool follows `source` across files.
+  # - mutation: no Bash mutation tool exists.
   #
   # Complexity joins with its module.
   bash:
@@ -98,6 +101,8 @@ languages:
 
   # Go's compiler rejects unused imports and variables, so
   # unused_code does not apply. type_errors runs go vet.
+  # dead_code runs deadcode. mutation does not apply: gremlins
+  # is pre-1.0 and cannot narrow to changed lines.
   go:
     extensions: [.go]
-    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, type_errors]
+    metrics: [size, nesting, parameters, cognitive_complexity, crap, coverage, code_duplication, test_duplication, dependency_direction, entangled_tests, type_errors, dead_code]

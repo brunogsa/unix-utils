@@ -34,6 +34,7 @@ FILE_KIND = "file"
 FILE_LINE = 1
 GO_DEADCODE = Path.home() / ".local/bin/deadcode"
 GO_NO_MAIN = "no main packages"
+SKIPPED_DIRECTORIES = {".venv", "node_modules", ".git"}
 
 
 def dead_code_records(tree, targets):
@@ -88,10 +89,13 @@ def _record(target, finding, tool):
 
 
 def _tracked_python_files(tree):
-    result = run_command(["git", "-C", str(tree), "ls-files", "-z", "*.py"])
-    if result.returncode != 0:
-        raise ToolError(f"git ls-files failed in {tree}: {result.stderr.strip()}")
-    return [str(tree / name) for name in result.stdout.split("\0") if name]
+    """The tree's own Python files; the checked tree is a copy
+    with no git data, and the linked .venv is not its code."""
+    return [
+        str(path)
+        for path in sorted(tree.rglob("*.py"))
+        if not set(path.relative_to(tree).parts) & SKIPPED_DIRECTORIES
+    ]
 
 
 def _vulture_findings(tree):

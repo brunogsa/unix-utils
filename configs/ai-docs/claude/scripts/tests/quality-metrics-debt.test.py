@@ -64,7 +64,7 @@ class TestDebtScore:
         assert debt.debt_score([record], 1)["minutes"] == 5
 
     def test_should_price_every_metric_the_registry_defines(self):
-        assert set(measuring.METRIC_MODULES) <= set(debt.REMEDIATION_MINUTES)
+        assert set(measuring.METRIC_MODULES) == set(debt.REMEDIATION_MINUTES)
 
     def test_should_price_a_type_error_at_10_minutes_and_an_unused_code_finding_at_5(self):
         type_error = function_record("src/a.py", "build", "type_errors", 1, 0)

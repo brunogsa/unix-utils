@@ -46,6 +46,13 @@ DEPENDENCIES_MODULE = "dependencies"
 UNUSED_CODE_MODULE = "unused_code"
 TYPE_CHECK_MODULE = "type_check"
 
+# Dead code reads the same checked tree, across files.
+DEAD_CODE_MODULE = "dead_code"
+
+# Mutation runs once per --diff --mutation run, after the files
+# are measured, so no per-file measuring happens for it.
+MUTATION_MODULE = "mutation"
+
 # Which module measures each metric. A declared metric with no
 # entry here and not in SKIPPED_ON_PURPOSE fails the run.
 METRIC_MODULES = {
@@ -60,6 +67,8 @@ METRIC_MODULES = {
     "dependency_direction": DEPENDENCIES_MODULE,
     "unused_code": UNUSED_CODE_MODULE,
     "type_errors": TYPE_CHECK_MODULE,
+    "dead_code": DEAD_CODE_MODULE,
+    "mutation": MUTATION_MODULE,
 }
 
 # No script module on purpose: the code-reviewer metrics
@@ -195,24 +204,29 @@ def _measure_module(setup, target, module_name, module_metrics):
         DEPENDENCIES_MODULE: setup.dependency_run,
         UNUSED_CODE_MODULE: setup.static_run,
         TYPE_CHECK_MODULE: setup.static_run,
+        DEAD_CODE_MODULE: setup.static_run,
     }
+    if module_name == MUTATION_MODULE:
+        return []
     if module_name == COVERAGE_MODULE:
         return _measure_crap_and_coverage(setup, target, module_metrics)
     if module_name in run_needed and run_needed[module_name] is None:
         return []
     if module_name == DEPENDENCIES_MODULE:
         return dependencies.measure(target, module_metrics, setup.dependency_run)
-    if module_name in (UNUSED_CODE_MODULE, TYPE_CHECK_MODULE):
+    if module_name in (UNUSED_CODE_MODULE, TYPE_CHECK_MODULE, DEAD_CODE_MODULE):
         return _measure_static(setup, target, module_name, module_metrics)
     return _measure_with_module_file(setup, target, module_name, module_metrics)
 
 
 def _measure_static(setup, target, module_name, module_metrics):
-    """The unused_code or type_errors record; a tool failure
-    reads as a flagged worst case plus an ask."""
+    """The unused_code, type_errors or dead_code records; a tool
+    failure reads as a flagged worst case plus an ask."""
     try:
         if module_name == UNUSED_CODE_MODULE:
             return unused_code.measure_unused_code(target)
+        if module_name == DEAD_CODE_MODULE:
+            return setup.static_run.dead_code_records_for(target)
         return setup.static_run.type_error_records_for(target)
     except ToolError as error:
         return static_tool_failure_records(
