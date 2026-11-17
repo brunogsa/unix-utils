@@ -23,8 +23,9 @@ JAVASCRIPT_LANGUAGES = ("js", "ts")
 
 
 def run_mutation(setup, touched_by_file, changed_files):
-    """`{surviving_mutants, mutants_not_run, mutation_summary}`
-    for the changed files whose language declares `mutation`.
+    """`{surviving_mutants, mutants_not_run, mutation_summary,
+    mutation_opted_out}` for the changed files whose language
+    declares `mutation`.
 
     Each tool's asks join the run's asks, once per tool. A repo
     test run that timed out opts every language out.
@@ -51,6 +52,7 @@ def run_mutation(setup, touched_by_file, changed_files):
         "surviving_mutants": survivors,
         "mutants_not_run": not_run,
         "mutation_summary": dict(summary),
+        "mutation_opted_out": is_opted_out,
     }
 
 

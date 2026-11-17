@@ -118,10 +118,16 @@ class TestTestFilesAreNeverMutated:
         assert recorded_files(result) == set()
 
 
-class TestRepoTestRunTimeout:
-    def test_runs_no_mutant_and_lists_each_changed_range_as_opted_out_when_the_repo_test_run_timed_out(
-        self, tmp_path, monkeypatch
-    ):
+HEADROOM_GO_POLICY = TimeoutPolicy(headroom_is_go=lambda: True)
+HEADROOM_NO_GO_POLICY = TimeoutPolicy(headroom_is_go=lambda: False, sleep=lambda seconds: None)
+
+
+@pytest.fixture
+def mutation_after_repo_test_run(tmp_path, monkeypatch):
+    """Runs the mutation phase on one changed TS source after a
+    repo test run that always times out under `policy`; returns
+    the files handed to Stryker and the phase's result."""
+    def run(policy):
         handed_to_stryker = []
 
         def record_stryker_run(tree, changed, deadline):
@@ -135,9 +141,7 @@ class TestRepoTestRunTimeout:
         })
         install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
         install_global_collector(monkeypatch, [], {})
-        coverage_run = coverage_run_for(
-            repo, tmp_path, policy=TimeoutPolicy(headroom_is_go=lambda: True)
-        )
+        coverage_run = coverage_run_for(repo, tmp_path, policy=policy)
         coverage_records_of(
             tmp_path, Target(repo / "src/discount.ts", "ts", None, repo_path="src/discount.ts"),
             coverage_run,
@@ -151,8 +155,17 @@ class TestRepoTestRunTimeout:
             static_run=SimpleNamespace(tree=lambda: repo),
             coverage_run=coverage_run,
         )
-
         result = run_mutation(setup, {"src/discount.ts": None}, {"src/discount.ts": "ts"})
+        return handed_to_stryker, result
+
+    return run
+
+
+class TestRepoTestRunTimeout:
+    def test_runs_no_mutant_and_lists_each_changed_range_as_opted_out_when_the_repo_test_run_timed_out(
+        self, mutation_after_repo_test_run
+    ):
+        handed_to_stryker, result = mutation_after_repo_test_run(HEADROOM_GO_POLICY)
 
         assert handed_to_stryker == []
         assert result["mutants_not_run"] == [{
@@ -160,6 +173,13 @@ class TestRepoTestRunTimeout:
             "lines": "1-3",
             "label": "not run (opted out: the repo test run timed out at 240s)",
         }]
+
+    def test_flags_the_mutation_run_as_opted_out_when_the_repo_test_run_timed_out(
+        self, mutation_after_repo_test_run
+    ):
+        _, result = mutation_after_repo_test_run(HEADROOM_GO_POLICY)
+
+        assert result["mutation_opted_out"] is True
 
 
 class TestCodeFreeFilesAreNeverMutated:
