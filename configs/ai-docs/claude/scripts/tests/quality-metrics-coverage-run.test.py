@@ -9,6 +9,7 @@ from quality_metrics_support import (
     CART_LCOV,
     JEST_CRASH_STUB,
     SCRIPTS_DIR,
+    attempt_timeouts_in,
     attempts_in,
     GLOBAL_COVERAGE_PERCENT,
     assert_fell_through_to_global,
@@ -25,7 +26,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 import pytest
 
-from quality_metrics.failures import TimeoutPolicy
+from quality_metrics.failures import HEADROOM_POLL_SECONDS, TimeoutPolicy
 from quality_metrics.functions import is_over_limit
 from quality_metrics.touched import Target
 
@@ -185,6 +186,46 @@ def test_should_stop_a_repo_tool_that_always_times_out_after_3_attempts_when_hea
 
     assert attempts_in(tmp_path) == 3
     assert len(global_calls) == 1
+
+
+def test_should_give_the_repo_test_run_4_minutes_while_other_tools_keep_their_own_timeout(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, JEST_REPO_FILES)
+    install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
+    install_global_collector(monkeypatch, [], GLOBAL_HITS)
+    policy = TimeoutPolicy(timeout_seconds=120, headroom_is_go=lambda: True)
+    coverage_run = coverage_run_for(repo, tmp_path, policy=policy)
+
+    coverage_records_of(tmp_path, js_target(repo), coverage_run)
+
+    assert attempt_timeouts_in(tmp_path) == [240, 240]
+    assert coverage_run.policy.timeout_seconds == 120
+
+
+def test_should_wait_for_headroom_before_starting_the_repo_test_run(tmp_path, monkeypatch):
+    polls = iter([False, True])
+    slept = []
+    policy = TimeoutPolicy(
+        timeout_seconds=60, headroom_is_go=lambda: next(polls), sleep=slept.append
+    )
+
+    measure_js_with_jest_stub(tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy)
+
+    assert slept == [HEADROOM_POLL_SECONDS]
+
+
+def test_should_never_start_the_repo_test_run_while_headroom_stays_no_go(tmp_path, monkeypatch):
+    policy = TimeoutPolicy(
+        timeout_seconds=60, headroom_is_go=lambda: False, sleep=lambda seconds: None
+    )
+
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy
+    )
+
+    assert attempts_in(tmp_path) == 0
+    assert coverage_run.sources[0]["exit_class"] == "timeout"
 
 
 def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(

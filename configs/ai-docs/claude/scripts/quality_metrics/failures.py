@@ -66,6 +66,11 @@ STATIC_TOOLS = {
 STATIC_METRIC_LIMIT = 0
 
 TOOL_TIMEOUT_SECONDS = 120
+
+# The repo's own test command runs the whole related suite, so
+# it gets more time than a single-file tool; past it, mutation
+# (which reruns those tests per mutant) is opted out.
+REPO_TEST_TIMEOUT_SECONDS = 240
 HEADROOM_POLL_SECONDS = 30
 HEADROOM_MAX_WAIT_SECONDS = 600
 GENUINE_TIMEOUTS_ALLOWED = 2
@@ -313,6 +318,16 @@ class TimeoutPolicy:
                     error, waited_seconds, genuine_timeouts
                 )
 
+    def run_after_headroom(self, attempt):
+        """`run(attempt)`, started only once headroom reads GO.
+
+        A heavy run must not start on a saturated machine.
+        Raises ToolTimedOutTwice, with no attempt made, when
+        headroom stays NO-GO past HEADROOM_MAX_WAIT_SECONDS.
+        """
+        self._wait_for_headroom(0, "the run never started")
+        return self.run(attempt)
+
     def _count_timeout(self, error, waited_seconds, genuine_timeouts):
         """`(waited_seconds, genuine_timeouts)` after one more
         timeout.
@@ -321,7 +336,9 @@ class TimeoutPolicy:
         count. Raises ToolTimedOutTwice once the genuine
         timeouts run out.
         """
-        waited_after = self._wait_for_headroom(waited_seconds, error)
+        waited_after = self._wait_for_headroom(
+            waited_seconds, f"{error.cmd} timed out", error
+        )
         if waited_after > waited_seconds:
             return waited_after, genuine_timeouts
         if genuine_timeouts + 1 == GENUINE_TIMEOUTS_ALLOWED:
@@ -330,15 +347,19 @@ class TimeoutPolicy:
             ) from error
         return waited_after, genuine_timeouts + 1
 
-    def _wait_for_headroom(self, waited_seconds, timeout_error):
+    def _wait_for_headroom(self, waited_seconds, what_happened, cause=None):
         """Block until headroom is GO; return the total seconds
-        waited."""
+        waited.
+
+        `what_happened` opens the error raised past
+        HEADROOM_MAX_WAIT_SECONDS; `cause` is chained to it.
+        """
         while not self.headroom_is_go():
             if waited_seconds >= HEADROOM_MAX_WAIT_SECONDS:
                 raise ToolTimedOutTwice(
-                    f"{timeout_error.cmd} timed out and headroom stayed "
+                    f"{what_happened} and headroom stayed "
                     f"NO-GO for {waited_seconds}s"
-                ) from timeout_error
+                ) from cause
             self.sleep(HEADROOM_POLL_SECONDS)
             waited_seconds += HEADROOM_POLL_SECONDS
         return waited_seconds

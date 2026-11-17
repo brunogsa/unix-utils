@@ -10,9 +10,13 @@ from collections import Counter
 
 from quality_metrics import declaration, mutation, mutation_python
 from quality_metrics.executable_code import has_no_executable_code
-from quality_metrics.failures import add_ask_once
+from quality_metrics.failures import REPO_TEST_TIMEOUT_SECONDS, add_ask_once
 
 BUDGET_SECONDS = 300
+OPTED_OUT_LABEL = (
+    "not run (opted out: the repo test run timed out at "
+    f"{REPO_TEST_TIMEOUT_SECONDS}s)"
+)
 MUTATION_METRIC = "mutation"
 PYTHON_LANGUAGES = ("python",)
 JAVASCRIPT_LANGUAGES = ("js", "ts")
@@ -22,11 +26,13 @@ def run_mutation(setup, touched_by_file, changed_files):
     """`{surviving_mutants, mutants_not_run, mutation_summary}`
     for the changed files whose language declares `mutation`.
 
-    Each tool's asks join the run's asks, once per tool.
+    Each tool's asks join the run's asks, once per tool. A repo
+    test run that timed out opts every language out.
     """
     deadline = time.monotonic() + BUDGET_SECONDS
     tree = setup.static_run.tree()
     survivors, not_run, summary = [], [], Counter()
+    is_opted_out = getattr(setup.coverage_run, "is_repo_test_run_timed_out", False)
     for measure, languages in (
         (mutation.measure_javascript_mutation, JAVASCRIPT_LANGUAGES),
         (mutation_python.measure_python_mutation, PYTHON_LANGUAGES),
@@ -34,7 +40,8 @@ def run_mutation(setup, touched_by_file, changed_files):
         changed = _changed_ranges(setup, tree, touched_by_file, changed_files, languages)
         if not changed:
             continue
-        result = measure(tree, changed, deadline)
+        run_measure = _opted_out if is_opted_out else measure
+        result = run_measure(tree, changed, deadline)
         survivors += result["surviving_mutants"]
         not_run += result["mutants_not_run"]
         summary.update(result["mutation_summary"])
@@ -44,6 +51,24 @@ def run_mutation(setup, touched_by_file, changed_files):
         "surviving_mutants": survivors,
         "mutants_not_run": not_run,
         "mutation_summary": dict(summary),
+    }
+
+
+def _opted_out(tree, changed, deadline):
+    """Lists every changed range as not run, running no mutant.
+
+    Mutation reruns the repo tests once per mutant, so a repo
+    test run that already timed out would never finish.
+    """
+    not_run = [
+        {"file": path, "lines": f"{start}-{end}", "label": OPTED_OUT_LABEL}
+        for path, ranges in changed.items()
+        for start, end in ranges
+    ]
+    return {
+        "surviving_mutants": [],
+        "mutants_not_run": not_run,
+        "mutation_summary": {"killed": 0, "survived": 0, "not_run_ranges": len(not_run)},
     }
 
 

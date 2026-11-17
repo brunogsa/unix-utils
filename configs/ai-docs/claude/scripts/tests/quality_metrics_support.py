@@ -79,13 +79,21 @@ def attempts_in(tmp_path):
     return len(attempt_log.read_text().splitlines()) if attempt_log.exists() else 0
 
 
+def attempt_timeouts_in(tmp_path):
+    """The timeout, in seconds, each logged attempt was
+    given."""
+    attempt_log = tmp_path / "attempts.log"
+    return [float(line.split("timeout=")[1]) for line in attempt_log.read_text().splitlines()]
+
+
 def install_repo_tool_that_always_times_out(tmp_path, monkeypatch):
     """Make every repo coverage tool run end in a timeout.
 
     The run raises the timeout itself, so the outcome never
     depends on how long a stub takes to start under load. It
     logs one line in the attempt log per tool run, as a stub
-    would. Git calls pass through to the real runner.
+    would, naming the timeout the run was given. Git calls pass
+    through to the real runner.
     """
     from quality_metrics import tools
 
@@ -93,7 +101,7 @@ def install_repo_tool_that_always_times_out(tmp_path, monkeypatch):
         if command[0] == "git":
             return tools.run_command(command, *args, timeout=timeout, **options)
         with (tmp_path / "attempts.log").open("a") as attempt_log:
-            attempt_log.write("attempt\n")
+            attempt_log.write(f"attempt timeout={timeout}\n")
         assert timeout is not None
         raise subprocess.TimeoutExpired(command, timeout)
 

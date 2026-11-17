@@ -13,7 +13,14 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR
+from quality_metrics_support import (
+    SCRIPTS_DIR,
+    coverage_records_of,
+    coverage_run_for,
+    install_global_collector,
+    install_repo_tool_that_always_times_out,
+    make_repo,
+)
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -21,6 +28,8 @@ import pytest
 
 from quality_metrics import mutation
 from quality_metrics.declaration import Declaration, Language
+from quality_metrics.failures import TimeoutPolicy
+from quality_metrics.touched import Target
 from quality_metrics.mutation import BatchResult
 from quality_metrics.mutation_run import run_mutation
 
@@ -107,6 +116,50 @@ class TestTestFilesAreNeverMutated:
 
         assert handed == ["core/src/discount.ts"]
         assert recorded_files(result) == set()
+
+
+class TestRepoTestRunTimeout:
+    def test_runs_no_mutant_and_lists_each_changed_range_as_opted_out_when_the_repo_test_run_timed_out(
+        self, tmp_path, monkeypatch
+    ):
+        handed_to_stryker = []
+
+        def record_stryker_run(tree, changed, deadline):
+            handed_to_stryker.extend(changed)
+            return {"surviving_mutants": [], "mutants_not_run": [], "mutation_summary": {}}
+
+        monkeypatch.setattr(mutation, "measure_javascript_mutation", record_stryker_run)
+        repo = make_repo(tmp_path, {
+            "jest.config.js": "module.exports = { collectCoverage: true };\n",
+            "src/discount.ts": DISCOUNT_SOURCE,
+        })
+        install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
+        install_global_collector(monkeypatch, [], {})
+        coverage_run = coverage_run_for(
+            repo, tmp_path, policy=TimeoutPolicy(headroom_is_go=lambda: True)
+        )
+        coverage_records_of(
+            tmp_path, Target(repo / "src/discount.ts", "ts", None, repo_path="src/discount.ts"),
+            coverage_run,
+        )
+        declaration = Declaration(
+            languages={"ts": Language(extensions=(".ts",), metrics=("mutation",))},
+            excluded_paths=(), ignored_extensions=(), per_unit=(),
+        )
+        setup = SimpleNamespace(
+            declaration=declaration,
+            static_run=SimpleNamespace(tree=lambda: repo),
+            coverage_run=coverage_run,
+        )
+
+        result = run_mutation(setup, {"src/discount.ts": None}, {"src/discount.ts": "ts"})
+
+        assert handed_to_stryker == []
+        assert result["mutants_not_run"] == [{
+            "file": "src/discount.ts",
+            "lines": "1-3",
+            "label": "not run (opted out: the repo test run timed out at 240s)",
+        }]
 
 
 class TestCodeFreeFilesAreNeverMutated:

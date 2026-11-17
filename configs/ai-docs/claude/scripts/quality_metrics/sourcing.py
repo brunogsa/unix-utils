@@ -11,11 +11,12 @@ import re
 import shlex
 import tempfile
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
-from quality_metrics.failures import ToolTimedOutTwice
+from quality_metrics.failures import REPO_TEST_TIMEOUT_SECONDS, ToolTimedOutTwice
 from quality_metrics.gate_inputs import (
     config_names,
     write_base_ref_configs,
@@ -508,15 +509,18 @@ REPO_COVERAGE_RUNNERS = {JEST: run_repo_jest, PYTEST_COV: run_repo_pytest_cov}
 
 def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_paths=()):
     """The repo `tool`'s coverage run for the changed paths,
-    bounded by `policy`'s timeout.
+    started once headroom reads GO and bounded by
+    REPO_TEST_TIMEOUT_SECONDS; `policy` keeps its own timeout
+    for every other tool.
 
     Raises RepoToolFailure naming how the tool failed: a
-    timeout on both attempts is TIMEOUT, any other tool error
-    is CRASH.
+    timeout on both attempts, or headroom that never reads GO,
+    is TIMEOUT; any other tool error is CRASH.
     """
     run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
+    repo_test_policy = replace(policy, timeout_seconds=REPO_TEST_TIMEOUT_SECONDS)
     try:
-        return policy.run(
+        return repo_test_policy.run_after_headroom(
             lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths)
         )
     except ToolTimedOutTwice as error:
