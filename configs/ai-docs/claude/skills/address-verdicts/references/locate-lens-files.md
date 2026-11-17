@@ -15,7 +15,9 @@ A `verdict_quality-gate_*.md` counts as a source for all five lenses: `refactor`
 
 Why: `/quality-gate` moves its own standalone files away, so an older one left in CWD would be worked beside the merged file. Only `/test-sdd` run alone writes a standalone `test-sdd` file, which is the fallback for that lens.
 
-A standalone `metrics` verdict exists only on quality-gate's merge-fail fallback, where its section 4.1 moves the rendered metrics verdict back into CWD; its rendered entries carry no severity tag.
+A standalone `metrics` verdict exists only on quality-gate's merge-fail fallback, where its section 4.1 moves the rendered metrics verdict and the judge file `metrics-judge_<ts>.md` back into CWD.
+
+The rendered verdict holds no fix: its numbered deferred, tooling-ask and exception entries carry no severity tag, and its raw records are unnumbered bullets. The fixes are the judge file's `[SEV][metrics]` findings, each citing its record keys; a judge dismissal is its Skip for a raw record. The listing above does not glob the judge file.
 
 The `scout` lens has no standalone source: on that fallback `scout-leg_<ts>.md` stays in quality-gate's `<RUN_DIR>`, and its tasks stay pending for the next gate run.
 

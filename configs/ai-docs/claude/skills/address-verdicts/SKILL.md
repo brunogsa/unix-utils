@@ -65,8 +65,6 @@ Never guess past an ambiguity - a wrong guess works the wrong finding silently.
 
 A severity floor compares the `HIGH`/`MEDIUM`/`LOW` tag in a finding heading.
 
-A rendered `[metrics]` entry (`### 2. [metrics] <text>`) carries none, so a floor never selects it - name it, or mark it `[AI!]`.
-
 A `[QUESTION]` finding is always selected and reported to the human, never dispatched: it names no fix.
 
 A finding whose body carries a `SKIPPED (` line is never selected, by any selection: named, floor, all or marked. Deleting the line reopens it.
@@ -130,7 +128,7 @@ Each dispatch carries **all** findings assigned to it at once, each with the ide
 - **`refactor` entry** (from `verdict_refactor_*.md`, or a `[refactor]`-tagged finding in `verdict_quality-gate_*.md`): `agent(subAgent=refactor, title=Apply all refactor findings)`.
   - It applies the changes itself and confirms tests are green before and after.
 
-- **`metrics` entry** (a `[metrics]` merged finding), split by what the fix edits - a default classification, not a spec rule:
+- **`metrics` entry** (a `[metrics]` judge finding citing its record keys), split by what the fix edits - a default classification, not a spec rule:
   - Size, nesting or complexity violations, extract-a-helper findings for duplicate code, and hotspots → `refactor`.
   - Coverage or CRAP violations whose fix is a missing, vacuous or entangled test → `tdd-coder`.
   - A prose or config target → `direct-coder`.
