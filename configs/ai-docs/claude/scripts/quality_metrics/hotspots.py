@@ -7,7 +7,7 @@ days. Files are drawn hottest first: churn x that share.
 
 import math
 
-from quality_metrics.functions import display_value, is_over_limit
+from quality_metrics.functions import display_value, is_lower_worse, is_over_limit
 
 AMBER_PERCENT = 70
 RED_PERCENT = 100
@@ -55,7 +55,7 @@ def badness(record):
     """
     if record["value"] is None:
         return math.inf
-    if record.get("flagged_below_limit"):
+    if is_lower_worse(record):
         return -record["value"]
     return record["value"]
 
@@ -109,7 +109,7 @@ def _color(record):
         return "red"
     if record["limit"] <= 0:
         return "red" if record["value"] > 0 else "green"
-    if record.get("flagged_below_limit"):
+    if is_lower_worse(record):
         return "red" if is_over_limit(record) else "green"
     if record["value"] * 100 >= record["limit"] * RED_PERCENT:
         return "red"
@@ -124,7 +124,7 @@ def _color_and_label(record):
         return color, f"{record['metric']} no value"
     if record["limit"] <= 0:
         return color, record["metric"]
-    if record.get("flagged_below_limit"):
+    if is_lower_worse(record):
         return color, f"{record['metric']} {display_value(record)}%"
     percent = int(record["value"] * 100 / record["limit"])
     return color, f"{record['metric']} {percent}%"

@@ -29,6 +29,11 @@ from quality_metrics.tools import (
 NESTING_LIMIT = 3
 PARAMETER_LIMIT = 5
 
+# Metrics read as worse the lower they are. A record's own
+# `flagged_below_limit` says whether it is under the limit,
+# not which way its metric points.
+LOWER_IS_WORSE_METRICS = frozenset({"coverage"})
+
 # Sonar's rule S3776 uses 15 as its default limit, and so does
 # Biome's noExcessiveCognitiveComplexity.
 COGNITIVE_COMPLEXITY_LIMIT = 15
@@ -138,9 +143,16 @@ def measure(target, metrics):
     return results
 
 
+def is_lower_worse(item):
+    """True for a metric that gets worse as its value drops, so
+    it flags under its limit: coverage."""
+    return item["metric"] in LOWER_IS_WORSE_METRICS
+
+
 def is_over_limit(item):
     """A record flags past its limit, at it when it says so
-    (duplication), or under it when it says so (coverage).
+    (duplication), or under it for a lower-is-worse metric
+    (coverage).
     A CRAP record flags only above its limit, so a score equal
     to it passes.
 
@@ -151,7 +163,7 @@ def is_over_limit(item):
     """
     if item["value"] is None:
         return False
-    if item.get("flagged_below_limit"):
+    if is_lower_worse(item):
         return item["value"] < item["limit"]
     if item.get("flagged_at_limit"):
         return item["value"] >= item["limit"]

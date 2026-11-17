@@ -84,6 +84,6 @@ def coverage_record(target, percent, uncovered_lines=None):
     record = measurement(target, "coverage", percent, COVERAGE_LIMIT)
     return {
         **record,
-        "flagged_below_limit": True,
+        "flagged_below_limit": percent < COVERAGE_LIMIT,
         "uncovered_lines": uncovered_lines,
     }
