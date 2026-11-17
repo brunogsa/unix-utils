@@ -379,7 +379,7 @@ def _describe(record):
 
 def _shown_value(record):
     if record["value"] is None:
-        return f"no value ({record['label']})"
+        return f"no value ({record.get('label') or record['status']})"
     if record.get("label") == DEFERRED_LABEL:
         return f"{display_value(record)} ({DEFERRED_LABEL})"
     if record.get("pessimistic"):

@@ -143,6 +143,19 @@ class TestNoValueRecords:
         assert "Ranked: Coverage" not in verdict
         assert nodes_by_file(mermaid_block(verdict)) == {"src/prose_only.py": "green"}
 
+    def test_should_print_a_pessimistic_coverage_with_no_executable_code_by_its_status(self):
+        run = measured({
+            **coverage.not_applicable_record(
+                target("src/types_only.ts"), coverage.NO_EXECUTABLE_CODE
+            ),
+            "pessimistic": True,
+        })
+
+        verdict = report.build_verdict(run)
+
+        (heading,) = entry_headings(section(verdict, "Ranked: Coverage"))
+        assert f"no value ({coverage.NO_EXECUTABLE_CODE})" in heading
+
     def test_should_rank_a_deferred_crap_first_print_it_as_no_value_and_paint_its_file_red(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)
         run = measured(
