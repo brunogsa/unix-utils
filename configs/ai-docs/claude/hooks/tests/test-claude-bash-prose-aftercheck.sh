@@ -162,5 +162,52 @@ it_should_report_a_markdown_file_written_from_a_heredoc
 it_should_mark_every_bash_call_before_it_runs
 it_should_run_the_after_check_once_every_bash_call_succeeds
 
+# --- stays silent when nothing it should check changed ----
+
+it_should_stay_silent_when_the_command_changes_no_work_tree_file() {
+  new_fixture
+  run_command_with_hooks "$repo_dir" "printf 'done\n' > $scratch_dir/out.txt"
+  assert_eq "should exit 0 when the command writes only outside the work tree" "0" "$AFTER_EXIT"
+  assert_eq "should print nothing when the command writes only outside the work tree" "" "$AFTER_STDERR"
+}
+
+it_should_stay_silent_about_a_dirty_file_the_command_did_not_touch() {
+  new_fixture
+  printf '%s' "$HARD_WRAPPED_PROSE" > "$repo_dir/docs/old.md"
+  run_command_with_hooks "$repo_dir" "printf 'done\n' > $scratch_dir/out.txt"
+  assert_eq "should exit 0 when a hard-wrapped untracked docs/old.md was already there before the command" "0" "$AFTER_EXIT"
+  assert_eq "should print nothing about a hard-wrapped docs/old.md that was already there before the command" "" "$AFTER_STDERR"
+}
+
+it_should_stay_silent_when_no_marker_was_recorded_for_the_call() {
+  new_fixture
+  (cd "$repo_dir" && cp "$scratch_dir/a.md" docs/a.md)
+  run_aftercheck "$repo_dir" "toolu_01NeverMarked"
+  assert_eq "should exit 0 when the PreToolUse step left no marker for this tool_use_id" "0" "$AFTER_EXIT"
+  assert_eq "should print nothing when the PreToolUse step left no marker for this tool_use_id" "" "$AFTER_STDERR"
+}
+
+it_should_stay_silent_when_the_cwd_is_not_a_git_work_tree() {
+  local plain_dir
+  plain_dir=$(mktemp -d "$TMPDIR/plain.XXXXXX")
+  new_fixture
+  run_command_with_hooks "$plain_dir" "cp $scratch_dir/a.md notes.md"
+  assert_eq "should exit 0 when the cwd sits outside every git work tree" "0" "$AFTER_EXIT"
+  assert_eq "should print nothing when the cwd sits outside every git work tree" "" "$AFTER_STDERR"
+}
+
+it_should_stay_silent_when_the_changed_file_is_git_ignored() {
+  new_fixture
+  run_command_with_hooks "$repo_dir" "cp $scratch_dir/a.md build/a.md"
+  assert_eq "should exit 0 when the hard-wrapped file lands in the git-ignored build/" "0" "$AFTER_EXIT"
+  assert_eq "should print nothing when the hard-wrapped file lands in the git-ignored build/" "" "$AFTER_STDERR"
+}
+
+it_should_stay_silent_when_the_command_changes_no_work_tree_file
+it_should_stay_silent_about_a_dirty_file_the_command_did_not_touch
+it_should_stay_silent_when_no_marker_was_recorded_for_the_call
+it_should_stay_silent_when_the_cwd_is_not_a_git_work_tree
+it_should_stay_silent_when_the_changed_file_is_git_ignored
+
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
