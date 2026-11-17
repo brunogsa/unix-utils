@@ -227,6 +227,33 @@ it_should_still_report_a_wall_of_text_in_a_file_that_only_ends_in_tasklist_md() 
   assert_contains "should name the file in the report" "my-tasklist.md" "$HOOK_OUT"
 }
 
+# The quality-metrics tool writes a temporary copy of the base
+# ref's jest config into the measured repo; that text was not
+# authored by the session, so the hook skips it by name prefix.
+it_should_skip_an_over_width_comment_in_a_quality_metrics_base_config_copy() {
+  local dir
+  dir=$(new_repo_fixture)
+  git -C "$dir" -c user.name=fixture -c user.email=fixture@example.com commit -q --allow-empty -m "seed"
+  mkdir "$dir/core"
+  printf '// %s\n' "$(python3 -c "print('word ' * 30)")" \
+    > "$dir/core/.quality-metrics-base-abc123-jest.config.js"
+  run_hook "Write" "$dir/core/.quality-metrics-base-abc123-jest.config.js"
+  assert_eq "should exit 0 on a quality-metrics base config copy" "0" "$HOOK_EXIT"
+  assert_eq "should print nothing on a quality-metrics base config copy" "" "$HOOK_OUT"
+}
+
+it_should_still_report_an_over_width_comment_in_a_jest_config_without_the_quality_metrics_base_prefix() {
+  local dir
+  dir=$(new_repo_fixture)
+  git -C "$dir" -c user.name=fixture -c user.email=fixture@example.com commit -q --allow-empty -m "seed"
+  mkdir "$dir/core"
+  printf '// %s\n' "$(python3 -c "print('word ' * 30)")" \
+    > "$dir/core/quality-metrics-base-abc123-jest.config.js"
+  run_hook "Write" "$dir/core/quality-metrics-base-abc123-jest.config.js"
+  assert_eq "should exit 2 on a lookalike name without the leading dot" "2" "$HOOK_EXIT"
+  assert_contains "should name the file in the report" "quality-metrics-base-abc123-jest.config.js" "$HOOK_OUT"
+}
+
 it_should_use_the_counts_regime_over_the_threshold() {
   local dir long_line i
   dir=$(new_repo_fixture)
@@ -1086,6 +1113,8 @@ it_should_report_a_wall_of_text_markdown_write
 it_should_report_a_wall_of_text_write_with_an_uppercase_extension
 it_should_skip_a_wall_of_text_in_a_file_named_tasklist_md
 it_should_still_report_a_wall_of_text_in_a_file_that_only_ends_in_tasklist_md
+it_should_skip_an_over_width_comment_in_a_quality_metrics_base_config_copy
+it_should_still_report_an_over_width_comment_in_a_jest_config_without_the_quality_metrics_base_prefix
 it_should_use_the_counts_regime_over_the_threshold
 it_should_not_flake_when_the_fixture_path_contains_l_digit_over_threshold
 it_should_use_the_line_number_regime_under_the_threshold

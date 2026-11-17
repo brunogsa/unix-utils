@@ -117,6 +117,13 @@ base="$(basename -- "$FILE_PATH")"
 # sweeper, so no edit may fix them. Exact basename only.
 [ "$base" = "tasklist.md" ] && return 0
 
+# quality_metrics/gate_inputs.py writes a temporary copy of the
+# base ref's jest config into the measured repo and deletes it.
+# That text is the base ref's, not the session's, so skip it.
+case "$base" in
+  .quality-metrics-base-*) return 0 ;;
+esac
+
 # checker_names holds the checker basenames for this file's
 # extension, in the fixed order they run and report in.
 checker_names=()
