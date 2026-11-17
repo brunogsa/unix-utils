@@ -1,0 +1,94 @@
+"""Which changed JS/TS files the mutation phase hands to
+Stryker: only production files.
+
+A test or fixture file proves nothing when mutated, so it is
+neither run nor listed in any mutation record.
+"""
+
+import sys
+from functools import partial
+from pathlib import Path
+from types import SimpleNamespace
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from quality_metrics_support import SCRIPTS_DIR
+
+sys.path.insert(0, str(SCRIPTS_DIR))
+
+import pytest
+
+from quality_metrics import mutation
+from quality_metrics.declaration import Declaration, Language
+from quality_metrics.mutation import BatchResult
+from quality_metrics.mutation_run import run_mutation
+
+DISCOUNT_SOURCE = """export function discount(total: number): number {
+  return total > 100 ? total - 10 : total;
+}
+"""
+
+DISCOUNT_SPEC = """import { discount } from '../src/discount';
+
+it('takes ten off a big total', () => {
+  expect(discount(150)).toBe(140);
+});
+"""
+
+CONTRACT_FIXTURE = """export const buildContract = (overrides = {}) => ({
+  sku: 'SKU-2027-001',
+  quantity: 3,
+  ...overrides,
+});
+"""
+
+
+@pytest.fixture
+def mutated_paths(tmp_path, monkeypatch):
+    """Runs the mutation phase over `files` (repo path to text),
+    every one changed in full, and returns the paths Stryker was
+    handed plus the phase's result."""
+    handed_to_stryker = []
+
+    def record_batch(tree, path, ranges, deadline):
+        handed_to_stryker.append(path)
+        return BatchResult(killed=1, survivors=[])
+
+    monkeypatch.setattr(
+        mutation, "measure_javascript_mutation",
+        partial(mutation.measure_javascript_mutation, run_batch=record_batch),
+    )
+
+    def run(files):
+        for repo_path, text in files.items():
+            (tmp_path / repo_path).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / repo_path).write_text(text)
+        declaration = Declaration(
+            languages={"ts": Language(extensions=(".ts",), metrics=("mutation",))},
+            excluded_paths=(), ignored_extensions=(), per_unit=(),
+        )
+        setup = SimpleNamespace(
+            declaration=declaration,
+            static_run=SimpleNamespace(tree=lambda: tmp_path),
+            coverage_run=SimpleNamespace(),
+        )
+        result = run_mutation(setup, dict.fromkeys(files), dict.fromkeys(files, "ts"))
+        return handed_to_stryker, result
+
+    return run
+
+
+def recorded_files(result):
+    return {item["file"] for item in result["surviving_mutants"] + result["mutants_not_run"]}
+
+
+class TestTestFilesAreNeverMutated:
+    def test_hands_a_changed_spec_and_a_fixture_under_a_test_folder_to_no_stryker_batch(self, mutated_paths):
+        handed, result = mutated_paths({
+            "core/src/discount.ts": DISCOUNT_SOURCE,
+            "core/test/discount.spec.ts": DISCOUNT_SPEC,
+            "core/test/fixtures/contract.fixtures.ts": CONTRACT_FIXTURE,
+        })
+
+        assert handed == ["core/src/discount.ts"]
+        assert recorded_files(result) == set()

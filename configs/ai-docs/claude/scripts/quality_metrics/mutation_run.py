@@ -8,7 +8,7 @@ deadline, so the whole phase stays inside one budget.
 import time
 from collections import Counter
 
-from quality_metrics import mutation, mutation_python
+from quality_metrics import declaration, mutation, mutation_python
 from quality_metrics.failures import add_ask_once
 
 BUDGET_SECONDS = 300
@@ -47,12 +47,16 @@ def run_mutation(setup, touched_by_file, changed_files):
 
 
 def _changed_ranges(setup, tree, touched_by_file, changed_files, languages):
-    """Path to (start, end) ranges, for files of `languages`
-    that declare `mutation`."""
+    """Path to (start, end) ranges, for the files of
+    `languages` that `mutation` binds.
+
+    A test file, fixtures included, is bound by no source-only
+    metric, so it gets no record.
+    """
     changed = {}
     for path, language in changed_files.items():
-        entry = setup.declaration.languages[language]
-        if language in languages and MUTATION_METRIC in entry.metrics:
+        is_mutated = MUTATION_METRIC in declaration.metrics_for_file(setup.declaration, path)
+        if language in languages and is_mutated:
             changed[path] = _ranges_of(touched_by_file[path], tree / path)
     return changed
 
