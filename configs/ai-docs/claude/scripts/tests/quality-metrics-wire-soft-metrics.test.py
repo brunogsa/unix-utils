@@ -244,3 +244,28 @@ class TestDiffWithMutation:
 
         assert [ask["tool"] for ask in report["asks"]] == ["mutmut"]
         assert code == EXIT_VIOLATION
+
+    def test_should_keep_the_run_and_ask_for_stryker_when_a_stryker_batch_crashes(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        fakes = FakeMeasurers()
+        real_measure = mutation.measure_javascript_mutation
+
+        def crashing_stryker(tree, path, ranges, deadline):
+            def crash(*args, **kwargs):
+                return type("R", (), {"killed": False, "returncode": 1, "stderr": "boom"})()
+
+            tools = mutation.StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=crash)
+            return mutation.run_stryker_batch(tree, path, ranges, deadline, tools=tools)
+
+        fakes.javascript = lambda tree, changed, deadline, **options: real_measure(
+            tree, changed, deadline, run_batch=crashing_stryker,
+        )
+
+        code, report, _repo, _started = self.run_diff(tmp_path, monkeypatch, capsys, fakes)
+
+        statuses = {item["file"]: item["status"] for item in report["surviving_mutants"]}
+        assert statuses == {"cart.js": "stryker could not run", "cart.py": "survived"}
+        assert [ask["tool"] for ask in report["asks"]] == ["stryker"]
+        assert "boom" in report["asks"][0]["reason"]
+        assert code == EXIT_VIOLATION

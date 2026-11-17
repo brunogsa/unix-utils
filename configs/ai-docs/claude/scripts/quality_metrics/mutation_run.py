@@ -21,7 +21,7 @@ def run_mutation(setup, touched_by_file, changed_files):
     """`{surviving_mutants, mutants_not_run, mutation_summary}`
     for the changed files whose language declares `mutation`.
 
-    mutmut's asks join the run's asks, once per tool.
+    Each tool's asks join the run's asks, once per tool.
     """
     deadline = time.monotonic() + BUDGET_SECONDS
     tree = setup.static_run.tree()
