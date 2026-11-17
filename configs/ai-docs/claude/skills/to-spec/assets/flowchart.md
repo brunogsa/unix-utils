@@ -30,7 +30,7 @@ def to_spec():
         return
 
     # 4 · Step 2 · ONE AskUserQuestion: qualitative_pass?
-    #     Persist as a boolean to /tmp/sdd_<session_id>.json,
+    #     Persist as a boolean to <scratchpad>/sdd_<session_id>.json,
     #     never into the spec. An absent sdd-grill section is not a gap
     ask_toggle()
 
@@ -103,7 +103,7 @@ flowchart TD
   n2["2. Step 1 · Ground from live context, notes.md<br/>and brainstorm-why-brief.md, nothing else"]
   n3{"3. Brief present in the scratchpad?"}
   n3a(["3a. STOP - tell the user brainstorm-why has not run,<br/>offer it. Never rebuild the brief from the conversation"])
-  n4["4. Step 2 · ONE AskUserQuestion: qualitative_pass?<br/>Persist as a boolean to /tmp/sdd_session.json,<br/>never into the spec. An absent sdd-grill section is not a gap"]:::gate
+  n4["4. Step 2 · ONE AskUserQuestion: qualitative_pass?<br/>Persist as a boolean to scratchpad/sdd_session.json,<br/>never into the spec. An absent sdd-grill section is not a gap"]:::gate
   n5["5. Step 3 · Derive the kebab-case slug yourself,<br/>dispatch spec-writer in the background and wait"]:::dispatch
   n6{"6. Dispatch errored, or spec_slug.md<br/>missing on disk?"}
   n6a(["6a. STOP - report the failure with the agent's error.<br/>Offer nothing: no brainstorm-how, no retry"])

@@ -45,7 +45,7 @@ One `AskUserQuestion` call, recommended answer first, before anything is dispatc
 
 - **"Qualitative pass?"** - `qualitative_pass`, default yes.
 
-Persist the answer to `/tmp/sdd_<session_id>.json` as a boolean under exactly that field name, keeping any other field already in the file.
+Persist the answer to `<scratchpad>/sdd_<session_id>.json` as a boolean under exactly that field name, keeping any other field already in the file.
 
 Answer it fresh each run, and never write them into the spec or any committed file.
 
@@ -119,7 +119,7 @@ A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means
 Then dispatch `agent(subAgent=spec-reviewer, effort=xhigh, title=Fresh-eyes review of spec)` in the background, pointed at the spec file alone, with two jobs:
 
 - **Always - "How would this break?"**: every boundary and failure-category row instantiated or opted out, and every AC carrying a surfaced failure mode.
-- **Only when `qualitative_pass` is true**, read back from `/tmp/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
+- **Only when `qualitative_pass` is true**, read back from `<scratchpad>/sdd_<session_id>.json`: placeholders, contradictions, ambiguity, completeness, human-reviewable. Exclude PR-size, plan-contradiction and Scope.
 
 Decide each finding yourself and dispatch `spec-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
 

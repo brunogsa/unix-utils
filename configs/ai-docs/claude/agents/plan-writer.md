@@ -62,7 +62,7 @@ Source 1's Boundaries all apply verbatim: never plan on an undocumented decision
 Additionally:
 - Never edit an existing plan - that's `plan-editor`'s job. If the caller hands you a path that already exists, report blocked instead of overwriting it.
 - Spawn no subagent at all - not a second opinion on your own writing. The caller owns review, not you.
-- Never write outside the plan path the caller named, except the `/tmp` scratch you may keep for yourself, and the `task-breakdown` skill's own `/tmp` artifact.
+- Never write outside the plan path the caller named, except scratch you keep in your scratchpad directory and the `task-breakdown` skill's own artifact.
 - Never leave a `TODO` - an answer you can't source becomes a `**QUESTION:**` under Open Questions instead.
 
 ## Report format

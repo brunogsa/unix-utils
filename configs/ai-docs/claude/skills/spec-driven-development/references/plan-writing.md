@@ -23,7 +23,7 @@ You may receive a planning-conventions file (ADR/HLD/LLD or other naming constra
 ## Sources and tools
 
 - `assets/plan-template.md` and the "Self-review gates" section of `SKILL.md`.
-- The `task-breakdown` skill, which emits a prioritized breakdown artifact in `/tmp`.
+- The `task-breakdown` skill, which emits a prioritized breakdown artifact in your scratchpad directory.
 - The relevant existing code the spec references.
 
 ## Procedure

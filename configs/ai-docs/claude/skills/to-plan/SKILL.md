@@ -49,7 +49,7 @@ One `AskUserQuestion` call, recommended answer first, before anything is dispatc
 - **"Right-sized plan?"** - `right_sized`.
 - **"Qualitative pass?"** - `qualitative_pass`, default yes.
 
-Persist the answers to `/tmp/sdd_<session_id>.json` as booleans under exactly those three field names, keeping any other field already in the file.
+Persist the answers to `<scratchpad>/sdd_<session_id>.json` as booleans under exactly those three field names, keeping any other field already in the file.
 
 Answer them fresh each run, and never write them into the plan or any committed file.
 
@@ -135,7 +135,7 @@ A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means
 
 Then dispatch `agent(subAgent=plan-reviewer, effort=xhigh, title=Fresh-eyes review of plan)` in the background, pointed at the plan file alone (plus the spec path when one exists).
 
-Its qualitative leg runs only when `qualitative_pass` is true, read back from `/tmp/sdd_<session_id>.json`; its fail-closed judged checks run regardless.
+Its qualitative leg runs only when `qualitative_pass` is true, read back from `<scratchpad>/sdd_<session_id>.json`; its fail-closed judged checks run regardless.
 
 Decide each finding yourself and dispatch `plan-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
 

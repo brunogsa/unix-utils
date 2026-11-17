@@ -28,7 +28,7 @@ def to_plan():
 
     # 3 · Step 2 · ONE AskUserQuestion, three toggles:
     #     traces_to_ac, right_sized, qualitative_pass.
-    #     Persist as booleans to /tmp/sdd_<session_id>.json, never into the plan
+    #     Persist as booleans to <scratchpad>/sdd_<session_id>.json, never into the plan
     ask_toggles()
 
     # 4 · Step 3 · Derive the kebab-case slug yourself,
@@ -102,7 +102,7 @@ def to_plan():
 flowchart TD
   n1(["1. /to-plan, no arguments<br/>typed by the user, or model-invoked after brainstorm-how"]):::start
   n2["2. Step 1 · Ground plan-writer in live context and notes.md,<br/>plus spec_slug.md and the two briefs where they exist.<br/>A spec is a bonus, never a precondition.<br/>An ungroundable section goes to Open Questions, never invented"]
-  n3["3. Step 2 · ONE AskUserQuestion, three toggles:<br/>traces_to_ac, right_sized, qualitative_pass.<br/>Persist as booleans to /tmp/sdd_session.json, never into the plan"]:::gate
+  n3["3. Step 2 · ONE AskUserQuestion, three toggles:<br/>traces_to_ac, right_sized, qualitative_pass.<br/>Persist as booleans to scratchpad/sdd_session.json, never into the plan"]:::gate
   n4["4. Step 3 · Derive the kebab-case slug yourself,<br/>dispatch plan-writer in the background and wait.<br/>Machine-facing section bodies go in a collapsed details block"]:::dispatch
   n5{"5. Dispatch errored, or plan_slug.md<br/>missing on disk?"}
   n5a(["5a. STOP - report the failure with the agent's error.<br/>Offer nothing: no sdd-to-linear, no retry"])

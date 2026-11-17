@@ -118,7 +118,7 @@ Run the deterministic bucket first with `scripts/check-deterministic-gates.sh <p
 **Read [`references/self-review-checks.md`](references/self-review-checks.md) when you run these.**
 It carries bucket membership, dispatch tiers, the qualitative-pass checklist, the artifact fixers, and what each check blocks.
 
-Three toggles the caller resolves *before* the plan exists and persists to `/tmp/sdd_<session_id>.json`.
+Three toggles the caller resolves *before* the plan exists and persists to `<scratchpad>/sdd_<session_id>.json`.
 Read the answers from that file when you reach the checks - never ask them here.
 
 A caller may also resolve none of them and run the deterministic bucket plus the two always-on judged checks.

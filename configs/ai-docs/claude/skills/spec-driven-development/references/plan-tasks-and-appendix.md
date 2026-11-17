@@ -52,7 +52,7 @@ Tests for helpers pulled on demand during RED-GREEN are designed at the moment t
 
 ## Task Breakdown section
 
-Load `task-breakdown` before authoring: it orders tasks (unblockers first, riskiest PoC next), extracts thin contract tasks, splits sub-steps, emits a `/tmp` artifact.
+Load `task-breakdown` before authoring: it orders tasks (unblockers first, riskiest PoC next), extracts thin contract tasks, splits sub-steps, emits a scratchpad artifact.
 
 Populate from it: order becomes the numbering (execution order), links become each `**Depends on**:` (`none`, a lone `- none` bullet, or one `- Task N` bullet per dependency; never `- none` mixed with `- Task N`), sub-steps become the title breadcrumb and commit sketch.
 

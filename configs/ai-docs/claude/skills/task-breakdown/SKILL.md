@@ -1,6 +1,6 @@
 ---
 name: task-breakdown
-description: "Break a body of work into a prioritized, dependency-aware task breakdown, emitted as a .md artifact in /tmp for the caller to consume. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, or planning parallel work."
+description: "Break a body of work into a prioritized, dependency-aware task breakdown, emitted as a .md artifact in the loader's scratchpad. USE when breaking work into tasks/subtasks, prioritizing or sequencing a backlog, or planning parallel work."
 disable-model-invocation: false
 ---
 
@@ -68,7 +68,7 @@ The five TaskList placement categories - pick by the commit rule, which is the r
 
 ## Output artifact
 
-Write the breakdown to `/tmp/task-breakdown_<slug>.md` - derive a short kebab-case `<slug>` from the work - unless the caller names an output path. Report the resolved path back.
+Write the breakdown to `<scratchpad>/task-breakdown_<slug>.md` in your own scratchpad directory - derive a short kebab-case `<slug>` from the work - unless the caller names an output path. Report the resolved path back.
 
 ALWAYS use this exact template, one `###` entry per task, numbered in execution order (position 1 runs first):
 
