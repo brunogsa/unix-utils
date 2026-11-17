@@ -48,6 +48,17 @@ echo "Tests:       2 failed, 10 passed, 12 total" >&2
 exit 1
 """
 
+# Jest's own words for a failing assertion, with the failing
+# test's header, as `jest` prints it to stderr.
+JEST_FAILED_ASSERTION_STUB = """#!/bin/bash
+echo "FAIL src/cart.test.js" >&2
+echo "  ● cart › totals the items with their discount" >&2
+echo "" >&2
+echo "    expect(received).toBe(expected) // Object.is equality" >&2
+echo "Tests:       1 failed, 11 passed, 12 total" >&2
+exit 1
+"""
+
 # Jest's own words when every suite fails to load because a
 # workspace package was never built: no test ran, and the
 # coverage threshold and stack frame lines follow the error.
@@ -323,6 +334,19 @@ def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_bui
         ("coverage", 0, True)
     ]
     assert global_calls == []
+
+
+def test_should_name_the_first_failing_test_in_the_source_when_the_repo_jest_reports_a_failed_assertion(
+    tmp_path, monkeypatch
+):
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_FAILED_ASSERTION_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert (source["exit_class"], source["error"]) == (
+        "failed_tests", "● cart › totals the items with their discount",
+    )
 
 
 def test_should_classify_a_repo_jest_whose_suites_never_loaded_as_a_red_build_apart_from_failed_tests(

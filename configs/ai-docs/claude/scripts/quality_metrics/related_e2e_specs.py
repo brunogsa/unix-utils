@@ -64,8 +64,9 @@ def failure_reason(message):
 
 def first_jest_error_line(output):
     """The line of a failed jest run's output a user acts on,
-    cut to ERROR_LINE_MAX_CHARS: the first suite's load error;
-    None when jest printed none."""
+    cut to ERROR_LINE_MAX_CHARS: the first suite's load error,
+    else the first failing test's `●` heading; None when jest
+    printed neither."""
     lines = [ANSI_ESCAPE.sub("", line).strip() for line in output.splitlines()]
     non_blank_lines = [line for line in lines if line]
     load_error_lines = [
@@ -73,7 +74,9 @@ def first_jest_error_line(output):
         for index, line in enumerate(non_blank_lines[:-1])
         if line == JEST_SUITE_LOAD_HEADING
     ]
-    return load_error_lines[0][:ERROR_LINE_MAX_CHARS] if load_error_lines else None
+    failure_headings = [line for line in non_blank_lines if line.startswith(JEST_FAILURE_HEADING)]
+    error_lines = load_error_lines or failure_headings
+    return error_lines[0][:ERROR_LINE_MAX_CHARS] if error_lines else None
 
 
 def failed_specs_in_jest_results(repo, results_path):
