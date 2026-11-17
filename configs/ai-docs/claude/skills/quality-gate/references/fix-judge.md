@@ -14,12 +14,23 @@ Inputs: the merged verdict's path (a top-level `verdict_*.md` in CWD, which `hoo
 - Append, as the last body lines of each in-scope entry, exactly one of:
 
   ```
+  <previous body line>
+
   **Standards check**: Fix
+
+  <previous body line>
+
   **Standards check**: Skip - "<shortest quoted rule>"; considered fix: <named fix>
+
   SKIPPED (judge ruled Skip)
   ```
 
   The `SKIPPED` line follows only a Skip.
+
+- Put a blank line before `**Standards check**`, and another between it and `SKIPPED (judge ruled Skip)`.
+
+  - The prose checker reads an unseparated line as a hard-wrapped continuation.
+
 - Quote the rule's text and never name its file (`code-standards`, `CLAUDE.md`); the checker rejects a named source.
 - No ruling at all counts as Fix.
 - A metrics entry whose only fix games the metric is a Skip, quoting the metrics-lens rule that says so.

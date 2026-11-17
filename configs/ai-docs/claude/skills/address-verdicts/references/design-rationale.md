@@ -118,3 +118,7 @@ Asking all of them up front costs one round-trip, and the chain then runs unatte
 An upper branch that merges a red lower branch inherits the failure, and every push after it publishes the failure to another PR.
 
 Stopping on the failing branch leaves the human one place to fix, with nothing above it touched.
+
+## Why a blank line precedes outcomes
+
+The prose checker reads an unseparated line as a hard-wrapped continuation.

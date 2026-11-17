@@ -166,7 +166,7 @@ Write every one of that lens's outcomes in place, next to its own finding - neve
 
 - **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the `plan-status-markers` convention.
 
-- **In the finding's body**, the outcome and evidence:
+- **In the finding's body**, the outcome and evidence, blank-line separated:
   - `APPLIED (<sha>)` - the fix commit's SHA, pairs with a `[Done]` heading.
   - `SKIPPED (<reason>)` - why not applied; final - no later run selects it until the human deletes the line.
 
