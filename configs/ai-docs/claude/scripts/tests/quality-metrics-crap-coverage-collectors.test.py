@@ -214,6 +214,80 @@ class TestJavascriptCollector:
         assert result == collection.NO_COVERAGE_DATA
 
 
+def make_node_test_repo(tmp_path, test_names=("a.test.js",)):
+    """A repo with no package.json and the named test files."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    for name in test_names:
+        test_file = repo / name
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text("// node:test suite\n")
+    return repo
+
+
+class TestNodeTestFallback:
+    def test_should_run_c8_over_node_test_with_each_test_file_and_read_back_the_lcov(
+        self, tmp_path, monkeypatch
+    ):
+        argv_log = tmp_path / "c8-argv.txt"
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "c8": f'echo "$@" > {argv_log}\n{write_lcov_shell({1: 3, 2: 0})}',
+        })
+        repo = make_node_test_repo(tmp_path, ("a.test.js", "sub/b.test.js"))
+        node_modules_test = repo / "node_modules" / "dep" / "c.test.js"
+        node_modules_test.parent.mkdir(parents=True)
+        node_modules_test.write_text("")
+
+        result = collection.collect_javascript(repo)
+
+        assert result == collection.CoverageResult(
+            {SOURCE_FILE: {1: 3, 2: 0}}, has_failed_tests=False
+        )
+        assert argv_log.read_text().split() == [
+            "--reporter=lcov", "--reports-dir=coverage",
+            "node", "--test", "a.test.js", "sub/b.test.js",
+        ]
+
+    def test_should_score_a_red_build_when_the_node_tests_fail(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {"c8": "exit 1"})
+        repo = make_node_test_repo(tmp_path)
+
+        assert collection.collect_javascript(repo) == collection.RED_BUILD
+
+    def test_should_report_no_coverage_data_without_running_c8_when_there_is_no_node_test_file(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {"c8": "exit 1"})
+        repo = make_node_test_repo(tmp_path, ())
+
+        assert collection.collect_javascript(repo) == collection.NO_COVERAGE_DATA
+
+    def test_should_prefer_the_npm_test_script_over_node_test_files(
+        self, tmp_path, monkeypatch
+    ):
+        argv_log = tmp_path / "c8-argv.txt"
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "c8": f'echo "$@" > {argv_log}\nexit 1',
+        })
+        repo = make_javascript_repo(tmp_path)
+        (repo / "a.test.js").write_text("")
+
+        collection.collect_javascript(repo)
+
+        assert argv_log.read_text().split()[-2:] == ["npm", "test"]
+
+    def test_should_raise_a_tool_error_when_c8_is_not_installed(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+        repo = make_node_test_repo(tmp_path)
+
+        with pytest.raises(ToolError, match="c8"):
+            collection.collect_javascript(repo)
+
+
 class TestGoCollector:
     def test_should_score_a_go_red_build_pessimistic_without_converting_coverage_when_go_test_fails(
         self, tmp_path, monkeypatch

@@ -2,27 +2,55 @@
 writes the lcov report."""
 
 import json
+import os
 import time
 
 from quality_metrics.coverage_result import NO_COVERAGE_DATA, RED_BUILD, read_fresh_lcov
 from quality_metrics.tools import run_command, ToolError
 
-JAVASCRIPT_TEST_COMMAND = [
-    "c8", "--reporter=lcov", "--reports-dir=coverage", "npm", "test",
-]
+C8_LCOV_COMMAND = ["c8", "--reporter=lcov", "--reports-dir=coverage"]
+NPM_TEST_COMMAND = [*C8_LCOV_COMMAND, "npm", "test"]
 
 # `npm init` writes this test script, which runs no tests.
 NPM_INIT_TEST_STUB = 'echo "Error: no test specified"'
 
+# Test files under these directories are not the repo's suites.
+#
+# Naming the files, rather than a bare `node --test`, measures
+# exactly the repo's suites and skips node_modules.
+NODE_TEST_SKIPPED_DIRS = {"node_modules", ".git", "coverage"}
+NODE_TEST_FILE_SUFFIX = ".test.js"
+
 
 def collect_javascript(repo_dir):
-    if not declares_npm_test(repo_dir):
-        return NO_COVERAGE_DATA
+    if declares_npm_test(repo_dir):
+        test_command = NPM_TEST_COMMAND
+    else:
+        node_test_files = find_node_test_files(repo_dir)
+        if not node_test_files:
+            return NO_COVERAGE_DATA
+        test_command = [
+            *C8_LCOV_COMMAND, "node", "--test", *node_test_files,
+        ]
     run_started = time.time()
-    test_run = run_command(JAVASCRIPT_TEST_COMMAND, cwd=repo_dir)
+    test_run = run_command(test_command, cwd=repo_dir)
     if test_run.returncode != 0:
         return RED_BUILD
     return read_fresh_lcov(repo_dir, run_started)
+
+
+def find_node_test_files(repo_dir):
+    """Repo-relative `*.test.js` paths, sorted, skipping
+    dependency, VCS and report directories."""
+    found = []
+    for directory, subdirs, names in os.walk(repo_dir):
+        subdirs[:] = [d for d in subdirs if d not in NODE_TEST_SKIPPED_DIRS]
+        found.extend(
+            os.path.relpath(os.path.join(directory, name), repo_dir)
+            for name in names
+            if name.endswith(NODE_TEST_FILE_SUFFIX)
+        )
+    return sorted(found)
 
 
 def declares_npm_test(repo_dir):
