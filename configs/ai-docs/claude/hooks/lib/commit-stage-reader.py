@@ -574,7 +574,7 @@ def may_run_commit(stage, is_text_reader_trusted, is_lookup_trusted):
     except UnknownWrapperOption:
         return True
     command = None if index is None or words[index].is_expandable else words[index].text
-    if command == "git":
+    if command == "git" and index is not None:
         return _may_git_run_commit(words, index + 1)
     if is_text_reader_trusted and _reads_arguments_as_text(command, words):
         return _names_commit(words)
