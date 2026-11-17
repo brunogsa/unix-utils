@@ -181,7 +181,7 @@ it_should_allow_a_python_heredoc_that_only_mentions_a_git_phrase() {
   assert_eq "should allow a python3 heredoc whose payload text merely mentions git commit" "0" "$HOOK_EXIT"
 }
 
-it_should_allow_a_cat_heredoc_fed_through_a_command_substitution() {
+it_should_block_a_cat_heredoc_naming_git_push_fed_through_a_command_substitution_since_any_substitution_fails_closed() {
   local cmd
   cmd=$(cat <<'OUTER'
 echo "$(cat <<'EOF'
@@ -191,7 +191,7 @@ EOF
 OUTER
 )
   run_hook "$cmd"
-  assert_eq "should allow a cat heredoc opened inside a command substitution" "0" "$HOOK_EXIT"
+  assert_eq "should deny a cat heredoc naming git push opened inside a command substitution, since a substitution in a command naming git push is never parsed" "2" "$HOOK_EXIT"
 }
 
 it_should_allow_a_dangerous_phrase_inside_a_quoted_argument() {
@@ -748,7 +748,7 @@ it_should_allow_a_commit_whose_inline_message_mentions_git_push() {
   assert_eq "should allow a commit whose -m message only mentions git push" "0" "$HOOK_EXIT"
 }
 
-it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main() {
+it_should_block_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main_since_any_substitution_fails_closed() {
   local dir cmd
   dir=$(make_repo feat)
   cmd=$(printf '%s\n' \
@@ -758,8 +758,8 @@ it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_pu
     'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' \
     'EOF' \
     ')"')
-  run_hook "$cmd" "$dir"
-  assert_eq "should allow a commit whose \$(cat <<'EOF') message names git push origin main" "0" "$HOOK_EXIT"
+  run_hook_reading_push_verdict "$cmd" "$dir"
+  assert_eq "should deny a commit whose \$(cat <<'EOF') message names git push origin main, since a substitution in a command naming git push is never parsed" "yes" "$PUSH_GUARD_DENIED"
 }
 
 it_should_block_a_push_to_main_in_an_unquoted_cat_heredoc_body_command_substitution() {
@@ -796,9 +796,46 @@ it_should_block_a_push_to_main_in_a_nested_substitution() {
   assert_eq "should deny git push origin main in a substitution nested inside another" "yes" "$PUSH_GUARD_DENIED"
 }
 
-it_should_allow_a_push_to_a_feature_branch_in_a_substitution() {
-  run_hook 'echo $(git push origin feature/login)'
-  assert_eq "should allow echo \$(git push origin feature/login)" "0" "$HOOK_EXIT"
+it_should_block_even_a_push_to_a_feature_branch_in_a_substitution_since_any_substitution_fails_closed() {
+  run_hook_reading_push_verdict 'echo $(git push origin feature/login)'
+  assert_eq "should deny echo \$(git push origin feature/login), since a substitution in a command naming git push is never parsed" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_after_a_closing_paren_inside_a_comment_in_a_substitution() {
+  local cmd
+  cmd=$(printf '%s\n' 'echo $(: # )' 'git push origin main)')
+  run_hook_reading_push_verdict "$cmd"
+  assert_eq "should deny git push origin main after a ) that a # comment inside the substitution holds" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_after_a_case_pattern_closing_paren_in_a_substitution() {
+  run_hook_reading_push_verdict 'echo $(case a in a) true;; esac; git push origin main)'
+  assert_eq "should deny git push origin main after a case pattern ) inside the substitution, whose refspec then reads main)" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_after_an_unbalanced_closing_paren_in_a_parameter_default_in_a_substitution() {
+  run_hook_reading_push_verdict 'echo $(echo ${x:-)}; git push origin main)'
+  assert_eq "should deny git push origin main after the lone ) of a \${x:-)} default inside the substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_after_an_ansi_c_quoted_escaped_quote_in_a_substitution() {
+  run_hook_reading_push_verdict "echo \$(echo \$'\\''; git push origin main)"
+  assert_eq "should deny git push origin main after a \$'\\'' quote inside the substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_an_input_process_substitution() {
+  run_hook_reading_push_verdict 'cat <(git push origin main)'
+  assert_eq "should deny git push origin main run in a <(...) process substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_an_output_process_substitution() {
+  run_hook_reading_push_verdict 'tee >(git push origin main) < notes.txt'
+  assert_eq "should deny git push origin main run in a >(...) process substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_escaped_backticks_nested_inside_backticks() {
+  run_hook_reading_push_verdict 'echo `echo \`git push origin main\` `'
+  assert_eq "should deny git push origin main in escaped backticks nested inside backticks" "yes" "$PUSH_GUARD_DENIED"
 }
 
 ### Allow: exact branch-name match only, never substring
@@ -1298,7 +1335,7 @@ it_should_block_commit_without_attribution
 it_should_allow_commit_with_attribution
 it_should_allow_a_cat_heredoc_that_only_mentions_a_git_phrase
 it_should_allow_a_python_heredoc_that_only_mentions_a_git_phrase
-it_should_allow_a_cat_heredoc_fed_through_a_command_substitution
+it_should_block_a_cat_heredoc_naming_git_push_fed_through_a_command_substitution_since_any_substitution_fails_closed
 it_should_allow_a_dangerous_phrase_inside_a_quoted_argument
 it_should_allow_quoted_prose_in_a_command_substitution_that_uses_the_apostrophe_idiom
 it_should_allow_multi_line_quoted_prose_that_names_git_show_and_commit
@@ -1364,14 +1401,21 @@ it_should_block_a_push_to_main_in_a_commit_message_whose_double_dash_directory_h
 it_should_block_a_push_to_main_in_a_commit_message_after_an_env_run_git_config
 it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_after_the_double_dash
 it_should_allow_a_commit_whose_inline_message_mentions_git_push
-it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main
+it_should_block_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main_since_any_substitution_fails_closed
 it_should_block_a_push_to_main_in_an_unquoted_cat_heredoc_body_command_substitution
 it_should_block_a_push_to_main_in_a_bash_heredoc_after_an_earlier_cat_stage
 it_should_block_a_push_to_main_in_a_dollar_paren_substitution
 it_should_block_a_push_to_main_in_backticks
 it_should_block_a_push_to_main_after_another_statement_inside_a_substitution
 it_should_block_a_push_to_main_in_a_nested_substitution
-it_should_allow_a_push_to_a_feature_branch_in_a_substitution
+it_should_block_even_a_push_to_a_feature_branch_in_a_substitution_since_any_substitution_fails_closed
+it_should_block_a_push_to_main_after_a_closing_paren_inside_a_comment_in_a_substitution
+it_should_block_a_push_to_main_after_a_case_pattern_closing_paren_in_a_substitution
+it_should_block_a_push_to_main_after_an_unbalanced_closing_paren_in_a_parameter_default_in_a_substitution
+it_should_block_a_push_to_main_after_an_ansi_c_quoted_escaped_quote_in_a_substitution
+it_should_block_a_push_to_main_in_an_input_process_substitution
+it_should_block_a_push_to_main_in_an_output_process_substitution
+it_should_block_a_push_to_main_in_escaped_backticks_nested_inside_backticks
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch
