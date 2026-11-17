@@ -26,6 +26,9 @@ OPERATOR_CHARS = "();<>|&\n"
 WRAPPERS = {"sh", "bash", "zsh", "eval"}
 GLOBALS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
 WHOLE_TREE = {".", "./"}
+PROTECTED_BRANCHES = {"main", "master", "HEAD"}
+BRANCH_LISTING = {"-a", "--all", "-r", "--remotes", "-l", "--list", "-v", "-vv", "--verbose",
+                  "--show-current", "--merged", "--no-merged", "--contains"}
 COMMIT_CHAIN = "git diff --cached --quiet && git add <paths> (or git-hunk stage <ids>) && git commit ..."
 
 FORMS = {
@@ -106,6 +109,113 @@ def names_guarded_git(text, strip_heredoc_bodies):
         return bool(UNPARSED_GUARDED.search(text))
 
 
+def parse_args(args, flags=frozenset(), valued=frozenset()):
+    """Split args into options, positionals, and the paths
+    after `--` (None when there is no `--`).
+
+    Raises ValueError naming an option that is not listed.
+    """
+    options, positionals, index = [], [], 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--" and "--" in flags:
+            return options, positionals, args[index + 1:]
+        if arg in valued and index + 1 < len(args):
+            options.append(arg)
+            index += 2
+            continue
+        if arg in flags:
+            options.append(arg)
+        elif arg.startswith("-") and arg != "-":
+            raise ValueError(f"option {arg} is not allowed")
+        else:
+            positionals.append(arg)
+        index += 1
+    return options, positionals, None
+
+
+def check_commit(args):
+    args = [part for arg in args for part in (arg.split("=", 1) if arg.startswith("--message=") else [arg])]
+    options, positionals, _ = parse_args(args, {"-q"}, {"-m", "--message", "-F", "--file"})
+    has_message = any(option in ("-m", "--message") for option in options)
+    has_file = any(option in ("-F", "--file") for option in options)
+    if positionals:
+        return "git commit takes no pathspecs; stage with git add in the chain"
+    if has_message == has_file:
+        return "git commit needs -m messages or one -F file, not both or neither"
+    return None
+
+
+def check_push(args):
+    _, positionals, _ = parse_args(args, {"-u", "--set-upstream", "--force-with-lease"})
+    if len(positionals) != 2 or positionals[0] != "origin":
+        return "git push names exactly origin and one branch"
+    branch = positionals[1]
+    if ":" in branch or branch[0] in "+-" or branch in PROTECTED_BRANCHES:
+        return f"git push may not push {branch}"
+    return None
+
+
+def check_reset(args):
+    parse_args(args, {"--soft", "--mixed", "-q", "--"})
+    return None
+
+
+def check_clean(args):
+    for arg in args:
+        is_allowed_short = arg.startswith("-") and not arg.startswith("--") and set(arg[1:]) <= set("ndxXq")
+        if arg.startswith("-") and arg != "--dry-run" and not is_allowed_short:
+            return f"option {arg} is not allowed"
+    is_dry_run = any(arg == "--dry-run" or (arg.startswith("-") and "n" in arg and arg[1] != "-") for arg in args)
+    return None if is_dry_run else "git clean must be a dry run (-n or --dry-run)"
+
+
+def check_checkout(args):
+    options, positionals, paths = parse_args(args, {"--"}, {"-b"})
+    if paths is not None:
+        is_path_form = not options and len(positionals) <= 1 and paths and not WHOLE_TREE & set(paths)
+        return None if is_path_form else "git checkout -- needs named paths, never ., and no option"
+    if len(positionals) > 1 or not (options or positionals):
+        return "git checkout takes one branch, or -b <branch> [<start>]"
+    return "git checkout never takes the path ." if WHOLE_TREE & set(positionals) else None
+
+
+def check_restore(args):
+    _, positionals, _ = parse_args(args, {"--staged", "-S"})
+    if not positionals or WHOLE_TREE & set(positionals):
+        return "git restore needs named paths, never ."
+    return None
+
+
+def check_branch(args):
+    args = [arg for arg in args if not arg.startswith(("--sort=", "--format="))]
+    parse_args(args, BRANCH_LISTING | {"-d", "--delete"})
+    return None
+
+
+# Each worktree action: its flags, its options taking a
+# value, and the fewest and most positionals it accepts.
+WORKTREE_ACTIONS = {
+    "add": ({"--detach"}, {"-b"}, 1, 2),
+    "list": ({"--porcelain"}, set(), 0, 0),
+    "remove": (set(), set(), 1, 1),
+    "prune": ({"-n", "--dry-run", "-v"}, set(), 0, 0),
+}
+
+
+def check_worktree(args):
+    if not args or args[0] not in WORKTREE_ACTIONS:
+        return "git worktree runs only add, list, remove or prune"
+    flags, valued, fewest, most = WORKTREE_ACTIONS[args[0]]
+    _, positionals, _ = parse_args(args[1:], flags, valued)
+    return None if fewest <= len(positionals) <= most else f"wrong number of paths for git worktree {args[0]}"
+
+
+FORM_CHECKS = {"commit": check_commit, "push": check_push, "reset": check_reset, "clean": check_clean,
+               "checkout": check_checkout, "restore": check_restore, "branch": check_branch,
+               "worktree": check_worktree}
+
+
 def read_git_segment(segment, subcommand):
     """Return the subcommand, its args and the -C dir (or
     None) of a segment that starts with git.
@@ -122,10 +232,20 @@ def read_git_segment(segment, subcommand):
     return segment[sub_index], segment[sub_index + 1:], (options[1] if options else None)
 
 
+def check_form(subcommand, args):
+    try:
+        rule = FORM_CHECKS[subcommand](args)
+    except ValueError as error:
+        rule = f"{error} for git {subcommand}"
+    if rule:
+        block(rule, subcommand)
+
+
 def check_single(segment, first_guarded):
     subcommand, args, _ = read_git_segment(segment, first_guarded)
     if subcommand not in GUARDED:
         block(f"run git {first_guarded} on its own, not inside git {subcommand}", first_guarded)
+    check_form(subcommand, args)
 
 
 def check_chain(segments, operators):
@@ -144,6 +264,7 @@ def check_chain(segments, operators):
             block("the chain's middle step must be git add <paths> or git-hunk stage <ids>, never . or an option")
     if not staged or any(arg.startswith("-") for arg in staged) or len({diff_dir, stage_dir, commit_dir}) != 1:
         block("the chain stages named paths or hunks, and every git step uses the same -C <dir>")
+    check_form("commit", commit_args)
 
 
 def load_strip_heredoc_bodies():

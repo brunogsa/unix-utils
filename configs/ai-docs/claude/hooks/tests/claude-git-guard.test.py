@@ -162,3 +162,132 @@ def test_allows_the_sanctioned_shapes(repo, command):
 )
 def test_blocks_any_other_shape(repo, command):
     assert_blocked(run_hook(command, repo))
+
+
+# Per-subcommand allowed forms
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f'git commit -m "{SUBJECT}" -m "Explain the change." {TRAILER}',
+        f'git commit -q -m "{SUBJECT}" {TRAILER}',
+        f'git commit --message "{SUBJECT}" --message="{ATTRIBUTION}"',
+        "git push origin feature-x",
+        "git push -u origin feature-x",
+        "git push --set-upstream origin feature-x",
+        "git push --force-with-lease origin feature-x",
+        "git reset",
+        "git reset --soft HEAD~1",
+        "git reset --mixed HEAD~1",
+        "git reset -q -- notes.txt",
+        "git reset HEAD notes.txt",
+        "git clean -n",
+        "git clean --dry-run",
+        "git clean -nd",
+        "git clean -n -x -d",
+        "git clean -nX -q",
+        "git checkout feature-x",
+        "git checkout -b feature-x",
+        "git checkout -b feature-x origin/master",
+        "git checkout -- notes.txt",
+        "git checkout HEAD~1 -- notes.txt",
+        "git restore notes.txt",
+        "git restore --staged notes.txt",
+        "git restore -S notes.txt",
+        "git branch",
+        "git branch -a -vv",
+        "git branch --show-current",
+        "git branch --merged",
+        "git branch --sort=-committerdate --format='%(refname:short)'",
+        "git branch feature-x",
+        "git branch feature-x origin/master",
+        "git branch -d feature-x",
+        "git branch --delete feature-x",
+        "git worktree add ../wt",
+        "git worktree add -b feature-x ../wt",
+        "git worktree add --detach ../wt HEAD",
+        "git worktree list",
+        "git worktree list --porcelain",
+        "git worktree remove ../wt",
+        "git worktree prune",
+        "git worktree prune -n -v",
+        "git worktree prune --dry-run",
+    ],
+)
+def test_allows_each_listed_form(repo, command):
+    assert_allowed(run_hook(command, repo))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f"git commit --amend -m x {TRAILER}",
+        f"git commit -a -m x {TRAILER}",
+        f"git commit --no-verify -m x {TRAILER}",
+        f"git commit --allow-empty -m x {TRAILER}",
+        f"git commit notes.txt -m x {TRAILER}",
+        f"git commit --signoff -m x {TRAILER}",
+        "git commit",
+        "git push",
+        "git push origin",
+        "git push origin main",
+        "git push origin master",
+        "git push origin HEAD",
+        "git push origin feature-x:main",
+        "git push origin +feature-x",
+        "git push origin feature-x feature-y",
+        "git push upstream feature-x",
+        "git push --force origin feature-x",
+        "git push -f origin feature-x",
+        "git push --delete origin feature-x",
+        "git push --all origin",
+        "git push --mirror origin",
+        "git push --tags origin feature-x",
+        "git push --no-verify origin feature-x",
+        "git push --atomic origin feature-x",
+        "git reset --hard",
+        "git reset --merge HEAD~1",
+        "git reset --keep HEAD~1",
+        "git reset -p",
+        "git clean -d",
+        "git clean -f",
+        "git clean -nf",
+        "git clean --force",
+        "git clean -n -i",
+        "git clean -n -e build",
+        "git checkout .",
+        "git checkout -- .",
+        "git checkout -f feature-x",
+        "git checkout feature-x notes.txt",
+        "git checkout -B feature-x",
+        "git restore .",
+        "git restore --staged .",
+        "git restore",
+        "git restore --source HEAD~1 notes.txt",
+        "git branch -D feature-x",
+        "git branch -f feature-x",
+        "git branch --force feature-x",
+        "git branch -m feature-x feature-y",
+        "git branch -M feature-y",
+        "git branch -c feature-x feature-y",
+        "git branch -C feature-x feature-y",
+        "git branch -u origin/feature-x",
+        "git worktree",
+        "git worktree remove -f ../wt",
+        "git worktree remove --force ../wt",
+        "git worktree add -f ../wt",
+        "git worktree move ../wt ../wt2",
+        "aigitcommit",
+        "aigitcommit --yes",
+    ],
+)
+def test_blocks_each_unlisted_form(repo, command):
+    assert_blocked(run_hook(command, repo))
+
+
+def test_block_message_prints_the_allowed_push_form_in_six_lines_or_fewer(repo):
+    result = run_hook("git push --force origin feature-x", repo)
+    assert_blocked(result)
+    assert "git push [-u|--set-upstream] [--force-with-lease] origin <branch>" in result.stderr
+    assert len(result.stderr.strip().splitlines()) <= 6
