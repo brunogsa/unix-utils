@@ -703,6 +703,16 @@ class TestRelativeScriptAfterOneLiteralCd:
 
         possible_commit_reason(tmp_path, f"cd {repo} && ./status.sh", cwd=str(home))
 
+    def test_should_tell_the_agent_no_semicolon_or_or_may_follow_the_leading_cd_and_to_use_the_absolute_script_path(
+        self, tmp_path
+    ):
+        command = "cd /Users/brunoagostini/unix-utils && ./run-tests.py x.py; rc=$?; exit $rc"
+
+        reason = possible_commit_reason(tmp_path, command, cwd="/Users/brunoagostini/unix-utils")
+
+        assert "with no ; or || anywhere after it" in reason
+        assert "call the script by its absolute path" in reason
+
 
 class TestHooksPathAndProgramKeys:
     def test_should_let_an_allowed_subcommand_through_when_hooks_path_holds_only_sample_hooks(self, tmp_path):

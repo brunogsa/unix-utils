@@ -202,7 +202,7 @@ SCREEN_GUIDANCE = (
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
     "a command, env, export, declare -x, set -a), "
     "runs git after cd/pushd/popd/chdir or a relative script after any but one leading "
-    "`cd /plain/absolute/path &&`, names a .git, "
+    "`cd /plain/absolute/path &&` with no ; or || anywhere after it (else call the script by its absolute path), names a .git, "
     "gitconfig or gitattributes path in any case, glob or splice, runs git in a repo whose git config "
     "or includes run a program or whose hooks are active or outside the default hooks dir, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
