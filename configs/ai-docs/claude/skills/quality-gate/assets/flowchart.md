@@ -195,6 +195,10 @@ def quality_gate(arg):
                    test_cmd=test_cmd)                          # 13e · nothing left to infer
     # 13f · it owns the TaskList seeding, the lens routing, the per-finding
     #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
+    # 13g · Step 6.1 - the fix review over every applied commit is DISABLED
+    #       since 2026-11-17 (the user is finding out what makes a run slow).
+    #       Skipped; the report says "fix review: disabled". The step's text
+    #       stays in SKILL.md until the user re-enables it.
 
     # 14 · Step 7 - close with a report: every verdict path (the merged
     #      file, the rendered metrics verdict and judge file in run_dir, the
@@ -202,7 +206,7 @@ def quality_gate(arg):
     #      failed to produce one - a failed metrics leg reads "metrics: not
     #      measured (<reason>)", never clean), any deferred tooling ask with
     #      its "pessimistic" / "not measured" reading, the metrics apply
-    #      outcomes, applied findings with SHAs,
+    #      outcomes, applied findings with SHAs, "fix review: disabled",
     #      §5.2's not-addressable findings, /address-verdicts' skipped/failed
     #      findings, the never-dispatched unplanned-tests finding for the
     #      human to mark [Done], and - on a report-only run - every refactor and
@@ -289,10 +293,11 @@ flowchart TD
     n13d["13d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
     n13e["13e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
     n13f["13f. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
-    n13a --> n13b --> n13c --> n13d --> n13e --> n13f
+    n13g["13g. Step 6.1 · Fix review over every applied commit:<br/>DISABLED since 2026-11-17 while the user finds out what<br/>makes a run slow. Skip it; the report says<br/>fix review: disabled"]:::gate
+    n13a --> n13b --> n13c --> n13d --> n13e --> n13f --> n13g
   end
 
-  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n14(["14. Step 7 · Close with a report: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs, fix review: disabled,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
@@ -336,7 +341,7 @@ flowchart TD
   n11b2 --> n12
   n12 -->|"yes"| n14
   n12 -->|"no"| n13a
-  n13f --> n14
+  n13g --> n14
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

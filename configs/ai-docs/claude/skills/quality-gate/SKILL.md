@@ -46,7 +46,7 @@ See [`references/more-examples.md`](references/more-examples.md) for example inv
 
 Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anything:
 
-- **Auto-solve** (recommended default) - a fresh judge rules each finding Fix or Skip, every Fix applies, then one fix review checks the commits.
+- **Auto-solve** (recommended default) - a fresh judge rules each finding Fix or Skip, every Fix applies.
 
 - **Report only** - only `test-sdd` findings apply; the human decides the rest, by hand or by tagging headings `[AI!]` for `/address-verdicts`.
 
@@ -186,6 +186,8 @@ It returns the ledger §7 reports from.
 
 ### 6.1. One fix review over every applied commit
 
+**Disabled since 2026-11-17: skip this step, and §7 reports `fix review: disabled`.** The user disabled it while finding out what makes a run slow. Delete this notice once the user has reviewed §7's per-phase timings and turns the review back on.
+
 Skipped when the merged file has no unfenced `APPLIED (` line, or with no git.
 
 Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §4, then run main's checks and the append from that section. Its findings are reported, never applied.
@@ -215,7 +217,7 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 
 - Every `[QUESTION]` finding, under "needs your answer".
 
-- The fix-review findings, "reported, never applied", or "fix review: clean"; on a failed check, `fix review: FAIL (<reason>)`.
+- `fix review: disabled` while §6.1's notice stands; once deleted, the fix-review findings, "reported, never applied", or "fix review: clean", and on a failed check `fix review: FAIL (<reason>)`.
 
 - The `test-sdd` `Unplanned tests added by the branch` finding, its tests listed, never dispatched, for the human to mark `[Done]`.
 
