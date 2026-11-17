@@ -755,6 +755,13 @@ it_should_block_a_push_to_main_in_an_unquoted_cat_heredoc_body_command_substitut
   assert_eq "should deny a \$(git push origin main) that an unquoted cat heredoc body expands and runs" "yes" "$PUSH_GUARD_DENIED"
 }
 
+it_should_block_a_push_to_main_in_a_bash_heredoc_after_an_earlier_cat_stage() {
+  local cmd
+  cmd=$(printf '%s\n' "cat notes.txt; bash <<'EOF'" 'git push origin main' 'EOF')
+  run_hook_reading_push_verdict "$cmd"
+  assert_eq "should deny git push origin main in a bash heredoc even when cat ran in an earlier stage of the line" "yes" "$PUSH_GUARD_DENIED"
+}
+
 ### Allow: exact branch-name match only, never substring
 
 it_should_allow_git_push_origin_feature_main_fix() {
@@ -1318,6 +1325,7 @@ it_should_allow_a_stdin_heredoc_commit_whose_variables_sit_only_in_pathspecs_aft
 it_should_allow_a_commit_whose_inline_message_mentions_git_push
 it_should_allow_a_commit_whose_message_is_a_cat_heredoc_substitution_naming_a_push_to_main
 it_should_block_a_push_to_main_in_an_unquoted_cat_heredoc_body_command_substitution
+it_should_block_a_push_to_main_in_a_bash_heredoc_after_an_earlier_cat_stage
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch

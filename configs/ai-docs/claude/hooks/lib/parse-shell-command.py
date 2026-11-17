@@ -53,7 +53,13 @@ def strip_heredoc_bodies_for_sinks(text, sink_pattern):
     `bash <<EOF`) passes a sink_pattern that excludes them.
     """
     return _strip_heredoc_bodies_where(
-        text, lambda kept, line, opener: sink_pattern.search(line[:opener.start()]))
+        text, lambda kept, line, opener: sink_pattern.search(_heredoc_owning_stage(line, opener)))
+
+
+# Only the stage the `<<` sits in reads the heredoc: in
+# `cat notes; bash <<'EOF'`, bash reads it, not cat.
+def _heredoc_owning_stage(line, opener):
+    return split_into_pipelines(line[:opener.start()])[-1][-1]
 
 
 def strip_commit_message_heredoc_bodies(text):

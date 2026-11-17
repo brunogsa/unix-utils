@@ -120,6 +120,13 @@ class TestStripHeredocBodiesForSinks:
 
         assert "git push origin main" in stripped
 
+    def test_should_keep_a_bash_heredoc_body_when_cat_runs_only_in_an_earlier_stage_of_the_line(self):
+        command = "cat notes.txt; bash <<'EOF'" + PUSH_BODY
+
+        stripped = parse_shell_command.strip_heredoc_bodies_for_sinks(command, parse_shell_command.NON_EXECUTING_SINK_PATTERN)
+
+        assert "git push origin main" in stripped
+
 
 class TestCommandSubstitutionBodies:
     def test_should_return_the_command_inside_a_dollar_paren_substitution(self):
