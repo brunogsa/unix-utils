@@ -394,6 +394,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **CRITICAL: Spawn a fresh-context subagent when writing-session bias would distort the check** -- verification, semantic match, or quality judgment over your own output.
   - [Why] In-session reading carries "I already convinced myself" residue; a subagent sees only the artifact + the question.
+
 - [Instruction] **Verify every subagent claim** -- check a mutation against the artifact (diff, file, output); re-run a finding at higher tier/effort, or across two subagents cross-checked in main.
   - [Why] Re-reading its files in main burns the context the delegation saved, so the check has to run outside main too.
   - [Example] A finding the user repeats back to you is still that subagent's claim, not evidence - it earns the same check.
