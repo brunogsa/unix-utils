@@ -149,6 +149,7 @@ HERESTRING_OPENER = "\x3C\x3C\x3C"
 # Bash starts a comment after any metacharacter, so a # glued to
 # one of these opens a comment.
 WORD_START = " \t\n;&|\x3C\x3E" + OPEN_PAREN + CLOSE_PAREN
+LINE_CONTINUATION = "\\\n"
 # A case pattern ends in a closing paren that does not close the substitution
 # it sits in, and this scan does not track case nesting.
 CASE_WORD = re.compile(r"\bcase\s")
@@ -230,7 +231,11 @@ def blank_quotes_across_lines(text):
         token = text[j : j + length]
         # A word starts only after a metacharacter bash really read
         # as one, never after an escaped one or a closed quote.
-        at_word_start = token[0] != "\\" and token[-1] in WORD_START
+        #
+        # Bash deletes a backslash-newline before it splits words,
+        # so that token leaves the word start as it was.
+        if token != LINE_CONTINUATION:
+            at_word_start = token[0] != "\\" and token[-1] in WORD_START
         out.append(piece)
         j += length
     if stack[-1] == "comment":

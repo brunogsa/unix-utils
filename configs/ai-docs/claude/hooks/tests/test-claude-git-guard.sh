@@ -286,6 +286,15 @@ it_should_block_an_unattributed_commit_after_a_hash_that_follows_an_escaped_semi
   assert_eq "should block an unattributed commit after a hash glued to a backslash-escaped semicolon" "2" "$HOOK_EXIT"
 }
 
+# Bash drops a backslash-newline before it splits words, so a #
+# on the next line still starts a word and opens a comment. The
+# commit goes through a variable, which no line-by-line reading
+# of git commands catches.
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_line_continuation() {
+  run_hook "$(printf 'echo x;\\\n#%s\ng=git; $g commit -m y\n#%s' "'" "'")"
+  assert_eq "should block an unattributed commit after a comment on the line after a backslash-newline" "2" "$HOOK_EXIT"
+}
+
 # Bash runs a backtick substitution inside double quotes as a
 # command, so its contents are no quoted text.
 it_should_block_an_unattributed_commit_in_backticks_inside_double_quotes() {
@@ -1003,6 +1012,7 @@ it_should_block_an_unattributed_commit_in_a_function_called_from_a_command_subst
 it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_closing_paren
 it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_redirect
 it_should_block_an_unattributed_commit_after_a_hash_that_follows_an_escaped_semicolon
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_line_continuation
 it_should_block_an_unattributed_commit_in_backticks_inside_double_quotes
 it_should_block_an_unattributed_commit_in_a_case_branch_inside_a_double_quoted_command_substitution
 it_should_block_a_guarded_git_command_that_only_the_line_by_line_reading_sees
