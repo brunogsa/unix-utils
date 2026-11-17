@@ -58,7 +58,9 @@ def address_verdicts(arg):
 
     # 6 · Step 2 - match in this order: all (the default when the arg is
     #     empty), a lens name, a severity floor, then an explicit list of
-    #     finding identifiers.
+    #     finding identifiers. A finding whose body carries a `SKIPPED (`
+    #     line is NEVER selected, by any selection (named, floor, all or
+    #     marked) - deleting the line reopens it.
     findings = match(arg.which_ones, selected_files)
 
     # 7 · Step 2 - needed to run RED-then-GREEN in step 4. Taken from
@@ -72,9 +74,9 @@ def address_verdicts(arg):
     #     wrong guess silently works the wrong finding.
     for ambiguity in ambiguities(findings, test_cmd):
         if arg.no_ask:                                     # 8a
-            # 8a1 · Skipping beats guessing here, because the caller can
-            #       re-run the finding by hand once it reads the ledger,
-            #       whereas a wrong guess lands a commit nobody asked for.
+            # 8a1 · Skipping beats guessing here, because a skip is final
+            #       until the human deletes its line, whereas a wrong guess
+            #       lands a commit nobody asked for.
             #       A missing test command skips only the findings that need
             #       one - refactor-lens findings still apply, since the
             #       refactor agent brings its own green-before-and-after check.
@@ -154,7 +156,8 @@ def address_verdicts(arg):
                                 findings=code, test_cmd=test_cmd)  # 11c
             case "metrics":
                 # 11d · Default split by what each fix edits: size, nesting,
-                #       complexity, duplication and hotspots go to refactor;
+                #       complexity, extract-a-helper findings for duplicate
+                #       code, and hotspots go to refactor;
                 #       coverage/CRAP fixes that are missing, vacuous or
                 #       entangled tests go to tdd-coder. The unplanned-tests
                 #       finding is never dispatched.
@@ -204,15 +207,18 @@ def address_verdicts(arg):
                 #      one rule covers both surfaces. A skipped or failed
                 #      finding is left unmarked - except in marked mode,
                 #      where [AI!] or [AI!: msg] is REPLACED by [Done]
-                #      (never stacked; the msg moves to the APPLIED line)
-                #      and a skipped or failed finding KEEPS its tag, so the
-                #      next marked run retries it.
+                #      (never stacked; the msg moves to the APPLIED line),
+                #      a failed finding KEEPS its tag so the next marked
+                #      run retries it, and a skipped finding keeps its tag
+                #      as the human's record of the choice.
                 stamp_heading(f, "[Done]")                   # 15
-            # 16 · The evidence. APPLIED pairs with a [Done] heading;
-            #      SKIPPED leaves the heading unmarked, so a re-run
-            #      reconsiders it. The heading alone cannot say WHY or
-            #      point at the fix, and the body line alone is not
-            #      greppable - hence both.
+            # 16 · The evidence. APPLIED (<sha>) pairs with a [Done] heading;
+            #      SKIPPED is final - no later run selects the finding until
+            #      the human deletes the line (a [QUESTION] with no answer
+            #      reads SKIPPED (needs an answer: <question>), also final).
+            #      A failed apply writes no body line. The heading alone
+            #      cannot say WHY or point at the fix, and the body line
+            #      alone is not greppable - hence both.
             write_body_line(f, f"APPLIED ({f.sha})" if f.sha
                                else f"SKIPPED ({f.reason})")   # 16
 
@@ -240,11 +246,12 @@ def close_with_report(arg, findings):
         return ledger                                       # 20b
 
     # 20a · Print it, and state plainly EVERY time: every finding step 2 did
-    #       not select is untouched and carries no annotation, and this run
-    #       never re-ran a reviewer. Marked mode also says every finding
-    #       still tagged [AI!] is retried by the next marked run, and that
-    #       deleting the tag drops it.
-    print(ledger, untouched_note(), never_re_ran_note())    # 20a
+    #       not select is untouched and carries no annotation. Marked mode
+    #       also says every finding still tagged [AI!] is retried by the
+    #       next marked run, and that deleting the tag drops it - except one
+    #       carrying a SKIPPED line, which stays out until the human deletes
+    #       that line.
+    print(ledger, untouched_note())                         # 20a
 
 
 class StopChain(Exception):
@@ -522,11 +529,11 @@ flowchart TD
   n4{"4. Step 1 · A lens has no source (a merged file covers<br/>all four lenses) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
   n4a(["4a. STOP - say no report exists for that lens"])
   n5["5. Step 1 · Per lens, the newest source by mtime wins: the<br/>newest merged file's findings tagged with that lens, or<br/>the newest standalone file, never both. A verdict file<br/>path inside &lt;which ones&gt; pins an older generation.<br/>A lens with no source is dropped, and named in step 6"]
-  n6["6. Step 2 · Match &lt;which ones&gt; in this order: all (the<br/>default when empty), a lens name, a severity floor,<br/>then an explicit list of finding identifiers"]
+  n6["6. Step 2 · Match &lt;which ones&gt; in this order: all (the<br/>default when empty), a lens name, a severity floor,<br/>then an explicit list of finding identifiers.<br/>A finding with a SKIPPED ( line in its body is never selected,<br/>by any selection - deleting the line reopens it"]
   n7["7. Step 2 · Resolve the test command, needed to run<br/>RED-then-GREEN in step 4: --test-cmd if given, else<br/>infer from a package.json script, a Makefile target,<br/>or the repo's own CLAUDE.md"]
   n8{"8. Step 2 · Any ambiguity left? An identifier matching<br/>more than one finding, a severity floor the report<br/>never labels, a lens name that looks like a typo,<br/>or a test command that would not infer"}
   n8a{"8a. Was --no-ask passed?"}
-  n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>the caller re-runs it by hand after reading the ledger,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one - refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
+  n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>a skip is final until the human deletes its line,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one - refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity - a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
   n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor, metrics<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 4 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>none of the four tags is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
@@ -538,7 +545,7 @@ flowchart TD
   n11a["11a. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all test-sdd findings. A test-sdd finding<br/>names a planned test the repo lacks, so writing that<br/>test IS the fix - pass every planned title verbatim so<br/>each lands under the name the plan declared.<br/>Dispatch only get-test-sdd-dispatch-list.py output, which omits<br/>the unplanned-tests finding - left unannotated"]:::dispatch
   n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings (from the auto-review<br/>file or [auto-review]-tagged merged findings). Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
   n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings (from the refactor file<br/>or [refactor]-tagged merged findings). It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
-  n11d["11d. Dispatch by what each [metrics] fix edits (default split):<br/>size, nesting, complexity, duplication and hotspots go to refactor;<br/>coverage or CRAP fixes that are missing, vacuous or<br/>entangled tests go to tdd-coder; prose or config to<br/>direct-coder. The unplanned-tests finding is never dispatched"]:::dispatch
+  n11d["11d. Dispatch by what each [metrics] fix edits (default split):<br/>size, nesting, complexity, extract-a-helper findings for duplicate code,<br/>and hotspots go to refactor;<br/>coverage or CRAP fixes that are missing, vacuous or<br/>entangled tests go to tdd-coder; prose or config to<br/>direct-coder. The unplanned-tests finding is never dispatched"]:::dispatch
 
   n12["12. Step 4 · Verify the dispatch's result against the<br/>artifacts - the diff, the test run - before trusting<br/>its done. One verify per dispatch, covering every<br/>finding in the batch; a summary describes intent,<br/>only the artifact shows what actually landed"]
   n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens - a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
@@ -603,8 +610,8 @@ flowchart TD
 
   subgraph annotate["15/16. Step 5 · Written in place the MOMENT this lens's dispatch returns, never held back until the last lens finishes - a killed session mid-run then still leaves an accurate ledger for the lenses already processed."]
     direction TB
-    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before the severity and lens tags. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked. Marked mode:<br/>[AI!] or [AI!: msg] is REPLACED by [Done], never stacked, the msg<br/>kept in the APPLIED line; a skipped or failed finding KEEPS<br/>its tag so the next marked run retries it"]:::state
-    n16["16. In the finding's BODY, write the outcome and its<br/>evidence: APPLIED (sha), or SKIPPED (reason) with the<br/>heading left unmarked so a re-run reconsiders it.<br/>The heading alone cannot say WHY or point at the fix,<br/>and the body line alone is not greppable"]:::state
+    n15["15. In the finding's HEADING, stamp a [Done] prefix right<br/>after the number, before the severity and lens tags. The<br/>machine-checkable mark: a re-run skips it and grep counts<br/>it. Same prefix-after-the-number convention /implement<br/>uses on plan task headings, so one rule covers both.<br/>A skipped or failed finding is left unmarked. Marked mode:<br/>[AI!] or [AI!: msg] is REPLACED by [Done], never stacked, the msg<br/>kept in the APPLIED line; a failed finding KEEPS its tag so the<br/>next marked run retries it; a skipped finding keeps its tag as<br/>the human's record of the choice"]:::state
+    n16["16. In the finding's BODY, write the outcome and its<br/>evidence: APPLIED (sha), or SKIPPED (reason) - final, no later run<br/>selects it until the human deletes the line (a [QUESTION] with no<br/>answer reads SKIPPED (needs an answer: question), also final).<br/>A failed apply writes no body line.<br/>The heading alone cannot say WHY or point at the fix,<br/>and the body line alone is not greppable"]:::state
     n15 --> n16
   end
 
@@ -613,7 +620,7 @@ flowchart TD
   n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the tree walk; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
   n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per tree branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, one line per stopped<br/>subtree (branch, step, cause, conflicting files, skipped descendants),<br/>plus every [AI!] tag ignored in a non-quality-gate file"]
   n20{"20. Step 6 · Who invoked this run?"}
-  n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation, and this run never re-ran a reviewer.<br/>Marked mode also says every finding still tagged [AI!]<br/>is retried by the next marked run, and deleting the tag<br/>drops it"])
+  n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation. Marked mode also says every finding still<br/>tagged [AI!] is retried by the next marked run, and deleting<br/>the tag drops it - except one carrying a SKIPPED line,<br/>which stays out until the human deletes that line"])
   n20b(["20b. Hand the same ledger back to the caller rather than<br/>only printing it - the caller composes the report the<br/>human actually reads, and can only name what it was told"])
 
   n1 --> n1a
