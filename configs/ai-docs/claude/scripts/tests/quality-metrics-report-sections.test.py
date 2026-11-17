@@ -182,8 +182,32 @@ class TestDeferredMetrics:
 
         [entry] = entry_headings(section(verdict, "Open violations"))
         assert "src/deferred.py" in entry
-        assert "nesting" in entry
+        assert "Nesting" in entry
         assert entry.count(DEFERRED_LABEL) == 1
+
+    @pytest.mark.parametrize("metric, title", [
+        ("size", "Function size"),
+        ("nesting", "Nesting"),
+        ("parameters", "Parameters"),
+        ("cognitive_complexity", "Cognitive complexity"),
+        ("crap", "CRAP"),
+    ])
+    def test_should_title_a_crashed_function_tools_deferred_record_with_the_function_metrics_own_title(
+        self, tmp_path, metric, title
+    ):
+        error = FunctionToolError("lizard", "lizard crashed with a traceback")
+        headless_run = CoverageRun(
+            tmp_path, tool_map=object(), environ={"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}
+        )
+        records = function_tool_failure_records(
+            target("src/deferred.py"), [metric], error, headless_run
+        )
+
+        verdict = report.build_verdict(measured(*records))
+
+        [entry] = entry_headings(section(verdict, "Open violations"))
+        assert f" - {title} " in entry
+        assert "File size" not in entry
 
     def test_should_print_the_deferred_label_once_on_a_valueless_deferred_violation(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)

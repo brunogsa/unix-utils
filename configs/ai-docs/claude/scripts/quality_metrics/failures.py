@@ -144,10 +144,15 @@ def _deferred_function_metric(target, metric):
     """
     if metric == "coverage":
         return deferred_coverage_measurement(target)
-    return deferred_flagged_measurement(
+    record = deferred_flagged_measurement(
         target, metric, _function_metric_worst_case(metric),
         FUNCTION_METRIC_LIMITS[metric],
     )
+    if metric in (CODE_METRIC, TEST_METRIC):
+        return record
+
+    # The limit is a function's, so the scope is too.
+    return {**record, "scope": "function"}
 
 
 def function_tool_failure_records(target, metrics, error, coverage_run):
