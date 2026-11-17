@@ -40,6 +40,28 @@ class TestSizeLimits:
             ("parameters_6", "parameters", 6, 5),
         ]
 
+    def test_should_pass_256_lines_and_flag_257_lines_in_a_test_file_while_code_keeps_64(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE, "report_test.go": PACKAGE_LINE})
+        (repo / "report.go").write_text(PACKAGE_LINE + go_function_with_lines("code_65", 65))
+        (repo / "report_test.go").write_text(
+            PACKAGE_LINE
+            + go_function_with_lines("test_256", 256)
+            + go_function_with_lines("test_257", 257)
+        )
+        declaration_path = write_declaration(tmp_path, ["size"])
+
+        function_report = measure_report(repo, declaration_path, "--per-unit")
+
+        function_violations = [
+            entry for entry in violation_summary(function_report) if entry[0] is not None
+        ]
+        assert function_violations == [
+            ("code_65", "size", 65, 64),
+            ("test_257", "size", 257, 256),
+        ]
+
     def test_should_pass_a_512_line_file_and_flag_a_513_line_file(self, tmp_path):
         repo = make_repo(tmp_path, {"report.go": PACKAGE_LINE})
         file_at_limit = PACKAGE_LINE + "// header comment\n\n" + "".join(

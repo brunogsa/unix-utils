@@ -28,6 +28,11 @@ FILE_LINES_LIMIT = 512
 # already cover what hurts in tests.
 TEST_FILE_LINES_LIMIT = 2048
 
+# A test file's function, such as a jest `describe` callback,
+# holds every case it groups, so it runs far past a code
+# function.
+TEST_FUNCTION_LINES_LIMIT = 256
+
 # HTML and CSS have no function syntax: only file length
 # applies.
 LANGUAGES_WITHOUT_FUNCTIONS = ("html", "css")
@@ -64,8 +69,10 @@ def measure(target, metrics):
 
 
 def _function_length_measurements(target):
+    is_test = _is_test_target(target)
+    limit = TEST_FUNCTION_LINES_LIMIT if is_test else FUNCTION_LINES_LIMIT
     return [
-        measurement(target, "size", function.nloc, FUNCTION_LINES_LIMIT, function)
+        measurement(target, "size", function.nloc, limit, function)
         for function in touched_functions(target)
     ]
 
@@ -75,9 +82,12 @@ def _file_length_measurement(target):
         lines = _count_web_lines(target)
     else:
         lines = _count_code_lines(target)
-    repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
-    limit = TEST_FILE_LINES_LIMIT if is_test_file(repo_path) else FILE_LINES_LIMIT
+    limit = TEST_FILE_LINES_LIMIT if _is_test_target(target) else FILE_LINES_LIMIT
     return measurement(target, "size", lines, limit)
+
+
+def _is_test_target(target):
+    return is_test_file(repo_relative(Path.cwd(), target.repo_path or target.path))
 
 
 def _count_web_lines(target):
