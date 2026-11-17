@@ -21,7 +21,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
   - [Why] Each nesting level multiplies the mental state the reader holds - bugs hide where "I don't understand" lives.
 
 - [Instruction] **CRITICAL: Split a statement that chains 2+ array operations (filter/map/flatMap/reduce/groupBy), nests callbacks, or wraps an unfamiliar API into intermediate variables, each named for what it holds, not for the operation.**
-  - [Why] A chained one-liner hides what each step holds; the reviewer asked 3 times on arco2-integrator PR 2719.
+  - [Why] A chained one-liner hides what each step holds.
   - [Example] Bad/good pair: `references/more-examples.md`, "Chained array operations and nested callbacks".
 
 ### Comments
@@ -103,7 +103,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] **CRITICAL: Code top-down - start at the controller/worker layer and pull a helper only once a caller needs it.**
   - [Why] Helpers shaped by real demand match their callers; speculative ones built ahead of a caller don't.
 
-- [Instruction] **CRITICAL: One thing at one level of abstraction.**
+- [Instruction] **CRITICAL: One job per function, at one level of abstraction - classifying input, checking it and building the result are three jobs.**
   - [Why] A function doing two jobs has two reasons to change (SRP) - editing it for one job risks breaking the other.
 
 - [Example] A same-layer mix, not just I/O-vs-business-logic: `collectSuplementarRepeats` also called `UnpackPicSuplementarKitUseCase.resolve()` (translation) and computed `isBonificado`/`unitPrice` (business rules).
@@ -262,7 +262,7 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 - [Instruction] **CRITICAL: Use an enum for a fixed set of related magic values, a named constant for a standalone one - repeated string literals count, even compiler-checked ones.**
   - [Why] A `10`/`"KIT"` scattered across files is a coordination problem on change - a constant is grep-able, changed once.
 
-- [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness.
+- [Instruction] Distinguish missing from intentional zero/empty - check null/undefined, not falsiness; a blank required string is missing.
   - [Why] `if (count)` treats `0` and `undefined` identically - falsiness checks paper over the distinction and ship bugs.
 
 - [Instruction] When a return type separates absent (`undefined`/`null`) from empty, state in the type or its doc comment which real case each one means.
