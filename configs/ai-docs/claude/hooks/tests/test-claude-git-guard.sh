@@ -229,6 +229,94 @@ it_should_allow_a_here_string_of_multi_line_prose_that_names_commit() {
   assert_eq "should allow a word count of a multi-line here-string whose prose names commit" "0" "$HOOK_EXIT"
 }
 
+it_should_block_an_unattributed_commit_after_a_multi_line_quoted_argument() {
+  run_hook "$(printf "echo 'first line\nsecond line'; git commit -m 'fix bug'")"
+  assert_eq "should block an unattributed commit that follows a multi-line quoted argument on its closing line" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_commit_inside_a_double_quoted_command_substitution() {
+  run_hook "echo \"done: \$(git commit -m 'fix bug')\""
+  assert_eq "should block an unattributed commit run inside a command substitution within double quotes" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_commit_in_a_function_called_from_a_command_substitution() {
+  local cmd
+  cmd=$(cat <<'CMD'
+c(){ git commit -m "$1"; }
+echo "result: $(c 'fix bug
+second line')"
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should block an unattributed commit inside a function body called with multi-line quoted text" "2" "$HOOK_EXIT"
+}
+
+# Bash starts a comment after ")", "<" and ">" too, so the
+# apostrophe in that comment opens no quote, and the commit on
+# the next line runs.
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_closing_paren() {
+  local cmd
+  cmd=$(cat <<'CMD'
+(true)#'
+git commit -m 'fix bug'
+#'
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should block an unattributed commit on the line after a comment that starts right after a closing paren" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_redirect() {
+  local cmd
+  cmd=$(cat <<'CMD'
+echo hi >#'
+git commit -m 'fix bug'
+#'
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should block an unattributed commit on the line after a comment that starts right after a redirect" "2" "$HOOK_EXIT"
+}
+
+# A case pattern's ")" inside "$(...)" does not close the
+# substitution, so the commit in the case branch runs.
+it_should_block_an_unattributed_commit_in_a_case_branch_inside_a_double_quoted_command_substitution() {
+  run_hook "echo \"\$(case x in x) git commit -m 'fix bug';; esac)\""
+  assert_eq "should block an unattributed commit in a case branch inside a command substitution within double quotes" "2" "$HOOK_EXIT"
+}
+
+# Either reading of the quotes can be wrong, so a guarded git
+# command seen by the line-by-line reading blocks even when the
+# whole-command reading puts it inside a quoted string.
+it_should_block_a_guarded_git_command_that_only_the_line_by_line_reading_sees() {
+  local cmd
+  cmd=$(cat <<'CMD'
+echo 'first line
+git reset --hard
+last line'
+CMD
+)
+  run_hook "$cmd"
+  assert_eq "should block a hard reset that the line-by-line reading sees, even when the whole-command reading puts it inside quotes" "2" "$HOOK_EXIT"
+}
+
+# A stray apostrophe that bash never reads as a quote must not
+# hide the commit on the next line.
+it_should_block_an_unattributed_commit_after_a_comment_holding_an_apostrophe() {
+  run_hook "$(printf "# don't skip this\ngit commit -m 'fix bug'")"
+  assert_eq "should block an unattributed commit on the line after a comment holding an apostrophe" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_commit_after_an_escaped_apostrophe() {
+  run_hook "$(printf "echo don\\\\'t\ngit commit -m 'fix bug'")"
+  assert_eq "should block an unattributed commit on the line after a backslash-escaped apostrophe" "2" "$HOOK_EXIT"
+}
+
+it_should_block_an_unattributed_commit_after_an_ansi_c_string_with_an_escaped_quote() {
+  run_hook "$(printf "echo \$'it\\\\'s'\ngit commit -m 'fix bug'\necho 'done'")"
+  assert_eq "should block an unattributed commit on the line after a \$'...' string holding an escaped quote" "2" "$HOOK_EXIT"
+}
+
 it_should_still_block_a_dangerous_git_op_smuggled_through_a_bash_heredoc() {
   local cmd
   cmd=$(printf "bash <<'EOF'\ngit push --force\nEOF\n")
@@ -894,6 +982,16 @@ it_should_allow_a_dangerous_phrase_inside_a_quoted_argument
 it_should_allow_quoted_prose_in_a_command_substitution_that_uses_the_apostrophe_idiom
 it_should_allow_multi_line_quoted_prose_that_names_git_show_and_commit
 it_should_allow_a_here_string_of_multi_line_prose_that_names_commit
+it_should_block_an_unattributed_commit_after_a_multi_line_quoted_argument
+it_should_block_an_unattributed_commit_inside_a_double_quoted_command_substitution
+it_should_block_an_unattributed_commit_in_a_function_called_from_a_command_substitution
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_closing_paren
+it_should_block_an_unattributed_commit_after_a_comment_that_follows_a_redirect
+it_should_block_an_unattributed_commit_in_a_case_branch_inside_a_double_quoted_command_substitution
+it_should_block_a_guarded_git_command_that_only_the_line_by_line_reading_sees
+it_should_block_an_unattributed_commit_after_a_comment_holding_an_apostrophe
+it_should_block_an_unattributed_commit_after_an_escaped_apostrophe
+it_should_block_an_unattributed_commit_after_an_ansi_c_string_with_an_escaped_quote
 it_should_still_block_a_dangerous_git_op_smuggled_through_a_bash_heredoc
 it_should_block_git_push_origin_main
 it_should_block_git_push_origin_master
