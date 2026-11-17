@@ -717,9 +717,9 @@ it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_an_interpr
   assert_eq "should name the Edit or Write tool when it blocks a python write to a repo file" "yes" "$names_tools"
 }
 
-# The 2026-11-17 bypass: a subagent rewrote tracked markdown
-# files with `cd ~/<repo>/<dir> && python3 - <<'E'`, the path
-# held in a variable and relative to that `cd`.
+# A python heredoc after `cd ~/<repo>/<dir>` names its target in
+# a variable relative to that `cd`, so the guard must resolve
+# the home-relative directory to see the markdown write.
 it_should_block_a_python_heredoc_rewriting_a_markdown_file_named_by_a_variable_after_a_home_relative_cd() {
   local home_relative_docs='~'"/${fixture_base#"$HOME"/}/repo/docs"
   run_hook "$(printf "cd %s && python3 - <<'E'\np='SKILL.md'; s=open(p).read()\ns=s.replace(\"a\",\"b\",1)\nopen(p,'w').write(s)\nE\n" "$home_relative_docs")"
