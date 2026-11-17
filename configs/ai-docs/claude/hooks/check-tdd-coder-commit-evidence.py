@@ -196,6 +196,10 @@ HARMLESS_ASSIGNMENT_TEXT = re.compile(rf"(?<![\w$]){HARMLESS_ASSIGNMENT}(?=[ \t\
 BACKTICK_ESCAPE = re.compile(r"\\([\\`$])")
 COMMAND_SUBSTITUTION_START = "$("
 ANSI_C_QUOTE_START = "$'"
+
+# $$ is the shell's process id, so a ' after it opens a plain
+# single quote, not a $'...' string.
+PROCESS_ID_EXPANSION = "$$"
 WORD_START_PRECEDERS = " \t" + "();<>|&\n"
 
 # An interpreter runs its first operand as a script; . and
@@ -541,7 +545,7 @@ def read_double_quoted(text: str, index: int, bodies: list[str]) -> int | None:
 
 
 def read_substitution_or_escape(text: str, index: int, bodies: list[str]) -> int | None:
-    if text[index] == "\\":
+    if text[index] == "\\" or text.startswith(PROCESS_ID_EXPANSION, index):
         return index + 2
     elif text.startswith(COMMAND_SUBSTITUTION_START, index):
         return read_command_substitution_body(text, index + 2, bodies)
