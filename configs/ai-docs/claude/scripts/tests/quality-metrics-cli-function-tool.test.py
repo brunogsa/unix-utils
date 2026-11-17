@@ -99,6 +99,68 @@ def test_should_ask_about_a_crashed_function_tool_and_score_the_file_pessimistic
         assert record["label"] == DEFERRED_LABEL
 
 
+def measure_cart_headless(tmp_path, monkeypatch):
+    """A crashed lizard in a session that cannot ask, so the
+    run raises no ask and defers on the spot."""
+    repo = make_repo(tmp_path, {"src/cart.py": CART_PYTHON})
+    install_stub_tool(tmp_path, monkeypatch, "lizard", LIZARD_CRASH_STUB)
+    declaration_path = tmp_path / "declaration.yaml"
+    declaration_path.write_text(DECLARATION_TEXT)
+    return run_measure(
+        repo, declaration_path, "--files", "src/cart.py",
+        "--session-id", SESSION_ID, "--map-dir", str(tmp_path),
+        env={**stubbed_env(), "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
+    )
+
+
+def test_should_exit_1_listing_the_function_metrics_as_violations_when_a_crashed_function_tool_raises_no_ask(
+    tmp_path, monkeypatch
+):
+    result = measure_cart_headless(tmp_path, monkeypatch)
+
+    report = json.loads(result.stdout)
+    assert report["asks"] == []
+    assert sorted(item["metric"] for item in report["violations"]) == ["nesting", "parameters"]
+    assert result.returncode == 1
+
+
+DUPLICATION_DECLARATION_TEXT = """\
+excluded_paths: []
+ignored_extensions: [.md]
+per_unit: []
+languages:
+  python:
+    extensions: [.py]
+    metrics: [code_duplication]
+"""
+
+JSCPD_CRASH_STUB = """#!/bin/bash
+echo "Error: Cannot find module 'jscpd-core'" >&2
+exit 1
+"""
+
+
+def test_should_exit_1_on_the_flagged_duplication_record_when_a_crashed_jscpd_raises_no_ask(
+    tmp_path, monkeypatch
+):
+    repo = make_repo(tmp_path, {"src/cart.py": CART_PYTHON})
+    install_stub_tool(tmp_path, monkeypatch, "jscpd", JSCPD_CRASH_STUB)
+    declaration_path = tmp_path / "declaration.yaml"
+    declaration_path.write_text(DUPLICATION_DECLARATION_TEXT)
+
+    result = run_measure(
+        repo, declaration_path, "--files", "src/cart.py",
+        "--session-id", SESSION_ID, "--map-dir", str(tmp_path),
+        env={**stubbed_env(), "CLAUDE_CODE_ENTRYPOINT": "sdk-cli"},
+    )
+
+    report = json.loads(result.stdout)
+    assert report["asks"] == []
+    [candidate] = report["duplication_candidates"]
+    assert (candidate["metric"], candidate["pessimistic"]) == ("code_duplication", True)
+    assert result.returncode == 1
+
+
 def test_should_exit_unmeasured_on_a_crashed_function_tool_when_no_tool_map_is_given(
     tmp_path, monkeypatch
 ):

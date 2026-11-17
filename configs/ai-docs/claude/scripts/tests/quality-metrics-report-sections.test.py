@@ -23,6 +23,9 @@ from quality_metrics_support import (
     verdict_entry_headings as entry_headings,
     verdict_section as section,
 )
+from quality_metrics.collection import CoverageRun
+from quality_metrics.failures import function_tool_failure_records
+from quality_metrics.functions import FunctionToolError
 
 
 # entangled_tests has no script module: the code-reviewer lens
@@ -163,6 +166,24 @@ class TestDeferredMetrics:
         [measured_entry] = [entry for entry in entries if "mergeRows" in entry]
         assert deferred_entry.count(DEFERRED_LABEL) == 1
         assert DEFERRED_LABEL not in measured_entry
+
+    def test_should_render_a_crashed_function_tools_flagged_nesting_record_as_an_open_deferred_violation(
+        self, tmp_path
+    ):
+        error = FunctionToolError("lizard", "lizard crashed with a traceback")
+        headless_run = CoverageRun(
+            tmp_path, tool_map=object(), environ={"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}
+        )
+        records = function_tool_failure_records(
+            target("src/deferred.py"), ["nesting"], error, headless_run
+        )
+
+        verdict = report.build_verdict(measured(*records))
+
+        [entry] = entry_headings(section(verdict, "Open violations"))
+        assert "src/deferred.py" in entry
+        assert "nesting" in entry
+        assert entry.count(DEFERRED_LABEL) == 1
 
     def test_should_print_the_deferred_label_once_on_a_valueless_deferred_violation(self):
         function = FunctionMeasure("tangle", 4, 30, 26, 12, None, None)

@@ -172,7 +172,14 @@ def _print_report(measurements, found, coverage_run, delta):
 
     # An ask comes with pessimistic records; exiting 1 on it
     # too keeps unmeasured coverage from reading clean.
-    has_violation = violations or gate_input_violations or coverage_run.asks
+    #
+    # A pessimistic candidate stands in for a failed tool, such
+    # as jscpd, so it exits 1 even when no ask was raised.
+    has_deferred_candidate = any(item.get("pessimistic") for item in candidates)
+    has_violation = (
+        violations or gate_input_violations or coverage_run.asks
+        or has_deferred_candidate
+    )
     return EXIT_VIOLATION if has_violation else EXIT_CLEAN
 
 
