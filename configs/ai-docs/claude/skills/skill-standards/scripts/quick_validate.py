@@ -39,7 +39,10 @@ def validate_skill(skill_path):
         return False, f"Invalid YAML in frontmatter: {e}"
 
     # Define allowed properties
-    ALLOWED_PROPERTIES = {'name', 'description', 'license', 'allowed-tools', 'metadata', 'compatibility'}
+    # 'disable-model-invocation' is a Claude Code extension.
+    # claude.ai uploads and the Skills API reject it (docs:
+    # "Using skill frontmatter outside Claude Code").
+    ALLOWED_PROPERTIES = {'name', 'description', 'license', 'allowed-tools', 'metadata', 'compatibility', 'disable-model-invocation'}
 
     # Check for unexpected properties (excluding nested keys
     # under metadata)
