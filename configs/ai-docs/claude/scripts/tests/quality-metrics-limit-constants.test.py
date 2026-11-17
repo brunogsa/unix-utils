@@ -1,7 +1,7 @@
 """Every limit a metric record carries is a named constant.
 
 The code and test standards tell coders to read the live limits
-by grepping `quality_metrics/` for `^[A-Z_]*LIMIT[A-Z_]* = `, so
+by grepping `quality_metrics/*.py` for `^[A-Z_]*LIMIT`, so
 a limit written inline, or under a name outside that pattern,
 silently drops out of what they see. This checker parses every
 package module with `ast`, so no list of sites needs upkeep.
