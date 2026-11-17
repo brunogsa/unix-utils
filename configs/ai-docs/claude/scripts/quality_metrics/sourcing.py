@@ -83,6 +83,12 @@ MAX_WORKERS_PATTERN = re.compile(r"--maxWorkers[= ](\S+)")
 # A shell word assigning a variable, such as `TZ=UTC`.
 ENV_ASSIGNMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
+# A shared source, such as an error-code enum, reaches 102 to
+# 337 specs, and 344 specs ran jest past its 120s timeout. The
+# sources of one change reached 3 to 9. Past the cap, only the
+# other specs in the run measure that source.
+MAX_RELATED_SPECS_PER_SOURCE = 50
+
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
 # pytest-cov.readthedocs.io/en/latest/config.html
@@ -349,7 +355,8 @@ def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
       each changed source.
 
     - A source with no spec of its name adds the specs that
-      `list_related_specs` returns for it, in one listing call.
+      `list_related_specs` returns for it, unless there are
+      more than MAX_RELATED_SPECS_PER_SOURCE of them.
 
     jest keeps the test files among the paths given and skips
     every other spec. None when no changed file is given, so
@@ -363,7 +370,12 @@ def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
     named_specs_by_source = {source: specs_named_after(source, specs_found) for source in sources}
     named_specs = [spec for specs in named_specs_by_source.values() for spec in specs]
     sources_without_named_spec = [source for source, specs in named_specs_by_source.items() if not specs]
-    related_specs = list_related_specs(sources_without_named_spec) if sources_without_named_spec else []
+    related_specs_by_source = [list_related_specs([source]) for source in sources_without_named_spec]
+    related_specs = [
+        spec for specs in related_specs_by_source
+        if len(specs) <= MAX_RELATED_SPECS_PER_SOURCE
+        for spec in specs
+    ]
     scope = list(dict.fromkeys([*workspace_paths, *named_specs, *related_specs]))
     return ["--runTestsByPath", *scope]
 

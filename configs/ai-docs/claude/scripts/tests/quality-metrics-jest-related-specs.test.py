@@ -21,16 +21,20 @@ from quality_metrics.sourcing import run_repo_jest
 from quality_metrics.tools import ToolError
 
 # Logs each call's arguments, tab-separated, one call per line.
-# Answers --listTests with the paths in RELATED_SPECS_FILE, or
-# fails when LIST_TESTS_FAILS is set; a coverage run gets the
-# lcov fixture.
+# Answers --listTests with the related specs file named after
+# each source listed, or fails when LIST_TESTS_FAILS is set.
+#
+# A coverage run gets the lcov fixture.
 JEST_LISTING_STUB = """#!/bin/bash
 printf '%s\\t' "$@" >> "$CALLS_LOG"; echo >> "$CALLS_LOG"
 for argument in "$@"; do
   case "$argument" in
     --listTests)
       if [ -n "$LIST_TESTS_FAILS" ]; then echo "haste map error" >&2; exit 1; fi
-      cat "$RELATED_SPECS_FILE"; exit 0;;
+      for source in "${@#--findRelatedTests}"; do
+        related="$RELATED_SPECS_DIR/$(basename "$source").txt"
+        if [ -f "$related" ]; then cat "$related"; fi
+      done; exit 0;;
     --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
   esac
 done
@@ -66,16 +70,19 @@ def run_jest_on(tmp_path, monkeypatch):
     """Runs `run_repo_jest` on a temp repo with the listing
     stub as jest, returning the repo and its jest calls."""
 
-    def run(files, changed_paths, related_specs=(), listing_fails=False):
+    def run(files, changed_paths, related_specs=None, listing_fails=False):
         repo = make_repo(tmp_path, {**WORKSPACE_CONFIG, **files})
         lcov_fixture = tmp_path / "cart.lcov"
         lcov_fixture.write_text(CART_LCOV)
-        related_specs_file = tmp_path / "related-specs.txt"
-        related_specs_file.write_text("".join(f"{repo / path}\n" for path in related_specs))
+        related_specs_dir = tmp_path / "related-specs"
+        related_specs_dir.mkdir()
+        for source, specs in (related_specs or {}).items():
+            listed = "".join(f"{repo / spec}\n" for spec in specs)
+            (related_specs_dir / f"{Path(source).name}.txt").write_text(listed)
         calls_log = tmp_path / "calls.log"
         calls_log.touch()
         monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
-        monkeypatch.setenv("RELATED_SPECS_FILE", str(related_specs_file))
+        monkeypatch.setenv("RELATED_SPECS_DIR", str(related_specs_dir))
         monkeypatch.setenv("CALLS_LOG", str(calls_log))
         if listing_fails:
             monkeypatch.setenv("LIST_TESTS_FAILS", "1")
@@ -161,13 +168,38 @@ class TestSourcesWithNoSpecOfTheirName:
 
         repo, calls = run_jest_on(
             files, changed_paths=["pkg/src/fees.js"],
-            related_specs=["pkg/test/checkout.test.js"],
+            related_specs={"pkg/src/fees.js": ["pkg/test/checkout.test.js"]},
         )
 
         (listing,) = calls.listings()
         assert listing[listing.index("--findRelatedTests") + 1:] == [str(repo / "pkg/src/fees.js")]
         assert calls.scope_of_the_coverage_run() == [
             str(repo / "pkg/src/fees.js"), str(repo / "pkg/test/checkout.test.js"),
+        ]
+
+    def test_should_skip_the_related_specs_of_a_changed_source_that_more_than_50_specs_exercise(
+        self, run_jest_on
+    ):
+        # A shared source, such as an error-code enum, reaches
+        # hundreds of specs, which runs jest past its timeout.
+        widely_used_specs = [f"pkg/test/flow-{number}.test.js" for number in range(51)]
+        files = {
+            **CART_FILES,
+            "pkg/src/error-codes.js": "module.exports = { NOT_FOUND: 'not_found' };\n",
+            "pkg/src/fees.js": "module.exports = { fee: () => 5 };\n",
+        }
+
+        repo, calls = run_jest_on(
+            files, changed_paths=["pkg/src/error-codes.js", "pkg/src/fees.js"],
+            related_specs={
+                "pkg/src/error-codes.js": widely_used_specs,
+                "pkg/src/fees.js": ["pkg/test/checkout.test.js"],
+            },
+        )
+
+        assert calls.scope_of_the_coverage_run() == [
+            str(repo / "pkg/src/error-codes.js"), str(repo / "pkg/src/fees.js"),
+            str(repo / "pkg/test/checkout.test.js"),
         ]
 
     def test_should_not_look_up_specs_for_a_changed_file_with_no_executable_code(self, run_jest_on):
