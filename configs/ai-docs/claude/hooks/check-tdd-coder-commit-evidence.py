@@ -295,8 +295,27 @@ def read_payload() -> dict | None:
     return payload if isinstance(payload, dict) else None
 
 
+def remove_comments(text: str) -> str | None:
+    # shlex reads a # inside a word, as in a#b or ${#x}, as a
+    # comment and drops the words after it, so only the comments
+    # the shell scan finds are cut.
+    comments: list[int] = []
+    if scan_shell_text(text, 0, [], closes_paren=False, comments=comments) is None:
+        return None
+    pieces, start = [], 0
+    for comment in comments:
+        pieces.append(text[start:comment])
+        newline = text.find("\n", comment)
+        start = len(text) if newline == -1 else newline
+    return "".join(pieces) + text[start:]
+
+
 def get_shell_words(text: str) -> list[str] | None:
+    text = remove_comments(text)
+    if text is None:
+        return None
     lexer = shlex.shlex(text, posix=True, punctuation_chars=SHELL_PUNCTUATION)
+    lexer.commenters = ""
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     try:
@@ -579,10 +598,10 @@ def is_comment_start(text: str, index: int) -> bool:
     return text[index] == "#" and (index == 0 or text[index - 1] in WORD_START_PRECEDERS)
 
 
-def read_shell_construct(text: str, index: int, bodies: list[str]) -> int | None:
+def read_shell_construct(text: str, index: int, bodies: list[str], comments: list[int]) -> int | None:
     # Returns the index just past the quote, escape,
     # substitution or comment at index; None when it never
-    # closes.
+    # closes. A comment's start is appended to comments.
     if text[index] == "'":
         return skip_single_quoted(text, index + 1, is_ansi_c=False)
     elif text.startswith(ANSI_C_QUOTE_START, index):
@@ -592,6 +611,7 @@ def read_shell_construct(text: str, index: int, bodies: list[str]) -> int | None
     elif index > 0 and text.startswith(PAREN_BEFORE_HASH, index - 1):
         return None
     elif is_comment_start(text, index):
+        comments.append(index)
         newline = text.find("\n", index)
         return len(text) if newline == -1 else newline
     return read_substitution_or_escape(text, index, bodies)
@@ -604,9 +624,12 @@ def get_parameter_expansion_depth(text: str, index: int, depth: int) -> int:
     return depth - 1 if text[index] == "}" and depth > 0 else depth
 
 
-def scan_shell_text(text: str, index: int, bodies: list[str], closes_paren: bool) -> int | None:
+def scan_shell_text(
+    text: str, index: int, bodies: list[str], closes_paren: bool, comments: list[int] | None = None
+) -> int | None:
     # With closes_paren, returns the index of the ) that closes
     # the scan's opening $(; otherwise the text's length.
+    comments = [] if comments is None else comments
     depth = 0
     expansion_depth = 0
     while index < len(text):
@@ -617,7 +640,7 @@ def scan_shell_text(text: str, index: int, bodies: list[str], closes_paren: bool
             return index
         elif closes_paren and text[index] in "()":
             depth += 1 if text[index] == "(" else -1
-        next_index = read_shell_construct(text, index, bodies)
+        next_index = read_shell_construct(text, index, bodies, comments)
         if next_index is None:
             return None
         index = next_index
