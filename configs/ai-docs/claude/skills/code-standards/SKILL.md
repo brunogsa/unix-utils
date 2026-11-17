@@ -165,8 +165,8 @@ Open `references/more-examples.md` when a rule's intent is unclear without a wor
 
 - [Example] `buildLines(payload)` became `async buildLines(payload): Promise<Line[]>` only to call an `async` mapper with nothing to await, and the async spread to every caller.
 
-- [Instruction] Keep functions pure by default - isolate I/O into thin boundary functions.
-  - [Why] Pure functions test without mocks; I/O needs infrastructure, so keep it at the edges.
+- [Instruction] **CRITICAL: Prefer pure functions, especially for complex and business logic - concentrate unavoidable side effects in few places, like controllers.**
+  - [Why] Pure logic is reusable and tests without mocks; isolating side effects lowers its complexity.
 
 - [Instruction] **Name a helper for what it returns, not its operation - a `get`-noun signals a new immutable; a verb like `append` signals mutation.**
   - [Why] The name is the only clue whether a result is fresh or mutated.
