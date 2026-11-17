@@ -223,6 +223,7 @@ def _last_header_line(script_path):
         if not line.startswith("#"):
             break
         last = line
+    assert last is not None
     return last[2:] if last.startswith("# ") else last[1:]
 
 
