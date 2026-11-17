@@ -185,6 +185,24 @@ class TestNestedWorktree:
         assert coverage_run.sources[0]["source"] == {"kind": "repo", "tool": "jest"}
         assert [record["value"] for record in records] == [92]
 
+    def test_should_leave_the_files_of_a_git_worktree_nested_inside_the_repo_out_of_the_coverage(
+        self, tmp_path, monkeypatch
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": "module.exports = {};\n",
+            "src/cart.js": "module.exports = 1;\n",
+        })
+        git(repo, "worktree", "add", "--quiet", "-b", "nested", ".claude/worktrees/x")
+        lcov_fixture = tmp_path / "with-worktree.lcov"
+        lcov_fixture.write_text(CART_LCOV + CART_LCOV.replace("SF:src/", "SF:.claude/worktrees/x/src/"))
+        monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
+        monkeypatch.setenv("RUN_LOG", str(tmp_path / "runs.log"))
+        install_stub_tool(tmp_path, monkeypatch, "jest", JEST_LCOV_COPY_STUB)
+
+        run = run_repo_jest(repo, changed_paths=["src/cart.js"])
+
+        assert sorted(run["hits_by_file"]) == ["src/cart.js"]
+
 
 # Copies the lcov fixture where it is told to, and answers
 # --showConfig with no readable config, so the default ignore

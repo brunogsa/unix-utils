@@ -295,6 +295,17 @@ def _changed_files_scope_flags(repo, run_dir, changed_paths):
     return ["--runTestsByPath", *workspace_paths]
 
 
+def _without_nested_worktree_files(hits_by_absolute_path, run_dir):
+    """The hits, minus every file inside a git worktree nested
+    in `run_dir`: that worktree is another checkout, never a
+    file of this one."""
+    worktree_prefixes = [path + os.sep for path in _nested_worktree_paths(run_dir)]
+    return {
+        path: hits for path, hits in hits_by_absolute_path.items()
+        if not os.path.realpath(path).startswith(tuple(worktree_prefixes))
+    }
+
+
 def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_paths):
     """One jest coverage run from the workspace directory, its
     hits keyed by repo-relative path."""
@@ -322,7 +333,8 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_p
 
         # jest names a file relative to its run directory.
         hits_by_absolute_path = {str(run_dir / name): hits for name, hits in hits_by_run_path.items()}
-        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, hits_by_absolute_path)}
+        checkout_hits = _without_nested_worktree_files(hits_by_absolute_path, run_dir)
+        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, checkout_hits)}
 
 
 def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
@@ -339,7 +351,7 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
     With a `base_ref`, jest reads the config that ref
     committed, so a branch's own coverage excludes never shape
     the number. A git worktree nested in the run directory
-    never runs.
+    never runs, and its files never count.
 
     The hits read valid when jest passed or exited non-zero on
     the repo's own threshold: the harness judges the measured
