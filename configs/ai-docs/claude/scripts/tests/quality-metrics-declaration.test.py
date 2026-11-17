@@ -236,7 +236,8 @@ class TestTestFileMetrics:
         assert for_test == declared - set(declaration.SOURCE_ONLY_METRICS)
 
 
-INSTALL_SH = SCRIPTS_DIR.parent.parent.parent.parent / "install.sh"
+REPO_ROOT = SCRIPTS_DIR.parent.parent.parent.parent
+INSTALL_SH = REPO_ROOT / "install.sh"
 
 # Global tools the checks need, with each OS's install line.
 # Tools run via `uv run --with` (coverage, import-linter) are
@@ -292,6 +293,15 @@ def install_lines_by_os(install_text):
 
 
 class TestGlobalToolInstall:
+
+    # Skip keyed on a missing `.git` (a file in a git worktree),
+    # not on a missing install.sh: deleting install.sh in the
+    # real repo must still fail, while a copied scripts tree
+    # (mutmut, coder copies) skips.
+    @pytest.mark.skipif(
+        not (REPO_ROOT / ".git").exists(),
+        reason="install.sh lives at the repo root, outside the copied scripts tree",
+    )
     @pytest.mark.parametrize("tool", sorted(GLOBAL_TOOL_INSTALL_LINES))
     @pytest.mark.parametrize("operating_system", ["macos", "linux"])
     def test_should_find_an_install_line_for_both_operating_systems_for_uv_and_every_other_global_tool_declared_so_far(
