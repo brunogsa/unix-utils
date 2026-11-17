@@ -12,7 +12,7 @@ import shlex
 import subprocess
 import tempfile
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from quality_metrics.crap import parse_lcov
@@ -29,6 +29,13 @@ from quality_metrics.gate_inputs import (
     write_base_ref_workspace_config,
 )
 from quality_metrics.jest_specs import is_spec_candidate_source, specs_by_stem, specs_named_after
+from quality_metrics.related_e2e_specs import (
+    e2e_specs_importing,
+    every_spec_failed,
+    failed_specs_in_jest_results,
+    failure_reason,
+    summed_hits,
+)
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -330,17 +337,23 @@ def without_ignored_specs(paths, ignore_patterns, run_dir):
     return [path for path in paths if not any(regex.search(path) for regex in regexes)]
 
 
-def _test_path_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
-    """The ignore patterns a coverage run from `run_dir` passes
-    jest: the workspace `test` script's own, plus every git
-    worktree nested in `run_dir`.
+def _test_path_ignore_patterns(workspace_jest, script_patterns):
+    """The ignore patterns a coverage run from the workspace
+    passes jest: `script_patterns`, plus every git worktree
+    nested in the workspace directory.
+
+    The unit run passes the workspace `test` script's own
+    patterns. The run of the e2e and integration specs
+    importing a changed file passes none, since that script
+    often ignores exactly those specs.
 
     A CLI `--testPathIgnorePatterns` replaces the config's
     list (jestjs.io/docs/cli), so that list is repeated here.
-    None when neither the script nor a nested worktree adds a
-    pattern, so the config's list applies unchanged.
+    None when neither `script_patterns` nor a nested worktree
+    adds a pattern, so the config's list applies unchanged.
     """
-    script_patterns = declared_ignore_patterns(run_dir)
+    repo, run_dir = workspace_jest.repo, workspace_jest.run_dir
+    config_flags, timeout_seconds = workspace_jest.config_flags, workspace_jest.timeout_seconds
     worktree_patterns = [re.escape(path) + "/" for path in _nested_worktree_paths(run_dir)]
     if not script_patterns and not worktree_patterns:
         return []
@@ -461,48 +474,143 @@ def _without_nested_worktree_files(hits_by_absolute_path, run_dir):
     }
 
 
+@dataclass(frozen=True)
+class _WorkspaceJest:
+    """What every jest run from one workspace directory
+    shares."""
+
+    repo: str
+    run_dir: Path
+    env: dict
+    config_flags: list
+    timeout_seconds: object
+
+
+def _ignore_flags(ignore_patterns):
+    return [f"{IGNORE_PATTERNS_FLAG}={pattern}" for pattern in ignore_patterns]
+
+
+def _lcov_hits(workspace_jest, report_dir):
+    """The hits of the lcov report jest wrote to `report_dir`,
+    keyed by repo-relative path; None when it wrote none."""
+    report = Path(report_dir) / "lcov.info"
+    if not report.exists():
+        return None
+    hits_by_run_path = parse_lcov(report.read_text())
+
+    # jest names a file relative to its run directory.
+    run_dir = workspace_jest.run_dir
+    hits_by_absolute_path = {str(run_dir / name): hits for name, hits in hits_by_run_path.items()}
+    checkout_hits = _without_nested_worktree_files(hits_by_absolute_path, run_dir)
+    return repo_relative_hits(workspace_jest.repo, checkout_hits)
+
+
+def _run_unit_specs(workspace_jest, changed_paths, report_dir):
+    """The jest run of the changed specs and the specs the
+    workspace `test` script keeps that exercise each changed
+    source: how it exited, and its hits, None when jest wrote
+    no lcov report."""
+    run_dir, env, timeout_seconds = workspace_jest.run_dir, workspace_jest.env, workspace_jest.timeout_seconds
+    ignore_patterns = _test_path_ignore_patterns(workspace_jest, declared_ignore_patterns(run_dir))
+    ignore_flags = _ignore_flags(ignore_patterns)
+    scope = _spec_scope(
+        workspace_jest.repo, run_dir, changed_paths,
+        lambda sources: related_specs(
+            sources, flags=[*workspace_jest.config_flags, *ignore_flags],
+            cwd=run_dir, env=env, timeout=timeout_seconds,
+        ),
+        ignore_patterns,
+    )
+
+    # A bare --runTestsByPath runs the whole suite.
+    if scope == []:
+        return {"exit_class": PASSED, "hits_by_file": {}}
+    scope_flags = [] if scope is None else ["--runTestsByPath", *scope]
+    result = run_command(
+        [
+            "jest", "--coverage", "--passWithNoTests",
+            "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
+            f"--maxWorkers={_declared_max_workers(run_dir)}",
+            *workspace_jest.config_flags, *ignore_flags, *scope_flags,
+        ],
+        cwd=run_dir, env=env, timeout=timeout_seconds,
+    )
+    exit_class = classify_exit(result)
+    if exit_class not in MEASURING_EXIT_CLASSES:
+        raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
+    return {"exit_class": exit_class, "hits_by_file": _lcov_hits(workspace_jest, report_dir)}
+
+
+def _related_e2e_run_failures(workspace_jest, specs, result, results_path):
+    """Each e2e spec the run in `result` failed, with why; none
+    when it measured."""
+    repo = workspace_jest.repo
+    if classify_exit(result) in MEASURING_EXIT_CLASSES:
+        return []
+    failed_specs = failed_specs_in_jest_results(repo, results_path)
+    if failed_specs:
+        return failed_specs
+    reason = f"jest exited {result.returncode}: {failure_reason(result.stderr)}"
+    return every_spec_failed(repo, specs, reason)
+
+
+def _run_related_e2e_specs(workspace_jest, changed_paths):
+    """The jest run of the e2e and integration specs that
+    import a changed file, which the workspace `test` script
+    often ignores: their hits, and each spec that failed or
+    could not run.
+
+    The hits are None when no such spec exists or one failed,
+    so a failed spec never shifts the unit specs' figure.
+    They run one at a time, since they often share one test
+    database.
+    """
+    repo, run_dir, timeout_seconds = workspace_jest.repo, workspace_jest.run_dir, workspace_jest.timeout_seconds
+    specs = e2e_specs_importing(repo, run_dir, changed_paths)
+    if not specs:
+        return {"hits_by_file": None, "failed_specs": []}
+    ignore_flags = _ignore_flags(_test_path_ignore_patterns(workspace_jest, []))
+    with tempfile.TemporaryDirectory() as run_files_dir:
+        report_dir = Path(run_files_dir) / "coverage"
+        report_dir.mkdir()
+        results_path = Path(run_files_dir) / "jest-results.json"
+        command = [
+            "jest", "--coverage", "--passWithNoTests",
+            "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
+            "--runInBand", "--json", f"--outputFile={results_path}",
+            *workspace_jest.config_flags, *ignore_flags, "--runTestsByPath", *specs,
+        ]
+        try:
+            result = run_command(command, cwd=run_dir, env=workspace_jest.env, timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            timed_out = every_spec_failed(repo, specs, f"jest timed out at {timeout_seconds}s")
+            return {"hits_by_file": None, "failed_specs": timed_out}
+        failed_specs = _related_e2e_run_failures(workspace_jest, specs, result, results_path)
+        hits_by_file = None if failed_specs else _lcov_hits(workspace_jest, report_dir)
+        if not failed_specs and hits_by_file is None:
+            failed_specs = every_spec_failed(repo, specs, "jest wrote no lcov report")
+        return {"hits_by_file": hits_by_file, "failed_specs": failed_specs}
+
+
 def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_paths):
-    """One jest coverage run from the workspace directory, its
-    hits keyed by repo-relative path."""
+    """The jest coverage of the workspace directory: the unit
+    specs' hits plus those of the e2e and integration specs
+    importing a changed file, keyed by repo-relative path, and
+    each of those e2e specs that failed or could not run."""
     run_dir = Path(repo) / workspace
-    env = jest_env(repo, run_dir)
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
-        ignore_patterns = _test_path_ignore_patterns(repo, run_dir, config_flags, timeout_seconds)
-        ignore_flags = [f"{IGNORE_PATTERNS_FLAG}={pattern}" for pattern in ignore_patterns]
-        scope = _spec_scope(
-            repo, run_dir, changed_paths,
-            lambda sources: related_specs(
-                sources, flags=[*config_flags, *ignore_flags], cwd=run_dir, env=env, timeout=timeout_seconds,
-            ),
-            ignore_patterns,
-        )
-
-        # A bare --runTestsByPath runs the whole suite.
-        if scope == []:
-            return {"exit_class": PASSED, "hits_by_file": {}}
-        scope_flags = [] if scope is None else ["--runTestsByPath", *scope]
-        result = run_command(
-            [
-                "jest", "--coverage", "--passWithNoTests",
-                "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
-                f"--maxWorkers={_declared_max_workers(run_dir)}",
-                *config_flags, *ignore_flags, *scope_flags,
-            ],
-            cwd=run_dir, env=env, timeout=timeout_seconds,
-        )
-        exit_class = classify_exit(result)
-        if exit_class not in MEASURING_EXIT_CLASSES:
-            raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
-        report = Path(report_dir) / "lcov.info"
-        if not report.exists():
-            raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
-        hits_by_run_path = parse_lcov(report.read_text())
-
-        # jest names a file relative to its run directory.
-        hits_by_absolute_path = {str(run_dir / name): hits for name, hits in hits_by_run_path.items()}
-        checkout_hits = _without_nested_worktree_files(hits_by_absolute_path, run_dir)
-        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, checkout_hits)}
+        workspace_jest = _WorkspaceJest(repo, run_dir, jest_env(repo, run_dir), config_flags, timeout_seconds)
+        unit_run = _run_unit_specs(workspace_jest, changed_paths, report_dir)
+        e2e_run = _run_related_e2e_specs(workspace_jest, changed_paths)
+    hits_by_file = summed_hits(unit_run["hits_by_file"], e2e_run["hits_by_file"])
+    if hits_by_file is None:
+        raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
+    return {
+        "exit_class": unit_run["exit_class"],
+        "hits_by_file": hits_by_file,
+        "failed_related_specs": e2e_run["failed_specs"],
+    }
 
 
 def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
@@ -538,7 +646,8 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
         hits_by_file.update(workspace_run["hits_by_file"])
     exit_classes = {workspace_run["exit_class"] for workspace_run in workspace_runs}
     exit_class = REPO_THRESHOLD if REPO_THRESHOLD in exit_classes else PASSED
-    return {"exit_class": exit_class, "hits_by_file": hits_by_file}
+    failed_related_specs = [spec for run in workspace_runs for spec in run["failed_related_specs"]]
+    return {"exit_class": exit_class, "hits_by_file": hits_by_file, "failed_related_specs": failed_related_specs}
 
 
 def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None, changed_paths=()):

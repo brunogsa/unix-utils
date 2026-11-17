@@ -78,16 +78,18 @@ def get_repo_root():
     return Path(result.stdout.strip())
 
 
-def get_changed_module_paths(repo_root, git_range):
-    """Return the changed files as extension-less module paths,
-    with a trailing `/index` dropped, so `@orders/create-x` and
-    `./create-x/index.ts` both match `create-x/index.ts`."""
+def get_changed_paths(repo_root, git_range):
     result = run_git(repo_root, "diff", "--name-only", git_range, "--")
     if result.returncode != 0:
         print(f"error: git cannot diff range '{git_range}': {result.stderr.strip()}", file=sys.stderr)
         sys.exit(2)
+    return result.stdout.split()
 
-    changed_paths = result.stdout.split()
+
+def get_changed_module_paths(changed_paths):
+    """Return the changed files as extension-less module paths,
+    with a trailing `/index` dropped, so `@orders/create-x` and
+    `./create-x/index.ts` both match `create-x/index.ts`."""
     return {get_module_path(path) for path in changed_paths if SOURCE_EXTENSION_PATTERN.search(path)}
 
 
@@ -217,6 +219,20 @@ def get_files_reaching_changed_modules(changed_module_paths, importers_by_module
     return reaching_files
 
 
+def get_excluded_specs_reaching(repo_root, changed_paths):
+    """Return the integration/e2e test files, repo-relative and
+    sorted, that reach one of the repo-relative `changed_paths`
+    within MAX_IMPORT_HOPS."""
+    changed_module_paths = get_changed_module_paths(changed_paths)
+    if not changed_module_paths:
+        return []
+
+    source_paths = get_tracked_source_paths(repo_root)
+    importers_by_module_path = get_importers_by_module_path(repo_root, source_paths)
+    reaching_files = get_files_reaching_changed_modules(changed_module_paths, importers_by_module_path)
+    return sorted(path for path in reaching_files if EXCLUDED_SPEC_PATTERN.search(path))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="List integration/e2e test files that import a source file changed in a git range."
@@ -229,15 +245,8 @@ def main():
         sys.exit(2)
 
     repo_root = get_repo_root()
-    changed_module_paths = get_changed_module_paths(repo_root, args.git_range)
-    if not changed_module_paths:
-        return
-
-    source_paths = get_tracked_source_paths(repo_root)
-    importers_by_module_path = get_importers_by_module_path(repo_root, source_paths)
-    reaching_files = get_files_reaching_changed_modules(changed_module_paths, importers_by_module_path)
-    listed_specs = [path for path in reaching_files if EXCLUDED_SPEC_PATTERN.search(path)]
-    for spec_path in sorted(listed_specs):
+    changed_paths = get_changed_paths(repo_root, args.git_range)
+    for spec_path in get_excluded_specs_reaching(repo_root, changed_paths):
         print(spec_path)
 
 
