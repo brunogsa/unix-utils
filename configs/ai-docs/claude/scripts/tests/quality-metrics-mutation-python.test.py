@@ -17,6 +17,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import pytest
 
 from quality_metrics.deadline import DeadlineResult
+from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.mutation import NOT_RUN_LABEL
 from quality_metrics.mutation_python import (
     MutmutTools,
@@ -162,14 +163,40 @@ class TestMutmutCannotRun:
         assert (ask["tool"], ask["metric"], ask["choices"]) == ("mutmut", "mutation", ["fix now", "defer"])
         assert "pkg/price.py" in ask["reason"] and "pkg/tax.py" in ask["reason"]
 
-    def test_raises_a_tool_error_when_mutmut_crashes_with_no_output(self, tmp_path):
+    def test_gives_a_record_and_an_ask_when_mutmut_crashes_with_no_output(self, tmp_path):
         tree = write_tree(tmp_path, {"price.py": PRICE_SOURCE}, WEAK_TEST)
         tools = MutmutTools(
             run=lambda command, deadline, cwd, env: DeadlineResult(killed=False, returncode=139),
             results=lambda tree: "",
             show=lambda tree, name: "",
         )
-        with pytest.raises(ToolError):
-            measure_python_mutation(
-                str(tree), {"pkg/price.py": [(2, 3)]}, time.monotonic() + FIVE_MINUTES, tools,
-            )
+        result = measure_python_mutation(
+            str(tree), {"pkg/price.py": [(2, 3)]}, time.monotonic() + FIVE_MINUTES, tools,
+        )
+        [survivor] = result["surviving_mutants"]
+        assert (survivor["pessimistic"], survivor["status"], survivor["label"]) == (
+            True, "mutmut could not run", DEFERRED_LABEL,
+        )
+        [ask] = result["asks"]
+        assert ask["tool"] == "mutmut" and "pkg/price.py" in ask["reason"]
+
+    @pytest.mark.parametrize("failing", ["results", "show"])
+    def test_gives_a_record_and_an_ask_when_reading_the_verdicts_fails(self, tmp_path, failing):
+        tree = write_tree(tmp_path, {"mod.py": MODULE_SOURCE}, WEAK_TEST)
+
+        def fail(*args):
+            raise ToolError(f"mutmut {failing} failed: boom")
+
+        tools = MutmutTools(
+            run=lambda command, deadline, cwd, env: DeadlineResult(killed=False, returncode=0),
+            results=fail if failing == "results" else lambda tree: "    pkg.mod.x_first__mutmut_1: killed\n",
+            show=fail,
+        )
+        changed = {"pkg/mod.py": [(2, 2)], "pkg/other.py": [(1, 1)]}
+        (tree / "pkg/other.py").write_text("")
+
+        result = measure_python_mutation(str(tree), changed, time.monotonic() + FIVE_MINUTES, tools)
+
+        assert [item["file"] for item in result["surviving_mutants"]] == ["pkg/mod.py"]
+        [ask] = result["asks"]
+        assert "boom" in ask["reason"]

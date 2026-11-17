@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable, NamedTuple
 
 from quality_metrics.deadline import run_until
-from quality_metrics.deferred import DEFERRED_LABEL
+from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
 from quality_metrics.mutation import NOT_RUN_LABEL
 from quality_metrics.tools import ToolError, run_command
 
@@ -39,11 +39,6 @@ HUNK_HEADER = re.compile(r"^@@ -(\d+)")
 # A function's mutant is `x_name__mutmut_3`, a method's is
 # `xǁClassǁname__mutmut_3`.
 MUTANT_FUNCTION = re.compile(r"^x(?:_|ǁ[^ǁ]+ǁ)(.+)__mutmut_\d+$")
-
-
-class MutmutCannotRun(ToolError):
-    """mutmut exited non-zero with output, e.g. no test could be
-    collected: the file is scored pessimistically."""
 
 
 @dataclass(frozen=True)
@@ -204,8 +199,8 @@ def run_mutmut_batch(tree, path, ranges, deadline, tools=MutmutTools()):
 
     A run the deadline killed still returns what mutmut saved,
     with the undecided functions' changed ranges as not run.
-    Raises MutmutCannotRun when mutmut failed with output and a
-    ToolError when it crashed with none.
+    Raises a ToolError when mutmut failed, quoting its output
+    when it printed any.
     """
     functions = touched_functions((Path(tree) / path).read_text(), ranges)
     if not functions:
@@ -217,7 +212,7 @@ def run_mutmut_batch(tree, path, ranges, deadline, tools=MutmutTools()):
         output = (outcome.stdout + outcome.stderr).strip()
         if not output:
             raise ToolError(f"mutmut crashed with no output on {path}")
-        raise MutmutCannotRun(output)
+        raise ToolError(output)
     mutants = [
         mutant for mutant in parse_results(_results_after_run(tools, tree, outcome.killed), module)
         if mutant[0] in functions
@@ -233,22 +228,6 @@ def _not_run_records(path, ranges):
         {"file": path, "lines": f"{start}-{end}", "label": NOT_RUN_LABEL}
         for start, end in ranges
     ]
-
-
-def _cannot_run_record(path, ranges):
-    return {
-        **_survivor_record(path, ranges[0][0], None, CANNOT_RUN_STATUS),
-        "mutator": None, "pessimistic": True, "label": DEFERRED_LABEL,
-    }
-
-
-def _cannot_run_ask(paths, error):
-    first_line = str(error).splitlines()[0] if str(error) else "no output"
-    return {
-        "tool": "mutmut", "metric": "mutation",
-        "reason": f"mutmut could not run on {', '.join(paths)}: {first_line}",
-        "choices": ["fix now", "defer"],
-    }
 
 
 def measure_python_mutation(tree, changed, deadline, tools=MutmutTools()):
@@ -270,8 +249,8 @@ def measure_python_mutation(tree, changed, deadline, tools=MutmutTools()):
             break
         try:
             batch = run_mutmut_batch(tree, path, changed[path], deadline, tools)
-        except MutmutCannotRun as error:
-            survivors.append(_cannot_run_record(path, changed[path]))
+        except ToolError as error:
+            survivors.append(cannot_run_record(path, changed[path], CANNOT_RUN_STATUS))
             failed_paths.append(path)
             last_error = error
             continue
@@ -281,7 +260,7 @@ def measure_python_mutation(tree, changed, deadline, tools=MutmutTools()):
         if batch.is_deadline_hit:
             not_run.extend(_not_run_after(paths[position + 1:], changed))
             break
-    asks = [_cannot_run_ask(failed_paths, last_error)] if failed_paths else []
+    asks = [cannot_run_ask("mutmut", failed_paths, last_error)] if failed_paths else []
     summary = {"killed": killed, "survived": len(survivors), "not_run_ranges": len(not_run)}
     return {
         "surviving_mutants": survivors, "mutants_not_run": not_run,
