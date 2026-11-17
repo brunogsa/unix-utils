@@ -2,7 +2,7 @@
 
 Rules for the `code-reviewer` agent that `/quality-gate` §4.1 dispatches to fold the legs' findings into one file. Main hands over the source paths that exist, the number `k`, and the one path to write, `<RUN_DIR>/merged-findings.md`.
 
-The sources are up to five files: the `refactor` verdict, the `auto-review` verdict, the `test-sdd` verdict, the metrics judge file (`metrics-judge_<ts>.md`), and a `detector-edits.md` main wrote. The rendered metrics verdict is not a source: main puts it ahead of your file, holding entries `1` to `k`.
+The sources are up to six files: the `refactor` verdict, the `auto-review` verdict, the `test-sdd` verdict, the `scout` file (`scout-leg_<ts>.md`), the metrics judge file (`metrics-judge_<ts>.md`), and a `detector-edits.md` main wrote. The rendered metrics verdict is not a source: main puts it ahead of your file, holding entries `1` to `k`.
 
 ## Scope
 
@@ -24,11 +24,17 @@ Write the file in the layout of [`local-review-template.md`](../../code-review-p
   - `### N. [MEDIUM][refactor] <title>`
   - `### N. [MEDIUM][test-sdd] <title>`
   - `### N. [MEDIUM][metrics] <title>`
+  - `### N. [MEDIUM][scout] <title>`
   - Reason: `/address-verdicts` routes on this tag, so a heading with no tag, or two, is a defect.
 
 - A `test-sdd` finding is copied verbatim with `[test-sdd]` inserted right after its severity tag. Keep its title word for word: `get-test-sdd-dispatch-list.py` keys on it.
 
 - A metrics judge finding is copied verbatim; its heading already reads `[SEV][metrics]`.
+
+- A `scout` finding keeps its `[scout]` tag, and its `**Scout task**: #<id>` line stays in the body, at column 0 after a blank line.
+  - Reason: main reads that line to delete the task, and the tag must stay `[scout]`, never `[scout #<id>]`, since the apply scripts match tags as an exact set.
+
+- Never copy `scout-classification.md`: it is not a source, and only main reads it.
 
 - A `detector-edits.md` finding is copied verbatim, `### N. [Done][SEV][metrics] <title>`, keeping its `[Done]` mark ahead of the severity and its commit SHA.
 
@@ -47,6 +53,8 @@ A duplicate is the same defect at overlapping lines of the same file, across the
 - Tag it `auto-review` when the fix changes behavior, meaning some input behaves differently before and after, so it needs a RED test from `tdd-coder`.
 
 - Tag it `refactor` when the fix is structure-only.
+
+A `scout` finding that duplicates another leg's finding collapses into it like any duplicate, and the absorbing finding gains the `**Scout task**: #<id>` line, so main can still find the id. If it absorbs two scouts, it keeps both lines.
 
 A `test-sdd`, metrics judge or detector-edit finding never collapses into another, even at the same lines. Everything that is not a duplicate is copied verbatim, with its source lens as its tag. The checker below skips `[test-sdd]` findings, because they follow test-sdd's own schema instead of the review-comment layout.
 
