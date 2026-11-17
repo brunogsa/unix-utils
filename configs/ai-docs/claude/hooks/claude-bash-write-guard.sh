@@ -114,6 +114,7 @@ export CLAUDE_BASH_WRITE_CMD="$CMD"
 export CLAUDE_GUARDED_EXTENSIONS="${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-} ${PROSE_FORMAT_COMMENT_EXTENSIONS:-}"
 python3 - <<'PYEOF'
 import ast
+import collections
 import importlib.util
 import json
 import os
@@ -659,13 +660,19 @@ def is_recursive_copy_flag(exe, token):
     return re.fullmatch(r'-[A-Za-z]*[rRa][A-Za-z]*', token) is not None
 
 
-def copy_operands(exe, arguments):
-    """(operands, target directory or None, is recursive) of a cp, mv or install argument list."""
+CopyArguments = collections.namedtuple(
+    'CopyArguments',
+    'operands flag_argument_files target_directory is_recursive')
+
+
+def copy_arguments(exe, arguments, cwd):
+    """The CopyArguments of a cp, mv or install argument list."""
     # why: flags are skipped, not rejected - unlike `cat -n`, no
     # flag of these copiers rewrites the copied text. The
     # argument of a flag missing from COPY_OPTION_ARGUMENT_FLAGS
     # reads as a source that is no file, which blocks.
     operands = []
+    flag_argument_files = []
     target_directory = None
     is_recursive = False
     index = 0
@@ -685,17 +692,44 @@ def copy_operands(exe, arguments):
         elif token.startswith('-t'):
             target_directory = token[2:]
         elif token in COPY_OPTION_ARGUMENT_FLAGS[exe]:
+            # why: macOS cp takes -S with no argument, so a file
+            # named here is a source there.
+            if index < len(arguments) and literal_existing_file(cwd, arguments[index]):
+                flag_argument_files.append(arguments[index])
             index += 1
         elif is_recursive_copy_flag(exe, token):
             is_recursive = True
-    return operands, target_directory, is_recursive
+    return CopyArguments(operands, flag_argument_files, target_directory, is_recursive)
 
 
 def is_directory_source(cwd, source, is_recursive):
     """Whether `source` may be a directory, whose copied files no check can list."""
+    # why: a recursive copy may name a directory an earlier
+    # mkdir in the same command creates, which the guard, running
+    # first, sees as missing.
+    if is_recursive:
+        return True
     if re.search(r'[$`*?\[(]', source):
-        return is_recursive
+        return False
     return os.path.isdir(absolute_path(cwd, source))
+
+
+def destination_readings(cwd, destination, source_count):
+    """Whether the copy lands inside `destination`, once per reading the guard cannot rule out."""
+    if destination.endswith('/') or os.path.isdir(absolute_path(cwd, destination)):
+        return (True,)
+    if source_count < 2:
+        return (False,)
+    # why: 2+ sources need a directory, which an earlier mkdir in
+    # the same command can create. A misread flag argument could
+    # be the extra source, so the file reading is checked too.
+    return (True, False)
+
+
+def landed_path(destination, source, is_into_directory):
+    if is_into_directory:
+        return os.path.join(destination, os.path.basename(source.rstrip('/')))
+    return destination
 
 
 def copy_destinations(exe, tokens, cwd):
@@ -705,31 +739,29 @@ def copy_destinations(exe, tokens, cwd):
     executable_index = next(index for index, token in enumerate(tokens)
                             if os.path.basename(token) == exe)
     arguments = without_redirects(tokens[executable_index + 1:])
-    sources, target_directory, is_recursive = copy_operands(exe, arguments)
-    if target_directory is None:
-        if len(sources) < 2:
+    parsed = copy_arguments(exe, arguments, cwd)
+    operands = list(parsed.operands)
+    if parsed.target_directory is None:
+        if not operands:
             return []
-        destination = sources.pop()
-        # why: 2+ sources alone never mark a directory - a misread
-        # flag argument would turn README.md into README.md/<src>.
-        is_into_directory = (destination.endswith('/')
-                             or os.path.isdir(absolute_path(cwd, destination)))
+        destination = operands.pop()
+        sources = operands + parsed.flag_argument_files
+        readings = destination_readings(cwd, destination, len(sources))
     else:
-        destination = target_directory
-        is_into_directory = True
+        destination = parsed.target_directory
+        sources = operands + parsed.flag_argument_files
+        readings = (True,)
     is_trusted_copier = is_system_executable(tokens[0], exe)
     writes = []
     for source in sources:
-        if is_directory_source(cwd, source, is_recursive):
+        if is_directory_source(cwd, source, parsed.is_recursive):
             # why: the destination itself, since a source named by
             # a variable leaves DIR/<source basename> unreadable.
             writes.append((destination, None, True))
             continue
-        target = destination
-        if is_into_directory:
-            target = os.path.join(destination, os.path.basename(source.rstrip('/')))
         source_path = literal_existing_file(cwd, source) if is_trusted_copier else None
-        writes.append((target, source_path, False))
+        writes.extend((landed_path(destination, source, is_into_directory), source_path, False)
+                      for is_into_directory in readings)
     return writes
 
 

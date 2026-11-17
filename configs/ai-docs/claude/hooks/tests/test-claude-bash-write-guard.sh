@@ -420,6 +420,36 @@ it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_dire
   assert_eq "should block cp -a copying a source named by a shell variable into a repo directory, since it may be a directory" "2" "$HOOK_EXIT"
 }
 
+# why: the guard runs before the command, so a directory an
+# earlier mkdir in the same command creates reads as missing.
+it_should_block_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates() {
+  run_hook "mkdir docs/new && cp $scratch_dir/batch.md $scratch_dir/draft docs/new"
+  assert_eq "should block cp copying two /tmp scratch files, one breaking the markdown format rules, into a repo directory an earlier mkdir in the same command creates" "2" "$HOOK_EXIT"
+}
+
+it_should_block_install_whose_unknown_flag_argument_could_be_a_second_source_over_a_tracked_markdown_file() {
+  run_hook "install -B .bak $scratch_dir/draft README.md"
+  assert_eq "should block install -B .bak copying an extensionless /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file, though .bak reads as a second source" "2" "$HOOK_EXIT"
+}
+
+# why: macOS cp reads -S as a flag with no argument, so the
+# next token is a source there, while GNU cp takes it as -S's
+# backup suffix.
+it_should_block_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file() {
+  run_hook "cp -S $scratch_dir/batch.md docs/README.md"
+  assert_eq "should block cp -S copying a /tmp scratch file whose prose breaks the markdown format rules over a repo markdown file, as macOS cp does" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_cp_with_a_gnu_backup_suffix_copying_a_file_that_passes_the_format_rules_into_a_repo_directory() {
+  run_hook "cp -S .bak $outside_dir/batch.md docs/"
+  assert_eq "should allow cp -S .bak copying a file whose prose passes the markdown format rules into a repo directory, when no file is named .bak" "0" "$HOOK_EXIT"
+}
+
+it_should_block_cp_recursively_copying_a_scratch_directory_the_same_command_creates_into_a_repo_directory() {
+  run_hook "mkdir $scratch_dir/fresh && cp -r $scratch_dir/fresh docs/"
+  assert_eq "should block cp -r copying a /tmp scratch directory an earlier mkdir in the same command creates into a repo directory" "2" "$HOOK_EXIT"
+}
+
 it_should_allow_install_with_a_mode_copying_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file() {
   run_hook "install -m 644 $outside_dir/batch.md README.md"
   assert_eq "should allow install -m 644 copying a file whose prose passes the markdown format rules over a tracked markdown file" "0" "$HOOK_EXIT"
@@ -709,6 +739,11 @@ it_should_allow_install_with_a_mode_copying_a_file_that_passes_the_format_rules_
 it_should_block_cp_recursively_copying_a_scratch_directory_into_a_repo_directory
 it_should_block_mv_moving_a_scratch_directory_into_the_repo
 it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_directory
+it_should_block_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates
+it_should_block_install_whose_unknown_flag_argument_could_be_a_second_source_over_a_tracked_markdown_file
+it_should_block_cp_recursively_copying_a_scratch_directory_the_same_command_creates_into_a_repo_directory
+it_should_block_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file
+it_should_allow_cp_with_a_gnu_backup_suffix_copying_a_file_that_passes_the_format_rules_into_a_repo_directory
 it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
 it_should_allow_install_copying_a_file_that_passes_the_format_rules_into_the_repo
 it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_tmp
