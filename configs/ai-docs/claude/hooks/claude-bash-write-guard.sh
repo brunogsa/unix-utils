@@ -27,8 +27,15 @@
 #
 # A false block costs every later session a legitimate command
 # and gets the guard switched off, while a false allow costs
-# only a format violation that the test suite surfaces later -
-# the PostToolUse checker never runs on a Bash call.
+# only a format violation that the test suite surfaces later.
+#
+# This guard is the before-check: it reads the command text and
+# the disk as they are before the command runs.
+#
+# claude-bash-prose-aftercheck.sh, a PostToolUse Bash hook, is
+# the after-check on the work-tree files the command changed.
+# It catches what this guard cannot see from the text, such as
+# an earlier segment of the same command changing the disk.
 #
 # Allowed by design: any path under /tmp or /private/tmp, any
 # path outside a git work tree, any git-ignored path, any
@@ -64,6 +71,13 @@
 # gets the same check: each literal source must pass the
 # checker of the file it lands as. A directory destination or
 # `-t DIR` lands it as DIR/<source basename>.
+#
+# With 2 or more sources, the last word is the destination
+# directory, which an earlier `mkdir` in the same command may
+# create.
+#
+# macOS `cp -S` takes no argument, so the word after it is read
+# as a source; GNU `-S <suffix>` makes that word a suffix.
 #
 # A directory source, or `cp -r`, `-R` or `-a`, blocks whenever
 # it lands in a git work tree: its files cannot be checked one
@@ -349,12 +363,17 @@ def git_succeeds(args, cwd):
 
 def absolute_path(cwd, target):
     """The absolute path a write target names, with a leading `~` or `~/` expanded against $HOME."""
-    # why: bash expands an unquoted leading `~` before the command
-    # runs, but this guard parses the text before that expansion.
-    # A quoted "~/x" is NOT expanded by bash and means a relative
-    # path named `~`; the parser cannot tell the two apart, and
-    # expanding both is right because a repo file literally named
-    # `~` is vanishingly rare while the false block is common.
+    # why: bash expands an unquoted leading `~` before the
+    # command runs, but this guard parses the text before that
+    # expansion.
+    #
+    # A quoted "~/x" is NOT expanded by bash and means a
+    # relative path named `~`; the parser cannot tell the two
+    # apart.
+    #
+    # Expanding both is right because a repo file literally
+    # named `~` is vanishingly rare while the false block is
+    # common.
     # `~user/...` is left alone: bash reads it from the password
     # database, so guessing wrong would be a false allow, and
     # leaving it cwd-relative keeps it on the conservative side.
@@ -482,8 +501,9 @@ def sed_scripts(arguments):
                 return None
             continue
         if token.startswith('-') and token != '-':
-            # why: `-n` makes the rewrite keep only printed lines,
-            # and `-e`/`-f` fused into a cluster hide the script.
+            # why: `-n` makes the rewrite keep only printed
+            # lines, and `-e`/`-f` fused into a cluster hide the
+            # script.
             switches_before_suffix = token[1:].split('i', 1)[0]
             if set(switches_before_suffix) & set('nef'):
                 return None
@@ -601,8 +621,8 @@ def is_plain_replace_all(exe, arguments):
 def script_shape_block_reason(cwd, target):
     """The path when an in-place edit of `target` must go through Edit for its script shape, else None."""
     # why: unlike block_reason, every extension and git-ignored
-    # files count, since the risk is a script rewriting the wrong
-    # lines, not a skipped format checker.
+    # files count, since the risk is a script rewriting the
+    # wrong lines, not a skipped format checker.
     path = absolute_path(cwd, target)
     if is_under_scratch(path):
         return None
@@ -616,8 +636,8 @@ def script_shape_block_reason(cwd, target):
 
 def copied_source_paths(exe, tokens, cwd, is_piped_into):
     """The absolute source paths when the segment is a bare system `cat` of literal, existing files, else None."""
-    # why: such a copy carries no text typed into the command, so
-    # checking its sources is enough to check what it writes.
+    # why: such a copy carries no text typed into the command,
+    # so checking its sources is enough to check what it writes.
     #
     # A pipe, a heredoc or here-string (`<<`), stdin (`-`), a
     # flag that rewrites the text (`-n`) or a source the guard
@@ -705,8 +725,8 @@ def copy_arguments(exe, arguments, cwd):
 def is_directory_source(cwd, source, is_recursive):
     """Whether `source` may be a directory, whose copied files no check can list."""
     # why: a recursive copy may name a directory an earlier
-    # mkdir in the same command creates, which the guard, running
-    # first, sees as missing.
+    # mkdir in the same command creates, which the guard,
+    # running first, sees as missing.
     if is_recursive:
         return True
     if re.search(r'[$`*?\[(]', source):
@@ -720,9 +740,10 @@ def destination_readings(cwd, destination, source_count):
         return (True,)
     if source_count < 2:
         return (False,)
-    # why: 2+ sources need a directory, which an earlier mkdir in
-    # the same command can create. A misread flag argument could
-    # be the extra source, so the file reading is checked too.
+    # why: 2+ sources need a directory, which an earlier mkdir
+    # in the same command can create. A misread flag argument
+    # could be the extra source, so the file reading is checked
+    # too.
     return (True, False)
 
 
@@ -755,8 +776,9 @@ def copy_destinations(exe, tokens, cwd):
     writes = []
     for source in sources:
         if is_directory_source(cwd, source, parsed.is_recursive):
-            # why: the destination itself, since a source named by
-            # a variable leaves DIR/<source basename> unreadable.
+            # why: the destination itself, since a source named
+            # by a variable leaves DIR/<source basename>
+            # unreadable.
             writes.append((destination, None, True))
             continue
         source_path = literal_existing_file(cwd, source) if is_trusted_copier else None
