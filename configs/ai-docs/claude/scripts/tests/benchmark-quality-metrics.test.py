@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from quality_metrics_support import load_script
 
 declaring = importlib.import_module("quality_metrics.declaration")
+DUPLICATION_METRICS = importlib.import_module("quality_metrics.duplication").DUPLICATION_METRICS
 
 SCRIPT = SCRIPTS_DIR / "benchmark-quality-metrics.py"
 
@@ -157,6 +158,14 @@ class TestPerUnitSelection:
         limit = benchmark.PER_UNIT_LIMIT_SECONDS
 
         selected = benchmark.select_per_unit({"size": 0.3, "crap": limit + 0.1})
+
+        assert selected == ["size"]
+
+    def test_should_never_place_a_duplication_check_per_unit_even_when_it_times_fast(self):
+        fast = 0.1
+        timings = {"size": fast, **{metric: fast for metric in DUPLICATION_METRICS}}
+
+        selected = benchmark.select_per_unit(timings)
 
         assert selected == ["size"]
 

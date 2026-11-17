@@ -53,6 +53,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 
 from quality_metrics import declaration as declaring
 from quality_metrics.atomic_write import write_text_atomically
+from quality_metrics.duplication import DUPLICATION_METRICS
 from quality_metrics.measuring import METRIC_MODULES
 
 REPO_ROOT = SCRIPTS_DIR.parents[3]
@@ -97,11 +98,14 @@ PER_UNIT_LINE = re.compile(r"^per_unit:.*$", re.MULTILINE)
 
 def select_per_unit(timings):
     """Metrics timed at the limit or faster, in declaration
-    order."""
+    order. Duplication metrics are never selected: a judge
+    rules on them at the quality gate, not the coder."""
     return [
         metric
         for metric in declaring.METRIC_NAMES
-        if metric in timings and timings[metric] <= PER_UNIT_LIMIT_SECONDS
+        if metric in timings
+        and timings[metric] <= PER_UNIT_LIMIT_SECONDS
+        and metric not in DUPLICATION_METRICS
     ]
 
 
