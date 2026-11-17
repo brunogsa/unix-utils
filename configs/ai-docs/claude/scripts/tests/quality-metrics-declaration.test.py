@@ -207,17 +207,22 @@ class TestTestFileMetrics:
 
         assert for_source == set(loaded.languages[language].metrics)
 
-    def test_should_declare_the_same_metrics_for_javascript_typescript_python_and_go_in_the_shipped_file(
+    def test_should_share_the_same_metrics_across_the_four_languages_once_tool_dependent_ones_are_set_aside(
         self,
     ):
+        # These depend on a per-language tool.
+        tool_dependent = {"unused_code", "type_errors", "mutation"}
         loaded = declaration.load_declaration(SHIPPED_DECLARATION)
 
-        metric_sets = {loaded.languages[name].metrics for name in FOUR_FULL_LANGUAGES}
+        metric_sets = {
+            frozenset(set(loaded.languages[name].metrics) - tool_dependent)
+            for name in FOUR_FULL_LANGUAGES
+        }
 
         assert len(metric_sets) == 1
 
     @pytest.mark.parametrize("language", FOUR_FULL_LANGUAGES)
-    def test_should_give_the_shipped_test_files_of_each_full_language_all_but_crap_and_coverage(
+    def test_should_drop_the_source_only_metrics_from_the_shipped_test_files_of_each_full_language(
         self, language
     ):
         loaded = declaration.load_declaration(SHIPPED_DECLARATION)
@@ -228,7 +233,7 @@ class TestTestFileMetrics:
         for_test = set(declaration.metrics_for_file(loaded, f"tests/test_sum{extension}"))
 
         assert for_source == declared
-        assert for_test == declared - CRAP_AND_COVERAGE
+        assert for_test == declared - set(declaration.SOURCE_ONLY_METRICS)
 
 
 INSTALL_SH = SCRIPTS_DIR.parent.parent.parent.parent / "install.sh"
