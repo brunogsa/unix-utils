@@ -31,7 +31,6 @@ PARSE_FENCES_PATH = SCRIPTS_DIR / "parse-fences.py"
 ENTRY_START = re.compile(r"^### (?P<number>\d+)\. (?P<heading>.*)$")
 BRACKET_TAG = re.compile(r"\[([^\]]*)\]")
 
-RENDERED_SECTION = re.compile(r"^## (?:Open violations|Gate input violations)\b")
 FINDINGS_SECTION = re.compile(r"^## Findings\s*$")
 
 JUDGED_FINDING_TAGS = {"metrics", "refactor", "auto-review", "scout"}
@@ -83,37 +82,33 @@ def iter_lines_outside_fences(verdict_text):
             yield line
 
 
-def is_in_scope(tags, is_rendered_section, is_findings_section):
+def is_in_scope(tags, is_findings_section):
     if tags & EXCLUDED_TAGS:
         return False
-    if is_rendered_section:
-        return True
     return is_findings_section and bool(tags & JUDGED_FINDING_TAGS)
 
 
 def list_in_scope_entries(verdict_text):
-    """In-scope entries in file order, each with its number,
-    whether it sits in a rendered metrics section, and its
-    unfenced body lines."""
+    """In-scope entries in file order, each with its number and
+    its unfenced body lines.
+
+    Only judge findings under `## Findings` enter: a raw metrics
+    record reaches the fix step through the finding that cites
+    it, never on its own.
+    """
     entries = []
     current_entry = None
-    is_rendered_section = False
     is_findings_section = False
     for line in iter_lines_outside_fences(verdict_text):
         entry_start = ENTRY_START.match(line)
         if entry_start or line.startswith("## "):
             current_entry = None
             if not entry_start:
-                is_rendered_section = bool(RENDERED_SECTION.match(line))
                 is_findings_section = bool(FINDINGS_SECTION.match(line))
                 continue
             tags = set(BRACKET_TAG.findall(entry_start["heading"]))
-            if is_in_scope(tags, is_rendered_section, is_findings_section):
-                current_entry = {
-                    "number": entry_start["number"],
-                    "is_rendered": is_rendered_section,
-                    "lines": [],
-                }
+            if is_in_scope(tags, is_findings_section):
+                current_entry = {"number": entry_start["number"], "lines": []}
                 entries.append(current_entry)
         elif current_entry:
             current_entry["lines"].append(line)
@@ -135,8 +130,6 @@ def list_ruling_problems(entry, checks):
         problems.append("more than one **Standards check** line")
     for index in ruling_indexes:
         problems.extend(_list_single_ruling_problems(entry, index, checks))
-    if entry["is_rendered"]:
-        problems.extend(_list_rendered_entry_length_problems(entry, checks))
     return problems
 
 
@@ -156,21 +149,6 @@ def _list_single_ruling_problems(entry, index, checks):
     if checks.INTERNAL_RULE_SOURCE.search(skip["rule"]):
         problems.append("Skip cites a rule source by name; quote the rule")
     return problems
-
-
-def _list_rendered_entry_length_problems(entry, checks):
-    ruling_lines = [
-        line
-        for line in entry["lines"]
-        if line.startswith(RULING_PREFIX) or SKIPPED_ANNOTATION.match(line)
-    ]
-    ruling_length = len("\n".join(ruling_lines))
-    if ruling_length > checks.CHAR_CAP:
-        return [
-            f"ruling is {ruling_length} chars, "
-            f"over the {checks.CHAR_CAP}-char cap"
-        ]
-    return []
 
 
 def main():

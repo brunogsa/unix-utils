@@ -23,43 +23,55 @@ SKIP_RULING = (
 
 MERGED_VERDICT_BODY = f"""# quality-gate verdict
 
+## Deferred metrics (1)
+
+### 1. [metrics] Mutation score deferred for billing/parse.py
+
 ## Open violations (2)
 
-### 1. Cyclomatic complexity of `parse_invoice` in billing/parse.py - 14, limit 10
-
-### 2. Cyclomatic complexity of `load_rows` in billing/load.py - 12, limit 10
-
-{SKIP_RULING}
-## Gate input violations (1)
-
-### 3. Missing coverage input in billing/parse.py - 0 lines measured
+- `parse_invoice` in billing/parse.py:12 - cyclomatic complexity 14 (limit 10)
+  **Record**: `cyclomatic billing/parse.py:12 parse_invoice`
+- `load_rows` in billing/load.py:40 - cyclomatic complexity 12 (limit 10)
+  **Record**: `cyclomatic billing/load.py:40 load_rows`
 
 ## Duplication candidates (1)
 
-### 4. billing/parse.py:10-30 repeats billing/load.py:5-25
+- billing/parse.py:10 - test duplication 1.00 (limit 0.82)
+  **Record**: `test_duplication billing/parse.py:10 ~ billing/load.py:5`
 
 ## Findings
 
-### 5. [HIGH][metrics] CRAP score over the limit in billing/parse.py
+### 2. [HIGH][metrics] Split `parse_invoice` by input format
 
-### 6. [MEDIUM][refactor] Split the long function in billing/load.py
+**Record**: `cyclomatic billing/parse.py:12 parse_invoice`
 
-### 7. [LOW][auto-review] Null dereference in the invoice parser
+### 3. [MEDIUM][metrics] Extract the shared row fixture
 
-### 8. [LOW][test-sdd] Missing planned test - task 2: "sums a column"
-
-### 9. [LOW] Untagged finding about a missing planned test
-
-### 10. [Done][HIGH][refactor] Already applied extraction
-
-### 11. [QUESTION][MEDIUM][auto-review] Is the rounding intended?
-
-### 12. [HIGH][auto-review] Wrong tax base in the invoice total
+**Record**: `test_duplication billing/parse.py:10 ~ billing/load.py:5`
 
 {SKIP_RULING}
+### 4. [MEDIUM][refactor] Split the long function in billing/load.py
+
+### 5. [LOW][auto-review] Null dereference in the invoice parser
+
+### 6. [LOW][test-sdd] Missing planned test - task 2: "sums a column"
+
+### 7. [LOW] Untagged finding about a missing planned test
+
+### 8. [Done][HIGH][refactor] Already applied extraction
+
+### 9. [QUESTION][MEDIUM][auto-review] Is the rounding intended?
+
+### 10. [HIGH][auto-review] Wrong tax base in the invoice total
+
+{SKIP_RULING}
+## Dismissed records
+
+- `cyclomatic billing/load.py:40 load_rows`: "Split a function past the limit" fits a table-driven loader badly; considered fix: one branch per column
+
 ## Fix review (1)
 
-### 13. [HIGH][refactor] Extraction still pending review
+### 11. [HIGH][refactor] Extraction still pending review
 """
 
 
@@ -86,7 +98,25 @@ class TestEntriesTheFixStepApplies:
         completed = _run(verdict)
 
         assert completed.returncode == 0, completed.stderr
-        assert completed.stdout.splitlines() == ["1", "3", "5", "6", "7"]
+        assert completed.stdout.splitlines() == ["2", "4", "5"]
+
+    def test_should_never_list_a_numbered_entry_under_a_raw_metrics_record_section_since_only_judge_findings_enter(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            "## Open violations (1)\n\n"
+            "### 1. Cyclomatic complexity of `parse_invoice` in billing/parse.py - 14, limit 10\n\n"
+            "## Gate input violations (1)\n\n"
+            "### 2. Missing coverage input in billing/parse.py - 0 lines measured\n\n"
+            "## Findings\n\n"
+            "### 3. [HIGH][metrics] Split `parse_invoice` by input format\n",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == ["3"]
 
     def test_should_print_nothing_when_no_entry_is_in_scope(self, tmp_path):
         verdict = _write(
@@ -233,29 +263,6 @@ class TestJudgeRulingCheck:
         assert completed.returncode == 1
         assert completed.stdout.startswith("4: ")
         assert "quote" in completed.stdout
-
-    def test_should_flag_a_ruling_over_the_char_cap_on_an_open_violations_entry(
-        self, tmp_path
-    ):
-        long_ruling = (
-            '**Standards check**: Skip - "Split a function past the limit"; '
-            "considered fix: " + "extract the date parsing " * 30 + "\n"
-            "SKIPPED (judge ruled Skip)\n"
-        )
-        verdict = _write(
-            tmp_path,
-            _finding(
-                long_ruling,
-                section="## Open violations (1)",
-                heading="### 4. Cyclomatic complexity of `parse_invoice` - 14",
-            ),
-        )
-
-        completed = _run(verdict, "--check")
-
-        assert completed.returncode == 1
-        assert completed.stdout.startswith("4: ")
-        assert "chars" in completed.stdout
 
     def test_should_accept_a_fix_a_no_ruling_entry_and_a_well_formed_skip(
         self, tmp_path
