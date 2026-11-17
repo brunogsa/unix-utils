@@ -13,6 +13,7 @@ out and is scored at full coverage; a coverage tool that failed
 or has not run reads 0%, never a pass.
 """
 
+from quality_metrics.coverage import uncovered_ranges
 from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import measurement
 
@@ -55,26 +56,36 @@ def crap_measurements(declaration, target, functions, line_hits):
     is_opted_out = is_coverage_opted_out(declaration, target.language)
     records = []
     for function in functions:
+        uncovered_lines = None
         if is_opted_out:
             coverage = FULL_COVERAGE
         else:
             coverage = function_coverage(function, line_hits)
+            if line_hits:
+                uncovered_lines = uncovered_ranges(_own_hits(function, line_hits))
         score = crap_score(function.complexity, coverage)
-        records.append(crap_record(target, function, score))
+        records.append(crap_record(target, function, score, uncovered_lines))
     return records
 
 
-def crap_record(target, function, score):
-    return measurement(target, "crap", score, CRAP_LIMIT, function)
+def crap_record(target, function, score, uncovered_lines=None):
+    """`uncovered_lines` is None when no line data was read:
+    null means not measured, [] means every line ran."""
+    record = measurement(target, "crap", score, CRAP_LIMIT, function)
+    return {**record, "uncovered_lines": uncovered_lines}
+
+
+def _own_hits(function, line_hits):
+    return {
+        line: hits for line, hits in line_hits.items()
+        if function.start <= line <= function.end
+    }
 
 
 def function_coverage(function, line_hits):
     """Share of the function's coverable lines that ran; 0 with
     none."""
-    coverable = [
-        hits for line, hits in line_hits.items()
-        if function.start <= line <= function.end
-    ]
+    coverable = list(_own_hits(function, line_hits).values())
     if not coverable:
         return NO_COVERAGE
     return sum(1 for hits in coverable if hits > 0) / len(coverable)

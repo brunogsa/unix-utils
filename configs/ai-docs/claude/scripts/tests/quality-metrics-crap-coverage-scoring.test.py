@@ -171,6 +171,38 @@ class TestUncoveredChangedLines:
         assert record["uncovered_lines"] is None
 
 
+class TestUncoveredFunctionLines:
+    def test_should_list_only_the_functions_own_lines_that_never_ran(self, tmp_path):
+        declaration = load_declaration(tmp_path)
+        measured = [
+            function_measure("apply_discount", 1, 10, 6),
+            function_measure("round_to_cents", 12, 21, 4),
+        ]
+        lcov_text = lcov_report(SOURCE_FILE, {
+            1: 1, 2: 0, 3: 0, 4: 1, 5: 0,
+            12: 5, 13: 5,
+        })
+
+        records = measure_crap(declaration, "python", SOURCE_FILE, measured, lcov_text)
+
+        uncovered = {record["function"]: record["uncovered_lines"] for record in records}
+        assert uncovered == {"apply_discount": ["2-3", "5"], "round_to_cents": []}
+
+    def test_should_report_null_when_the_coverage_tool_gave_no_line_data(self, tmp_path):
+        declaration = load_declaration(tmp_path)
+        measured = [function_measure("apply_discount", 1, 10, 6)]
+        no_coverage_data = ""
+
+        tool_failed = measure_crap(
+            declaration, "python", SOURCE_FILE, measured, no_coverage_data
+        )
+        opted_out = measure_crap(
+            declaration, "bash", "bin/deploy.sh", measured, no_coverage_data
+        )
+
+        assert [record["uncovered_lines"] for record in tool_failed + opted_out] == [None, None]
+
+
 class TestUnroundedCompareTruncatedDisplay:
     def test_should_pass_crap_7_996_shown_as_7_99_and_fail_coverage_89_996_percent_shown_as_89_99_percent(self):
         target = python_target(None)
