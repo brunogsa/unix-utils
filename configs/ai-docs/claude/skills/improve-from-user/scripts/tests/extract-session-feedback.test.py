@@ -21,6 +21,16 @@ SCRIPT = Path(__file__).parent.parent / "extract-session-feedback.py"
 
 DAY = 86400
 
+# What Claude Code injects as a type "user" record when a
+# background subagent or command finishes - harness text, not
+# the user's words. The leading newline checks that the filter
+# still matches after whitespace.
+BACKGROUND_TASK_NOTIFICATION = (
+    "\n<task-notification>\n<task-id>b7f3c2a1</task-id>\n<status>completed</status>\n"
+    '<summary>Background command "Run the test suite" completed (exit code 0)</summary>\n'
+    "</task-notification>"
+)
+
 
 def _load_script_module():
     spec = importlib.util.spec_from_file_location("extract_session_feedback", SCRIPT)
@@ -253,6 +263,35 @@ class TestCornerCases:
         count = _load_script_module().count_real_user_turns(str(fixture))
 
         assert count == 1
+
+    def test_should_skip_a_transcript_whose_only_second_user_turn_is_a_background_task_notification(self, tmp_path):
+        _write_transcript(
+            tmp_path / "one_real_turn_plus_notification.jsonl",
+            _two_turn_lines("the only real user correction in this session", BACKGROUND_TASK_NOTIFICATION),
+            seconds_ago=DAY,
+        )
+
+        result = _run_script(["--since", "7", "--project-dirs", str(tmp_path)])
+
+        assert "one_real_turn_plus_notification.jsonl" not in result.stdout
+
+    def test_should_leave_background_task_notifications_out_of_the_survey_turn_count(self, tmp_path):
+        lines = _two_turn_lines("first real user correction about retries", "second real user correction about retries")
+        lines.append(_user_line(BACKGROUND_TASK_NOTIFICATION, timestamp="2026-01-01T00:02:00"))
+        _write_transcript(tmp_path / "with_notification.jsonl", lines, seconds_ago=DAY)
+
+        result = _run_script(["--since", "7", "--project-dirs", str(tmp_path)])
+
+        assert "1 files · 2 real user turns" in result.stdout
+
+    def test_should_leave_background_task_notifications_out_of_the_emitted_user_turns(self, tmp_path):
+        lines = _two_turn_lines("first real user correction about retries", "second real user correction about retries")
+        lines.append(_user_line(BACKGROUND_TASK_NOTIFICATION, timestamp="2026-01-01T00:02:00"))
+        _write_transcript(tmp_path / "with_notification.jsonl", lines, seconds_ago=DAY)
+
+        result = _run_script(["--since", "7", "--project-dirs", str(tmp_path)])
+
+        assert "task-notification" not in result.stdout
 
 
 class TestFailureScenarios:

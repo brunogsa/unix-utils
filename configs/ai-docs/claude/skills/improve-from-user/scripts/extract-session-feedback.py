@@ -67,7 +67,9 @@ def die(msg, code=2) -> NoReturn:
 
 def is_real_user_prose(d):
     """A genuine user prose turn - not a tool result, meta,
-    slash command, or summary."""
+    slash command, summary, or background-task notification
+    (the harness's message when a background subagent or
+    command finishes)."""
     if d.get("type") != "user" or d.get("isMeta") or d.get("isCompactSummary"):
         return False
     content = d.get("message", {}).get("content")
@@ -77,7 +79,7 @@ def is_real_user_prose(d):
     stripped = content.strip()
     if not stripped:
         return False
-    for prefix in ("<command-", "<local-command-", "<system-reminder"):
+    for prefix in ("<command-", "<local-command-", "<system-reminder", "<task-notification>"):
         if stripped.startswith(prefix):
             return False
     return True
