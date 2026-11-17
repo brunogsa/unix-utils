@@ -200,6 +200,11 @@ ANSI_C_QUOTE_START = "$'"
 # $$ is the shell's process id, so a ' after it opens a plain
 # single quote, not a $'...' string.
 PROCESS_ID_EXPANSION = "$$"
+
+# A ) inside ${...}, a here-document or a case pattern does not
+# close $( ), but the paren count reads it as the close, so a
+# body holding one is never screened as split.
+UNCOUNTED_PAREN_CONSTRUCT = re.compile(r"\$\{|<<|(?<![\w-])case(?![\w-])")
 WORD_START_PRECEDERS = " \t" + "();<>|&\n"
 
 # An interpreter runs its first operand as a script; . and
@@ -532,7 +537,7 @@ def read_command_substitution_body(text: str, index: int, bodies: list[str]) -> 
     # The body's own substitutions are found when it is split
     # in turn, so this scan keeps none of them.
     end = scan_shell_text(text, index, [], closes_paren=True)
-    if end is None:
+    if end is None or UNCOUNTED_PAREN_CONSTRUCT.search(text, index, end):
         return None
     bodies.append(text[index:end])
     return end + 1
