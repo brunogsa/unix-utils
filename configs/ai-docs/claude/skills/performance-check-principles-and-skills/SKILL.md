@@ -133,7 +133,6 @@ bash scripts/check.sh <path>    # repo mode
 
 The script measures with `grep`, `awk`, `wc`, `find`, and `readlink`.
 
-- Prints a markdown report to stdout: the status table, then follow-up sections listing offending lines in CLAUDE.md and over-budget skills.
 - Both modes also audit `agents/*.md` against the canonical `~/.claude/agents` dir (resolved via `readlink -f`), hard-failing if unresolvable.
 - Exit code is 0 when all budgets are met, 1 otherwise - handy for CI.
 
@@ -152,7 +151,7 @@ Budget violations are signals, not commands.
 
 ### Offer to run the audit on an opus subagent
 
-The audit stays report-only, and so does the subagent. Reading every offending file and judging what may go is the expensive part; main applies the edits the user picks.
+The audit stays report-only, and so does the subagent.
 
 When the report shows overages, end it with an offer: delegate the **candidate hunt**.
 
@@ -172,11 +171,15 @@ Main applies each pick under the user's eye - nothing lands unreviewed.
 
 A merge, demotion, or removal proposal spells out the full `[Instruction]`, its `[Why]`, and any `[Example]` children on both sides, plus the exact replacement text - never a bare pointer like "merge this under :202", already rejected as unreadable.
 
-### Surface width, not a shortlist
+### Surface width, grouped least lossy first
 
-Return 8-12 ranked candidates, never a pre-filtered top-3 - a short list where every candidate looked important was cut too early and had to be re-run wider.
+Return 8-12 candidates, never a pre-filtered top-3 - a short list where every candidate looked important was cut too early and had to be re-run wider.
 
-Keep every entry, ranked but unfiltered, each carrying its verbatim text, what real coverage is lost if it goes, and a confidence.
+Group them merges first, then conflicts - two rules that disagree, and which one should win - then removals, each group ranked by recommendation.
+
+Give each entry why you suggest it, and what the user misses if they apply it - not a do-vs-skip trade-off.
+
+Main prints the menu in chat first; the pick question comes after it, carrying the recommendation plus a free-text option.
 
 ### Trim hierarchy (preference order)
 

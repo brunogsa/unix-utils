@@ -81,10 +81,9 @@ Persist the menu to `verdict_performance-check.md` in the repo path. The
 other basename at the tool layer, and the harness swallows a `report_`- or
 `findings_`-stemmed write before that hook ever runs.
 
-Per offending file: its measured count against budget, then the ranked
-candidates in the skill's width and quoting terms - each labelled DELETE,
-DEMOTE or MERGE, carrying the verified count it lands, and what real
-coverage is lost if it goes. Close with every stuck file and its reason.
+Per offending file, give its measured count against budget, then the candidates in the skill's width, grouping and quoting terms. Each carries the verified count it lands, why you suggest it, and what the user misses if they apply it.
+
+Close with every stuck file and its reason.
 
 Return a digest only: the file, its overage, how many candidates you found,
 your top three in one line each, the stuck files, and the verdict path.
