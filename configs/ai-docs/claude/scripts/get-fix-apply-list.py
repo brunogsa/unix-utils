@@ -34,7 +34,7 @@ BRACKET_TAG = re.compile(r"\[([^\]]*)\]")
 RENDERED_SECTION = re.compile(r"^## (?:Open violations|Gate input violations)\b")
 FINDINGS_SECTION = re.compile(r"^## Findings\s*$")
 
-JUDGED_FINDING_TAGS = {"metrics", "refactor", "auto-review"}
+JUDGED_FINDING_TAGS = {"metrics", "refactor", "auto-review", "scout"}
 EXCLUDED_TAGS = {"Done", "QUESTION"}
 
 SKIPPED_ANNOTATION = re.compile(r"^SKIPPED \(")

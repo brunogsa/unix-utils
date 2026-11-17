@@ -99,6 +99,25 @@ class TestEntriesTheFixStepApplies:
         assert completed.returncode == 0, completed.stderr
         assert completed.stdout == ""
 
+    def test_should_list_a_scout_finding_ruled_fix_while_leaving_off_a_scout_finding_the_judge_skipped_or_the_human_marked_done(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            "## Findings\n\n"
+            "### 1. [MEDIUM][scout] Stale retry comment in the invoice parser\n\n"
+            f"**Scout task**: #43\n\n{FIX_RULING}\n"
+            "### 2. [LOW][scout] Dead config key in billing/settings.py\n\n"
+            f"**Scout task**: #44\n\n{SKIP_RULING}\n"
+            "### 3. [Done][LOW][scout] Unused mock in the parser spec\n\n"
+            f"**Scout task**: #45\n\n{FIX_RULING}",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == ["1"]
+
     def test_should_exit_1_naming_the_file_when_the_verdict_is_unreadable(
         self, tmp_path
     ):
