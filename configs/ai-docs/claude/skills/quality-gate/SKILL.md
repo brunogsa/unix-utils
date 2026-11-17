@@ -30,7 +30,8 @@ Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it
 
 - `spec` / `plan` - paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
 
-- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg; omitted, the ids `get-plan-tasks-for-branch.py` derives from the plan's PR entry for the current branch, else every task when no entry names it.
+- `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg.
+  - Omitted, it takes the ids `get-plan-tasks-for-branch.py` derives from the plan's PR entry for the current branch, else every task when no entry names it.
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
