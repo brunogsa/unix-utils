@@ -75,15 +75,17 @@ def quality_gate(arg):
     #      between them. Each leg IS the fresh-context reviewer, so none of
     #      them spawns a nested one. ----
     run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 8i · minted before any dispatch; step 4.1 reuses it
-    # 8j · metrics-tool-inspector (read-only Explore) is dispatched by MAIN,
+    # 8j · metrics-review skill, run by MAIN: it dispatches the read-only
+    #      metrics-tool-inspector (Explore),
     #      only when the per-session tool map has no entry for this repo.
     legs = dispatch_parallel(background=True, legs=[
         ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 8a · leg dispatch
         ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 8b · leg dispatch
         # 8c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
-        # 8m · metrics-lens.md, with run_dir, BASE_REF and HEAD; runs the script with --mutation; runs plan-less too.
-        ("code-reviewer", "metrics",     "metrics-lens.md",      f"{run_dir}/verdict_metrics_{ts}.md + metrics-judge_{ts}.md"),
+        # 8m · the metrics-review skill dispatches the lens agent (metrics-lens.md) with run_dir, BASE_REF and HEAD;
+        #      runs the script with --mutation; runs plan-less too. refactor and auto-review get no --metrics flag.
+        ("code-reviewer", "metrics",     "metrics-review",       f"{run_dir}/verdict_metrics_{ts}.md + metrics-judge_{ts}.md"),
     ] if in_git else [metrics_leg_only])
     # 8d · hook: check-reviewer-writes. Each leg is told /tmp is writable,
     #      or it skips the $work_dir persistence its compaction-resume needs.
@@ -245,14 +247,14 @@ flowchart TD
   n7b["7b. Ask which branch to diff against"]:::gate
 
   n8i["8i. Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
-  n8j["8j. Main dispatches the read-only metrics-tool-inspector<br/>(Explore) only when the per-session tool map has<br/>no entry for this repo; main double-checks its report<br/>and commits any detector edit"]:::dispatch
+  n8j["8j. Main runs the metrics-review skill, which dispatches<br/>the read-only metrics-tool-inspector (Explore) only when the per-session tool map has<br/>no entry for this repo; main double-checks its report<br/>and commits any detector edit"]:::dispatch
 
   subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
-    n8a["8a. code-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
-    n8b["8b. code-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
+    n8a["8a. code-reviewer · reads refactor/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
+    n8b["8b. code-reviewer · reads auto-review/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
     n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
-    n8m["8m. code-reviewer · follows metrics-lens.md<br/>(script run with --mutation) with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
+    n8m["8m. metrics-review skill → code-reviewer following metrics-lens.md<br/>(script run with --mutation) with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
   end
 
   n8d["8d. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook

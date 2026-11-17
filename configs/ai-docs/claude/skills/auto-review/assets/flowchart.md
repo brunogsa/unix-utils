@@ -11,7 +11,7 @@ The pipeline's own waves are collapsed into the dispatch node; they live in `../
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
 
 ```python
-def auto_review(base_ref_arg=None):                            # 1
+def auto_review(base_ref_arg=None, metrics=False):                            # 1
     if base_ref_arg:                                           # 2
         base_ref = base_ref_arg          # used as-is, any git ref
     else:
@@ -46,7 +46,10 @@ def auto_review(base_ref_arg=None):                            # 1
     agent = dispatch("code-reviewer", title="Run code-review pipeline",
                      prompt={"Mode": "local", "Base ref": base_ref,
                              "Language": "English",
-                             "Spec/plan files": spec_plan_paths}
+                             "Spec/plan files": spec_plan_paths,
+                             # 6 · opt-in --metrics; off, Wave 1 skips
+                             #     measure-quality-metrics.py
+                             "Metrics": "on" if metrics else "off"}
                             + "read code-review-pipeline/SKILL.md and run Waves 0-6")
 
     report = await_completion_notification(agent)              # 7
@@ -69,7 +72,7 @@ def auto_review(base_ref_arg=None):                            # 1
 
 ```mermaid
 flowchart TD
-  n1(["1. Invoke /auto-review [base-ref], or a phrase like<br/>'review this branch', or another skill's flow"]):::start
+  n1(["1. Invoke /auto-review [base-ref] [--metrics], or a phrase like<br/>'review this branch', or another skill's flow"]):::start
   n2{"2. base-ref argument passed?"}
   n2a["2a. Run ~/.claude/scripts/resolve-base-ref.sh<br/>(origin/HEAD, then local main, then local master)"]:::hook
   n2b{"2b. Resolved?"}
@@ -84,7 +87,7 @@ flowchart TD
   n4a3a1(["4a3a1. Abort the review"])
   n4a3b["4a3b. Resolve the selection into absolute paths"]
   n5["5. Set SPEC_PLAN_PATHS: space-separated<br/>absolute paths, or the literal &lt;none&gt;"]
-  n6["6. Dispatch code-reviewer, title Run code-review pipeline<br/>(agent-pinned · background · serial):<br/>Mode local · Base ref · Language English · spec/plan paths<br/>in the prompt body; it reads code-review-pipeline/SKILL.md<br/>and runs Waves 0-6 in fresh context"]:::dispatch
+  n6["6. Dispatch code-reviewer, title Run code-review pipeline<br/>(agent-pinned · background · serial):<br/>Mode local · Base ref · Language English · spec/plan paths ·<br/>Metrics on only with --metrics (else Wave 1 skips the script)<br/>in the prompt body; it reads code-review-pipeline/SKILL.md<br/>and runs Waves 0-6 in fresh context"]:::dispatch
   n7["7. Wait for its completion notification<br/>(never poll)"]
   n8["8. Print from its report: verdict path<br/>./verdict_auto-review_&lt;branch&gt;_&lt;timestamp&gt;.md,<br/>per-severity counts, skipped files, Wave 6 summary"]
   n9["9. Add to TaskList one [Scout] per file in the summary's<br/>doc-standards-flags block, naming the file and what is<br/>off standard -- the isolated pipeline cannot file them"]:::state
