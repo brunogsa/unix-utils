@@ -364,6 +364,14 @@ it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_taskl
   assert_eq "should allow copying a /tmp scratch file whose prose breaks the markdown format rules onto tasklist.md, which the format rules exempt" "0" "$HOOK_EXIT"
 }
 
+# File-copy cases: cp, mv and install land a source's text in
+# their destination unchanged, the same as a cat copy, so the
+# same source check applies.
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
+  run_hook "cp $scratch_dir/batch.md README.md"
+  assert_eq "should block cp copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
+}
+
 # Script-shape cases: an in-place edit that is not one literal
 # replace-all over the whole file is blocked on any extension,
 # since Edit (replace_all, or a widened old_string) can always
@@ -598,6 +606,7 @@ it_should_block_a_copy_run_through_a_local_script_named_cat
 it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_an_in_place_perl_whose_flag_cluster_starts_with_a_slurp_digit
 it_should_block_an_in_place_sed_limited_to_a_line_range
 it_should_block_an_in_place_perl_limited_to_a_line_range

@@ -60,6 +60,9 @@
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
+# A bare system `cp` onto a guarded path gets the same check:
+# each literal source must pass the destination's checker.
+#
 # An inline python or node program (`python3 -c`, a
 # `python3 -` heredoc, `node -e`) writing a guarded path is
 # also blocked.
@@ -84,10 +87,11 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 [ -z "$CMD" ] && exit 0
 
 # Cheap short-circuit: a command carrying no redirect arrow
-# and naming none of the in-place writers can reach no write
-# form this guard knows, so it skips the Python parse.
+# and naming none of the in-place writers or file copiers can
+# reach no write form this guard knows, so it skips the Python
+# parse.
 printf '%s' "$CMD" \
-  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node)([^A-Za-z0-9_-]|$)' \
+  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node|cp)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
 # Resolved via BASH_SOURCE (never `$0`, which breaks under
@@ -146,10 +150,12 @@ REDIRECT_TOKEN = re.compile(r'^(?:[0-9]*|&)(>>?)(.*)$')
 
 WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 
-# The only spellings a file-to-file copy may start with. A
+# The only spellings a trusted file copy may start with. A
 # `./cat`, a `PATH=` prefix or a wrapper can run any program
-# named cat, which can write any text it likes.
-SYSTEM_CAT_EXECUTABLES = ('cat', '/bin/cat', '/usr/bin/cat')
+# by that name, which can write any text it likes.
+SYSTEM_BINARY_DIRECTORIES = ('', '/bin/', '/usr/bin/')
+
+FILE_COPY_COMMANDS = ('cp',)
 
 PROSE_FORMAT_HOOK = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'claude-prose-format-posttool-hook.sh')
 
@@ -596,7 +602,7 @@ def copied_source_paths(exe, tokens, cwd, is_piped_into):
     # A pipe, a heredoc or here-string (`<<`), stdin (`-`), a
     # flag that rewrites the text (`-n`) or a source the guard
     # cannot see on disk all let typed or generated text in.
-    if not tokens or tokens[0] not in SYSTEM_CAT_EXECUTABLES:
+    if not tokens or not is_system_executable(tokens[0], 'cat'):
         return None
     if is_piped_into:
         return None
@@ -606,15 +612,62 @@ def copied_source_paths(exe, tokens, cwd, is_piped_into):
     sources = positional_arguments(arguments)
     if not sources:
         return None
-    paths = []
-    for source in sources:
-        if re.search(r'[$`*?\[(]', source):
-            return None
-        path = absolute_path(cwd, source)
-        if not os.path.isfile(path):
-            return None
-        paths.append(path)
+    paths = [literal_existing_file(cwd, source) for source in sources]
+    if None in paths:
+        return None
     return paths
+
+
+def is_system_executable(token, name):
+    return token in [directory + name for directory in SYSTEM_BINARY_DIRECTORIES]
+
+
+def literal_existing_file(cwd, source):
+    """The absolute path of `source` when it names one existing file literally, else None."""
+    if re.search(r'[$`*?\[(]', source):
+        return None
+    path = absolute_path(cwd, source)
+    if not os.path.isfile(path):
+        return None
+    return path
+
+
+def copy_operands(arguments):
+    """The operands of a cp argument list."""
+    # why: flags are skipped, not rejected - unlike `cat -n`, no
+    # flag of these copiers rewrites the copied text. A flag's
+    # own argument (`-S .bak`) reads as a missing source, which
+    # blocks, the conservative side.
+    operands = []
+    index = 0
+    is_past_options = False
+    while index < len(arguments):
+        token = arguments[index]
+        index += 1
+        if is_past_options or token == '-' or not token.startswith('-'):
+            operands.append(token)
+        elif token == '--':
+            is_past_options = True
+    return operands
+
+
+def copy_destinations(exe, tokens, cwd):
+    """(destination, source path or None) per file a cp segment writes; None marks a source no check can vouch for."""
+    if exe not in FILE_COPY_COMMANDS:
+        return []
+    executable_index = next(index for index, token in enumerate(tokens)
+                            if os.path.basename(token) == exe)
+    arguments = without_redirects(tokens[executable_index + 1:])
+    sources = copy_operands(arguments)
+    if len(sources) < 2:
+        return []
+    destination = sources.pop()
+    is_trusted_copier = is_system_executable(tokens[0], exe)
+    pairs = []
+    for source in sources:
+        source_path = literal_existing_file(cwd, source) if is_trusted_copier else None
+        pairs.append((destination, source_path))
+    return pairs
 
 
 def format_report(source, destination):
@@ -756,6 +809,20 @@ def interpreter_write_targets(exe, tokens, stdin_bodies):
     return [target for target in targets if target]
 
 
+def record_write(reason, sources):
+    """Block the guarded path `reason` unless every one of `sources`, the files copied into it, passes its format check."""
+    if not reason:
+        return
+    if sources is not None:
+        reports = [format_report(source, reason) for source in sources]
+        failing_reports = [report for report in reports if report]
+        if not failing_reports:
+            return
+        format_reports.extend(failing_reports)
+    if reason not in blocked:
+        blocked.append(reason)
+
+
 blocked = []
 script_shape_blocked = []
 format_reports = []
@@ -796,17 +863,9 @@ for segment, is_piped_into in segments:
         continue
     sources = copied_source_paths(exe, tokens, cwd, is_piped_into)
     for target in write_targets(exe, tokens, cwd):
-        reason = block_reason(cwd, target)
-        if not reason:
-            continue
-        if sources is not None:
-            reports = [format_report(source, reason) for source in sources]
-            failing_reports = [report for report in reports if report]
-            if not failing_reports:
-                continue
-            format_reports.extend(failing_reports)
-        if reason not in blocked:
-            blocked.append(reason)
+        record_write(block_reason(cwd, target), sources)
+    for target, source in copy_destinations(exe, tokens, cwd):
+        record_write(block_reason(cwd, target), None if source is None else [source])
     arguments = arguments_after(exe, tokens) if exe else []
     edited_files = in_place_edit_targets(exe, arguments, cwd)
     if edited_files and not is_plain_replace_all(exe, arguments):
@@ -828,7 +887,7 @@ if blocked:
     if not GUARDED_EXTENSIONS:
         message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
     if format_reports:
-        message.append('A `cat` copy of existing files passes only when every source passes the destination format checker; these did not:')
+        message.append('A `cat` or `cp` copy of existing files passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
 if script_shape_blocked:
     message.append('bash write guard blocked this in-place sed/perl edit - its script is not one literal text replaced across the whole file:')
