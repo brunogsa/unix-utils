@@ -67,6 +67,10 @@ JEST, PYTEST_COV = "jest", "pytest-cov"
 # The repo-relative name of the repo root, as Path parents end.
 ROOT_WORKSPACE = "."
 
+# jest's own default, per jestjs.io/docs/configuration
+# (testPathIgnorePatterns).
+JEST_DEFAULT_IGNORE_PATTERNS = ("/node_modules/",)
+
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
 # pytest-cov.readthedocs.io/en/latest/config.html
@@ -210,17 +214,64 @@ def jest_workspaces_for(repo, changed_paths):
     return sorted(workspaces) or [ROOT_WORKSPACE]
 
 
+def _nested_worktree_paths(run_dir):
+    """The real paths of the git worktrees that sit inside
+    `run_dir`; none when it is not in a git repo."""
+    listing = run_command(["git", "-C", str(run_dir), "worktree", "list", "--porcelain"])
+    if listing.returncode != 0:
+        return []
+    run_dir_prefix = os.path.realpath(run_dir) + os.sep
+    worktree_paths = [
+        os.path.realpath(line.removeprefix("worktree "))
+        for line in listing.stdout.splitlines() if line.startswith("worktree ")
+    ]
+    return [path for path in worktree_paths if path.startswith(run_dir_prefix)]
+
+
+def _configured_ignore_patterns(run_dir, config_flags, timeout_seconds):
+    """The `testPathIgnorePatterns` the jest config resolves to,
+    read through `--showConfig`; jest's own default when that
+    output cannot be read."""
+    shown = run_command(
+        ["jest", "--showConfig", *config_flags],
+        cwd=run_dir, env=_repo_tool_env(run_dir), timeout=timeout_seconds,
+    )
+    try:
+        project_configs = json.loads(shown.stdout)["configs"]
+    except (ValueError, KeyError, TypeError):
+        return list(JEST_DEFAULT_IGNORE_PATTERNS)
+    patterns = [pattern for config in project_configs for pattern in config.get("testPathIgnorePatterns", [])]
+    return list(dict.fromkeys(patterns))
+
+
+def _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds):
+    """Flags that keep jest out of every git worktree nested in
+    `run_dir`, on top of the config's own ignores.
+
+    A CLI `--testPathIgnorePatterns` replaces the config's
+    list (jestjs.io/docs/cli), so that list is repeated here.
+    No flags when no worktree is nested.
+    """
+    worktree_paths = _nested_worktree_paths(run_dir)
+    if not worktree_paths:
+        return []
+    worktree_patterns = [re.escape(path) + "/" for path in worktree_paths]
+    patterns = [*_configured_ignore_patterns(run_dir, config_flags, timeout_seconds), *worktree_patterns]
+    return [f"--testPathIgnorePatterns={pattern}" for pattern in patterns]
+
+
 def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref):
     """One jest coverage run from the workspace directory, its
     hits keyed by repo-relative path."""
     run_dir = Path(repo) / workspace
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
+        ignore_flags = _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds)
         result = run_command(
             [
                 "jest", "--coverage", "--passWithNoTests",
                 "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
-                *config_flags,
+                *config_flags, *ignore_flags,
             ],
             cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
         )
@@ -248,7 +299,8 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
 
     With a `base_ref`, jest reads the config that ref
     committed, so a branch's own coverage excludes never shape
-    the number.
+    the number. A git worktree nested in the run directory
+    never runs.
 
     The hits read valid when jest passed or exited non-zero on
     the repo's own threshold: the harness judges the measured

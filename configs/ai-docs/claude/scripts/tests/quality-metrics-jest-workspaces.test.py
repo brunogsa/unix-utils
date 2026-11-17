@@ -1,5 +1,6 @@
 """The repo jest in a monorepo: each changed file is measured by
-the jest config of its own workspace.
+the jest config of its own workspace, and a nested git worktree
+inside the repo never runs.
 """
 
 import json
@@ -13,6 +14,7 @@ from quality_metrics_support import (
     SCRIPTS_DIR,
     coverage_records_of,
     coverage_run_for,
+    git,
     head_of,
     install_stub_tool,
     make_repo,
@@ -111,3 +113,56 @@ class TestWorkspaceConfig:
 
         assert [record["value"] for record in records] == [92]
         assert sorted(path.name for path in (repo / "pkg").iterdir()) == ["jest.config.js", "src", "test"]
+
+
+# Answers --showConfig with the repo config's own ignore list;
+# otherwise lists the specs it would run. A CLI
+# --testPathIgnorePatterns replaces the config's list, as jest's
+# does (jestjs.io/docs/cli#--testpathignorepatternsregexarray).
+JEST_SPEC_LISTING_STUB = """#!/bin/bash
+config_patterns=("/node_modules/" "/fixtures/")
+if [[ " $* " == *" --showConfig "* ]]; then
+  printf '{"configs":[{"testPathIgnorePatterns":["/node_modules/","/fixtures/"]}],"globalConfig":{}}\\n'
+  exit 0
+fi
+cli_patterns=()
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+    --testPathIgnorePatterns=*) cli_patterns+=("${argument#--testPathIgnorePatterns=}");;
+  esac
+done
+if [ ${#cli_patterns[@]} -gt 0 ]; then patterns=("${cli_patterns[@]}"); else patterns=("${config_patterns[@]}"); fi
+: > "$SPECS_LOG"
+while IFS= read -r spec; do
+  ignored=no
+  for pattern in "${patterns[@]}"; do
+    if printf '%s\\n' "$spec" | grep -Eq -- "$pattern"; then ignored=yes; fi
+  done
+  if [ "$ignored" = no ]; then echo "$spec" >> "$SPECS_LOG"; fi
+done < <(find "$PWD" -name '*.test.js')
+: > "$report_dir/lcov.info"
+"""
+
+
+class TestNestedWorktree:
+    def test_should_never_run_the_specs_of_a_git_worktree_nested_inside_the_repo_while_keeping_the_configs_own_ignores(
+        self, tmp_path, monkeypatch
+    ):
+        repo = make_repo(tmp_path, {
+            "jest.config.js": "module.exports = { testPathIgnorePatterns: ['/node_modules/', '/fixtures/'] };\n",
+            "src/cart.js": "module.exports = 1;\n",
+            "src/cart.test.js": "require('./cart');\n",
+            "fixtures/legacy.test.js": "require('../src/cart');\n",
+        })
+        git(repo, "worktree", "add", "--quiet", "-b", "nested", ".claude/worktrees/x")
+        specs_log = tmp_path / "specs.log"
+        monkeypatch.setenv("SPECS_LOG", str(specs_log))
+        install_stub_tool(tmp_path, monkeypatch, "jest", JEST_SPEC_LISTING_STUB)
+        coverage_run = coverage_run_for(repo, tmp_path, changed_files={"src/cart.js": "js"})
+
+        coverage_records_of(
+            tmp_path, Target(repo / "src/cart.js", "js", None, repo_path="src/cart.js"), coverage_run
+        )
+
+        assert specs_log.read_text().splitlines() == [str(repo / "src/cart.test.js")]
