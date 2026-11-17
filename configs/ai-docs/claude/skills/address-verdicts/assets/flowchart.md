@@ -32,8 +32,8 @@ def address_verdicts(arg):
         findings = run_marked_stack(arg)                   # 1b-1x
         return close_with_report(arg, findings)            # 19
     # 2 · Step 1 - several timestamped generations can exist per lens. A
-    #     verdict_quality-gate_*.md counts as a source for all four lenses
-    #     (refactor, auto-review, test-sdd, metrics).
+    #     verdict_quality-gate_*.md counts as a source for all five lenses
+    #     (refactor, auto-review, test-sdd, metrics, scout).
     files = glob("verdict_refactor_*.md", "verdict_auto-review_*.md",
                  "verdict_test-sdd_*.md", "verdict_quality-gate_*.md")
 
@@ -89,15 +89,15 @@ def address_verdicts(arg):
 
     # 9 · Step 3 - group findings by lens; ONE TaskList entry per lens that
     #     contributed at least one finding, NEVER one per finding - seeded in
-    #     the FIXED order test-sdd, auto-review, refactor, metrics (also step 4's
+    #     the FIXED order test-sdd, auto-review, refactor, metrics, scout (also step 4's
     #     dispatch order - each stage hands the next a stronger test safety
     #     net). Shaped "Apply all N <lens> findings". First entry
     #     in_progress, every other one pending. A real run yields 30-50
-    #     findings but at most 4 entries. A merged-file finding joins the
+    #     findings but at most 5 entries. A merged-file finding joins the
     #     entry its heading lens tag names, never a quality-gate entry; a
-    #     heading with none of the four tags is SKIPPED (no lens tag).
+    #     heading with none of the five tags is SKIPPED (no lens tag).
     lens_entries = group_by_lens(findings,
-                                  order=["test-sdd", "auto-review", "refactor", "metrics"])
+                                  order=["test-sdd", "auto-review", "refactor", "metrics", "scout"])
     tasklist.seed([f"[Task] Apply all {len(e.findings)} {e.lens} findings"
                    for e in lens_entries],
                   first="in_progress", rest="pending")     # 9
@@ -164,6 +164,14 @@ def address_verdicts(arg):
                 for agent_name, group in split_metrics(code):
                     result = agent(agent_name, title="Apply all metrics findings",
                                     findings=group, test_cmd=test_cmd)  # 11d
+            case "scout":
+                # 11e · Default split by what each [scout] fix edits: a
+                #       behavior change goes to tdd-coder; a structure-only
+                #       change goes to refactor; a document, prose, config
+                #       or comment change goes to direct-coder.
+                for agent_name, group in split_scouts(code):
+                    result = agent(agent_name, title="Apply all scout findings",
+                                    findings=group, test_cmd=test_cmd)  # 11e
 
         # 12 · Step 4 - one verify per dispatch, covering every finding in
         #      the batch. A subagent's summary describes intent; only the
@@ -244,7 +252,8 @@ def close_with_report(arg, findings):
     #      per tree branch: merged-from, applied/skipped counts, pushed sha,
     #      CI result, one line per stopped subtree (branch, step, cause,
     #      conflicting files, skipped descendants), plus every [AI!] tag
-    #      ignored in a non-quality-gate file.
+    #      ignored in a non-quality-gate file. A scout found while applying
+    #      goes to the TaskList, never into this run.
     ledger = compose_ledger(findings, suite)                # 19
 
     if arg.invoked_by_skill:                                # 20
@@ -531,10 +540,10 @@ def apply_scouts(scouts_files, marked, start_branch):
 flowchart TD
   n1(["1. /address-verdicts &lt;which ones&gt;<br/>[--no-ask] [--test-cmd &lt;cmd&gt;]<br/><br/>A human's invocation, or a skill's dispatch -<br/>/quality-gate passes an explicit finding list<br/>plus --no-ask, having already triaged"]):::start
   n1a{"1a. Step 1 · Is &lt;which ones&gt; empty or 'marked'?<br/>Yes = MARKED MODE: only findings the human tagged [AI!],<br/>across a whole PR tree, with push. Any other selection<br/>(all, a lens, a severity floor, an explicit list) is the<br/>single-branch, no-push flow from node 2"}
-  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for all four lenses:<br/>refactor, auto-review, test-sdd, metrics). Several timestamped generations<br/>can exist per lens"]
+  n2["2. Step 1 · Glob CWD for verdict_refactor_*.md,<br/>verdict_auto-review_*.md, verdict_test-sdd_*.md,<br/>verdict_quality-gate_*.md (a source for all five lenses:<br/>refactor, auto-review, test-sdd, metrics, scout). Several timestamped generations<br/>can exist per lens"]
   n3{"3. Step 1 · Any verdict file at all?"}
   n3a(["3a. STOP - nothing to address yet. Run /quality-gate,<br/>or a single lens, first. NEVER fabricate a report by<br/>re-running a reviewer; this skill only consumes<br/>reports already on disk"])
-  n4{"4. Step 1 · A lens has no source (a merged file covers<br/>all four lenses) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
+  n4{"4. Step 1 · A lens has no source (a merged file covers<br/>all five lenses) - did &lt;which ones&gt;<br/>name that lens explicitly?"}
   n4a(["4a. STOP - say no report exists for that lens"])
   n5["5. Step 1 · Per lens, the newest source by mtime wins: the<br/>newest merged file's findings tagged with that lens, or<br/>the newest standalone file, never both. A verdict file<br/>path inside &lt;which ones&gt; pins an older generation.<br/>A lens with no source is dropped, and named in step 6"]
   n6["6. Step 2 · Match &lt;which ones&gt; in this order: all (the<br/>default when empty), a lens name, a severity floor,<br/>then an explicit list of finding identifiers.<br/>A finding with a SKIPPED ( line in its body is never selected,<br/>by any selection - deleting the line reopens it"]
@@ -543,7 +552,7 @@ flowchart TD
   n8a{"8a. Was --no-ask passed?"}
   n8a1["8a1. Resolve it to SKIPPED (the ambiguity) on that finding<br/>and carry on with the rest. Skipping beats guessing:<br/>a skip is final until the human deletes its line,<br/>where a wrong guess lands a commit nobody asked for.<br/>A missing test command skips only the findings that need<br/>one - refactor-lens findings still apply, since that<br/>agent brings its own green-before-and-after check"]
   n8a2["8a2. Ask ONE question, carrying your recommended reading.<br/>Never guess past an ambiguity - a wrong guess silently<br/>works the wrong finding. The test-command ask bundles<br/>into this one when it already fires, else is asked alone"]:::gate
-  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor, metrics<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 4 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>none of the four tags is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
+  n9["9. Step 3 · Group findings by lens. Add to TaskList ONE<br/>[Task] entry per contributing lens - NEVER one per<br/>finding - shaped 'Apply all N &lt;lens&gt; findings', seeded<br/>in the FIXED order test-sdd, auto-review, refactor, metrics, scout<br/>(also step 4's dispatch order - each stage hands the<br/>next a stronger test safety net). First entry<br/>in_progress, every other one pending. A real run<br/>yields 30-50 findings but at most 5 entries. A merged-file<br/>finding joins the entry its heading lens tag names;<br/>none of the five tags is an ambiguity (ask, or SKIPPED (no lens tag))"]:::state
   n10["10. Step 3 · Add to TaskList one closing [Reminder]<br/>entry for step 6's report, so a mid-run compaction<br/>cannot silently skip the wrap-up"]:::state
   n21{"21. Step 4 · Classify each finding in this entry by what it EDITS,<br/>not by which lens found it. The per-lens routing below is only<br/>the default for a code finding - a non-code target overrides it"}
   n22["22. NOT written at all: a test-sdd finding whose planned test<br/>covers prose is annotated SKIPPED (tests prose, which CLAUDE.md<br/>forbids). The forbidden test wins"]
@@ -554,6 +563,8 @@ flowchart TD
   n11b["11b. Dispatch tdd-coder (agent-pinned, background, serial)<br/>title: Apply all auto-review findings (from the auto-review<br/>file or [auto-review]-tagged merged findings). Strict TDD, RED<br/>before GREEN, once per finding - same as any other<br/>tdd-coder dispatch"]:::dispatch
   n11c["11c. Dispatch refactor (agent-pinned, background, serial)<br/>title: Apply all refactor findings (from the refactor file<br/>or [refactor]-tagged merged findings). It applies the<br/>changes itself and confirms the tests are green<br/>before and after"]:::dispatch
   n11d["11d. Dispatch by what each [metrics] fix edits (default split):<br/>size, nesting, complexity, extract-a-helper findings for duplicate code,<br/>and hotspots go to refactor;<br/>coverage or CRAP fixes that are missing, vacuous or<br/>entangled tests go to tdd-coder; prose or config to<br/>direct-coder. The unplanned-tests finding is never dispatched"]:::dispatch
+
+  n11e["11e. Dispatch by what each [scout] fix edits (default split):<br/>a behavior change goes to tdd-coder; a structure-only change<br/>goes to refactor; a document, prose, config or comment<br/>change goes to direct-coder"]:::dispatch
 
   n12["12. Step 4 · Verify the dispatch's result against the<br/>artifacts - the diff, the test run - before trusting<br/>its done. One verify per dispatch, covering every<br/>finding in the batch; a summary describes intent,<br/>only the artifact shows what actually landed"]
   n13{"13. Step 4 · Did this finding's fix land? Scored per<br/>finding, never per lens - a dispatch that landed 6 of<br/>its 9 findings is 6 applied, 3 failed"}
@@ -627,7 +638,7 @@ flowchart TD
   n18{"18. Step 4 · More seeded lens entries left,<br/>in the fixed order?"}
   n18a{"18a. Step 4 · Which flow is this?<br/>Quality-gate marked mode = this branch's lens loop is done, so control<br/>returns to the tree walk; scouts = control returns to the scouts loop;<br/>single-branch = go straight to the report"}
   n19a["19a. Step 6 · Outside marked mode, run the test command once, after<br/>the last lens's dispatch returned and step 5 annotated it; full output<br/>to a /tmp file. Red is reported with each failing test and the commit<br/>range, never fixed. No test command = reported as a failure,<br/>never as clean"]:::dispatch
-  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per tree branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, one line per stopped<br/>subtree (branch, step, cause, conflicting files, skipped descendants),<br/>plus every [AI!] tag ignored in a non-quality-gate file"]
+  n19["19. Step 6 · Compose the ledger: applied findings with<br/>their SHAs, skipped findings with their reasons, and<br/>anything that failed to apply with exactly what<br/>it needs to retry. Each finding line names its verdict file.<br/>Marked mode adds one line per tree branch: merged-from,<br/>applied/skipped counts, pushed sha, CI result, one line per stopped<br/>subtree (branch, step, cause, conflicting files, skipped descendants),<br/>plus every [AI!] tag ignored in a non-quality-gate file.<br/>A scout found while applying goes to the TaskList, never into this run"]
   n20{"20. Step 6 · Who invoked this run?"}
   n20a(["20a. Print it, and state plainly EVERY time: every finding<br/>step 2 did not select is untouched and carries no<br/>annotation. Marked mode also says every finding still<br/>tagged [AI!] is retried by the next marked run, and deleting<br/>the tag drops it - except one carrying a SKIPPED line,<br/>which stays out until the human deletes that line"])
   n20b(["20b. Hand the same ledger back to the caller rather than<br/>only printing it - the caller composes the report the<br/>human actually reads, and can only name what it was told"])
@@ -702,6 +713,7 @@ flowchart TD
   n11 -->|"auto-review lens"| n11b --> n12
   n11 -->|"refactor lens"| n11c --> n12
   n11 -->|"metrics lens"| n11d --> n12
+  n11 -->|"scout lens"| n11e --> n12
   n12 --> n13
   n13 -->|"no"| n13a --> n15
   n13 -->|"yes"| n14
