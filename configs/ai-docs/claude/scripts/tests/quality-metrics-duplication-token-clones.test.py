@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 import pytest
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -141,6 +142,18 @@ class TestTokenClonesInLanguagesWithoutSimilarity:
         assert {item["metric"] for item in violations} == {"code_duplication"}
 
 
+def duplication_only_declaration(tmp_path):
+    # Keeps the shipped extension mapping, drops knip and tsc:
+    # they need a package.json and tsconfig.json this lacks.
+    declaration = yaml.safe_load(SHIPPED_DECLARATION.read_text())
+    declaration["per_unit"] = []
+    for entry in declaration["languages"].values():
+        entry["metrics"] = ["code_duplication"]
+    path = tmp_path / "duplication-only.yaml"
+    path.write_text(yaml.safe_dump(declaration))
+    return path
+
+
 class TestDuplicationAcrossExtensionsOfOneLanguage:
     @pytest.mark.parametrize(
         "first_name, second_name",
@@ -155,7 +168,7 @@ class TestDuplicationAcrossExtensionsOfOneLanguage:
         violations = measure_files(
             tmp_path,
             {first_name: SCRIPT_PRICING, second_name: SCRIPT_PRICING.replace("totalPrice", "sumCost")},
-            SHIPPED_DECLARATION,
+            duplication_only_declaration(tmp_path),
         )
 
         assert {
