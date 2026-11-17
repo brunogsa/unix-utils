@@ -637,6 +637,73 @@ class TestDirectoryChangeBeforeScripts:
         possible_commit_reason(tmp_path, command)
 
 
+def payload_and_target_repos(tmp_path):
+    """Two repos with the same committed status.sh, so a script
+    resolved against the payload cwd instead of the cd target
+    reads the wrong, trusted file."""
+    (tmp_path / "home").mkdir()
+    return committed_status_script(tmp_path / "home"), committed_status_script(tmp_path)
+
+
+class TestRelativeScriptAfterOneLiteralCd:
+    def test_should_check_a_relative_script_after_a_cd_to_a_plain_absolute_path_as_that_absolute_script(
+        self, tmp_path
+    ):
+        home, repo = payload_and_target_repos(tmp_path)
+
+        assert check_commit(tmp_path, command=f"cd {repo} && ./status.sh", cwd=str(home)) is None
+
+    @pytest.mark.parametrize(
+        "command_for",
+        [
+            lambda repo: 'cd "$REPO_DIR" && ./status.sh',
+            lambda repo: "cd ~/repo && ./status.sh",
+            lambda repo: "cd - && ./status.sh",
+            lambda repo: "cd repo && ./status.sh",
+            lambda repo: f"cd {repo} && cd {repo} && ./status.sh",
+            lambda repo: f"cd {repo}; ./status.sh",
+            lambda repo: f"cd {repo} || ./status.sh",
+            lambda repo: f"cd {repo} && true; ./status.sh",
+            lambda repo: f"(cd {repo} && ./status.sh)",
+            lambda repo: f"true && cd {repo} && ./status.sh",
+            lambda repo: f"cd {repo}/../repo && ./status.sh",
+            lambda repo: f"cd -P {repo} && ./status.sh",
+            lambda repo: f"pushd {repo} && ./status.sh",
+        ],
+        ids=[
+            "variable",
+            "tilde",
+            "previous-dir",
+            "relative-dir",
+            "two-cds",
+            "semicolon-after-cd",
+            "or-after-cd",
+            "semicolon-later",
+            "subshell",
+            "cd-not-first",
+            "dot-dot-part",
+            "option",
+            "pushd",
+        ],
+    )
+    def test_should_deny_a_relative_script_after_any_other_directory_change(self, tmp_path, command_for):
+        home, repo = payload_and_target_repos(tmp_path)
+
+        possible_commit_reason(tmp_path, command_for(repo), cwd=str(home))
+
+    def test_should_deny_a_relative_script_after_a_plain_cd_when_it_is_untracked_there(self, tmp_path):
+        home, repo = payload_and_target_repos(tmp_path)
+        (repo / "untracked.sh").write_text("#!/bin/sh\ngit status\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f"cd {repo} && ./untracked.sh", cwd=str(home))
+
+    def test_should_deny_a_relative_script_after_a_plain_cd_when_it_is_modified_there(self, tmp_path):
+        home, repo = payload_and_target_repos(tmp_path)
+        (repo / "status.sh").write_text("#!/bin/sh\ngit status --short\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f"cd {repo} && ./status.sh", cwd=str(home))
+
+
 class TestHooksPathAndProgramKeys:
     def test_should_let_an_allowed_subcommand_through_when_hooks_path_holds_only_sample_hooks(self, tmp_path):
         repo = git_repo(tmp_path)
