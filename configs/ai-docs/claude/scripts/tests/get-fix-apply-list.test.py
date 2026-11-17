@@ -106,3 +106,35 @@ class TestEntriesTheFixStepApplies:
 
         assert completed.returncode == 1
         assert "missing.md" in completed.stderr
+
+
+class TestFencedTextInsideAnEntryBody:
+    def test_should_not_start_a_finding_at_a_heading_line_inside_a_code_fence(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            "## Findings\n\n"
+            "### 1. [HIGH][refactor] Split the parser\n\n"
+            "```md\n### 99. [HIGH][refactor] x\n```\n",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == ["1"]
+
+    def test_should_keep_an_entry_on_the_list_when_its_skipped_line_sits_inside_a_code_fence(
+        self, tmp_path
+    ):
+        verdict = _write(
+            tmp_path,
+            "## Findings\n\n"
+            "### 1. [HIGH][refactor] Split the parser\n\n"
+            "```\nSKIPPED (judge ruled Skip)\n```\n",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == ["1"]
