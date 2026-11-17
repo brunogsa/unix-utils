@@ -21,10 +21,14 @@ from quality_metrics.declaration import SOFT_METRIC_KEYS, NoLanguageEntryError, 
 from quality_metrics.deferred import (
     deferred_coverage_measurement,
     deferred_flagged_measurement,
-    deferred_measurement,
     unmeasured_file_measurement,
 )
-from quality_metrics.duplication import CODE_METRIC, SIMILARITY_LIMIT, TEST_METRIC
+from quality_metrics.duplication import (
+    CODE_METRIC,
+    EXACT_CLONE_SIMILARITY,
+    SIMILARITY_LIMIT,
+    TEST_METRIC,
+)
 from quality_metrics.functions import (
     COGNITIVE_COMPLEXITY_LIMIT,
     NESTING_LIMIT,
@@ -123,12 +127,27 @@ def unclaimed_file_records(declaration, file_path, coverage_run):
     return outcome["measurements"]
 
 
+def _function_metric_worst_case(metric):
+    """The lowest value that flags `metric`: one past its limit,
+    or an exact clone for a 0-1 duplication similarity."""
+    if metric in (CODE_METRIC, TEST_METRIC):
+        return EXACT_CLONE_SIMILARITY
+    return FUNCTION_METRIC_LIMITS[metric] + 1
+
+
 def _deferred_function_metric(target, metric):
-    """The pessimistic record for one metric a failed function
-    tool left unmeasured."""
+    """The flagged pessimistic record for one metric a failed
+    function tool left unmeasured.
+
+    It lists as a violation, so the failure never reads clean,
+    yet being pessimistic it never holds a commit.
+    """
     if metric == "coverage":
         return deferred_coverage_measurement(target)
-    return deferred_measurement(target, metric, FUNCTION_METRIC_LIMITS[metric])
+    return deferred_flagged_measurement(
+        target, metric, _function_metric_worst_case(metric),
+        FUNCTION_METRIC_LIMITS[metric],
+    )
 
 
 def function_tool_failure_records(target, metrics, error, coverage_run):

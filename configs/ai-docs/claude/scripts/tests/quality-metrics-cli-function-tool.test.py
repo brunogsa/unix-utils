@@ -94,7 +94,7 @@ def test_should_ask_about_a_crashed_function_tool_and_score_the_file_pessimistic
     assert sorted(records) == ["nesting", "parameters"]
     for record in records.values():
         assert record["file"] == "src/cart.py"
-        assert record["value"] is None
+        assert record["value"] > record["limit"]
         assert record["pessimistic"] is True
         assert record["label"] == DEFERRED_LABEL
 

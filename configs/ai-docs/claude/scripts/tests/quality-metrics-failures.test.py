@@ -27,10 +27,13 @@ from quality_metrics.failures import (
     TimeoutPolicy,
     ToolTimedOutTwice,
     ask_unless_deferred,
+    function_tool_failure_records,
     holds_commit,
     machine_has_headroom,
     measure_language_entry_or_ask,
 )
+from quality_metrics.functions import FunctionToolError
+from quality_metrics.duplication import CODE_METRIC, TEST_METRIC
 from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.deferred import deferred_crap_measurements, deferred_measurement
 from quality_metrics.declaration import load_declaration
@@ -127,6 +130,46 @@ def test_should_mark_a_deferred_result_non_blocking_so_no_commit_is_held():
     assert is_over_limit(oversized)
     assert holds_commit([deferred]) is False
     assert holds_commit([deferred, oversized]) is True
+
+
+FUNCTION_TOOL_METRICS = [
+    "size", "nesting", "parameters", "cognitive_complexity", "crap",
+    CODE_METRIC, TEST_METRIC,
+]
+HEADLESS_SESSION = {"CLAUDE_CODE_ENTRYPOINT": "sdk-cli"}
+
+
+def headless_coverage_run(repo_dir):
+    """A run with a tool map in a session that cannot ask."""
+    return CoverageRun(repo_dir, tool_map=object(), environ=HEADLESS_SESSION)
+
+
+@pytest.mark.parametrize("metric", FUNCTION_TOOL_METRICS)
+def test_should_flag_a_function_metric_over_its_limit_when_its_function_tool_failed(
+    tmp_path, metric
+):
+    target = Target(Path("src/cart.py"), "python", {4})
+    error = FunctionToolError("lizard", "lizard crashed with a traceback")
+
+    (record,) = function_tool_failure_records(
+        target, [metric], error, headless_coverage_run(tmp_path)
+    )
+
+    assert record["metric"] == metric
+    assert is_over_limit(record)
+    assert record["pessimistic"] is True
+    assert record["label"] == "pessimistic, tooling deferred"
+
+
+def test_should_score_coverage_0_percent_when_its_function_tool_failed(tmp_path):
+    target = Target(Path("src/cart.py"), "python", {4})
+    error = FunctionToolError("lizard", "lizard crashed with a traceback")
+
+    (record,) = function_tool_failure_records(
+        target, ["coverage"], error, headless_coverage_run(tmp_path)
+    )
+
+    assert (record["metric"], record["value"], record["pessimistic"]) == ("coverage", 0, True)
 
 
 def test_should_list_every_touched_function_as_a_pessimistic_crap_violation_when_complexity_is_deferred():
