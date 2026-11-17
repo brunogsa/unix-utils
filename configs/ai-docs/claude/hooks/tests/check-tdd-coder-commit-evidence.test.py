@@ -1413,3 +1413,78 @@ class TestProseOnlyCommitWithNoEvidence:
         reason = possible_commit_reason(tmp_path, COMMIT)
 
         assert "prose" in reason
+
+
+AWK_FENCE_COUNT = "awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\\. /' file.md | wc -l"
+
+
+def release_script_dir(tmp_path):
+    """A dir whose untracked x.sh runs a git commit."""
+    script = tmp_path / "x.sh"
+    script.write_text("#!/bin/sh\ngit commit -am x\n", encoding="utf-8")
+    script.chmod(0o755)
+    return tmp_path
+
+
+class TestReadOnlyCallsBeforeGreen:
+    @pytest.mark.parametrize(
+        "command",
+        [AWK_FENCE_COUNT, "echo '$(./x.sh)' '`./x.sh`'"],
+        ids=["awk-pattern-with-backticks", "substitutions-inside-single-quotes"],
+    )
+    def test_should_let_a_call_through_whose_backticks_or_substitutions_sit_inside_single_quotes(
+        self, tmp_path, command
+    ):
+        assert check_commit(tmp_path, command=command, cwd=str(release_script_dir(tmp_path))) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "echo \"'\"`./x.sh`\"'\"",
+            "echo 'a'`./x.sh`'b'",
+            "echo \\'`./x.sh`\\'",
+            "echo $'\\''`./x.sh`",
+            "echo \"$(./x.sh)\"",
+            "echo `./x.sh`",
+        ],
+        ids=[
+            "single-quote-inside-double-quotes",
+            "between-two-single-quoted-strings",
+            "after-an-escaped-single-quote",
+            "after-an-ansi-c-string-ending-in-an-escaped-quote",
+            "inside-double-quotes",
+            "unquoted",
+        ],
+    )
+    def test_should_deny_a_substitution_that_runs_outside_single_quotes(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(release_script_dir(tmp_path)))
+
+    @pytest.mark.parametrize(
+        "command",
+        ["LC_ALL=C sort file.md | wc -l", "TZ=America/Sao_Paulo date", "LANG=C.UTF-8 NO_COLOR=1 ls -la"],
+        ids=["locale", "time-zone", "two-names"],
+    )
+    def test_should_let_a_call_through_whose_prefix_assignment_only_sets_locale_time_zone_or_color(
+        self, tmp_path, command
+    ):
+        assert check_commit(tmp_path, command=command, cwd=str(release_script_dir(tmp_path))) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "NAME=value wc -l file.md",
+            "PERL5OPT=-Mplanted shasum file.md",
+            "LC_ALL=C PYTHONPATH=/tmp/planted sort file.md",
+            "LC_ALL=\"$(./x.sh)\" sort file.md",
+            "LC_ALL=C ./x.sh",
+        ],
+        ids=[
+            "unlisted-name",
+            "interpreter-option-name",
+            "listed-name-beside-an-unlisted-one",
+            "listed-name-with-a-substitution",
+            "listed-name-before-a-committing-script",
+        ],
+    )
+    def test_should_still_deny_a_prefix_assignment_that_can_reach_a_program(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(release_script_dir(tmp_path)))

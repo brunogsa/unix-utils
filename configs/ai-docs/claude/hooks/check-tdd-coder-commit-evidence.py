@@ -27,6 +27,12 @@
 # a program of their own, and any call that names a git
 # config path or exports a variable.
 #
+# A locale, time zone or color name set to a plain value
+# before one command passes, since no such value runs code.
+#
+# A $(...) or backtick inside single quotes is text, not a
+# command, so only one outside them is screened as one.
+#
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
 #
@@ -176,7 +182,21 @@ BRACE_LIST = re.compile(r"\{[^}]*\}")
 # closing delimiter line reads as its own command.
 SHELL_PUNCTUATION = "();<>|&\n"
 ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
-SUBSTITUTION = re.compile(r"\$\(|[`)]")
+
+# These names only pick a locale, time zone or color, and a
+# value without quotes, $, ` or globs cannot run code. Any
+# other name is a hazard: PERL5OPT=-M<module> runs code in
+# shasum, a perl script.
+HARMLESS_ASSIGNMENT = r"(?:LC_[A-Z]+|LANG|LANGUAGE|TZ|NO_COLOR|COLUMNS)=[\w.@:+/-]*"
+HARMLESS_ASSIGNMENT_WORD = re.compile(HARMLESS_ASSIGNMENT)
+HARMLESS_ASSIGNMENT_TEXT = re.compile(rf"(?<![\w$]){HARMLESS_ASSIGNMENT}(?=[ \t\n;&|)]|$)")
+
+# Backslash-escaped forms inside a backtick body run as the
+# plain ones once the outer backticks are read.
+BACKTICK_ESCAPE = re.compile(r"\\([\\`$])")
+COMMAND_SUBSTITUTION_START = "$("
+ANSI_C_QUOTE_START = "$'"
+WORD_START_PRECEDERS = " \t" + "();<>|&\n"
 
 # An interpreter runs its first operand as a script; . and
 # source only do so where a command starts.
@@ -209,7 +229,8 @@ SCREEN_GUIDANCE = (
     "<status|diff|log>` in a repo whose config runs no program and has no such alias, runs git "
     "in a dir that is no repo or a bare one, names a GIT_*, IFS or already "
     "exported variable other than in a $NAME or ${NAME} read, exports any variable (NAME=value before "
-    "a command, env, export, declare -x, set -a), "
+    "a command, unless the name is LC_*, LANG, LANGUAGE, TZ, NO_COLOR or COLUMNS with a value of "
+    "letters, digits and . @ : + / - only; env, export, declare -x, set -a), "
     "runs git after cd/pushd/popd/chdir or a relative script anywhere but in the && or | chain right "
     "after one leading `cd /plain/absolute/path &&`, before any later ;, ||, & or newline (else call "
     "the script by its absolute path), names a .git, "
@@ -335,7 +356,7 @@ def is_plain_grep(text: str) -> bool:
 
 
 def sets_git_environment(text: str) -> bool:
-    unread = GIT_ENVIRONMENT_READ.sub("", text)
+    unread = HARMLESS_ASSIGNMENT_TEXT.sub("", GIT_ENVIRONMENT_READ.sub("", text))
     is_exported = ENVIRONMENT_EXPORTER.search(text.replace("_", "")) is not None
     return is_exported or GIT_ENVIRONMENT_NAME.search(unread) is not None
 
@@ -453,6 +474,8 @@ def has_prefix_assignment(words: list[str]) -> bool:
     for word in words:
         if is_command_end(word):
             is_command_start, has_assignment = True, False
+        elif is_command_start and HARMLESS_ASSIGNMENT_WORD.fullmatch(word):
+            continue
         elif is_command_start and ASSIGNMENT.match(word):
             has_assignment = True
         elif is_command_start:
@@ -478,19 +501,96 @@ def is_command_end(word: str) -> bool:
     return is_separator(word) and not is_redirect(word)
 
 
-def expand_substitutions(words: list[str]) -> list[str] | None:
-    # A quoted $(...) stays one shell word, so its commands are
-    # split back out and appended as commands of their own.
-    expanded = list(words)
-    for word in words:
-        if not SUBSTITUTION.search(word) or ("$(" not in word and "`" not in word):
-            continue
-        inner = get_shell_words(SUBSTITUTION.sub("\n", word))
-        inner = expand_substitutions(inner) if inner is not None else None
-        if inner is None:
+def skip_single_quoted(text: str, index: int, is_ansi_c: bool) -> int | None:
+    # Only a $'...' string lets a backslash escape its quote.
+    while index < len(text):
+        if is_ansi_c and text[index] == "\\":
+            index += 2
+        elif text[index] == "'":
+            return index + 1
+        else:
+            index += 1
+    return None
+
+
+def read_backtick_body(text: str, index: int, bodies: list[str]) -> int | None:
+    end = index
+    while end < len(text) and text[end] != "`":
+        end += 2 if text[end] == "\\" else 1
+    if end >= len(text):
+        return None
+    bodies.append(BACKTICK_ESCAPE.sub(r"\1", text[index:end]))
+    return end + 1
+
+
+def read_command_substitution_body(text: str, index: int, bodies: list[str]) -> int | None:
+    # The body's own substitutions are found when it is split
+    # in turn, so this scan keeps none of them.
+    end = scan_shell_text(text, index, [], closes_paren=True)
+    if end is None:
+        return None
+    bodies.append(text[index:end])
+    return end + 1
+
+
+def read_double_quoted(text: str, index: int, bodies: list[str]) -> int | None:
+    while index is not None and index < len(text) and text[index] != '"':
+        index = read_substitution_or_escape(text, index, bodies)
+    return None if index is None or index >= len(text) else index + 1
+
+
+def read_substitution_or_escape(text: str, index: int, bodies: list[str]) -> int | None:
+    if text[index] == "\\":
+        return index + 2
+    elif text.startswith(COMMAND_SUBSTITUTION_START, index):
+        return read_command_substitution_body(text, index + 2, bodies)
+    elif text[index] == "`":
+        return read_backtick_body(text, index + 1, bodies)
+    return index + 1
+
+
+def is_comment_start(text: str, index: int) -> bool:
+    return text[index] == "#" and (index == 0 or text[index - 1] in WORD_START_PRECEDERS)
+
+
+def read_shell_construct(text: str, index: int, bodies: list[str]) -> int | None:
+    # Returns the index just past the quote, escape,
+    # substitution or comment at index; None when it never
+    # closes.
+    if text[index] == "'":
+        return skip_single_quoted(text, index + 1, is_ansi_c=False)
+    elif text.startswith(ANSI_C_QUOTE_START, index):
+        return skip_single_quoted(text, index + 2, is_ansi_c=True)
+    elif text[index] == '"':
+        return read_double_quoted(text, index + 1, bodies)
+    elif is_comment_start(text, index):
+        newline = text.find("\n", index)
+        return len(text) if newline == -1 else newline
+    return read_substitution_or_escape(text, index, bodies)
+
+
+def scan_shell_text(text: str, index: int, bodies: list[str], closes_paren: bool) -> int | None:
+    # With closes_paren, returns the index of the ) that closes
+    # the scan's opening $(; otherwise the text's length.
+    depth = 0
+    while index < len(text):
+        if closes_paren and text[index] == ")" and depth == 0:
+            return index
+        elif closes_paren and text[index] in "()":
+            depth += 1 if text[index] == "(" else -1
+        next_index = read_shell_construct(text, index, bodies)
+        if next_index is None:
             return None
-        expanded += ["\n", *inner]
-    return expanded
+        index = next_index
+    return None if closes_paren else len(text)
+
+
+def get_substitution_bodies(text: str) -> list[str] | None:
+    # The shell runs a $(...) or backtick body as a command
+    # unless single quotes hold it, which a scan of the shell
+    # words cannot tell, since quote removal drops them.
+    bodies: list[str] = []
+    return bodies if scan_shell_text(text, 0, bodies, closes_paren=False) is not None else None
 
 
 def get_command_positions(words: list[str]) -> set[int]:
@@ -643,8 +743,19 @@ def names_commit_in_script(script: object, cwd: str | None, has_moved: bool, mov
 
 
 def get_command_words(command: str) -> list[str] | None:
-    words = get_shell_words(parse_shell_command.strip_heredoc_bodies(command))
-    return expand_substitutions(words) if words is not None else None
+    # A quoted $(...) stays one shell word, so its commands are
+    # split back out and appended as commands of their own.
+    text = parse_shell_command.strip_heredoc_bodies(command)
+    words = get_shell_words(text)
+    bodies = get_substitution_bodies(text)
+    if words is None or bodies is None:
+        return None
+    for body in bodies:
+        inner = get_command_words(body)
+        if inner is None:
+            return None
+        words += ["\n", *inner]
+    return words
 
 
 def changes_directory(*texts: str) -> bool:
