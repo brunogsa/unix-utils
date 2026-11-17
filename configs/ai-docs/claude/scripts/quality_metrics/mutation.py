@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, NamedTuple
 
+from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
 from quality_metrics.deadline import run_until
 from quality_metrics.tools import ToolError, run_command
 
@@ -24,6 +25,7 @@ STRYKER_CONCURRENCY = 2
 
 NOT_RUN_LABEL = "not run (budget)"
 NO_RELATED_TEST = "no related test"
+CANNOT_RUN_STATUS = "stryker could not run"
 
 # Stryker statuses by what they mean for the metric; a mutant
 # the code does not compile or run is not a real change.
@@ -152,20 +154,30 @@ def measure_javascript_mutation(tree, changed, deadline, run_batch=run_stryker_b
 
     A finished batch keeps its results. The first killed batch
     means the deadline passed, so it and every batch after it
-    list their ranges as not run.
+    list their ranges as not run. A file whose tools failed gets
+    one flagged pessimistic record, and the run gets one ask.
     """
     survivors, not_run, killed = [], [], 0
+    failed_paths, last_error = [], None
     paths = sorted(changed)
     for position, path in enumerate(paths):
-        batch = run_batch(tree, path, changed[path], deadline) if time.monotonic() < deadline else None
+        try:
+            batch = run_batch(tree, path, changed[path], deadline) if time.monotonic() < deadline else None
+        except ToolError as error:
+            survivors.append(cannot_run_record(path, changed[path], CANNOT_RUN_STATUS))
+            failed_paths.append(path)
+            last_error = error
+            continue
         if batch is None:
             for unreached in paths[position:]:
                 not_run.extend(_not_run_records(unreached, changed[unreached]))
             break
         killed += batch.killed
         survivors.extend(batch.survivors)
+    asks = [cannot_run_ask("stryker", failed_paths, last_error)] if failed_paths else []
     return {
         "surviving_mutants": survivors,
         "mutants_not_run": not_run,
         "mutation_summary": {"killed": killed, "survived": len(survivors), "not_run_ranges": len(not_run)},
+        "asks": asks,
     }

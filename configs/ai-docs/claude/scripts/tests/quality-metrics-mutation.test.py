@@ -21,6 +21,7 @@ sys.path.insert(0, str(SCRIPTS_DIR))
 import pytest
 
 from quality_metrics.deadline import run_until
+from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.mutation import (
     BatchResult,
     StrykerTools,
@@ -210,3 +211,57 @@ class TestStrykerReport:
                 tmp_path, "src/price.js", [(1, 2)], time.monotonic() + 60,
                 tools=StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=crashed),
             )
+
+
+def crashing_batch(failing_paths, message):
+    """A batch runner whose real Stryker batch fails on
+    `failing_paths` with `message` and finishes the others."""
+
+    def list_tests(tree, path):
+        if path in failing_paths:
+            raise ToolError(message)
+        return []
+
+    return lambda tree, path, ranges, deadline: run_stryker_batch(
+        tree, path, ranges, deadline, tools=StrykerTools(list_tests=list_tests),
+    )
+
+
+class TestStrykerCannotRun:
+    def test_gives_a_failed_file_one_flagged_pessimistic_record_and_still_runs_the_others(self):
+        changed = {"a.js": [(3, 4)], "b.js": [(7, 9)]}
+        run_batch = crashing_batch({"a.js"}, "jest --listTests failed on a.js: boom")
+
+        result = measure_javascript_mutation(
+            Path("/tree"), changed, time.monotonic() + 60, run_batch=run_batch,
+        )
+
+        by_file = {item["file"]: item for item in result["surviving_mutants"]}
+        assert by_file["a.js"] == {
+            "file": "a.js", "line": 3, "metric": "mutation", "value": 1, "limit": 0,
+            "scope": "file", "mutator": None, "replacement": None,
+            "status": "stryker could not run", "pessimistic": True, "label": DEFERRED_LABEL,
+        }
+        assert by_file["b.js"]["status"] == "no related test"
+        assert result["mutation_summary"]["survived"] == 2
+
+    def test_gives_the_run_one_ask_naming_stryker_and_every_failed_path(self):
+        changed = {"a.js": [(3, 4)], "b.js": [(7, 9)]}
+        run_batch = crashing_batch({"a.js", "b.js"}, "Stryker failed on x: boom")
+
+        result = measure_javascript_mutation(
+            Path("/tree"), changed, time.monotonic() + 60, run_batch=run_batch,
+        )
+
+        [ask] = result["asks"]
+        assert (ask["tool"], ask["metric"], ask["choices"]) == ("stryker", "mutation", ["fix now", "defer"])
+        assert "a.js" in ask["reason"] and "b.js" in ask["reason"] and "boom" in ask["reason"]
+
+    def test_gives_no_ask_when_every_file_ran(self):
+        run_batch = crashing_batch(set(), "unused")
+
+        result = measure_javascript_mutation(
+            Path("/tree"), {"a.js": [(1, 2)]}, time.monotonic() + 60, run_batch=run_batch,
+        )
+
+        assert result["asks"] == []
