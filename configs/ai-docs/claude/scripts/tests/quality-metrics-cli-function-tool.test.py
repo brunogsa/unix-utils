@@ -161,6 +161,16 @@ def test_should_exit_1_on_the_flagged_duplication_record_when_a_crashed_jscpd_ra
     assert result.returncode == 1
 
 
+def test_should_not_hold_the_commit_on_the_flagged_records_of_a_crashed_function_tool(
+    tmp_path, monkeypatch
+):
+    result = measure_cart_headless(tmp_path, monkeypatch)
+
+    report = json.loads(result.stdout)
+    assert report["violations"] != []
+    assert report["holds_commit"] is False
+
+
 def test_should_exit_unmeasured_on_a_crashed_function_tool_when_no_tool_map_is_given(
     tmp_path, monkeypatch
 ):
