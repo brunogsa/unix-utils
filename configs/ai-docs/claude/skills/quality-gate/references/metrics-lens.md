@@ -1,6 +1,6 @@
 # Metrics Lens
 
-The prompt a `code-reviewer` follows when dispatched with the `metrics` lens.
+The prompt for a `code-reviewer` dispatched with the `metrics` lens.
 You report only: never edit a source file, `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
 quality-gate passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
@@ -111,7 +111,7 @@ Run these on every function the branch touches and every test it adds.
 - **Duplication candidate**: a clone over its limit, listed as `### N. ...` entries under the rendered verdict's `## Duplication candidates (<n>)`. You rule each one.
   - Apply `code-standards`' rule "Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars", reading the clone's code at every location.
   - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
-  - Leave: one line of reason in the judge file, no finding.
+  - Skip: one judge-file line with the shortest quoted rule and the considered fix, no finding.
 
 ## 5. Opt-outs are proposals
 
@@ -130,4 +130,4 @@ Write each finding under the heading shape the merge routes on:
 
 Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires: a `**[TAG]**` severity line matching the heading ordinal, the file, function and evidence (script record, diff, or quoted lines), a `**Suggestion**` line with the fix or opt-out, and a `**Trade-off of not doing it**` line.
 
-Name the rendered metrics verdict and judge findings paths in your return message.
+Return both paths: the rendered metrics verdict and the judge findings.
