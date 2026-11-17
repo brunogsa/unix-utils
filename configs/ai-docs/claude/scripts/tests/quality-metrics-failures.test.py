@@ -38,7 +38,7 @@ from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.deferred import deferred_crap_measurements, deferred_measurement
 from quality_metrics.declaration import load_declaration
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
-from quality_metrics.size import FUNCTION_LINES_LIMIT
+from quality_metrics.size import FUNCTION_LINES_LIMIT, TEST_FUNCTION_LINES_LIMIT
 from quality_metrics.collection import CoverageRun
 from quality_metrics.tool_map import DETECTOR_RULES_PATH, LazyToolMap, load_detector_rules, record_deferred_tool
 from quality_metrics.tools import ToolError, run_command
@@ -391,6 +391,17 @@ def test_should_return_the_text_of_a_latin_1_file_shown_from_a_revision_instead_
     shown = run_command(["git", "show", "HEAD:legacy.txt"], cwd=repo)
 
     assert shown.stdout == "caf� au lait\n"
+
+
+def test_should_flag_a_test_file_function_size_against_the_test_function_limit_when_its_function_tool_failed(tmp_path):
+    target = Target(Path("tests/test_cart.py"), "python", {4})
+    error = FunctionToolError("lizard", "lizard crashed with a traceback")
+
+    (record,) = function_tool_failure_records(
+        target, ["size"], error, headless_coverage_run(tmp_path)
+    )
+
+    assert (record["limit"], record["value"]) == (TEST_FUNCTION_LINES_LIMIT, TEST_FUNCTION_LINES_LIMIT + 1)
 
 
 def test_should_name_a_dirty_tracked_file_and_an_untracked_file_by_repo_root_path_when_run_from_a_subdirectory(

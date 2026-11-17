@@ -68,9 +68,16 @@ def measure(target, metrics):
     return results
 
 
+def function_lines_limit_for(target):
+    """The function length limit `target` is held to: a test
+    file's, or a code file's."""
+    if _is_test_target(target):
+        return TEST_FUNCTION_LINES_LIMIT
+    return FUNCTION_LINES_LIMIT
+
+
 def _function_length_measurements(target):
-    is_test = _is_test_target(target)
-    limit = TEST_FUNCTION_LINES_LIMIT if is_test else FUNCTION_LINES_LIMIT
+    limit = function_lines_limit_for(target)
     return [
         measurement(target, "size", function.nloc, limit, function)
         for function in touched_functions(target)

@@ -35,7 +35,7 @@ from quality_metrics.functions import (
     PARAMETER_LIMIT,
     is_over_limit,
 )
-from quality_metrics.size import FUNCTION_LINES_LIMIT
+from quality_metrics.size import FUNCTION_LINES_LIMIT, function_lines_limit_for
 from quality_metrics.tools import ToolError, run_command
 
 # The limit each function-tool metric's deferred record carries.
@@ -132,12 +132,20 @@ def unclaimed_file_records(declaration, file_path, coverage_run):
     return outcome["measurements"]
 
 
-def _function_metric_worst_case(metric):
+def _function_metric_limit(target, metric):
+    """The limit `metric` holds `target` to; a test file's
+    functions get the longer size limit."""
+    if metric == "size":
+        return function_lines_limit_for(target)
+    return FUNCTION_METRIC_LIMITS[metric]
+
+
+def _function_metric_worst_case(metric, limit):
     """The lowest value that flags `metric`: one past its limit,
     or an exact clone for a 0-1 duplication similarity."""
     if metric in (CODE_METRIC, TEST_METRIC):
         return EXACT_CLONE_SIMILARITY
-    return FUNCTION_METRIC_LIMITS[metric] + 1
+    return limit + 1
 
 
 def _deferred_function_metric(target, metric):
@@ -149,9 +157,9 @@ def _deferred_function_metric(target, metric):
     """
     if metric == "coverage":
         return deferred_coverage_measurement(target)
+    limit = _function_metric_limit(target, metric)
     record = deferred_flagged_measurement(
-        target, metric, _function_metric_worst_case(metric),
-        FUNCTION_METRIC_LIMITS[metric],
+        target, metric, _function_metric_worst_case(metric, limit), limit,
     )
     if metric in (CODE_METRIC, TEST_METRIC):
         return record
