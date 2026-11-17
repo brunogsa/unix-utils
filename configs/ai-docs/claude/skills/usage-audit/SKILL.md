@@ -52,7 +52,7 @@ git ls-files configs/ai-docs/claude/skills/usage-audit/usage-history/snapshots/ 
 ### Step 2 - Backfill the missing days
 
 ```bash
-$S/claude-usage-report.py --backfill --since <SINCE> > /tmp/usage-report.txt 2>&1; echo "exit: $?"; tail -40 /tmp/usage-report.txt
+$S/claude-usage-report.py --backfill --since <SINCE> > <scratchpad>/usage-report.txt 2>&1; echo "exit: $?"; tail -40 <scratchpad>/usage-report.txt
 ```
 
 - **Never re-implement the aggregation**; `--rebuild` is the only other flag this flow uses.

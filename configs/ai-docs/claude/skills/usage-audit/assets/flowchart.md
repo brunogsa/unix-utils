@@ -39,9 +39,9 @@ def usage_audit(arg=None):
     UNTIL = yesterday()          # every later step reuses this one range
 
     if SINCE != UNTIL:                                     # 5
-        # 5a · Step 2 - output saved to /tmp/usage-report.txt and read back from
+        # 5a · Step 2 - output saved to <scratchpad>/usage-report.txt and read back from
         #      the file. The current day is never snapshotted.
-        run("claude-usage-report.py --backfill --since", SINCE, to="/tmp/usage-report.txt")
+        run("claude-usage-report.py --backfill --since", SINCE, to="<scratchpad>/usage-report.txt")
 
     # 6 · Step 3 - the ONLY sanctioned way to read git history here.
     ledger = run("config-change-ledger.py --since", SINCE, "--until", UNTIL)
@@ -123,7 +123,7 @@ flowchart TD
 
   n4["4. Step 1 · git ls-files usage-history/snapshots/ | tail -1<br/>SINCE = that day (committed tail, not newest file on disk)<br/>UNTIL = yesterday; every later step reuses this range"]:::hook
   n5{"5. Is SINCE already yesterday?"}
-  n5a["5a. Step 2 · claude-usage-report.py --backfill --since SINCE<br/>output saved to /tmp/usage-report.txt and read from the file;<br/>the current day is never snapshotted"]:::hook
+  n5a["5a. Step 2 · claude-usage-report.py --backfill --since SINCE<br/>output saved to scratchpad/usage-report.txt and read from the file;<br/>the current day is never snapshotted"]:::hook
   n6["6. Step 3 · config-change-ledger.py --since SINCE --until UNTIL<br/>(the only sanctioned way to read git history here)"]:::hook
   n7["7. Draft one candidate intent per commit or same-day cluster:<br/>the tweak, the surface it touched, the KPI it could move.<br/>Hand-record model / advisorModel / effortLevel, which never commit"]
   n8["8. Step 4 · Interview: ONE batched round, one question per<br/>candidate, each carrying your reading and your confidence"]:::gate

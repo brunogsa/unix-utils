@@ -30,7 +30,7 @@ update-jira-issue ITGD-3160 '{"priority":{"name":"Medium"}}'
 Write the comment to a markdown file, convert to ADF (Jira v3 needs ADF, not markdown), and POST it:
 
 ```bash
-adf=$(md-to-adf /tmp/comment.md)
+adf=$(md-to-adf <scratchpad>/comment.md)
 body=$(python3 -c "import sys,json; print(json.dumps({'body': json.load(open(sys.argv[1]))}))" <(printf '%s' "$adf"))
 jira-api-request POST "/rest/api/3/issue/ITGD-3160/comment" "$body"
 ```

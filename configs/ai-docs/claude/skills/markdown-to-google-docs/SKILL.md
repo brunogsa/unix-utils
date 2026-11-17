@@ -91,9 +91,9 @@ export it back, to confirm images + heading styles survive on this account:
 
 ```bash
 python3 <skill>/scripts/gdoc_upload.py test <docx>            # -> {"id": ...}
-python3 <skill>/scripts/gdoc_upload.py export <id> /tmp/check.html
-grep -o '<img ' /tmp/check.html | wc -l                       # images embedded?
-grep -oE '<h[12][^>]*font-size:[0-9]+pt' /tmp/check.html       # real heading styles?
+python3 <skill>/scripts/gdoc_upload.py export <id> <scratchpad>/check.html
+grep -o '<img ' <scratchpad>/check.html | wc -l                       # images embedded?
+grep -oE '<h[12][^>]*font-size:[0-9]+pt' <scratchpad>/check.html       # real heading styles?
 python3 <skill>/scripts/gdoc_upload.py delete <id>            # clean up scratch
 ```
 
@@ -114,10 +114,10 @@ Get `<fileId>` from the Google Doc URL: `.../document/d/<fileId>/edit`.
 Export the final doc and confirm content landed - diagrams, headings, tables, key text:
 
 ```bash
-python3 <skill>/scripts/gdoc_upload.py export <fileId> /tmp/final.html
-grep -o '<img ' /tmp/final.html | wc -l          # = expected diagram count
-grep -oE '<h[1-6]' /tmp/final.html | sort | uniq -c
-grep -o '<table' /tmp/final.html | wc -l          # use -o | wc -l, NOT grep -c
+python3 <skill>/scripts/gdoc_upload.py export <fileId> <scratchpad>/final.html
+grep -o '<img ' <scratchpad>/final.html | wc -l          # = expected diagram count
+grep -oE '<h[1-6]' <scratchpad>/final.html | sort | uniq -c
+grep -o '<table' <scratchpad>/final.html | wc -l          # use -o | wc -l, NOT grep -c
 ```
 
 Delete any scratch docs you created during verification so the user's Drive stays clean.
