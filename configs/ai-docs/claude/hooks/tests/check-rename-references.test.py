@@ -6,6 +6,8 @@ a fixture built under tmp_path and passed explicitly via
 relies on this machine's real unix-utils or oh-my-zsh checkout
 (the one exception, the 2-second-budget corner test, says so
 explicitly).
+That test measures the checker's CPU time (user+sys of the
+child process), not wall-clock, so machine load cannot fail it.
 --settings defaults to a nonexistent path in every test that
 isn't itself testing settings.json content, so a test never
 accidentally reads this repo's real settings.json.
@@ -15,9 +17,9 @@ Usage:
 """
 
 import json
+import resource
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 SCRIPT = Path(__file__).parent.parent / "check-rename-references.py"
@@ -208,26 +210,31 @@ class TestCheckRenameReferencesCorner:
         budget_seconds = 2.0
         samples = []
         for _ in range(3):
-            start = time.perf_counter()
+            before = resource.getrusage(resource.RUSAGE_CHILDREN)
             run_result = _run()
-            samples.append((time.perf_counter() - start, run_result))
+            after = resource.getrusage(resource.RUSAGE_CHILDREN)
+            user = after.ru_utime - before.ru_utime
+            system = after.ru_stime - before.ru_stime
+            cpu = user + system
+            samples.append((cpu, run_result))
 
-        # A shared machine can run other processes during any
-        # single sample, and contention can only ever make a
-        # sample slower, never faster.
+        # The budget (AC-30, named in the checker script)
+        # bounds the scan's cost, so it is measured as the
+        # child's CPU time (user+sys), which stays the same
+        # however busy the machine is.
         #
-        # The minimum across several samples is therefore the
-        # closest observable estimate of what the scan costs
-        # when nothing else is competing for the CPU.
+        # Wall-clock would also count time spent waiting
+        # for a CPU, so a loaded machine could fail the
+        # suite with no change to the code.
         #
-        # The floor is the real signal, everything above it is
-        # noise from machine load.
-        fastest = min(elapsed for elapsed, _ in samples)
-        sample_report = ", ".join(f"{elapsed:.3f}s" for elapsed, _ in samples)
+        # The minimum across several samples still discards
+        # a one-off spike, such as a cold file cache.
+        fastest = min(cpu for cpu, _ in samples)
+        sample_report = ", ".join(f"{cpu:.3f}s" for cpu, _ in samples)
         last_result = samples[-1][1]
 
         assert fastest < budget_seconds, (
-            f"fastest of 3 runs took {fastest:.3f}s (budget {budget_seconds}s); "
+            f"fastest of 3 runs used {fastest:.3f}s CPU (budget {budget_seconds}s); "
             f"samples: {sample_report}\n{last_result.stdout}{last_result.stderr}"
         )
         assert last_result.returncode in (0, 1), last_result.stdout + last_result.stderr
