@@ -540,6 +540,7 @@ claude plugin install security-guidance@claude-plugins-official
 claude plugin install explanatory-output-style@claude-plugins-official
 claude plugin install skill-creator@claude-plugins-official
 claude plugin install pyright-lsp@claude-plugins-official
+claude plugin install clangd-lsp@claude-plugins-official
 claude plugin install frontend-design@claude-plugins-official
 claude plugin install linear@claude-plugins-official
 
