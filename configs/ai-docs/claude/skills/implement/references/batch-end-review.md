@@ -35,11 +35,11 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
    - **Any failure there is a §5.5 halt too**, per that file's own closing rule.
    - `pr.wanted: false` is not a failure - proceed to §8.2 with no PR outcome to report.
 
-`phase` stays `gates` throughout: `hooks/claude-implement-stop-hook.sh` blocks on `gates`, so publishing this early never lets the run end early.
+`phase` stays `gates` throughout: `hooks/claude-implement-stop-hook.sh` blocks on `gates`, so publishing early never ends the run.
 
 ## The quality-gate tail (§8.2)
 
-**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run; invoke `/quality-gate` manually later.
+**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run.
 
 This runs before §8.3's repo-green gate so that gate gets the last word, measuring a tree that already carries the `test-sdd` leg's written tests.
 
@@ -47,20 +47,20 @@ This runs before §8.3's repo-green gate so that gate gets the last word, measur
 
 **Invoke the skill in this session** - `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> <--auto-solve | --report-only>`.
 
-Pass `<spec>` only when §1.1 resolved one - `/quality-gate` matches each path by its `spec_`/`plan_` prefix, not position, so a missing argument needs no placeholder.
+Pass `<spec>` only when §1.1 resolved one - `/quality-gate` matches each path by its `spec_`/`plan_` prefix, so a missing argument needs no placeholder.
 
-Its `auto-review` leg then runs without spec-conformance context - documented, not a degradation.
+Its `auto-review` leg then runs without spec-conformance context, by design.
 
 `--base-ref` stops it resolving `origin/HEAD` and reviewing a range this batch never touched.
 
 It runs here, not in a subagent, for two reasons:
 
 - Its `test-sdd` leg's write-permission prompt only renders in the main session.
-- Four of its five legs are already fresh-context subagents, and the fifth (metrics) runs in main and dispatches its own reviewer - wrapping it would spend a nesting level deciding nothing.
+- Four of its five legs are fresh-context subagents and the metrics leg runs in main - wrapping it would spend a nesting level deciding nothing.
 
 **One of the two flags is always passed, never omitted** - omitting both makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
 
-Every leg runs regardless - the tail never skips one, and the gate itself skips only the scout leg, when its open-scout export prints `0`.
+The tail skips no leg; the gate skips only the scout leg, when its export prints `0`.
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 

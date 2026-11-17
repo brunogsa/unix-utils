@@ -46,7 +46,11 @@ The variable decides, never your judgment. Answer `defer` without asking:
 
 ## 3. No git
 
-When no git repo encloses CWD (`git rev-parse --is-inside-work-tree` fails), skip base-ref resolution. Dispatch only the metrics lens, since the other `/quality-gate` legs diff against a base. The scout leg is not dispatched either, since it needs `git diff`, and `/quality-gate` §7 reports `scout leg: not run (no git)`. The rendered metrics verdict states which checks it skipped (the removed-code check and base-ref reads), and a `/quality-gate` caller's merged file is `verdict_quality-gate_no-git_<ts>.md`.
+When no git repo encloses CWD (`git rev-parse --is-inside-work-tree` fails), skip base-ref resolution. Dispatch only the metrics lens, since the other `/quality-gate` legs diff against a base.
+
+The scout leg is not dispatched either, since it needs `git diff`, and `/quality-gate` §7 reports `scout leg: not run (no git)`.
+
+The rendered metrics verdict states which checks it skipped (the removed-code check and base-ref reads), and a `/quality-gate` caller's merged file is `verdict_quality-gate_no-git_<ts>.md`.
 
 ## 4. A failed leg
 
