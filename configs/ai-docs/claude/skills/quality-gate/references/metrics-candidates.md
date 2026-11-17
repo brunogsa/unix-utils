@@ -23,6 +23,8 @@ Rules for the verdict's dead code and mutation sections. No entry is a violation
 
 - A "no related test" entry: one finding naming the test file to add.
 
+- A pessimistic entry (the tool could not run): one finding saying the file was not mutation-tested.
+
 ## Mutants not run (budget)
 
 - Report them as not measured. Never call them killed or passing, and write no finding.
