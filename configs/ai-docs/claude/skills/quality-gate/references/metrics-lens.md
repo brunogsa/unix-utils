@@ -1,14 +1,13 @@
 # Metrics Lens
 
-The prompt a `code-reviewer` follows when dispatched with the `metrics` lens. You are a fresh-context judge, not the code's author, so the rulings below are yours.
-
+The prompt a `code-reviewer` follows when dispatched with the `metrics` lens.
 You report only: never edit a source file, `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
 quality-gate passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
 
 ## 1. Run the script
 
-Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, over your range, redirecting its JSON to the run directory:
+Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, redirecting its JSON to the run directory:
 - [Why] A repo-relative path resolves only inside the config repo.
 
 ```bash
@@ -17,7 +16,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, ove
   --session-id <SESSION_ID> > <RUN_DIR>/metrics-report.json
 ```
 
-- `--session-id <SESSION_ID>` is the id main pushed into your prompt; omit the flag only when none was pushed.
+- `--session-id <SESSION_ID>` is the id main pushed into your prompt; omit it only when none was.
   - [Why] Only main's id keys the per-session tool map; without it every metric uses global tools.
 
 - `--diff BASE...HEAD` measures every declared metric on the range's changed code and lists the over-limit functions it removes as resolved.
@@ -71,7 +70,7 @@ For each claim you were given:
    - Never regenerate it from the range diff, which holds only unsplit code.
    - A claim naming no saved split is rejected.
 
-2. Rule whether the split reads worse than the unsplit function.
+2. Rule whether the split reads worse.
    - Worse: the exception stands. List it as an exception, not a violation.
    - Better: the claim is rejected. List the function as an unfixed violation.
 
@@ -88,15 +87,15 @@ For each claim you were given:
   [--exceptions <RUN_DIR>/metrics-exceptions.json] --out-dir <RUN_DIR>
 ```
 
-   - It prints the verdict path. Exit 2 means bad input, nothing written: report a failed run.
+   - Exit 2 means bad input, nothing written: report a failed run.
    - Never hand-write that verdict.
 
 ## 4. Judgments whatever the exception count
 
-Run these on every function the branch touches and every test it adds, even when no exception was claimed.
+Run these on every function the branch touches and every test it adds.
 
 - **Hollow split**: a function split into helpers that exist only to lower a metric.
-  - Signs: 1-line helpers, and a once-called helper whose name restates its body.
+  - Signs: 1-line helpers, a once-called helper whose name restates its body.
 
 - **Vacuous test**: a test that asserts nothing about the code under test's output or effect.
 
@@ -105,10 +104,14 @@ Run these on every function the branch touches and every test it adds, even when
   - A guard assertion that follows no call forms no pair.
   - A parametrized test, or a `for` loop over a table, counts each case or row as its own test.
 
-- **Duplication candidate**: a clone over its limit, listed as `### N. ...` entries under the rendered verdict's `## Duplication candidates (<n>)`. The script gates nothing on it; you rule each one.
+- **Uncovered lines**: read the `Uncovered lines:` line of each coverage or CRAP entry.
+  - Write one `[metrics]` finding per range, naming the input or branch that reaches it and the test that would cover it.
+  - A defensive branch not worth a test gets its justification in the finding instead.
+
+- **Duplication candidate**: a clone over its limit, listed as `### N. ...` entries under the rendered verdict's `## Duplication candidates (<n>)`. You rule each one.
   - Apply `code-standards`' rule "Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars", reading the clone's code at every location.
   - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
-  - Leave: write one line of reason in the judge file and no finding.
+  - Leave: one line of reason in the judge file, no finding.
 
 ## 5. Opt-outs are proposals
 
@@ -117,7 +120,7 @@ When a metric fits a language badly, propose the opt-out in your report with the
 
 ## 6. Finding schema
 
-Your own judge findings go to `<RUN_DIR>/metrics-judge_<timestamp>.md`. The rendered verdict owns exception rulings and script violations, so list neither here.
+Judge findings go to `<RUN_DIR>/metrics-judge_<timestamp>.md`. The rendered verdict owns exception rulings and script violations, so list neither here.
 
 Write each finding under the heading shape the merge routes on:
 
@@ -127,4 +130,4 @@ Write each finding under the heading shape the merge routes on:
 
 Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires: a `**[TAG]**` severity line matching the heading ordinal, the file, function and evidence (script record, diff, or quoted lines), a `**Suggestion**` line with the fix or opt-out, and a `**Trade-off of not doing it**` line.
 
-Name both file paths, the rendered metrics verdict and the judge findings, in your return message.
+Name the rendered metrics verdict and judge findings paths in your return message.
