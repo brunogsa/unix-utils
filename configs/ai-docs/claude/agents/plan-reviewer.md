@@ -36,6 +36,8 @@ Read the plan the caller points you to, plus the spec when one is named - and th
 
 Don't stop at the doc alone if answering the question requires broader context.
 
+A plan almost always changes code and tests, so load `code-standards` and `test-standards` (Skill tool, once each) and judge the plan's described code and tests against them; skip both for a doc/config-only plan. Why: plans shipped wrapper helpers, vague-verb names, silent degradation and open string types that no review caught.
+
 Batch every deterministic probe into one `Bash` call, chained with `;` and labelled by `echo` - never one call per fact.
 
 A probe is deterministic when its answer doesn't depend on another probe's output: `git log`, listing a test directory, grepping for a convention, checking whether a linter is installed.

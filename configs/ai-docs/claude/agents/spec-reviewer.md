@@ -32,6 +32,8 @@ Read the spec and/or plan the caller points you to - the referenced code, prior 
 
 Don't stop at the doc alone if answering the question requires broader context.
 
+When the spec describes tests to encode, load `test-standards` (Skill tool, once); when it names code shapes (function/type/enum names, error handling, module boundaries), load `code-standards` too. Judge the described tests and code against them; skip both for a doc/config-only spec. Why: specs shipped wrapper helpers, vague-verb names, silent degradation and open string types that no review caught.
+
 Batch every deterministic probe into one `Bash` call, chained with `;` and labelled by `echo` - never one call per fact.
 
 A probe is deterministic when its answer doesn't depend on another probe's output: `git log`, listing a test directory, grepping for a convention, checking whether a linter is installed.

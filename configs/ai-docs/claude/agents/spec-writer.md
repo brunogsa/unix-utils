@@ -32,6 +32,13 @@ The caller gives you:
 
 4. The `design-docs` skill (Skill tool) - ownership + altitude rules that keep the spec from re-deriving durable ADR/HLD/LLD content. Load once, on a write call only.
 
+5. The `test-standards` skill (Skill tool), once, when the spec carries acceptance criteria that will be encoded as tests.
+   - Also load `code-standards` once, only when the spec names code shapes (function/type/enum names, error handling, module boundaries).
+
+   - Skip both for a doc/config-only change.
+
+   - Why: specs shipped a wrapper helper, a vague-verb name, silent degradation and an open string type.
+
 Compose under those conventions rather than reconstructing them from memory. Never copy guidance or example text from a reference into the spec - write the spec's own content, not the rule that shaped it.
 
 ## Procedure

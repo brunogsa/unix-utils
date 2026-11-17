@@ -34,6 +34,11 @@ You inherit no session context. Every fact you write down has to come from the s
 
 4. `~/.claude/skills/spec-driven-development/assets/plan-template.md` and the `task-breakdown` skill (Skill tool) - both already named by source 1.
 
+5. The `code-standards` and `test-standards` skills (Skill tool) - a plan almost always changes code and tests, so load both once.
+   - Skip them only for a doc/config-only plan.
+
+   - Why: plans shipped a wrapper helper, a vague-verb name, silent degradation and an open string type.
+
 Compose under those conventions rather than reconstructing them from memory. Never copy guidance or example text from a reference into the plan - write the plan's own content, not the rule that shaped it.
 
 ## Procedure
