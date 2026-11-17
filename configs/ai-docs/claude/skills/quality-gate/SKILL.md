@@ -153,7 +153,7 @@ Verify without reading the merged file into main:
 
 Then settle the scout tasks as [`scout-leg.md`](references/scout-leg.md) "Settle the tasks" says: delete each in-goal one the merged file carries, complete each already fixed, keep the rest, and write `<RUN_DIR>/scout-outcomes.md`.
 
-**Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Delete no scout task. Say so in §7.
+**Fail** → move the merged file into `<RUN_DIR>`, and move every source file except the scout files, and the rendered metrics verdict, back into CWD. Leave `scout-leg_<ts>.md` in `<RUN_DIR>` and change no scout task: they stay pending for the next gate run. Say so in §7.
 
 ### 4.2. Judge each finding Fix or Skip - auto-solve only
 

@@ -17,7 +17,7 @@ Why: `/quality-gate` moves its own standalone files away, so an older one left i
 
 A standalone `metrics` verdict exists only on quality-gate's merge-fail fallback, where its section 4.1 moves the rendered metrics verdict back into CWD; its rendered entries carry no severity tag.
 
-A standalone `scout` source likewise exists only on that fallback, as `scout-leg_<ts>.md` in CWD (never `verdict_`-prefixed, so marked mode's `verdict_scouts*.md` glob misses it); add it to the `ls` above only then.
+The `scout` lens has no standalone source: on that fallback `scout-leg_<ts>.md` stays in quality-gate's `<RUN_DIR>`, and its tasks stay pending for the next gate run.
 
 - **Default**: the winning source of each lens. Under `all`, the merged file contributes only for the lenses it wins.
 

@@ -10,7 +10,7 @@ Main hands you `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths (either may be
   - Reason: you have no task tools, so the TaskList stays main's to change, and a nested reviewer spends a spawn-depth level on a second opinion nobody asked for.
 
 - Write both files in `<RUN_DIR>`, never in CWD.
-  - Reason: `/address-verdicts` globs `verdict_scouts*.md` in CWD for an older workflow, and the `scout-leg_` prefix keeps your file out of that glob if a fallback moves it back.
+  - Reason: `/address-verdicts` globs `verdict_scouts*.md` in CWD for an older workflow, and the `scout-leg_` prefix keeps it out of that glob, and on a merge fallback it stays in `<RUN_DIR>`, never moved to CWD.
 
 - Read the whole export file, never a summary of it.
 
@@ -88,6 +88,7 @@ The two paths written, the exported count, and the in-goal and off-goal counts.
 ## Settle the tasks
 
 Main runs this right after §4.1's merge passes, never later, and never on the fallback.
+  - Reason: on the fallback the scouts stay pending, so the next gate run exports them again, and no human run can apply one twice.
 
 - **Delete** an id (`TaskUpdate` status `deleted`) only when all 3 hold: it has a `## #<id>` section in `<RUN_DIR>/open-scouts.md`, `<RUN_DIR>/scout-classification.md` lists it as in-goal, and the merged file carries its `**Scout task**: #<id>` line outside code fences.
   - Reason: a task that fails any check may be a mis-typed id or a finding the merge dropped, and deleting it loses the scout for good.
