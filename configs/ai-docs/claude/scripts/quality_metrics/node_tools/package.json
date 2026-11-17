@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "dependencies": {
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/jest-runner": "10.1.1",
+    "eslint": "10.15.0",
+    "knip": "6.45.1",
+    "pyright": "1.1.414",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.73.0"
+  }
+}

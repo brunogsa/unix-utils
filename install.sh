@@ -198,6 +198,10 @@ if [[ "$OS" == "macos" ]]; then
     brew install deno
     brew install uv
 
+    # go: the quality metrics' Go dead-code check (deadcode)
+    # and Go coverage tools need it
+    brew install go
+
     # shfmt: Bash function end lines, via its syntax tree
     brew install shfmt
 elif [[ "$OS" == "linux" ]]; then
@@ -230,6 +234,26 @@ elif [[ "$OS" == "linux" ]]; then
 
     # shfmt: Bash function end lines, via its syntax tree
     sudo apt-get install -y shfmt
+
+    # go: the quality metrics' Go dead-code check (deadcode)
+    # and Go coverage tools need it. Pinned tarball from
+    # go.dev, since apt's golang lags.
+    GO_VERSION="1.27.4"
+    if command -v go &> /dev/null && [[ "$(go version)" == *"go${GO_VERSION} "* ]]; then
+        echo "go ${GO_VERSION} already installed, skipping"
+    else
+        case "$(uname -m)" in
+            aarch64|arm64) GO_ARCH="arm64" ;;
+            *) GO_ARCH="amd64" ;;
+        esac
+        wget "https://go.dev/dl/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz" -O /tmp/go.tar.gz
+        sudo rm -rf /usr/local/go
+        sudo tar -xzf /tmp/go.tar.gz -C /usr/local
+        rm /tmp/go.tar.gz
+    fi
+    export PATH="/usr/local/go/bin:$PATH"
+
+    grep -q '/usr/local/go/bin' ~/.zshrc || echo "export PATH=\"/usr/local/go/bin:\$PATH\"" >> ~/.zshrc
 
     # deno
     curl -fsSL https://deno.land/install.sh | sh
@@ -278,13 +302,16 @@ npm install -g dependency-cruiser@18.7.2
 npm install -g typescript@6.0.3
 
 # Go tools, only where go exists: gcov2lcov (Go coverage as
-# lcov) and go-arch-lint (Go layer imports against the layer
-# map). GOBIN installs them to ~/.local/bin, since the default
-# ~/go/bin is on no PATH.
+# lcov), go-arch-lint (Go layer imports against the layer
+# map) and deadcode (cross-file dead code for the quality
+# metrics).
+#
+# GOBIN installs to ~/.local/bin; ~/go/bin is on no PATH.
 if command -v go &> /dev/null; then
     mkdir -p "$HOME/.local/bin"
     GOBIN="$HOME/.local/bin" go install github.com/jandelgado/gcov2lcov@latest
     GOBIN="$HOME/.local/bin" go install github.com/fe3dback/go-arch-lint@v1.19.1
+    GOBIN="$HOME/.local/bin" go install golang.org/x/tools/cmd/deadcode@v0.52.0
 fi
 
 # mmdc - renders mermaid; used by compile-mermaid, the
@@ -313,6 +340,11 @@ npm install -g ccusage
 # on PATH stays whichever version the user wants for their own
 # work.
 npm install --prefix ~/unix-utils/configs/ai-docs/claude/skills/doc-standards/scripts
+
+# The quality metrics' pyright, eslint, knip and Stryker are
+# pinned beside the harness, so the copies on PATH stay
+# whichever versions the user wants for their own work.
+npm install --prefix ~/unix-utils/configs/ai-docs/claude/scripts/quality_metrics/node_tools
 
 # AI setup: Claude Code e OpenCode configuration
 npm install -g ccstatusline
