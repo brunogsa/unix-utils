@@ -17,14 +17,14 @@ It composes the body and creates (or updates) the PR - the orchestrator never wr
 
 - **CRITICAL: `pr-creator`, never `core:pr-creator`** - the agent list carries both; `core:pr-creator` is a different, unrelated agent (a generic GitHub PR opener with no create-pr-skill awareness).
 
-  It ignores every requirement this section enumerates (template preservation, `.final.md` output path, untracked-doc-reference stripping, the REST-API update path) - picking it silently drops this whole section's contract.
+  It ignores every requirement this section enumerates - picking it silently drops this whole section's contract.
 
 **The branch is already on the remote - §8.1's step 1 pushed it before this section is reached.**
-Push and create are split owners: pushing doesn't depend on a PR being wanted, so a pushed branch with no PR is normal, not an inconsistent state needing cleanup.
+
+A pushed branch with no PR is normal: pushing doesn't depend on a PR being wanted.
 
 - **CRITICAL: re-read this whole section immediately before dispatching - never execute it from a compacted-summary recollection.**
   A paraphrase like "generate the body via a subagent, following create-pr conventions" silently drops every enumerated specific below.
-  Re-reading costs one file read; skipping it costs a PR pushed with mandatory sections or safety rules missing.
 
 - Never dispatch a reviewer agent (`code-reviewer`, `spec-reviewer`, `plan-reviewer`, or `test-reviewer`) for this: their shared write-guard hook allows only `verdict_*.md` and `/tmp` writes, denying the `pr_*.final.md` write in CWD.
 
@@ -51,7 +51,8 @@ Push and create are split owners: pushing doesn't depend on a PR being wanted, s
 
     - **`<base-branch>` is the parent PR's branch for a dependent PR; §1.2's confirmed base, with a leading `origin/` stripped, for a zero-parent PR or a plain `<task-ids>` run.**
       Read the parent's branch from its PR Breakdown entry's `Branch:` field - the fail-fast stop predicate guarantees the parent's batch-end push already wrote it.
-      Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges - the reviewer burden a multi-PR split exists to remove.
+
+      - Targeting the confirmed base instead shows the parent's commits inside this PR's diff until the parent merges.
 
       - `--base` takes a branch name on GitHub, while `resolve-base-ref.sh`, §1.2's default, prints the remote-tracking ref `origin/main` whenever origin/HEAD resolves.
 
@@ -65,7 +66,7 @@ Push and create are split owners: pushing doesn't depend on a PR being wanted, s
     - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure.
       Fall back to the REST-API body-update path below, targeting that PR number, so a rerun updates its own open PR instead of erroring.
     - **Updating an existing PR's body: use the REST API, never `gh pr edit --body-file`** - the command and its mandatory read-back live in the `gh-cli-usage` skill.
-      - Name the skill in the dispatch prompt rather than pasting the command: a third copy drifts the next time GitHub changes the endpoint.
+      - Name the skill in the dispatch prompt; never paste the command.
 
   - Put completed Scout / repo-green fix-loop (§8.3) commits under an **"Unexpected extras"** section in the PR body.
   - Pass §1.2's ticket ID or "none" ([`ticket-id.md`](../../create-pr/references/ticket-id.md)); the subagent cannot ask.

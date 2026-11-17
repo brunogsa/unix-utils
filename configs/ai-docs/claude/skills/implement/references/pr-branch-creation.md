@@ -26,13 +26,11 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
   - Clearing that halt means a fresh `/implement` re-invocation of this same PR.
 
-  - This check is what lets that fresh run find its branch already in place, instead of failing on `checkout -b`.
-
   - Branch already exists → `git checkout <pr_branch>` (plain, no `-b`) and skip every step below.
 
-  - The guard already ran, and passed, the first time this branch was created - re-running it on an adopted branch is redundant, not merely safe-to-repeat.
+  - The guard already passed when the branch was first created, so re-running it on an adopted branch is redundant.
 
-  - This holds for an adopted diamond branch too: its guard already validated ancestry against every parent, after the checkout and merges.
+  - This holds for an adopted diamond branch too: its guard already validated ancestry against every parent.
 
 ## Creating the branch - zero, one, or many parents
 
@@ -64,8 +62,6 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
     The stop predicate ([`pr-awareness.md`](pr-awareness.md)'s "The per-PR loop and fail-fast") starts this PR only after the parent's whole batch completed. That batch's §8 push is the sole writer of the parent's `Branch:` clause ([`batch-end-pr-branch-record.md`](batch-end-pr-branch-record.md)).
 
-    So this step writes nothing itself; the parent's own write always got there first.
-
     The guard also blocks when HEAD carries a non-merge commit from none of the parent branches, so a branch cut from the wrong base never passes.
 
     Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks; do not retry. Discard the half-built branch before stopping: `git checkout <parent-branch>` then `git branch -D <pr_branch>`, for the same reason as the diamond case below. Exit 2 (usage/parse error) surfaces the same way, discarding the branch identically.
@@ -75,8 +71,6 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
   - **Two or more parents** (diamond dependency) → resolve each parent's branch name from its own PR Breakdown entry first, in the order listed in `Depends on:`.
 
     - Read it from column 4 of `parse-pr-breakdown.sh <plan-file>`, as in the single-parent case.
-
-    - Every parent's clause already exists here, by the same reasoning as the single-parent case above.
 
     - `git checkout -b <pr_branch> <first-listed-parent-branch>` - explicit base ref, same as the "Zero parents" bullet, never bare HEAD.
 
@@ -92,7 +86,7 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
       - Never `git merge --abort`, never a blind `-X ours`/`-X theirs`, never an interactive handoff.
 
-      - Both branches are `/implement`-authored PRs from the same plan, so no independent human work is ever at risk of being silently overwritten.
+      - Both branches are `/implement`-authored PRs from the same plan, so no independent human work is at risk.
 
     - Only once every parent is merged in, call the dependency guard exactly once, against the now-merged HEAD:
 
@@ -100,7 +94,7 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
       ~/.claude/skills/implement/scripts/check-pr-dependencies-ready.sh <plan-file> <PR-N> <worktree-path>
       ```
 
-      Same script as the single-parent case, called here after the merges too. Its ancestry check (`git merge-base --is-ancestor <parent_branch> HEAD`) cannot pass for the second and later parents until their commits land via merge. Calling it earlier would always fail here, even when every parent legitimately is Done.
+      Its ancestry check (`git merge-base --is-ancestor <parent_branch> HEAD`) cannot pass for the second and later parents until their commits land via merge. Calling it earlier would always fail, even when every parent is Done.
 
       Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks. Discard the half-built branch before stopping: `git checkout <first-listed-parent-branch>` then `git branch -D <pr_branch>`.
 
