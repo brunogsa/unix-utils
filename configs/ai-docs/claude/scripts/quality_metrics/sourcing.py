@@ -8,6 +8,7 @@ and the gap is a side-PR candidate.
 import json
 import os
 import re
+import shlex
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
@@ -21,6 +22,7 @@ from quality_metrics.gate_inputs import (
     write_base_ref_coverage_config,
     write_base_ref_workspace_config,
 )
+from quality_metrics.jest_specs import is_spec_candidate_source, specs_by_stem, specs_named_after
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -77,6 +79,9 @@ JEST_DEFAULT_IGNORE_PATTERNS = ("/node_modules/",)
 # `--maxWorkers N` (jestjs.io/docs/cli#--maxworkersnumstring).
 DEFAULT_JEST_MAX_WORKERS = "2"
 MAX_WORKERS_PATTERN = re.compile(r"--maxWorkers[= ](\S+)")
+
+# A shell word assigning a variable, such as `TZ=UTC`.
+ENV_ASSIGNMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
@@ -242,7 +247,7 @@ def _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
     be read."""
     shown = run_command(
         ["jest", "--showConfig", *config_flags],
-        cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
+        cwd=run_dir, env=_jest_env(repo, run_dir), timeout=timeout_seconds,
     )
     try:
         project_configs = json.loads(shown.stdout)["configs"]
@@ -269,30 +274,98 @@ def _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds):
     return [f"--testPathIgnorePatterns={pattern}" for pattern in patterns]
 
 
-def _declared_max_workers(workspace_dir):
-    """The `--maxWorkers` the workspace's package.json `test`
-    script passes jest; the default cap when it declares
-    none."""
+def _declared_test_script(workspace_dir):
+    """The workspace's package.json `test` script; empty when
+    it declares none."""
     package_json = workspace_dir / "package.json"
     try:
-        test_script = json.loads(package_json.read_text())["scripts"]["test"]
+        return str(json.loads(package_json.read_text())["scripts"]["test"])
     except (OSError, ValueError, KeyError, TypeError):
-        return DEFAULT_JEST_MAX_WORKERS
-    declared = MAX_WORKERS_PATTERN.search(str(test_script))
+        return ""
+
+
+def _declared_max_workers(workspace_dir):
+    """The `--maxWorkers` the workspace's `test` script passes
+    jest; the default cap when it declares none."""
+    declared = MAX_WORKERS_PATTERN.search(_declared_test_script(workspace_dir))
     return declared.group(1) if declared else DEFAULT_JEST_MAX_WORKERS
 
 
-def _changed_files_scope_flags(repo, run_dir, changed_paths):
-    """Flags that run only the changed files under `run_dir`:
-    jest keeps the test files among them and skips every other
-    spec. None when no changed file is given, so the whole
-    suite runs."""
+def _declared_test_env(workspace_dir):
+    """The variables the workspace's `test` script assigns
+    before its first command, such as `TZ=UTC`.
+
+    Assignments after the first command apply to a later
+    command only, so they are not read. A script the shell
+    rules cannot split assigns nothing here.
+    """
+    try:
+        words = shlex.split(_declared_test_script(workspace_dir))
+    except ValueError:
+        return {}
+    assignments = {}
+    for word in words:
+        if not ENV_ASSIGNMENT_PATTERN.match(word):
+            break
+        name, value = word.split("=", 1)
+        assignments[name] = value
+    return assignments
+
+
+def _jest_env(repo, run_dir):
+    """The environment jest runs in from `run_dir`: the
+    workspace `test` script's own variables, with the repo's
+    local binaries first on PATH."""
+    return {**_repo_tool_env(repo), **_declared_test_env(run_dir)}
+
+
+def _changed_paths_under(repo, run_dir, changed_paths):
+    """The changed paths inside `run_dir`, made absolute."""
     run_dir_prefix = os.path.realpath(run_dir) + os.sep
     absolute_paths = [str(Path(repo) / path) for path in changed_paths]
-    workspace_paths = [path for path in absolute_paths if os.path.realpath(path).startswith(run_dir_prefix)]
+    return [path for path in absolute_paths if os.path.realpath(path).startswith(run_dir_prefix)]
+
+
+def _related_specs(sources, *, flags, cwd, env, timeout):
+    """The specs jest lists as exercising `sources`, read from
+    the dependency graph `--findRelatedTests` walks.
+
+    `flags` are the config and ignore flags the coverage run
+    takes, so the listing sees the same specs it would.
+    """
+    listing = run_command(
+        ["jest", *flags, "--listTests", "--findRelatedTests", *sources], cwd=cwd, env=env, timeout=timeout,
+    )
+    if listing.returncode != 0:
+        raise ToolError(f"jest --listTests --findRelatedTests exited {listing.returncode}: {listing.stderr.strip()}")
+    return [line.strip() for line in listing.stdout.splitlines() if line.strip()]
+
+
+def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
+    """Flags that run only the specs exercising the changed
+    files under `run_dir`.
+
+    - The run takes the changed specs and the specs named after
+      each changed source.
+
+    - A source with no spec of its name adds the specs that
+      `list_related_specs` returns for it, in one listing call.
+
+    jest keeps the test files among the paths given and skips
+    every other spec. None when no changed file is given, so
+    the whole suite runs.
+    """
+    workspace_paths = _changed_paths_under(repo, run_dir, changed_paths)
     if not workspace_paths:
         return []
-    return ["--runTestsByPath", *workspace_paths]
+    sources = [path for path in workspace_paths if is_spec_candidate_source(path)]
+    specs_found = specs_by_stem(run_dir, _nested_worktree_paths(run_dir)) if sources else {}
+    named_specs_by_source = {source: specs_named_after(source, specs_found) for source in sources}
+    named_specs = [spec for specs in named_specs_by_source.values() for spec in specs]
+    sources_without_named_spec = [source for source, specs in named_specs_by_source.items() if not specs]
+    related_specs = list_related_specs(sources_without_named_spec) if sources_without_named_spec else []
+    scope = list(dict.fromkeys([*workspace_paths, *named_specs, *related_specs]))
+    return ["--runTestsByPath", *scope]
 
 
 def _without_nested_worktree_files(hits_by_absolute_path, run_dir):
@@ -310,18 +383,24 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_p
     """One jest coverage run from the workspace directory, its
     hits keyed by repo-relative path."""
     run_dir = Path(repo) / workspace
+    env = _jest_env(repo, run_dir)
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
         ignore_flags = _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds)
+        scope_flags = _spec_scope_flags(
+            repo, run_dir, changed_paths,
+            lambda sources: _related_specs(
+                sources, flags=[*config_flags, *ignore_flags], cwd=run_dir, env=env, timeout=timeout_seconds,
+            ),
+        )
         result = run_command(
             [
                 "jest", "--coverage", "--passWithNoTests",
                 "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
                 f"--maxWorkers={_declared_max_workers(run_dir)}",
-                *config_flags, *ignore_flags,
-                *_changed_files_scope_flags(repo, run_dir, changed_paths),
+                *config_flags, *ignore_flags, *scope_flags,
             ],
-            cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
+            cwd=run_dir, env=env, timeout=timeout_seconds,
         )
         exit_class = classify_exit(result)
         if exit_class not in MEASURING_EXIT_CLASSES:
@@ -343,10 +422,13 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
 
     jest runs once per workspace a changed file lives in, from
     that workspace's directory with its own config, so a config
-    that only extends the root one still applies. It runs only
-    the changed files there, so an unchanged spec never runs.
-    Without changed paths it runs the whole suite once, from
-    the root.
+    that only extends the root one still applies. It runs the
+    changed specs there plus the specs exercising each changed
+    source, so an unrelated spec never runs. Without changed
+    paths it runs the whole suite once, from the root.
+
+    jest runs with the variables the workspace `test` script
+    sets before its first command, such as `TZ=UTC`.
 
     With a `base_ref`, jest reads the config that ref
     committed, so a branch's own coverage excludes never shape

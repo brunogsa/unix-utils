@@ -44,7 +44,11 @@ CART_LCOV = "SF:src/cart.js\n" + "".join(
 
 # Writes an lcov report where it is told to, then fails the
 # repo's own 95% threshold the way jest words it.
+#
+# A `--listTests` call lists no related spec and is no
+# coverage attempt, so it logs nothing.
 JEST_STUB = """#!/bin/bash
+case " $* " in *" --listTests "*) exit 0;; esac
 echo attempt >> "$ATTEMPT_LOG"
 for argument in "$@"; do
   case "$argument" in
