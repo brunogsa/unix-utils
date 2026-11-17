@@ -53,7 +53,7 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
 
    If they name a checklist or a set of gates, follow it - otherwise reason from first principles about the dimension they're asking about.
 
-   Metrics means: do the splits and tests hold up. Read `~/.claude/skills/quality-gate/references/metrics-lens.md` first and follow it.
+   Metrics means: do the splits and tests hold up. Read `~/.claude/skills/metrics-review/references/metrics-lens.md` first and follow it.
 
    Don't drift into an unrelated critique they didn't request.
 
