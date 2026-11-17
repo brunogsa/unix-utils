@@ -363,6 +363,35 @@ it_should_write_the_resolved_base_revision_to_base_rev_txt_in_the_work_dir() {
     "base" "$content"
 }
 
+# A base given as the remote-tracking name origin/main, the
+# shape resolve-base-ref.sh prints when origin/HEAD resolves,
+# must still be fetched fresh before the diff is taken.
+it_should_fetch_origin_main_fresh_when_the_base_is_given_as_origin_main() {
+  local scratch origin_tip fetched_tip work_dir
+  scratch="$(mktemp -d)"
+  work_dir="$(mktemp -d)"
+  git init -q --bare -b main "$scratch/origin.git"
+  git init -q -b main "$scratch/seed"
+  git -C "$scratch/seed" config user.email test@example.com
+  git -C "$scratch/seed" config user.name "Test User"
+  git -C "$scratch/seed" commit -q --allow-empty -m "first commit on main"
+  git -C "$scratch/seed" push -q "$scratch/origin.git" main
+  git clone -q "$scratch/origin.git" "$scratch/clone"
+
+  # origin moves on after the clone, so the clone's
+  # origin/main stays stale until something fetches it.
+  git -C "$scratch/seed" commit -q --allow-empty -m "upstream commit after the clone"
+  git -C "$scratch/seed" push -q "$scratch/origin.git" main
+  origin_tip="$(git -C "$scratch/origin.git" rev-parse main)"
+
+  (cd "$scratch/clone" && bash "$SCRIPT" origin/main "$work_dir" >/dev/null 2>&1)
+  fetched_tip="$(git -C "$scratch/clone" rev-parse origin/main)"
+
+  rm -rf "$scratch" "$work_dir"
+  assert_eq "should fetch origin's main before diffing when the base is given as origin/main" \
+    "$origin_tip" "$fetched_tip"
+}
+
 it_should_print_the_usage_header_and_exit_zero_on_help_flag() {
   local output exit_code result
   output=$(bash "$SCRIPT" --help 2>&1)
@@ -389,6 +418,7 @@ it_should_fail_naming_the_problem_when_called_with_the_wrong_argument_count
 it_should_fail_naming_the_problem_when_run_outside_a_git_repository
 it_should_use_three_dot_range_for_the_diff_and_two_dot_range_for_the_commit_log
 it_should_write_the_resolved_base_revision_to_base_rev_txt_in_the_work_dir
+it_should_fetch_origin_main_fresh_when_the_base_is_given_as_origin_main
 it_should_print_the_usage_header_and_exit_zero_on_help_flag
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"

@@ -41,9 +41,13 @@ mkdir -p "$work_dir"
 # copy, so a stale local branch never silently narrows the
 # diff. Anything else must already resolve locally (SHA,
 # HEAD~N, tag).
-if git ls-remote --exit-code --heads origin "$base_ref" >/dev/null 2>&1; then
-  git fetch origin "$base_ref"
-  base_rev="origin/$base_ref"
+#
+# A base given as origin/<name> (resolve-base-ref.sh's shape)
+# names the same origin branch, so the fetch takes <name>.
+branch_name="${base_ref#origin/}"
+if git ls-remote --exit-code --heads origin "$branch_name" >/dev/null 2>&1; then
+  git fetch origin "$branch_name"
+  base_rev="origin/$branch_name"
 else
   git rev-parse --verify --quiet "$base_ref^{commit}" >/dev/null \
     || { echo "base ref '$base_ref' is neither a branch on origin nor a local commit-ish" >&2; exit 1; }
