@@ -50,7 +50,7 @@ All limits sourced where possible. [`references/research.md`](references/researc
 
 Skills have no per-line length limit - the per-skill word cap covers overflow.
 
-Density is checked across CLAUDE.md + every `SKILL.md` + every `references/*.md` + every `assets/*.md`. The report lists per-file counts under "Density violations".
+Density covers CLAUDE.md, every `SKILL.md`, `references/*.md`, `assets/*.md` and `~/.claude/agents/*.md`, with per-file counts in the report.
 
 ### Instruction-density measurement (markers)
 

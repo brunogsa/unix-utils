@@ -839,13 +839,16 @@ if [ -n "$standards_unmigrated" ]; then
 fi
 
 # Density check across CLAUDE.md + all SKILL.md
-# + references + assets
+# + references + assets + the installed agents
 density_script="$HOME/.claude/skills/doc-standards/scripts/check-density.sh"
 if [ -x "$density_script" ]; then
     density_targets=()
     [ "$has_claude_md" -eq 1 ] && density_targets+=("$CLAUDE_MD")
     while IFS= read -r f; do density_targets+=("$f"); done < <(
         find -L "$SKILLS_DIR" -type f ! -path "$SYNCED_DIR/*" ! -path "*/.trash/*" \( -name "SKILL.md" -o -path "*/references/*.md" -o -path "*/assets/*.md" \) | sort
+    )
+    while IFS= read -r f; do density_targets+=("$f"); done < <(
+        find "$CANONICAL_AGENTS_DIR" -maxdepth 1 -type f -name '*.md' | sort
     )
     if [ "${#density_targets[@]}" -gt 0 ]; then
         # Exit 2 means the scan stopped early, so its partial

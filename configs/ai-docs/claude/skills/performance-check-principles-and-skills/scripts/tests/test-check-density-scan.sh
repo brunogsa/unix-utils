@@ -127,9 +127,28 @@ it_should_report_the_violation_count_as_over_when_the_scan_finds_violations() {
     rm -rf "$d"
 }
 
+it_should_list_an_installed_agent_file_under_density_when_the_scan_flags_it() {
+    echo "it_should_list_an_installed_agent_file_under_density_when_the_scan_flags_it"
+    local d; d=$(new_fixture)
+    printf '# Dense agent\n' > "$FAKE_HOME/.claude/agents/dense-agent.md"
+
+    # Flags every file it is handed, so the per-file list shows
+    # exactly which files check.sh passed to the scan.
+    install_density_stub 'for f in "$@"; do printf "== %s\n3:300:40\n" "$f"; done; exit 1'
+    run_check "$d" > /dev/null
+    local out; out=$(cat "$OUT_FILE")
+    assert_contains "lists the agent file with its violation" \
+        "agents/dense-agent.md: 1" "$out"
+    assert_contains "counts the agent violation with the CLAUDE.md one" \
+        "Total violations: 2 (OVER)" "$out"
+    rm -f "$FAKE_HOME/.claude/agents/dense-agent.md"
+    rm -rf "$d"
+}
+
 it_should_fail_the_density_section_when_the_scan_cannot_complete
 it_should_fail_the_density_section_even_when_the_partial_scan_found_nothing
 it_should_report_the_violation_count_as_over_when_the_scan_finds_violations
+it_should_list_an_installed_agent_file_under_density_when_the_scan_flags_it
 
 rm -f "$OUT_FILE"
 

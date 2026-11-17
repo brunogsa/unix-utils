@@ -23,6 +23,10 @@ CHECK="$SCRIPT_DIR/../check.sh"
 # tests -> scripts -> performance-check... -> skills -> claude
 readonly TREE="$SCRIPT_DIR/../../../.."
 
+# The fixture tests run check.sh under a fake HOME, so an
+# over-budget file in the live agents dir cannot fail them.
+source "$SCRIPT_DIR/lib-fake-home.sh"
+
 passed=0
 failed=0
 
@@ -71,7 +75,7 @@ it_should_fail_when_a_bundled_reference_exceeds_its_word_budget() {
         > "$d/skills/real-skill/references/over-budget.md"
 
     local out rc
-    out=$(bash "$CHECK" "$d" 2>&1)
+    out=$(HOME="$FAKE_HOME" bash "$CHECK" "$d" 2>&1)
     rc=$?
     assert_eq "check.sh exits non-zero on an over-budget reference" "1" "$rc"
 
@@ -101,7 +105,7 @@ it_should_ignore_an_over_budget_file_inside_a_trash_directory() {
         > "$d/skills/.trash/old-skill/references/over-budget.md"
 
     local rc
-    bash "$CHECK" "$d" >/dev/null 2>&1
+    HOME="$FAKE_HOME" bash "$CHECK" "$d" >/dev/null 2>&1
     rc=$?
     assert_eq "check.sh exits 0 when only .trash holds an over-budget file" "0" "$rc"
     rm -rf "$d"
