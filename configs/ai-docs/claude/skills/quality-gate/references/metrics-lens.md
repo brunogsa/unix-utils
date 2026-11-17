@@ -12,7 +12,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, red
 
 ```bash
 ~/.claude/scripts/measure-quality-metrics.py \
-  --diff <BASE>...<HEAD> --layers <layer-map-file> \
+  --diff <BASE>...<HEAD> --mutation --layers <layer-map-file> \
   --session-id <SESSION_ID> > <RUN_DIR>/metrics-report.json
 ```
 
@@ -20,7 +20,8 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, red
   - [Why] Only main's id keys the per-session tool map; without it every metric uses global tools.
 
 - `--diff BASE...HEAD` measures every declared metric on the range's changed code and lists the over-limit functions it removes as resolved.
-  - It cannot combine with `--files` or `--per-unit`.
+
+- `--mutation` adds the 5-minute mutation run of the changed lines.
 
 - `--files FILE...` measures whole files; use it only when handed no range.
 
@@ -30,11 +31,9 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, red
   - Exit 1 is a violation, gate-input violation, or open ask: valid JSON, render it (section 3).
   - Exit 2 means the run did not measure: report the stderr failure, never a pass (`metrics-leg.md` §4).
 
-Read the JSON in `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `duplication_candidates`, `asks`.
+Read `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `duplication_candidates`, `dead_code_candidates`, `surviving_mutants`, `mutants_not_run`, `asks`.
 
-Return each `asks` entry verbatim as an `ask` record in your final message; main raises it (`metrics-leg.md` §2).
-
-The script skips `entangled_tests`; you judge it in section 4.
+Return each `asks` entry verbatim as an `ask` record; main raises it (`metrics-leg.md` §2).
 
 ## 2. Infer a layer map when none is declared
 
@@ -56,7 +55,7 @@ layers:
     paths: ["domain/**"]
 ```
 
-5. Pass that file to `--layers`. The script rejects any `source` value other than those two.
+5. Pass that file to `--layers`.
 
 6. Link the saved file in your report, labelled "inferred, not declared".
 
@@ -78,7 +77,7 @@ For each claim you were given:
 
 4. Write the rulings as a JSON list to `<RUN_DIR>/metrics-exceptions.json`, one object per claim with the keys `file`, `function`, `metric`, `diff_path`, `split_value`, `rejected`.
    - `rejected` is true for a rejected claim, false when the exception stands.
-   - [Why] `build_verdict` in `quality_metrics/report.py` reads exactly these keys; a missing one makes the render exit 2.
+   - [Why] The render exits 2 on a missing key.
 
 5. Render the verdict, passing `--exceptions` only when you wrote that file:
 
@@ -113,6 +112,8 @@ Run these on every function the branch touches and every test it adds.
   - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
   - Skip: one judge-file line with the shortest quoted rule and the considered fix, no finding.
 
+- **Dead code candidate, surviving mutant**: rule every entry of those verdict sections per [`metrics-candidates.md`](metrics-candidates.md), read only when one is listed.
+
 ## 5. Opt-outs are proposals
 
 When a metric fits a language badly, propose the opt-out in your report with the evidence.
@@ -128,6 +129,6 @@ Write each finding under the heading shape the merge routes on:
 ### N. [SEVERITY][metrics] <title>
 ```
 
-Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires: a `**[TAG]**` severity line matching the heading ordinal, the file, function and evidence (script record, diff, or quoted lines), a `**Suggestion**` line with the fix or opt-out, and a `**Trade-off of not doing it**` line.
+Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires, each label alone on its line with its text below: the `**[TAG]**` severity line matching the heading ordinal; the file, function and evidence (script record, diff, or quoted lines); `**Suggestion**`, the fix or opt-out; `**Trade-off of not doing it**`.
 
 Return both paths: the rendered metrics verdict and the judge findings.

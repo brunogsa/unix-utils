@@ -80,7 +80,7 @@ def quality_gate(arg):
         ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 8b · leg dispatch
         # 8c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
-        # 8m · metrics-lens.md, with run_dir, BASE_REF and HEAD; runs plan-less too.
+        # 8m · metrics-lens.md, with run_dir, BASE_REF and HEAD; runs the script with --mutation; runs plan-less too.
         ("code-reviewer", "metrics",     "metrics-lens.md",      f"{run_dir}/verdict_metrics_{ts}.md + metrics-judge_{ts}.md"),
     ] if in_git else [metrics_leg_only])
     # 8d · hook: check-reviewer-writes. Each leg is told /tmp is writable,
@@ -149,7 +149,8 @@ def quality_gate(arg):
     #       violations" (fence-aware awk lists their numbers) plus every
     #       [metrics] judge finding enters, report-only and auto-solve alike:
     #       the plan approval already asked for measured quality. Ranked
-    #       lists, exceptions and deferred entries stay out. A violation the
+    #       lists, exceptions and deferred entries stay out; so do duplication,
+    #       dead code and mutant entries - only judge findings enter. A violation the
     #       fix cannot clear, or a rejected exception, stays unmarked, open
     #       and first - and never blocks the PR.
     apply_list += open_violations(rendered) + metrics_judge_findings(merged)
@@ -241,7 +242,7 @@ flowchart TD
     n8a["8a. code-reviewer · reads refactor/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
     n8b["8b. code-reviewer · reads auto-review/SKILL.md<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
     n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
-    n8m["8m. code-reviewer · follows metrics-lens.md with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
+    n8m["8m. code-reviewer · follows metrics-lens.md<br/>(script run with --mutation) with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
   end
 
   n8d["8d. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook
@@ -269,7 +270,7 @@ flowchart TD
   subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The three groups below enter on different terms."]
     direction TB
     n11a["11a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints (run on the merged file) enters the apply list<br/>UNCONDITIONALLY, whenever that leg was dispatched (a plan<br/>resolved) - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
-    n11c["11c. Step 5.3 · Every entry under the rendered file's<br/>Open violations (fence-aware awk lists the numbers) plus every<br/>[metrics] judge finding enters, report-only and auto-solve alike.<br/>Ranked lists, exceptions and deferred entries stay out.<br/>A violation the fix cannot clear, or a rejected exception,<br/>stays unmarked, open and first; nothing blocks the PR"]
+    n11c["11c. Step 5.3 · Every entry under the rendered file's<br/>Open violations (fence-aware awk lists the numbers) plus every<br/>[metrics] judge finding enters, report-only and auto-solve alike.<br/>Ranked lists, exceptions, deferred entries and<br/>duplication, dead code and mutant entries stay out.<br/>A violation the fix cannot clear, or a rejected exception,<br/>stays unmarked, open and first; nothing blocks the PR"]
     n11b{"11b. Step 5.2 · Mode == auto-solve?"}
     n11b1["11b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
     n11b2["11b2. Auto-solve - read the MERGED file IN FULL (the two source<br/>files on the fallback path), never the legs' return summaries;<br/>sort every finding addressable vs not; print both lists with<br/>reasons BEFORE applying, each finding as<br/>quality-gate#N [lens] (file:lines), or lens#N (...) for<br/>test-sdd and on the fallback path"]

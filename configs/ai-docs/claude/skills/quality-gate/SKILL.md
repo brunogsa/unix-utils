@@ -156,7 +156,7 @@ One exception: a planned test whose target is prose is never written, because CL
 
 ### 5.2. Fix-ruled findings go in on an auto-solve run
 
-Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. A duplication candidate enters only through a judge finding that says to extract it.
+Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. Entries under the duplication, dead code and mutant sections do not enter the apply list; only the judge's `[metrics]` findings do.
 
 Report-only adds nothing else.
 
