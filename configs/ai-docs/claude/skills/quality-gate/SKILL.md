@@ -90,7 +90,10 @@ First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/qua
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
 Then export the open scouts: `~/.claude/scripts/export-open-scouts.py <SESSION_ID> <RUN_DIR>/open-scouts.md`. It prints the count of open `[Scout]` tasks.
+- **Non-zero exit** → dispatch no scout leg; §7 reads `scout leg: FAIL (export exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
+
 - **`0`** → dispatch no scout leg; §7 reads `scout leg: not run (no open scout)`.
+  - When `~/.claude/tasks/<SESSION_ID>/` does not exist, §7 reads `scout leg: not run (no task directory for session <SESSION_ID>)` instead, so a wrong session id never reads as "no open scout".
 
 Spawn each leg as its own agent, all in the **same turn**, all in the background.
 

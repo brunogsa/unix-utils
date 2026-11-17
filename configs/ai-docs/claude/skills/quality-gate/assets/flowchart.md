@@ -75,9 +75,18 @@ def quality_gate(arg):
     run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 9 · minted before any dispatch; step 4.1 reuses it
     # 10 · export-open-scouts.py <SESSION_ID> run_dir/open-scouts.md prints
     #      the count of open [Scout] tasks.
-    open_scouts = int(sh(f"~/.claude/scripts/export-open-scouts.py {session_id} {run_dir}/open-scouts.md"))
-    if open_scouts == 0:                                     # 11 · no open scout?
-        scout_report = "scout leg: not run (no open scout)"  # 11a · the scout leg is not dispatched
+    rc, out, err = sh_rc(f"~/.claude/scripts/export-open-scouts.py {session_id} {run_dir}/open-scouts.md")
+    open_scouts = None
+    if rc != 0:                                              # 10a · export failed?
+        # 10b · the scout leg is not dispatched; a failing outcome, never a clean one
+        scout_report = f"scout leg: FAIL (export exited {rc}: {err})"
+    else:
+        open_scouts = int(out)
+        if open_scouts == 0:                                 # 11 · no open scout?
+            # 11a · the scout leg is not dispatched; a missing task directory is
+            #       reported apart, so a wrong session id never reads as "no open scout"
+            scout_report = ("scout leg: not run (no open scout)" if exists(f"~/.claude/tasks/{session_id}/")
+                            else f"scout leg: not run (no task directory for session {session_id})")
 
     # Independent report-only passes, no ordering between them. Each leg IS
     # the fresh-context reviewer, so none of them spawns a nested one.
@@ -267,8 +276,10 @@ flowchart TD
 
   n9["9. Step 3 · Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
   n10["10. Run export-open-scouts.py with the session id and<br/>RUN_DIR/open-scouts.md; it prints the count of<br/>open Scout tasks in the TaskList"]:::hook
+  n10a{"10a. Export exited non-zero?"}
+  n10b["10b. Do not dispatch the scout leg;<br/>the report reads scout leg: FAIL (export exited rc: its stderr)"]
   n11{"11. Count is 0?"}
-  n11a["11a. Do not dispatch the scout leg;<br/>the report reads scout leg: not run (no open scout)"]
+  n11a["11a. Do not dispatch the scout leg; the report reads<br/>scout leg: not run (no open scout), or not run (no task directory<br/>for session id) when ~/.claude/tasks/id/ does not exist"]
 
   subgraph legs["12. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
@@ -364,7 +375,13 @@ flowchart TD
   n8 -->|"yes"| n8a
   n8a -->|"yes"| n8b
   n8a -->|"no"| n8c --> n9
-  n9 --> n10 --> n11
+  n9 --> n10 --> n10a
+  n10a -->|"yes"| n10b
+  n10a -->|"no"| n11
+  n10b --> n12a
+  n10b --> n12b
+  n10b --> n12c
+  n10b --> n12e
   n11 -->|"yes"| n11a
   n11 -->|"no"| n12d
   n11a --> n12a
