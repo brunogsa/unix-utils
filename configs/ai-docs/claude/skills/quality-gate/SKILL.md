@@ -135,7 +135,7 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
-- Run it on each source, and on the rendered metrics verdict to get k (0 with none).
+- Run it on each source, and on the rendered verdict for k (0 with none): its deferred, tooling-ask and exception entries, never a record bullet.
 
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
@@ -145,7 +145,7 @@ Verify without reading the merged file into main:
 
 - It exists and is non-empty, and `check-finding-bodies.py` exits 0 on `<RUN_DIR>/merged-findings.md` alone.
 
-- The merged count, counted the same way, equals k plus the sources' summed findings minus those absorbed (a group of k duplicates absorbs k-1).
+- The merged count, fence-aware, equals k plus the sources' summed findings minus those absorbed.
 
 - Every heading carries exactly one of `auto-review|refactor|test-sdd|metrics|scout`, so this prints 0: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /{if(gsub(/\[(auto-review|refactor|test-sdd|metrics|scout)\]/,"&")!=1)b++} END{print b+0}' <merged path>``.
 

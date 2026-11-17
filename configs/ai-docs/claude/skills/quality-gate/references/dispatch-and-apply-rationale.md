@@ -60,7 +60,9 @@ A missing planned test is already approved by the plan, so it needs no judge. Ev
 
 The rendered file is copied verbatim ahead of every other finding, so an open metrics violation or a rejected exception is the first thing a reader meets, and the PR is never blocked on it.
 
-Its entries are numbered `1` to `k` with no severity tag, because the script owns that numbering and a merge agent renumbering them would break the link between an entry and its split diff.
+Only its deferred metrics, tooling asks and accepted exceptions are numbered, `1` to `k` with no severity tag, because the script owns that numbering and a merge agent renumbering them would break an exception's link to its split diff.
+
+Its raw records are unnumbered bullets, each with a `**Record**:` key: judge input, not findings. The metrics judge turns each into a finding citing that key or a dismissal, so every problem gets exactly one number.
 
 Every other finding is numbered from `k+1` for the same reason: one run, one numbering, so `/address-verdicts` names a finding by a single number.
 

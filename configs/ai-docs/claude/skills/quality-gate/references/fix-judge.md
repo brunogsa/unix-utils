@@ -37,7 +37,7 @@ Inputs: the merged verdict's path (a top-level `verdict_*.md` in CWD, which `hoo
 
 - Quote the rule's text and never name its file (`code-standards`, `CLAUDE.md`); the checker rejects a named source.
 - No ruling at all counts as Fix.
-- A metrics entry whose only fix games the metric is a Skip, quoting the metrics-lens rule that says so.
+- A `[metrics]` finding whose only fix games the metric is a Skip, quoting the metrics-lens rule that says so.
 
   - Gaming means a hollow split, a vacuous test or an entangled test.
 
@@ -47,10 +47,12 @@ Inputs: the merged verdict's path (a top-level `verdict_*.md` in CWD, which `hoo
 
 - Report-only: the numbers `~/.claude/scripts/get-test-sdd-dispatch-list.py <merged>` prints, nothing else.
 - Auto-solve: that list plus the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints.
-- Candidate, ranked, exception, deferred, tooling-ask and coverage-source sections never enter. A duplication candidate enters only through a judge finding that says to extract it.
-- A Skip leaves a metrics violation open and counted in the verdict, so Skip softens no gate.
 
-- An entry whose fix cannot clear the violation, or a rejected exception, stays open and is reported first.
+- No section of the rendered metrics verdict enters. Metrics reach the list only through `[metrics]` metrics-judge findings under `## Findings`, a duplication candidate only through one that says to extract it.
+
+- A Skip leaves the records a finding cites open in the rendered verdict, so Skip softens no gate.
+
+- A finding whose fix cannot clear its record, or a rejected exception, stays open and is reported first.
 
 ## 3. Main's checks after the judge
 

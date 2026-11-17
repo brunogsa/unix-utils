@@ -29,7 +29,14 @@ Write the file in the layout of [`local-review-template.md`](../../code-review-p
 
 - A `test-sdd` finding is copied verbatim with `[test-sdd]` inserted right after its severity tag. Keep its title word for word: `get-test-sdd-dispatch-list.py` keys on it.
 
-- A metrics judge finding is copied verbatim; its heading already reads `[SEV][metrics]`.
+- A metrics judge finding is copied verbatim; its heading already reads `[SEV][metrics]`, and its `**Record**:` line stays word for word.
+
+- Copy the judge file's `## Dismissed records` section unchanged, as your file's last section, after every finding.
+  - Reason: the human must see every dismissal and its reason in the file they read.
+
+  - Reason: `check-metrics-judge-coverage.py --judge` must pass on the merged file as on the judge file, and a dropped key breaks it.
+
+  - Reason for last: a `## ` heading ends `## Findings`, so findings after it would never reach the apply list.
 
 - A `scout` finding keeps its `[scout]` tag, and its `**Scout task**: #<id>` line stays in the body, at column 0 after a blank line.
   - Reason: main reads that line to delete the task, and the tag must stay `[scout]`, never `[scout #<id>]`, since the apply scripts match tags as an exact set.
@@ -73,6 +80,6 @@ Return exactly this:
 - The path written.
 - Per-source input counts.
 - Duplicate groups collapsed, each listing every member: `refactor#A + auto-review#B + refactor#C → #N`.
-- Total findings absorbed: a group of k findings collapsed into one absorbs k-1, so sum k-1 over all groups.
+- Total findings absorbed: a group of n findings collapsed into one absorbs n-1, so sum n-1 over all groups.
 - Output finding count.
 - The checker's exit code.
