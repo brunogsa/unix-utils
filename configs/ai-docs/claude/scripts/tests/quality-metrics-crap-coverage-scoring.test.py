@@ -137,6 +137,40 @@ class TestChangedLineCoverage:
         assert functions.is_over_limit(under_limit)
 
 
+class TestUncoveredChangedLines:
+    def test_should_list_changed_lines_that_never_ran_as_collapsed_ranges(self):
+        # Line 5 is covered; 1-4 and 6-8 are not.
+        # Line 30 never ran but was not changed.
+        hits = {1: 0, 2: 0, 3: 0, 4: 0, 5: 1, 6: 0, 7: 0, 8: 0, 30: 0}
+        target = python_target(set(range(1, 9)) | {10})
+
+        record = coverage.coverage_measurement(target, hits)
+
+        assert record["uncovered_lines"] == ["1-4", "6-8"]
+
+    def test_should_list_a_single_uncovered_line_as_a_bare_number(self):
+        record = coverage.coverage_measurement(
+            python_target({3, 4}), {3: 1, 4: 0, 9: 0}
+        )
+
+        assert record["uncovered_lines"] == ["4"]
+
+    def test_should_list_nothing_when_every_changed_line_ran(self):
+        record = coverage.coverage_measurement(python_target({1, 2}), {1: 4, 2: 1})
+
+        assert record["uncovered_lines"] == []
+
+    def test_should_report_no_line_data_as_null_when_the_report_omits_the_file(self):
+        record = coverage.coverage_measurement(python_target({1, 2}), None)
+
+        assert record["uncovered_lines"] is None
+
+    def test_should_report_null_for_a_file_whose_changed_lines_hold_no_code(self):
+        record = coverage.coverage_measurement(python_target({1, 2}), {50: 0})
+
+        assert record["uncovered_lines"] is None
+
+
 class TestUnroundedCompareTruncatedDisplay:
     def test_should_pass_crap_7_996_shown_as_7_99_and_fail_coverage_89_996_percent_shown_as_89_99_percent(self):
         target = python_target(None)
