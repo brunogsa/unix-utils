@@ -756,6 +756,16 @@ it_should_block_a_python_write_after_the_program_changes_its_own_directory() {
   assert_eq "should block a python write that follows a chdir inside the program, since its directory is unknown" "2" "$HOOK_EXIT"
 }
 
+it_should_allow_a_python_write_into_a_scratch_directory_after_the_program_changes_its_own_directory() {
+  run_hook "python3 -c \"import os; os.chdir('docs'); open('$scratch_dir/notes.md', 'w').write('# Notes')\""
+  assert_eq "should allow a python write onto an absolute /tmp scratch path even after a chdir inside the program" "0" "$HOOK_EXIT"
+}
+
+it_should_block_a_python_one_liner_whose_target_path_is_a_shell_variable() {
+  run_hook "python3 -c \"open('\$TARGET', 'w').write('x')\""
+  assert_eq "should block a python one-liner whose path is a shell variable the guard cannot expand" "2" "$HOOK_EXIT"
+}
+
 it_should_block_a_node_write_whose_target_path_is_a_variable() {
   run_hook "node -e \"const fs = require('fs'); const p = process.argv[1]; fs.writeFileSync(p, '# Notes')\" docs/notes.md"
   assert_eq "should block a node writeFileSync whose path is a variable the guard cannot read" "2" "$HOOK_EXIT"
@@ -888,6 +898,8 @@ it_should_block_a_python_one_liner_writing_a_markdown_file_named_by_a_variable
 it_should_block_a_python_pathlib_write_text_onto_a_path_taken_from_the_command_line
 it_should_block_a_python_open_for_writing_whose_mode_is_not_a_literal
 it_should_block_a_python_write_after_the_program_changes_its_own_directory
+it_should_allow_a_python_write_into_a_scratch_directory_after_the_program_changes_its_own_directory
+it_should_block_a_python_one_liner_whose_target_path_is_a_shell_variable
 it_should_block_a_node_write_whose_target_path_is_a_variable
 it_should_allow_a_python_heredoc_that_only_reads_a_markdown_file_named_by_a_variable_after_a_home_relative_cd
 it_should_tell_the_agent_to_use_the_edit_or_write_tool_when_it_blocks_a_write_to_an_unreadable_path

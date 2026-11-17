@@ -236,6 +236,7 @@ NODE_FS_WRITE_CALL = re.compile(
     r'''(?:\bfs|require\(\s*['"](?:node:)?fs['"]\s*\))\s*\.\s*(?:writeFileSync|appendFileSync)\s*\(''')
 
 UNREADABLE_DIRECTORY_REASON = '{} (relative to a directory the guard cannot resolve)'
+UNEXPANDED_PATH_REASON = '{} (a shell expansion the guard cannot read)'
 
 
 def heredoc_bodies(text):
@@ -953,30 +954,32 @@ def python_write_targets(code):
 
 
 def interpreter_write_targets(exe, tokens, stdin_bodies):
-    """(literal paths, has unreadable write) for an inline python or node program; ([], False) when no program is on the command line.
+    """(literal paths, has unreadable write, changes directory) for an inline python or node program; ([], False, False) when no program is on the command line.
 
     An unreadable write is one whose path or mode the guard cannot read off the program.
     """
     if exe is None:
-        return [], False
+        return [], False, False
     program = interpreter_program(exe, arguments_after(exe, tokens), stdin_bodies)
     if program is None:
-        return [], False
+        return [], False, False
     language, code = program
     if language == 'node':
         literal_paths = [match.group(2) for match in NODE_FS_WRITE.finditer(code)]
         has_unreadable_write = len(literal_paths) < len(NODE_FS_WRITE_CALL.findall(code))
     else:
         literal_paths, has_unreadable_write = python_write_targets(code)
-    if 'chdir' in code and literal_paths:
-        # why: after a chdir inside the program, no relative path
-        # can be resolved against the command's cwd.
-        return [], True
-    return literal_paths, has_unreadable_write
+    return literal_paths, has_unreadable_write, 'chdir' in code
 
 
 def interpreter_write_reason(cwd, target):
-    """block_reason for a literal interpreter write target, where cwd None means a `cd` the guard could not follow."""
+    """block_reason for a literal interpreter write target, where cwd None means a directory the guard could not follow."""
+    name = os.path.basename(target)
+    may_be_guarded = '.' not in name or guarded_extension(target)
+    if re.search(r'[$`]', target):
+        # why: the shell may expand it into any path before the
+        # program runs, and guarded_tree_path allows such a path.
+        return UNEXPANDED_PATH_REASON.format(target) if may_be_guarded else None
     is_cwd_independent = os.path.isabs(target) or target == '~' or target.startswith('~/')
     if cwd is not None or is_cwd_independent:
         return block_reason(cwd or '/', target)
@@ -1033,11 +1036,14 @@ for segment, is_piped_into in segments:
     segment_opener_count = len(HEREDOC_OPENER.findall(segment))
     stdin_bodies = [body for body in heredoc_body_queue[:segment_opener_count] if body]
     heredoc_body_queue = heredoc_body_queue[segment_opener_count:]
-    literal_paths, has_unreadable_write = interpreter_write_targets(exe, tokens, stdin_bodies)
+    literal_paths, has_unreadable_write, changes_directory = interpreter_write_targets(exe, tokens, stdin_bodies)
     if has_unreadable_write:
         unreadable_interpreter_writes.append(exe)
+    # why: after a chdir inside the program, only an absolute
+    # path still resolves.
+    program_cwd = None if changes_directory else cwd
     for target in literal_paths:
-        reason = interpreter_write_reason(cwd, target)
+        reason = interpreter_write_reason(program_cwd, target)
         if reason and reason not in blocked:
             blocked.append(reason)
     if cwd is None:
