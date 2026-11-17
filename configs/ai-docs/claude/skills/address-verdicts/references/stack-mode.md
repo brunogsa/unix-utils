@@ -19,10 +19,10 @@ Read every `verdict_quality-gate_*.md` in CWD - all of them, not the newest per 
 
   - Name such a finding through an explicit list instead, which runs on the current branch only.
 
-- List each file's marked findings fence-aware, since a finding may quote a heading inside a code fence:
+- List each file's marked findings fence-aware, since a finding may quote a heading inside a code fence; it also leaves out findings that carry a `SKIPPED` line:
 
 ```bash
-awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. \[AI!([: ][^]]*)?\]/' <file>
+awk '/^[[:space:]]*[`][`][`]/{f=!f; next} f{next} /^##+ /{if(h!=""&&!k)print h; h=""; k=0} /^### [0-9]+\. \[AI!([: ][^]]*)?\]/{h=$0} /^SKIPPED \(/{k=1} END{if(h!=""&&!k)print h}' <file>
 ```
 
 - No marked finding in any file → stop: nothing is marked; tag a heading `### N. [AI!][...]` first.
@@ -206,4 +206,4 @@ STOPPED <branch> (#<pr>) at <step>: <cause> [conflicts: <files>] · skipped: <de
 
 List every `[AI!]` tag §"Select the marked findings" ignored, with its file and finding number.
 
-Then say plainly that every finding still tagged `[AI!]` is retried by the next marked run, and that deleting the tag drops it.
+Then say plainly that every finding still tagged `[AI!]` is retried by the next marked run, and that deleting the tag drops it - except one carrying a `SKIPPED` line, which stays out until the human deletes that line.

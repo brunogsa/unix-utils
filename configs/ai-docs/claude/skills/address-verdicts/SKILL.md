@@ -71,7 +71,9 @@ A severity floor compares the `HIGH`/`MEDIUM`/`LOW` tag in a finding heading.
 
 A rendered `[metrics]` entry (`### 2. [metrics] <text>`) carries none, so a floor never selects it - name it, or mark it `[AI!]`.
 
-A `[QUESTION]` finding carries no ordinal, so no floor filters it out - it's always selected, and reported to the human instead of dispatched, since it names no fix an apply agent could land.
+A `[QUESTION]` finding is always selected and reported to the human, never dispatched: it names no fix.
+
+A finding whose body carries a `SKIPPED (` line is never selected, by any selection: named, floor, all or marked. Deleting the line reopens it.
 
 Applying an auto-review-lens finding also needs a test command, to run RED-then-GREEN (§4). Infer it first (a `package.json` script, a Makefile target, the repo's CLAUDE.md) and ask only when it can't be inferred, bundled into §2's question if one fires.
 
@@ -163,29 +165,26 @@ Verify each subagent's result against the artifacts - diff, test run - before tr
 Write every one of that lens's outcomes in place, next to its own finding - never held back until the last lens finishes. Two marks per finding, doing different jobs:
 
 - **In the finding's heading**, a `[Done]` prefix right after the number, before the severity and lens tags: `### 1. [Done][HIGH][refactor] <title>` - the `plan-status-markers` convention.
-  - This is the machine-checkable mark: it makes a re-run skip what already landed, and `grep` count it.
-
-  - Every heading parser accepts `### N. [AI!][metrics] <text>` and `### N. [Done][metrics] <text>`.
 
 - **In the finding's body**, the outcome and evidence:
   - `APPLIED (<sha>)` - the fix commit's SHA, pairs with a `[Done]` heading.
-  - `SKIPPED (<reason>)` - why not applied; heading stays unmarked, so a re-run reconsiders it.
+  - `SKIPPED (<reason>)` - why not applied; final - no later run selects it until the human deletes the line.
 
 **An `[AI!]` tag is the human's selection mark, in the same slot `[Done]` takes.**
 
 - Applied: replace `[AI!]` with `[Done]` - `### 3. [Done][MEDIUM][refactor] ...` - never stack both.
   - For `[AI!: <message>]` or `[AI! <message>]`, keep the message in the body line: `APPLIED (<sha>) - per the note: <message>`.
 
-- Skipped or failed: keep the tag, message included, so the next marked run retries it; the human deletes the tag to drop the finding.
-  - A `[QUESTION]` finding whose tag carries no answer stays marked too, with `SKIPPED (needs an answer: <the question>)`.
+- Failed (the apply broke; no body line is written): keep the tag, message included, so the next marked run retries it; the human deletes the tag to drop the finding.
+
+- Skipped: the tag stays as the human's record of the choice, and the `SKIPPED` line holds the finding out of every later run.
+  - A `[QUESTION]` finding whose tag carries no answer stays marked, with `SKIPPED (needs an answer: <the question>)`; the human answers in the tag, then deletes the `SKIPPED` line to reopen it.
 
 Why two marks, and why lens by lens: [`references/design-rationale.md`](references/design-rationale.md).
 
 ## 6. Close with a report
 
 One line per finding - never a bare id, count, or SHA alone: `<lens>#N (<file>:<lines>) - <one-line recap of what the finding says> → <outcome>`. A merged-file finding reads `quality-gate#N [<lens>] (<file>:<lines>) - ...`, plus its verdict file in marked mode.
-
-The recap is mandatory even when the finding is already annotated on disk.
 
 - **Applied** - outcome is `APPLIED (<sha>)`.
 - **Skipped** - outcome is `SKIPPED (<reason>)`.
@@ -194,7 +193,6 @@ The recap is mandatory even when the finding is already annotated on disk.
 State plainly, every time:
 
 - Every finding not selected in §2 is untouched and carries no annotation.
-- This run never re-ran either reviewer - it only consumed their existing reports.
 
 In marked mode, also report one line per tree branch and stopped subtree, per [`references/stack-mode.md`](references/stack-mode.md).
 

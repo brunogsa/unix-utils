@@ -24,7 +24,7 @@ A lens-sized commit would bury which fix answers which finding, so the diff a hu
 
 ## Why skipping beats guessing
 
-The caller can re-run a skipped finding by hand, whereas a wrong guess lands a commit nobody asked for.
+A skip is final until the human deletes its line, whereas a wrong guess lands a commit nobody asked for.
 
 ## Why newest-by-modification-time and a mandatory recap
 
@@ -37,7 +37,7 @@ A bare finding id in the closing report forces the human to open the verdict fil
 The heading `[Done]` prefix and the body `APPLIED`/`SKIPPED` line do different jobs.
 
 - The heading marker is machine-checkable, so a re-run skips what landed and `grep` counts it, but it cannot say why a finding was skipped.
-- The body line carries the outcome and evidence, but it is not greppable.
+- The body line carries the outcome and evidence, and `^SKIPPED \(` greps it, which holds a skip out of every later run.
 
 Together they form the durable, on-disk ledger of fixed versus deferred.
 
@@ -45,18 +45,16 @@ Together they form the durable, on-disk ledger of fixed versus deferred.
 
 Annotating as each lens returns means a session killed mid-run still leaves an accurate ledger for the finished lenses.
 
-Holding every annotation to the end would lose all of them on an interrupted run.
-
 ## Why marked mode selects only `[AI!]` findings, with no fallback
 
 Marked mode commits, pushes, and merges across a whole stack, so each finding it touches must be one the human read and chose.
 
 A fallback to `all` on an unmarked run would push findings nobody read to every PR in the stack.
-## Why a skipped marked finding keeps its `[AI!]`
+## Why a skipped finding keeps its `[AI!]` but is not retried
 
-The mark records the human's choice, and a skip does not change that choice, so the next marked run retries it.
+The mark records the human's choice, and the `SKIPPED` line records that the choice could not be honored.
 
-Deleting the tag is the human's way to drop it, since only they know whether the skip reason is permanent.
+Deleting the `SKIPPED` line reopens the finding, since only the human knows whether the skip reason still holds.
 
 ## Why an `[AI!: <message>]` note wins over the finding's own fix
 
