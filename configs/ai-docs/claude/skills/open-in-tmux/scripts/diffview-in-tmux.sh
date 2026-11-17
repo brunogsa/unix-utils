@@ -62,14 +62,23 @@ command -v git >/dev/null 2>&1 || die "git not found."
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not inside a git work tree."
 
-# Base branch: origin's default → local main → local master.
+# Base ref: origin's default branch as its remote-tracking
+# ref (origin/main) → local main → local master.
 # Mirrors get_base_branch in ~/neovim/init.lua so this pane
 # matches the <leader>tD "vs base branch" diff.
+#
+# origin/main, not main, because local main often lags it,
+# and a diff against it then also shows upstream commits the
+# branch never made.
+#
+# A dangling origin/HEAD (its branch pruned) names no commit,
+# so it falls through to the local lookups.
 resolve_base() {
   local origin_head
   origin_head=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null || true)
-  if [ -n "$origin_head" ]; then
-    printf '%s\n' "${origin_head#origin/}"
+  if [ -n "$origin_head" ] \
+    && git rev-parse --verify --quiet "$origin_head^{commit}" >/dev/null; then
+    printf '%s\n' "$origin_head"
     return 0
   fi
   local b
