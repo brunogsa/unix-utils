@@ -29,10 +29,11 @@ Direct `/refactor` invocation, phrases like "refactor this" / "clean this up" / 
 
 ## Usage
 
-`/refactor` or `/refactor <path-or-glob>`
+`/refactor [--metrics] [<path-or-glob>]`
 
 - No argument: scan all unpushed + uncommitted files
 - With argument: scan only the specified path(s)
+- `--metrics`: also measure the branch's size, nesting, complexity and duplication, so findings cite measured values. Off by default, because `/quality-gate` measures in its own `metrics` leg; without the flag the skill runs exactly as before.
 
 ## Process
 
@@ -52,6 +53,22 @@ A caller-given `--base-ref <ref>` wins; otherwise base resolution tries `@{upstr
 Without that fallback the unpushed half either dies on `fatal: no upstream configured` or yields nothing, and the run writes a near-empty report that reads as "nothing to refactor".
 
 If the script reports nothing to refactor, inform the user and stop.
+
+**With `--metrics` only**, measure once from the repo root, after step 1:
+
+```bash
+base=${BASE_REF:-$(git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}" 2>/dev/null || ~/.claude/scripts/resolve-base-ref.sh)}
+~/.claude/scripts/measure-quality-metrics.py --diff "$base...HEAD" --session-id <session id> > "$work_dir/quality-metrics.json"
+```
+
+- `BASE_REF` is a caller-given `--base-ref`; otherwise the fallback is the one step 1's script uses.
+
+- `<session id>` is the path segment just above `scratchpad` in your scratchpad path; omit the flag when you have none.
+  - [Why] Only the main session's id keys the per-session tool map, so without it every metric uses global tools.
+
+- `--diff` measures committed changes only, so uncommitted edits carry no measured value.
+
+- Exit 0 and exit 1 both leave valid JSON (1 is a violation or an open ask); on exit 2 or any other failure, write `not-available: <reason>` to the file.
 
 ### 2. Dispatch code-reviewer to detect opportunities
 
@@ -73,6 +90,9 @@ If the script reports nothing to refactor, inform the user and stop.
 - Hand it `$work_dir` and the four file names step 1 wrote there (`diff`, `changed-files.txt`, `untracked-files.txt`, `commit-messages.txt`) -- tell it to read them from disk, not re-run git commands.
 
   - State why: reading a file from disk costs ~12.5x less than admitting a fresh tool result into context, so re-running step 1's probes is the expensive path to avoid.
+
+- With `--metrics`, name `$work_dir/quality-metrics.json` as a fifth file to read.
+  - Tell it to cite a measured size, nesting, complexity or duplication value with its label, never an estimate, and to say a value was not measured when the file reads `not-available`.
 
 - Include the analysis constraints below verbatim.
 - Instruct it to **write the complete report to `$VERDICT_PATH`** (overwrite if exists) and make no other edits - the guard enforces this; stating it stops a wasted blocked-write attempt.
