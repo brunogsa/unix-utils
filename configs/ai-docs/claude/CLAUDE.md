@@ -155,7 +155,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 ### Self-describing artifacts
 
-- [Instruction] **Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, and planning docs must stand alone for a future reader without today's mental model.
+- [Instruction] **Self-describing artifacts - no context-dependent shorthand** -- names, comments, tests, logs, planning docs, and messages to people (Slack, review comments, reports, sheets) must stand alone without today's mental model.
   - [Why] Decoding shorthand makes a future reader reconstruct context that may be gone, and that energy is the bottleneck.
   - [Example] Bad: `RN-01`, `AC-8`, "the Apendice", a bare "callback" or "that flag". Good: a committed path or URL, the rule recapped inline, "error callback", `FEAT_FLAG_PIC_SYNC_<ERP>_ENABLED`.
 
@@ -174,6 +174,8 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 
 - [Instruction] **Centralize repeated artifacts** -- DRY for code, docs, scripts, configs - UNLESS extracting would hurt readability, raise cognitive load, or be premature optimization.
   - [Why] Duplicated artifacts drift on every edit - N copies become N versions of "almost the same thing".
+  - [Example] Bad: an abstract edge case, an unexplained "D3" label, "per my code-standards". Good: a worked example with real values, each label's meaning, the principle quoted inline.
+
 
 - [Instruction] **Co-locate related artifacts** -- keep the rules, code, config, and docs on one topic physically adjacent so the topic reads as one contiguous unit.
   - [Why] A topic scattered across a file forces the reader to reassemble it from memory instead of scanning it in place.
