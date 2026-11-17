@@ -200,3 +200,57 @@ class TestHotspotCoverageLabel:
         [(_, label, _)] = NODE_LINE.findall(view)
         assert "coverage 89.99%" in label
         assert "89.996" not in label
+
+
+def with_churn(record, change_count):
+    return {**record, "churn": change_count}
+
+
+def labels_in_order(view):
+    return [label for _, label, _ in NODE_LINE.findall(view)]
+
+
+class TestHotspotChurn:
+    def test_should_print_the_90_day_change_count_after_the_worst_metric_in_the_label_of_a_file(self):
+        run = measured(with_churn(crap_record("src/busy.py", "branchy", 24), 2))
+
+        view = hotspots.hotspot_view(run["measurements"])
+
+        [label] = labels_in_order(view)
+        assert label.endswith("crap 80% · 2 commits/90d")
+
+    def test_should_draw_a_file_with_10_commits_at_50_percent_of_its_limit_before_a_file_with_1_commit_at_90_percent(
+        self,
+    ):
+        run = measured(
+            with_churn(crap_record("src/a_rare_but_bad.py", "tangle", 27), 1),
+            with_churn(crap_record("src/z_busy_but_fine.py", "tidy", 15), 10),
+        )
+
+        view = hotspots.hotspot_view(run["measurements"])
+
+        paths = [label.split("<br/>")[0] for label in labels_in_order(view)]
+        assert paths == ["src/z_busy_but_fine.py", "src/a_rare_but_bad.py"]
+
+    def test_should_say_churn_not_measured_and_draw_that_file_after_every_measured_file_even_at_zero_churn(
+        self,
+    ):
+        run = measured(
+            crap_record("src/no_history.py", "tangle", 90),
+            with_churn(crap_record("src/untouched_lately.py", "tidy", 3), 0),
+        )
+
+        view = hotspots.hotspot_view(run["measurements"])
+
+        [first, last] = labels_in_order(view)
+        assert first.startswith("src/untouched_lately.py")
+        assert first.endswith("0 commits/90d")
+        assert last.startswith("src/no_history.py")
+        assert last.endswith("churn not measured")
+
+    def test_should_state_churn_not_measured_for_a_file_whose_churn_is_none_and_still_build_the_verdict(self):
+        run = measured(with_churn(crap_record("src/outside_repo.py", "branchy", 24), None))
+
+        verdict = report.build_verdict(run)
+
+        assert "churn not measured" in mermaid_block(verdict)

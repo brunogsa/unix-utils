@@ -1,7 +1,8 @@
 """Draws the Mermaid hotspot view of the touched files.
 
 Each touched file takes the color of its worst metric's share of
-that metric's limit.
+that metric's limit, and shows its commit count of the last 90
+days. Files are drawn hottest first: churn x that share.
 """
 
 import math
@@ -19,19 +20,22 @@ COLOR_CLASSES = {
     "red": "fill:#ffcdd2,stroke:#c62828",
 }
 
+NOT_MEASURED_CHURN = "churn not measured"
+
 # In a quoted Mermaid label, only a quote ends the text.
 QUOTE_ENTITY = "#quot;"
 
 
 def hotspot_view(measurements):
     """A fenced Mermaid flowchart of the touched files."""
-    colors_by_file = _colors_by_touched_file(measurements)
-    touched = sorted(colors_by_file)
-    ids = {path: f"n{index}" for index, path in enumerate(touched)}
+    worst_by_file = _worst_record_by_touched_file(measurements)
+    hottest_first = sorted(worst_by_file, key=lambda path: _order_key(path, worst_by_file[path]))
     lines = ["```mermaid", "flowchart LR"]
-    for path in touched:
-        color, label = colors_by_file[path]
-        lines.append(f'  {ids[path]}["{_escape(path)}<br/>{label}"]:::{color}')
+    for index, path in enumerate(hottest_first):
+        record = worst_by_file[path]
+        color, label = _color_and_label(record)
+        label = f"{label} · {_churn_text(record)}"
+        lines.append(f'  n{index}["{_escape(path)}<br/>{label}"]:::{color}')
     lines += [f"  classDef {name} {style}" for name, style in COLOR_CLASSES.items()]
     lines.append("```")
     return "\n".join(lines)
@@ -56,9 +60,8 @@ def badness(record):
     return record["value"]
 
 
-def _colors_by_touched_file(measurements):
-    """Each touched file's (color, label), read from its worst
-    metric."""
+def _worst_record_by_touched_file(measurements):
+    """Each touched file's worst metric record."""
     worst_by_file = {}
     for record in measurements:
         if is_neutral(record):
@@ -66,7 +69,27 @@ def _colors_by_touched_file(measurements):
         worst = worst_by_file.get(record["file"])
         if worst is None or _severity(record) > _severity(worst):
             worst_by_file[record["file"]] = record
-    return {path: _color_and_label(record) for path, record in worst_by_file.items()}
+    return worst_by_file
+
+
+def _order_key(path, worst_record):
+    """Sort key, hottest first: churn x the worst metric's
+    share of its limit.
+
+    A file with no churn measured sorts after every measured
+    one, a zero-churn file included.
+    """
+    churn = worst_record.get("churn")
+    if churn is None:
+        return True, 0, path
+    return False, -churn * _share_of_limit(worst_record), path
+
+
+def _churn_text(record):
+    churn = record.get("churn")
+    if churn is None:
+        return NOT_MEASURED_CHURN
+    return f"{churn} commits/90d"
 
 
 def _severity(record):
