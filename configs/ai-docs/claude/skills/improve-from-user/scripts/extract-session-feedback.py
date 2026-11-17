@@ -142,10 +142,10 @@ def qualifying_transcripts(project_dirs, since_days, exclude_path):
     qualify for the sweep.
 
     A transcript qualifies when its mtime falls within the last
-    since_days days AND it holds >= 2 real user turns (Finding
-    2/3: this filter is what keeps a routine sweep tractable).
+    since_days days AND it holds >= 2 real user turns (this
+    filter keeps a routine sweep tractable).
     exclude_path - the running session's own transcript - is
-    dropped even when it otherwise qualifies (D7).
+    dropped even when it otherwise qualifies.
 
     Only top-level files are considered, not nested
     <session>/subagents/*.jsonl files, which carry no user
@@ -174,11 +174,9 @@ def survey(qualifying):
     """Corpus survey for qualifying: file count, real user
     turns, estimated tokens.
 
-    Estimated tokens is user_chars / 4 (D "escalation threshold
-    ~80k estimated tokens" - the same rough conversion the
-    plan's fan-out threshold is built on). Printed before any
-    session content (D12) so an oversized sweep is visible
-    before a single message body is read.
+    Estimated tokens is user_chars / 4, a rough conversion.
+    Printed before any session content so an oversized sweep
+    is visible before a single message body is read.
     """
     file_count = len(qualifying)
     turn_count = 0
@@ -280,7 +278,7 @@ def _running_session_transcript(project_dirs):
 
     The one piece of session-identity logic that survives from
     the deleted precedence chain - now used only for
-    exclusion, never for selection (D7).
+    exclusion, never for selection.
     """
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID")
     if not session_id:
@@ -364,7 +362,7 @@ def _emit_session(out, path, index, total, turns, boundaries):
 
 def emit(paths):
     """Emit every qualifying session's feedback, grouped and in
-    session order (D8)."""
+    session order."""
     out = sys.stdout
     out.write("# Session feedback extract (recovered from disk - survives compaction)\n\n")
     total = len(paths)

@@ -134,8 +134,8 @@ def resolve_claude_md_target(repo_root, is_unix_utils):
 
     Checks ~/.claude/CLAUDE.md's symlink health
     unconditionally (not just for the unix-utils branch)
-    because D13 makes this one write-target rule shared by all
-    three of the skill's modes, not just the session sweep.
+    because this one write-target rule is shared by all three
+    of the skill's modes, not just the session sweep.
     """
     _die_if_detached_symlink(os.path.expanduser("~/.claude/CLAUDE.md"), "CLAUDE.md")
     if is_unix_utils:
