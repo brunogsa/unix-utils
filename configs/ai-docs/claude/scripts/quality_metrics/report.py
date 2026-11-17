@@ -246,15 +246,17 @@ def _leaked_processes_sections(leaked):
     section when no reclaim ran."""
     if leaked is None:
         return []
-    section = _counted_section(
-        "Leaked processes", leaked["killed"], _describe_leaked_process
-    )
+    sections = [
+        _counted_section("Leaked processes", leaked["killed"], _describe_leaked_process)
+    ]
     busiest = [
-        f"- busiest by {label}: {_describe_busy_process(item)}"
+        f"busiest by {label}: {_describe_busy_process(item)}"
         for label, key in (("CPU", "busiest_by_cpu"), ("RSS", "busiest_by_rss"))
         for item in leaked.get(key, [])
     ]
-    return ["\n\n".join([section, *busiest]) if busiest else section]
+    if busiest:
+        sections.append(_counted_section("Busiest processes", busiest, str))
+    return sections
 
 
 def _describe_leaked_process(item):

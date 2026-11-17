@@ -147,17 +147,35 @@ class TestLeakedProcesses:
 
         assert "candidate repo scout" in text
 
-    def test_should_list_the_busiest_processes_when_headroom_stayed_no_go(self):
-        run = with_extras(leaked_processes={
-            "killed": [],
-            "busiest_by_cpu": [{"pid": 501, "command": "Slack", "cpu_percent": 87.5, "rss_kb": 409600}],
-            "busiest_by_rss": [{"pid": 502, "command": "Google Chrome", "cpu_percent": 3.0, "rss_kb": 2097152}],
-        })
+    BUSY_MACHINE = {
+        "killed": [LEAKED_JEST_WORKER],
+        "busiest_by_cpu": [{"pid": 501, "command": "Slack", "cpu_percent": 87.5, "rss_kb": 409600}],
+        "busiest_by_rss": [{"pid": 502, "command": "Google Chrome", "cpu_percent": 3.0, "rss_kb": 2097152}],
+    }
 
-        text = section(report.build_verdict(run), "Leaked processes")
+    def test_should_list_the_busiest_processes_in_their_own_counted_section_when_headroom_stayed_no_go(
+        self,
+    ):
+        text = section(report.build_verdict(with_extras(leaked_processes=self.BUSY_MACHINE)), "Busiest processes")
 
-        assert "busiest by CPU: pid 501 - Slack - CPU 87.5%, RSS 400 MB" in text
-        assert "busiest by RSS: pid 502 - Google Chrome - CPU 3.0%, RSS 2048 MB" in text
+        assert text.startswith("## Busiest processes (2)")
+        assert record_bullets(text) == [
+            "- busiest by CPU: pid 501 - Slack - CPU 87.5%, RSS 400 MB",
+            "- busiest by RSS: pid 502 - Google Chrome - CPU 3.0%, RSS 2048 MB",
+        ]
+
+    def test_should_count_only_the_killed_processes_in_the_leaked_processes_heading_when_busiest_ones_are_listed(
+        self,
+    ):
+        text = section(report.build_verdict(with_extras(leaked_processes=self.BUSY_MACHINE)), "Leaked processes")
+
+        assert text.startswith("## Leaked processes (1)")
+        assert len(record_bullets(text)) == 1
+
+    def test_should_render_no_busiest_processes_section_when_none_was_sampled(self):
+        verdict = report.build_verdict(with_extras(leaked_processes={"killed": [LEAKED_JEST_WORKER]}))
+
+        assert "Busiest processes" not in verdict
 
     def test_should_render_no_leaked_process_section_when_no_reclaim_ran(self):
         verdict = report.build_verdict(with_extras(leaked_processes=None))
