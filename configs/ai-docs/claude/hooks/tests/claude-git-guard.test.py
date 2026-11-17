@@ -22,6 +22,13 @@ import pytest
 
 HOOK = Path(__file__).resolve().parent.parent / "claude-git-guard.py"
 BLOCK_FOOTER = "See the commit-standards skill."
+ATTRIBUTION = "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+TRAILER = f'-m "{ATTRIBUTION}"'
+SUBJECT = "fix(hooks): tidy the git guard"
+COMMIT = f'git commit -m "{SUBJECT}" {TRAILER}'
+DIFF_CHECK = "git diff --cached --quiet"
+ADD_CHAIN = f"{DIFF_CHECK} && git add notes.txt && {COMMIT}"
+HUNK_CHAIN = f"{DIFF_CHECK} && git-hunk stage a1b2c3 d4e5f6 && {COMMIT}"
 
 # The command the old bash guard denied as a commit missing its
 # attribution, although it runs no git at all: its `$?` sent it
@@ -102,3 +109,56 @@ def test_allows_payload_without_a_readable_command(repo, stdin_text):
         [sys.executable, str(HOOK)], input=stdin_text, capture_output=True, text=True, timeout=60
     )
     assert_allowed(result)
+
+
+# Shape: one bare git segment, or the fixed commit chain
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param(ADD_CHAIN, id="index check, git add of named paths, then commit"),
+        pytest.param(HUNK_CHAIN, id="index check, git-hunk stage, then commit"),
+        pytest.param(f"git -C /some/dir commit -m \"{SUBJECT}\" {TRAILER}", id="commit with -C"),
+        pytest.param(
+            f"git -C /some/dir diff --cached --quiet && git -C /some/dir add notes.txt"
+            f" && git -C /some/dir commit -m \"{SUBJECT}\" {TRAILER}",
+            id="chain with the same -C on every git segment",
+        ),
+    ],
+)
+def test_allows_the_sanctioned_shapes(repo, command):
+    assert_allowed(run_hook(command, repo))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param(f"cd /tmp/work && {COMMIT}", id="cd before commit"),
+        pytest.param(f"git add notes.txt && {COMMIT}", id="add then commit without the index check"),
+        pytest.param(f"{DIFF_CHECK} && git add . && {COMMIT}", id="chain adding every path with ."),
+        pytest.param(f"{DIFF_CHECK} && git add -A && {COMMIT}", id="chain adding every path with -A"),
+        pytest.param(f"{DIFF_CHECK} || git add notes.txt && {COMMIT}", id="chain joined by ||"),
+        pytest.param(
+            f"git -C /a diff --cached --quiet && git -C /b add notes.txt && git -C /b commit -m x {TRAILER}",
+            id="chain whose index check runs in another repository",
+        ),
+        pytest.param(f'git commit -m "costs $5" {TRAILER}', id="dollar sign in a commit message"),
+        pytest.param("git push origin `git branch --show-current`", id="backtick substitution"),
+        pytest.param("git push origin feature-x | tee push.log", id="pipe"),
+        pytest.param("git status; git push origin feature-x", id="semicolon"),
+        pytest.param("git push origin feature-x > push.log", id="redirect"),
+        pytest.param("git push origin feature-x &", id="background"),
+        pytest.param("(git push origin feature-x)", id="subshell"),
+        pytest.param("git push origin feature-x\necho pushed", id="newline separator"),
+        pytest.param("env git push -f", id="env wrapper"),
+        pytest.param("echo notes.txt | xargs git commit", id="xargs wrapper"),
+        pytest.param('bash -c "git push --force"', id="bash -c string"),
+        pytest.param('eval "git reset --hard"', id="eval string"),
+        pytest.param("git --no-pager push -f origin feature-x", id="force push after --no-pager"),
+        pytest.param("git -c core.hooksPath=/dev/null push origin feature-x", id="global option other than -C"),
+        pytest.param("/usr/bin/git push --force origin feature-x", id="git called by absolute path"),
+    ],
+)
+def test_blocks_any_other_shape(repo, command):
+    assert_blocked(run_hook(command, repo))

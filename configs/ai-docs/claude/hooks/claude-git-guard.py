@@ -25,6 +25,7 @@ UNPARSED_GUARDED = re.compile(r"\b(git\b.*?\b(" + "|".join(GUARDED) + r")|aigitc
 OPERATOR_CHARS = "();<>|&\n"
 WRAPPERS = {"sh", "bash", "zsh", "eval"}
 GLOBALS_WITH_VALUE = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
+WHOLE_TREE = {".", "./"}
 COMMIT_CHAIN = "git diff --cached --quiet && git add <paths> (or git-hunk stage <ids>) && git commit ..."
 
 FORMS = {
@@ -105,6 +106,46 @@ def names_guarded_git(text, strip_heredoc_bodies):
         return bool(UNPARSED_GUARDED.search(text))
 
 
+def read_git_segment(segment, subcommand):
+    """Return the subcommand, its args and the -C dir (or
+    None) of a segment that starts with git.
+
+    Blocks any global option other than one -C <dir>.
+    """
+    if not segment or segment[0] != "git":
+        block("a guarded git command must run on its own, starting with the word git", subcommand)
+    options, sub_index = skip_globals(segment, 1)
+    if options and (len(options) != 2 or options[0] != "-C"):
+        block(f"the only global option allowed is -C <dir>, not {options[0]}", subcommand)
+    if sub_index >= len(segment):
+        block("git needs a subcommand", subcommand)
+    return segment[sub_index], segment[sub_index + 1:], (options[1] if options else None)
+
+
+def check_single(segment, first_guarded):
+    subcommand, args, _ = read_git_segment(segment, first_guarded)
+    if subcommand not in GUARDED:
+        block(f"run git {first_guarded} on its own, not inside git {subcommand}", first_guarded)
+
+
+def check_chain(segments, operators):
+    if operators != ["&&", "&&"]:
+        block(f"the only chain allowed is: {COMMIT_CHAIN}")
+    first, middle, last = segments
+    diff_sub, diff_args, diff_dir = read_git_segment(first, "commit")
+    commit_sub, commit_args, commit_dir = read_git_segment(last, "commit")
+    if (diff_sub, diff_args) != ("diff", ["--cached", "--quiet"]) or commit_sub != "commit":
+        block("the chain must start with git diff --cached --quiet and end with git commit")
+    if middle[:2] == ["git-hunk", "stage"]:
+        stage_dir, staged = commit_dir, middle[2:]
+    else:
+        add_sub, staged, stage_dir = read_git_segment(middle, "commit")
+        if add_sub != "add" or any(path.startswith("-") or path in WHOLE_TREE for path in staged):
+            block("the chain's middle step must be git add <paths> or git-hunk stage <ids>, never . or an option")
+    if not staged or any(arg.startswith("-") for arg in staged) or len({diff_dir, stage_dir, commit_dir}) != 1:
+        block("the chain stages named paths or hunks, and every git step uses the same -C <dir>")
+
+
 def load_strip_heredoc_bodies():
     spec = importlib.util.spec_from_file_location("parse_shell_command", LIB_DIR / "parse-shell-command.py")
     module = importlib.util.module_from_spec(spec)
@@ -120,6 +161,18 @@ def check_wrappers(segments, strip_heredoc_bodies):
             block("a guarded git command inside sh -c, bash -c, zsh -c or eval; run git directly")
 
 
+def check_shape(command, segments, operators, first_guarded):
+    if "$" in command or "`" in command:
+        block("no $ or backtick anywhere in a guarded git command; put such a message in a -F file",
+              first_guarded)
+    if operators and len(segments) != 3:
+        block(f"a guarded git command runs alone, or as: {COMMIT_CHAIN}", first_guarded)
+    if operators:
+        check_chain(segments, operators)
+    else:
+        check_single(segments[0], first_guarded)
+
+
 def check(command):
     if not MAY_NAME_GIT.search(command):
         return
@@ -133,12 +186,12 @@ def check(command):
         return
     if any(token == "aigitcommit" or token.endswith("/aigitcommit") for token in tokens):
         block("aigitcommit is never allowed; run git commit directly")
-    segments, _ = split_segments(tokens)
+    segments, operators = split_segments(tokens)
     check_wrappers(segments, strip_heredoc_bodies)
     found = guarded_subcommands(tokens)
     if not found:
         return
-    block(f"no form of git {found[0]} is allowed yet", found[0])
+    check_shape(command, segments, operators, found[0])
 
 
 def main():
