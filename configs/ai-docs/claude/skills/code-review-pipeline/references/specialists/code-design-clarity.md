@@ -52,7 +52,7 @@ Wave 1 saved `$work_dir/quality-metrics.json`.
 For size, nesting, complexity and duplication, cite the measured value
 with its label, never an estimate: "`loadUser` is 42 lines (measured)".
 A deferred metric is cited as labelled, e.g. "pessimistic, tooling
-deferred". When the file is missing (github mode never writes it) or reads `not-available`, say the value was not
+deferred". When the file is missing (github mode never writes it) or reads `not-available` (also when it was not requested), say the value was not
 measured and estimate nothing as fact.
 
 ## Signals you should flag

@@ -30,12 +30,14 @@ Run independent commands in parallel.
 | `tests-integration.txt` | Every integration tier (router/API, service, contract, ...) |
 | `tests-e2e.txt` | Browser / e2e tests **if** the diff touches UI, hooks, or anything rendered |
 | `coverage.txt` | Branch + line coverage on the changed files if the runner emits it |
-| `quality-metrics.json` | `measure-quality-metrics.py --diff` on the diff only (see "Measured quality metrics") |
+| `quality-metrics.json` | `measure-quality-metrics.py --diff` on the diff only, only when the header's `Metrics` is `on` (see "Measured quality metrics") |
 | `discovered-commands.txt` | One line per check: `<name>: <command-used>` or `<name>: not-available` |
 
 ## Measured quality metrics
 
-Run `base_rev=$(cat "$work_dir/base-rev.txt") && ~/.claude/scripts/measure-quality-metrics.py --diff "$base_rev...HEAD" --session-id <session id> > $work_dir/quality-metrics.json`, once, from the repo root (`prep-local-context.sh` writes that file).
+The header's `Metrics` input gates this section: absent or `off`, skip the run and write `not-available: not requested (pass --metrics)` to `$work_dir/quality-metrics.json`, so Wave 2 reports the values as not measured. This is the raw measuring script only, never the `metrics-review` skill's judge or verdict.
+
+When `Metrics` is `on`, run `base_rev=$(cat "$work_dir/base-rev.txt") && ~/.claude/scripts/measure-quality-metrics.py --diff "$base_rev...HEAD" --session-id <session id> > $work_dir/quality-metrics.json`, once, from the repo root (`prep-local-context.sh` writes that file).
 
 - `<session id>` is the header's `Session id`; omit the flag when the header has none.
   - [Why] Only the main session's id keys the per-session tool map, so without it every metric uses global tools.
@@ -54,9 +56,9 @@ Wave 6 lists each `resolved` entry on its own line, `resolved: <function> (<path
 
 ### Tool map
 
-The calling main session (`auto-review` or `pr-review`) builds the per-session tool map before it dispatches the pipeline, and the `code-reviewer` orchestrator never dispatches the inspector.
+With `Metrics` `off` there is no tool map to build. With it `on`, the calling main session (`auto-review`) builds the per-session tool map before it dispatches the pipeline, and the `code-reviewer` orchestrator never dispatches the inspector.
 
-The main session follows section 1 of [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md): it dispatches the read-only inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
+The main session follows section 1 of [`metrics-leg.md`](../../metrics-review/references/metrics-leg.md): it dispatches the read-only inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
 
 Any ask or commit duty from a tooling problem belongs to the main session, as that file's section 2 and [`coder-metrics-check.md`](../../implement/references/coder-metrics-check.md) describe.
 

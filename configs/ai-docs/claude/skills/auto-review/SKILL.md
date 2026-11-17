@@ -14,10 +14,13 @@ See "How callers dispatch" in `~/.claude/skills/code-review-pipeline/SKILL.md` f
 
 ## Usage
 
-`/auto-review [base-ref]`
+`/auto-review [base-ref] [--metrics]`
 
 - `base-ref` defaults to the repo's default branch (auto-detected; works
   for `main`, `master`, or anything else).
+
+- `--metrics` - also measure size, nesting, complexity and duplication with `measure-quality-metrics.py`, so the design review cites measured values. Off by default, because `/quality-gate` measures in its own `metrics` leg and a second run costs about 6 minutes.
+  - It runs the measuring script only; the `metrics-review` skill's judge and verdict stay out of it.
 
 Every invocation runs isolated - there is no in-session mode left to opt
 into or out of.
@@ -105,6 +108,8 @@ The code-review-pipeline expects these inputs:
 - **Language:** English
 - **Session id:** your own session id, or the `<SESSION_ID>` a dispatch pushed into you.
   - Why: the metrics tool map is keyed by the main session's id, and the pipeline's subagent has another.
+
+- **Metrics:** `on` when `--metrics` was passed, otherwise `off`.
 
 - **Spec/plan files for `{pr_context}`:** `<SPEC_PLAN_PATHS>` (resolved above)
   - If `<none>`, no spec/plan is available - proceed with commit messages +

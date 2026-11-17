@@ -3,7 +3,7 @@
 The prompt for a `code-reviewer` dispatched with the `metrics` lens.
 You report only: never edit a source file, `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
-quality-gate passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
+The `metrics-review` skill (run alone or from quality-gate) passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
 
 ## 1. Run the script
 

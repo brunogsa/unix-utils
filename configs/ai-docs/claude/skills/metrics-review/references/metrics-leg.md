@@ -1,6 +1,6 @@
 # Metrics Leg
 
-What main does around the `metrics` leg that `/quality-gate` §3 dispatches. The leg's own prompt is [`metrics-lens.md`](metrics-lens.md); this file covers only the steps a subagent cannot take.
+What main does around the metrics lens that the `metrics-review` skill dispatches, standalone or from `/quality-gate` §3. The leg's own prompt is [`metrics-lens.md`](metrics-lens.md); this file covers only the steps a subagent cannot take.
 
 ## 1. Inspector
 
@@ -46,7 +46,7 @@ The variable decides, never your judgment. Answer `defer` without asking:
 
 ## 3. No git
 
-When no git repo encloses CWD (`git rev-parse --is-inside-work-tree` fails), skip base-ref resolution. Dispatch only the metrics leg, since the other legs diff against a base. The rendered metrics verdict states which checks it skipped (the removed-code check and base-ref reads), and the merged file is `verdict_quality-gate_no-git_<ts>.md`.
+When no git repo encloses CWD (`git rev-parse --is-inside-work-tree` fails), skip base-ref resolution. Dispatch only the metrics lens, since the other `/quality-gate` legs diff against a base. The rendered metrics verdict states which checks it skipped (the removed-code check and base-ref reads), and a `/quality-gate` caller's merged file is `verdict_quality-gate_no-git_<ts>.md`.
 
 ## 4. A failed leg
 
@@ -54,7 +54,7 @@ An exit 2 from the script or the verdict render, or no rendered file after one r
 
 ## 5. Open-violation entry numbers
 
-The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. The numbers that enter the apply list come from `~/.claude/scripts/get-fix-apply-list.py`, per `SKILL.md` §5.2 and [`fix-judge.md`](fix-judge.md) §2.
+The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. The numbers that enter the apply list come from `~/.claude/scripts/get-fix-apply-list.py`, per `quality-gate/SKILL.md` §5.2 and [`fix-judge.md`](../../quality-gate/references/fix-judge.md) §2.
 
 The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so neither enters the apply list.
 

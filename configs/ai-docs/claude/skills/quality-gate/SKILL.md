@@ -80,7 +80,7 @@ Also resolve `<BASE_REF>`:
 
 If detection fails, ask which branch to diff against; under either flag, stop and print what failed, since a missing base has no safe default.
 
-**No git repo encloses CWD** → skip this resolution and never stop: see [`references/metrics-leg.md`](references/metrics-leg.md) §3.
+**No git repo encloses CWD** → skip this resolution and never stop: see [`metrics-leg.md`](../metrics-review/references/metrics-leg.md) §3.
 
 ## 3. Dispatch the legs in parallel
 
@@ -94,10 +94,12 @@ Spawn each leg as its own agent, all in the **same turn**, all in the background
 
 - `agent(subAgent=test-reviewer, title=Planned-test presence check)` - invokes and executes the `test-sdd` skill, with the plan path, `<BASE_REF>`, any `--tasks` ids, and `--out-dir <RUN_DIR>` pushed in; dispatch only when a plan resolved.
 
-- `agent(subAgent=code-reviewer, title=Metrics-lens review)` - follows [`references/metrics-lens.md`](references/metrics-lens.md), with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
+- Run the `metrics-review` skill ([`../metrics-review/SKILL.md`](../metrics-review/SKILL.md)) in this session, in parallel with the other legs, with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
+  - Main runs it, since the inspector dispatch and the tooling asks are main's, and the skill dispatches the `code-reviewer` that follows [`metrics-lens.md`](../metrics-review/references/metrics-lens.md) in the background.
+
   - `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
-  - Read [`references/metrics-leg.md`](references/metrics-leg.md) first: main dispatches the inspector, relays tooling asks, and handles a failed leg.
+  - Never pass the `refactor` and `auto-review` legs a `--metrics` flag: this leg already measures, and a second measurement is the duplicate that flag exists to avoid.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** Carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`).
 

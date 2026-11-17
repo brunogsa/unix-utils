@@ -6,7 +6,7 @@ Loaded at the first coder dispatch of the run, in either lane (§4.0). Both code
 
 Coders cannot spawn the inspector, so the orchestrator builds the per-session tool map before the first dispatch that needs it.
 
-The trigger and the dispatch are the ones in [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md) section 1: dispatch the inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
+The trigger and the dispatch are the ones in [`metrics-leg.md`](../../metrics-review/references/metrics-leg.md) section 1: dispatch the inspector only when `/tmp/quality-metrics_<session id>.json` has no entry for this repo and base ref.
 
 Push `session-id: <your own session id>` into the Optional block of every coder dispatch, in either lane.
 
@@ -20,7 +20,7 @@ Read the map once per run, never per task. Follow that file for double-checking 
 
 A coder never asks the human. It returns each tooling problem as an `ask` record under its report's Ask field, and the orchestrator raises it.
 
-Follow [`metrics-leg.md`](../../quality-gate/references/metrics-leg.md) section 2 for who can be asked, the `defer` default when nobody can, and what `fix now` and `defer` mean.
+Follow [`metrics-leg.md`](../../metrics-review/references/metrics-leg.md) section 2 for who can be asked, the `defer` default when nobody can, and what `fix now` and `defer` mean.
 
 The ask arrives after the coder has committed, so never re-dispatch the same task: that would hand the coder a change already in HEAD.
 
@@ -34,4 +34,4 @@ A deferred metric reads pessimistic and holds no commit, so `defer` re-dispatche
 
 A coder that claims an exception names the file, function, metric, saved split diff path, and split value under its report's Exceptions claimed field and in its commit body.
 
-The saved diff sits in CWD. Hand each claim to the batch-end metrics leg in `/quality-gate`'s prompt, which rules on it per [`metrics-lens.md`](../../quality-gate/references/metrics-lens.md) section 3.
+The saved diff sits in CWD. Hand each claim to the batch-end metrics leg in `/quality-gate`'s prompt, which rules on it per [`metrics-lens.md`](../../metrics-review/references/metrics-lens.md) section 3.
