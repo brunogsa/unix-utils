@@ -11,7 +11,7 @@ What `SKILL.md` §7 closes the run with, read at §7 so the list loads fresh aft
 
 - Any deferred tooling ask, with its reading: `pessimistic, tooling deferred` or `not measured: no language entry`, each reported as a failing score, never a neutral one.
 
-- Metrics apply outcomes: each open violation fixed with its SHA, and each still open, including rejected exceptions.
+- Metrics apply outcomes: each `[metrics]` judge finding fixed with its SHA, and each record still open, including rejected exceptions.
 
 ## Findings
 
