@@ -33,7 +33,9 @@ A file where this prints nothing contributes no item.
 ## Per-item field hints
 
 - **Source** - `<verdict file>:<heading line>`, plus the finding's lens tag (`[refactor]`, `[auto-review]`, `[test-sdd]`, `[metrics]`) when the heading carries one.
-  - A rendered `[metrics]` heading has no severity: `### 3. [AI!][metrics] <text>`.
+  - A `[metrics]` heading from the rendered verdict (a deferred metric, tooling ask or exception) has no severity: `### 3. [AI!][metrics] <text>`.
+
+  - A metrics-judge finding carries one: `### 4. [AI!][MEDIUM][metrics] <text>`.
 
 - **Verbatim** - the heading line exactly; for a note, the message is in it.
 - **Context** - the finding's suggested fix, from its body.

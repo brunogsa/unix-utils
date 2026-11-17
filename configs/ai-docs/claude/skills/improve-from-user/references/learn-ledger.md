@@ -30,7 +30,7 @@ The origin must stay stable while the source is edited, so it carries no line nu
 
 - Mode D: strip the status tag from the heading text before keying, keeping the number, the lens tag (`auto-review`, `refactor`, `test-sdd` or `metrics`) and any severity tag.
 
-  - A `[metrics]` heading has no severity tag.
+  - A `[metrics]` heading from the rendered verdict (a deferred metric, tooling ask or exception) has no severity tag; a metrics-judge finding has one.
 
   - Status tags are `[AI!]`, `[AI!: <message>]`, `[AI! <message>]` and `[Done]`; `address-verdicts` swaps `[AI!]` for `[Done]` when it applies a finding, so the raw heading changes between runs.
 
