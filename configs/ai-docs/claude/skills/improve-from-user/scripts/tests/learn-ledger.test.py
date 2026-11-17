@@ -12,11 +12,14 @@ Usage:
   ./run-tests.py <this file>
 """
 
+import importlib.util
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
 
 SCRIPT = Path(__file__).parent.parent / "learn-ledger.py"
@@ -101,13 +104,28 @@ class TestHappyPath:
         record = json.loads(_ledger_lines(ledger)[0])
         assert (record["origin"], record["verdict"]) == ("lateral-marker", "rejected")
 
-    def test_should_stamp_the_record_with_a_utc_timestamp_when_an_item_is_added(self, tmp_path):
+    def test_should_stamp_the_record_with_a_utc_timestamp_when_an_item_is_added(self, tmp_path, monkeypatch):
         ledger = tmp_path / "ledger.jsonl"
+        spec = importlib.util.spec_from_file_location("learn_ledger", SCRIPT)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load {SCRIPT}")
+        script = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(script)
 
-        _run_ledger(ledger, _items(ITEM_A), "add", "--verdict", "rejected")
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime(2026, 3, 14, 9, 26, 53, tzinfo=tz)
+
+        monkeypatch.setattr(script, "datetime", FrozenDatetime)
+        monkeypatch.setenv("LEARN_LEDGER", str(ledger))
+        monkeypatch.setattr(sys, "stdin", io.StringIO(_items(ITEM_A)))
+        monkeypatch.setattr(sys, "argv", ["learn-ledger.py", "add", "--verdict", "rejected"])
+
+        script.main()
 
         record = json.loads(_ledger_lines(ledger)[0])
-        assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d.*(Z|\+00:00)", record["ts"])
+        assert record["ts"] == "2026-03-14T09:26:53Z"
 
     def test_should_append_only_the_new_item_when_a_second_add_repeats_a_handled_one(self, tmp_path):
         ledger = tmp_path / "ledger.jsonl"
