@@ -16,6 +16,8 @@ Either `--auto-solve` or `--report-only` marks a skill-dispatched run with nobod
 
 A prompt on a multi-match would stall the `/implement` tail indefinitely, so the run proceeds without that kind, exactly as a zero match resolves.
 
+`--no-ask` on the `/address-verdicts` call follows from the same premise: §1 already asked this run's one question, so a prompt now would re-ask it or stall a `/implement` tail.
+
 ## Why applying belongs to `/address-verdicts`
 
 `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it. This skill decides which findings deserve a fix, and that skill owns how every fix lands.
@@ -26,7 +28,7 @@ Duplicating its loop here would let two copies of the lens routing, commit rule,
 
 This skill sits in `/implement`'s main session for the same reason.
 
-`/address-verdicts` commits the `refactor` agent's work, and a permission prompt only renders in the main session. Its per-lens apply agents are already fresh-context subagents.
+`/address-verdicts` commits the `refactor` agent's work, and a permission prompt only renders in the main session. It runs in this session, never in a subagent, because it commits. Its per-lens apply agents are already fresh-context subagents.
 
 Wrapping it in another subagent would spend one of the four spawn-depth levels on a layer that decides nothing.
 
@@ -41,6 +43,18 @@ The unplanned-tests finding is one exception: it names tests the branch already 
 `get-test-sdd-dispatch-list.py` keys on the finding's exact title, so the test-sdd report schema and that script must change together.
 
 The script reads a heading with none of its `LENS_TAGS` tags as test-sdd, so a new lens goes in `LENS_TAGS` and in the `auto-review|refactor|test-sdd|metrics` regex of the quality-gate `SKILL.md` merge check together.
+
+## Why a fresh judge, not self-triage
+
+Main assembled the merged file and would judge it with that bias. A fresh opus reviewer loaded with the standards sees only the findings and the code. Each Skip carries the quoted rule, so the human can check it.
+
+## Why the fix review never applies
+
+An apply step after the review would need its own review, so the run would loop. Reporting only bounds the run at one review.
+
+## Why report-only applies `test-sdd` only
+
+A missing planned test is already approved by the plan, so it needs no judge. Every other finding needs the judge, and report-only runs none.
 
 ## Why the rendered metrics verdict goes first
 

@@ -6,7 +6,7 @@ disable-model-invocation: false
 
 # Quality Gate
 
-Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. When asked, also apply what is safe.
+Run every review lens this setup has over one branch, in parallel, then write the planned tests the plan is missing. By default, also apply what a judge rules Fix.
 
 Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in CWD, `verdict_quality-gate_<branch>_<ts>.md`:
 
@@ -29,9 +29,9 @@ Four legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
-- `--auto-solve` - skip the opening interview and apply the `refactor`/`auto-review` findings this run judges safe. Doesn't govern `test-sdd` or `metrics` (§5.1, §5.3).
+- `--auto-solve` - skip the interview; a judge rules each `refactor`, `auto-review` and `metrics` finding Fix or Skip, and every Fix applies.
 
-- `--report-only` - skip the interview the other way: leave every `refactor`/`auto-review` finding unapplied.
+- `--report-only` - skip the interview the other way; only `test-sdd` findings apply.
   - A skill caller that already asked its human passes one flag, so §1 never stalls a batch on an unwatched prompt.
 
   - Both flags at once is a contradiction - stop and say so.
@@ -40,15 +40,15 @@ See [`references/more-examples.md`](references/more-examples.md) for example inv
 
 ## 1. Ask about auto-solve - first, before anything else
 
-**The question covers only the `refactor` and `auto-review` lenses.**
+**The question covers the `refactor`, `auto-review` and `metrics` lenses.**
 
 **Skip this step entirely when either `--auto-solve` or `--report-only` was passed.** The flag is the answer.
 
 Otherwise ask one `AskUserQuestion`, before resolving files or dispatching anything:
 
-- **Report only** (recommended default) - no refactor/auto-review finding is touched; the human decides later, by hand or by tagging headings `[AI!]` for `/address-verdicts`.
+- **Auto-solve** (recommended default) - a fresh judge rules each finding Fix or Skip, every Fix applies, then one fix review checks the commits.
 
-- **Auto-solve** - after reports land, this session triages both lenses and hands safe findings to `/address-verdicts`.
+- **Report only** - only `test-sdd` findings apply; the human decides the rest, by hand or by tagging headings `[AI!]` for `/address-verdicts`.
 
 ## 2. Resolve the spec and the plan
 
@@ -136,6 +136,14 @@ Verify without reading the merged file into main:
 
 **Fail** → move the merged file into `<RUN_DIR>`, and move every source file and the rendered metrics verdict back into CWD. Say so in §7.
 
+### 4.2. Judge each finding Fix or Skip - auto-solve only
+
+Runs on auto-solve when §4.1 passed. Report-only and §4.1's fallback skip it.
+
+Main copies the merged file to `<RUN_DIR>/pre-judge.md`. Then it dispatches ONE `agent(subAgent=code-reviewer, title=Fix-or-Skip judge)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §1, and runs that file's §3 checks.
+
+On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: not run (merge fell back)`.
+
 ## 5. Assemble the apply list
 
 Compose and print the whole list before applying anything. The groups below enter on different terms.
@@ -146,28 +154,13 @@ Every finding `~/.claude/scripts/get-test-sdd-dispatch-list.py <merged file>` pr
 
 One exception: a planned test whose target is prose is never written, because CLAUDE.md forbids tests over non-code artifacts. It still enters the list, and `/address-verdicts` §4 annotates it `SKIPPED`.
 
-### 5.2. `refactor` and `auto-review` findings go in only on an auto-solve run
+### 5.2. Fix-ruled findings go in on an auto-solve run
 
-**Report-only** → neither lens contributes anything, including trivially-safe-looking findings - the opt-in came from §1.
+Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. A duplication candidate enters only through a judge finding that says to extract it.
 
-**Auto-solve** → read the merged file **in full** (the source files on §4.1's fallback), never the legs' return summaries, sorting each finding into addressable or not.
+Report-only adds nothing else.
 
-- **Addressable** - small, well-scoped, clearly evidenced, low blast radius.
-- **Not addressable** - design tradeoffs, cross-cutting risk, anything a leg flagged as uncertain, anything whose fix needs a product decision.
-
-Print the accepted list before applying, one line per finding: `quality-gate#N [<lens>] (<file>:<lines>) - <one-line recap> - accepted because <reason>`.
-
-Print the rejected list the same way, with the rejection reason. On the fallback use `<lens>#N (...)`.
-
-### 5.3. Every open metrics violation goes in, on report-only and auto-solve alike
-
-The plan approval already asked for measured quality, so no triage runs. Enter every entry under the rendered file's `## Open violations` and `## Gate input violations`, plus every `[metrics]` judge finding.
-
-Entries under `## Duplication candidates` do not enter the apply list themselves; only the judge's "extract" `[metrics]` findings do.
-
-Ranked lists, exceptions and deferred entries stay out: they repeat a violation or are rulings. List the numbers with the awk in [`references/metrics-leg.md`](references/metrics-leg.md) §5.
-
-An entry the fix cannot clear, or a rejected exception, stays unmarked, open and first, and nothing blocks the PR.
+Print the composed list, one line per finding, before applying.
 
 ## 6. Hand the apply list to `/address-verdicts`
 
@@ -183,16 +176,19 @@ Resolve the repo's test command first - a `package.json` script, a Makefile targ
 
 **Pass the whole list in one invocation**, never one call per lens. That skill groups the list by lens itself.
 
-- **The list is explicit** - naming each finding as its report does, so nothing re-derives §5.2's triage from a severity floor.
+- **The list is explicit** - each finding named as its report names it.
 
 - **`--no-ask` is mandatory here**, report-only or auto-solve alike.
-  - §1 already asked this run's one question, so a prompt now would re-ask it or stall a `/implement` tail.
 
 - **`--test-cmd` is passed** so its inference step has nothing left to prompt for.
 
-It runs in this session, never in a subagent, because it commits and permission prompts render only in main.
-
 It returns the ledger §7 reports from.
+
+### 6.1. One fix review over every applied commit
+
+Skipped when the merged file has no unfenced `APPLIED (` line, or with no git.
+
+Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §4, then run main's checks and the append from that section. Its findings are reported, never applied.
 
 ## 7. Close with a report
 
@@ -210,11 +206,16 @@ Compose this from the ledger `/address-verdicts` returned, not from a second rea
 - **Every finding below carries its `quality-gate#N [<lens>] (<file>:<lines>)` reference (`<lens>#N (...)` on the fallback) plus a one-line recap - never a bare id, count, or SHA alone.**
 
 - Applied findings, with commit SHA.
-- Findings judged not addressable by §5.2, with the reason - they stay unmarked in their verdict files.
+- Findings the judge ruled Skip, with their `**Standards check**` line - they stay open in the merged file.
 
-- **On a report-only run, every `refactor` and `auto-review` finding, under a heading naming them as never triaged.**
-  - No one judged them addressable, so "not addressable" would claim a judgment never made.
-  - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`.
+- **On a report-only run, every `refactor`, `auto-review` and `metrics` finding, under a heading naming them as never judged.**
+  - Close it with both ways to work them: tag headings `[AI!]` and run `/address-verdicts`, or re-run as `/quality-gate --auto-solve`, now the default.
+
+- `judge: FAIL (<reason>)` or `judge: not run (merge fell back)` when that happened; on a failure, say to fix the judge and re-run `/quality-gate`.
+
+- Every `[QUESTION]` finding, under "needs your answer".
+
+- The fix-review findings, "reported, never applied", or "fix review: clean"; on a failed check, `fix review: FAIL (<reason>)`.
 
 - The `test-sdd` `Unplanned tests added by the branch` finding, its tests listed, never dispatched, for the human to mark `[Done]`.
 

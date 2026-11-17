@@ -24,7 +24,7 @@ Main dispatches the read-only inspector before the leg, never the leg itself.
 
 A subagent never asks the human. The leg returns each tooling problem as an `ask` record (`tooling_ask` in `quality_metrics/failures.py`): the `tool`, its `metric`, the `reason`, and `choices` of `fix now` and `defer`. A missing or crashed global tool and a changed code file whose language has no declaration entry both arrive this way.
 
-**Nobody can be asked** when `--report-only` or `--auto-solve` was passed, or when `CLAUDE_CODE_ENTRYPOINT` is set to anything but `cli` (`session_can_ask` in the same file). `/implement`'s batch end always passes `--report-only`, so every tooling ask in that tail defers.
+**Nobody can be asked** when `--report-only` or `--auto-solve` was passed, or when `CLAUDE_CODE_ENTRYPOINT` is set to anything but `cli` (`session_can_ask` in the same file). `/implement`'s batch end always passes one of the two flags, so every tooling ask in that tail defers.
 
 The variable decides, never your judgment. Answer `defer` without asking:
 - coverage and CRAP read `pessimistic, tooling deferred` at 0%,
@@ -54,12 +54,8 @@ An exit 2 from the script or the verdict render, or no rendered file after one r
 
 ## 5. Open-violation entry numbers
 
-The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. This prints their numbers, one per line, skipping any `###` line inside a code fence:
+The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. The numbers that enter the apply list come from `~/.claude/scripts/get-fix-apply-list.py`, per `SKILL.md` §5.2 and [`fix-judge.md`](fix-judge.md) §2.
 
-```bash
-awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^## /{s=($0 ~ /^## (Open|Gate input) violations/)} !f && s && /^### [0-9]+\. /{sub(/^### /,""); sub(/\..*/,""); print}' <rendered file>
-```
-
-The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so only the two violation sections' entries enter the apply list.
+The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so neither enters the apply list.
 
 Those numbers are the same in the merged file, where the rendered entries come first and keep numbers 1 to k. Each judge finding is a `[metrics]` heading numbered from k+1 in the merged file.
