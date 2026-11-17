@@ -314,12 +314,7 @@ Read Units (ACs), Verification, and Files from the task's `## Task Details` entr
 - **Verification**: the task's **task-scoped verification commands only**, when the plan names any.
   - Strip any repo-wide/full-suite command (e.g. `test:agentic`, `yarn lint`) before pushing - a subagent verifies only its own change.
   - A stripped requirement isn't dropped: §8.3's gate re-covers it when on; §8.4's package names it when off.
-  - When the plan names none, **omit the field**; `tdd-coder.md` derives one from a file declaring the repo's entry point and reports it plus its source.
-
-  - Check the derived command in the report covers the task.
-  - A wrong one is a plan gap, not a subagent fault - push the correct command on re-dispatch, and write it into its task slice.
-
-  - Never substitute a full-suite command for a missing task-scoped one - the subagent budgets the full suite at two runs, and a stand-in burns it.
+  - When the plan names none, **omit the field**; `tdd-coder.md` derives one, and [`derived-verification.md`](references/derived-verification.md) says how to check it.
 
 - **Optional**:
   - `files:` - the task's **Files (logical order)** list as the **starting set** - touch more when needed, per §4.3.
@@ -339,6 +334,7 @@ Everything else is baked into `tdd-coder.md`. Don't re-push any of it.
 Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) - `direct-coder.md` shares only Drift and Scout.
 
 **Only Scouts need you.** `TaskCreate` one `[Scout]` task each, cite that id on the plan.
+The gate turns an in-goal scout into a finding (its `**Scout task**: #<id>` line) and deletes the task; an off-goal one stays for the human.
 
 ### 4.4. Report back
 

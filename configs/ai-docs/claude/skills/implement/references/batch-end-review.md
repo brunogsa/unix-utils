@@ -127,7 +127,10 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 
 - **Missing planned tests** - the `test-sdd` leg's misses, called out on their own line, not buried in the finding list; the gap this batch exists to close, attempted every run.
 
-- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.3) - reported, never fixed by this run.
+- **Every recorded `[Scout]` note**, pre-existing issues surfaced along the way (§4.3, §8.3) - this run never fixes one.
+  - Off-goal scouts stay in the TaskList for the human.
+
+  - The gate's scout leg turns an in-goal one into a `[scout]` finding in the merged verdict, found by its `**Scout task**: #<id>` line, which the gate may apply and then delete the task.
 - **The literal diff range** - print `git diff BATCH_BASE_SHA..HEAD` with the SHA substituted.
 - **"Unexpected extras"** - §8.3's runner's Fixed list: each commit it produced to reach green, with the failure that commit closed.
 - **Repo-green result** - carries §8.3's verdict, its log path, and final pass/fail counts into the package.
@@ -143,17 +146,7 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 
 ## Degraded - modules that vanished mid-run
 
-Besides §3.4's Linear claim, `implement` calls no module itself; this section collects what its **task subagents** report.
-
-A subagent whose own opt-in module failed mid-task falls back to the user's own path and says so in its report.
-
-Give the package a dedicated **Degraded** section naming, per report:
-
-- **Which module vanished.**
-- **At which task.**
-- **Which non-module path took over.**
-
-When no subagent reported a degradation, the section reads `N/A - no module was in play`.
+Compose the package's **Degraded** section from [`batch-end-degraded.md`](batch-end-degraded.md).
 
 ## The review notification - the package's closing block
 
