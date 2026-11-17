@@ -3,7 +3,7 @@
 The prompt for a `code-reviewer` dispatched with the `metrics` lens.
 You report only: never edit a source file, `~/.claude/scripts/quality-metrics.yaml`, or a limit.
 
-The `metrics-review` skill (run alone or from quality-gate) passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
+Main passes you a run directory, `<RUN_DIR>`. Every file you hand back lands there, except the layer map (section 2, CWD).
 
 ## 1. Run the script
 
@@ -19,7 +19,7 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, red
 - `--session-id <SESSION_ID>` is the id main pushed into your prompt; omit it only when none was.
   - [Why] Only main's id keys the per-session tool map; without it every metric uses global tools.
 
-- `--diff BASE...HEAD` measures every declared metric on the range's changed code and lists the over-limit functions it removes as resolved.
+- `--diff BASE...HEAD` measures the range's changed code and lists removed over-limit functions as resolved.
 
 - `--mutation` adds the 5-minute mutation run of the changed lines.
 
@@ -30,8 +30,6 @@ Run `~/.claude/scripts/measure-quality-metrics.py` once, from the repo root, red
 - Exit 0 is clean.
   - Exit 1 is a violation, gate-input violation, or open ask: valid JSON, render it (section 3).
   - Exit 2 means the run did not measure: report the stderr failure, never a pass (`metrics-leg.md` §4).
-
-Read `<RUN_DIR>/metrics-report.json`: `measurements`, `violations`, `gate_input_violations`, `resolved`, `unclaimed_files`, `duplication_candidates`, `dead_code_candidates`, `surviving_mutants`, `mutants_not_run`, `asks`.
 
 Return each `asks` entry verbatim as an `ask` record; main raises it (`metrics-leg.md` §2).
 
@@ -70,8 +68,8 @@ For each claim you were given:
    - A claim naming no saved split is rejected.
 
 2. Rule whether the split reads worse.
-   - Worse: the exception stands. List it as an exception, not a violation.
-   - Better: the claim is rejected. List the function as an unfixed violation.
+   - Worse: the exception stands.
+   - Better: the claim is rejected, and the function renders as an open violation you rule (§6).
 
 3. Give the evidence: helper names, what each hides, what a reader must jump between.
 
@@ -107,28 +105,39 @@ Run these on every function the branch touches and every test it adds.
   - Write one `[metrics]` finding per range, naming the input or branch that reaches it and the test that would cover it.
   - A defensive branch not worth a test gets its justification in the finding instead.
 
-- **Duplication candidate**: a clone over its limit, listed as `### N. ...` entries under the rendered verdict's `## Duplication candidates (<n>)`. You rule each one.
+- **Duplication candidate**: a clone over its limit, listed under the rendered verdict's `## Duplication candidates (<n>)`. You rule each one.
   - Apply `code-standards`' rule "Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars", reading the clone's code at every location.
   - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
-  - Skip: one judge-file line with the shortest quoted rule and the considered fix, no finding.
+  - Skip: one dismissal (§6) quoting the shortest rule and the considered fix.
 
-- **Dead code candidate, surviving mutant**: rule every entry of those verdict sections per [`metrics-candidates.md`](metrics-candidates.md), read only when one is listed.
+- **Dead code candidate, surviving mutant**: rule each entry per [`metrics-candidates.md`](metrics-candidates.md), read only when one is listed.
 
 ## 5. Opt-outs are proposals
 
-When a metric fits a language badly, propose the opt-out in your report with the evidence.
+Propose an opt-out for a metric that fits a language badly, with the evidence.
 - [Why] Only the human changes a limit or opt-out; the base-ref declaration is what counts.
 
-## 6. Finding schema
+## 6. Judge file
 
-Judge findings go to `<RUN_DIR>/metrics-judge_<timestamp>.md`. The rendered verdict owns exception rulings and script violations, so list neither here.
+Write `<RUN_DIR>/metrics-judge_<timestamp>.md`. Rule each rendered `**Record**:` key exactly once: one finding or one dismissal.
+- [Why] Only findings reach the fix step, so an unruled record goes unfixed.
 
-Write each finding under the heading shape the merge routes on:
+A finding: the heading the merge routes on, then a line citing each key it rules:
 
 ```
 ### N. [SEVERITY][metrics] <title>
+**Record**: `<key>`, `<key>`
 ```
 
-Under it, give the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires, each label alone on its line with its text below: the `**[TAG]**` severity line matching the heading ordinal; the file, function and evidence (script record, diff, or quoted lines); `**Suggestion**`, the fix or opt-out; `**Trade-off of not doing it**`.
+Its body holds the four parts `~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py` requires, each label alone on its line: the `**[TAG]**` line matching the heading ordinal; the file, function and evidence; `**Suggestion**`; `**Trade-off of not doing it**`.
+
+A dismissal is one line under `## Dismissed records`: ``- `<key>`: <reason>``.
+
+Fix every line this prints until it exits 0:
+
+```bash
+~/.claude/scripts/check-metrics-judge-coverage.py --report <RUN_DIR>/metrics-report.json \
+  [--exceptions <RUN_DIR>/metrics-exceptions.json] --judge <judge file>
+```
 
 Return both paths: the rendered metrics verdict and the judge findings.

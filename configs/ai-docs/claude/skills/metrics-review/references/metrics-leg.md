@@ -54,12 +54,18 @@ The rendered metrics verdict states which checks it skipped (the removed-code ch
 
 ## 4. A failed leg
 
-An exit 2 from the script or the verdict render, or no rendered file after one re-dispatch, is not a clean run. Merge the other legs with k = 0 and report `metrics: FAIL - leg failed (<reason>)` in §7.
+Each of these, still there after one re-dispatch, is not a clean run:
+- an exit 2 from the script or the verdict render;
+- no rendered file;
+- a non-zero exit from the judge coverage check (`metrics-review/SKILL.md` §1 step 4), since an unruled record never reaches the fix step.
 
-## 5. Open-violation entry numbers
+Merge the other legs with k = 0 and report `metrics: FAIL - leg failed (<reason>)` in §7.
 
-The rendered verdict lists open violations under `## Open violations (<n>)` and `## Gate input violations (<n>)`, each entry as `### N. <text>`. The numbers that enter the apply list come from `~/.claude/scripts/get-fix-apply-list.py`, per `quality-gate/SKILL.md` §5.2 and [`fix-judge.md`](../../quality-gate/references/fix-judge.md) §2.
+## 5. Entry numbers
 
-The verdict also carries `## Tooling asks (<n>)` after `## Deferred metrics` and `## Coverage sources (<n>)` before `## Code design`, each entry numbered like the rest. Neither section lists violations, so neither enters the apply list.
+The rendered verdict lists every raw record (open and gate-input violations, duplication, dead code, mutants, coverage sources) as an unnumbered `- ` bullet. Only `## Deferred metrics`, `## Tooling asks (<n>)` and `## Exceptions (<n>)` keep numbered `### N.` entries.
 
-Those numbers are the same in the merged file, where the rendered entries come first and keep numbers 1 to k. Each judge finding is a `[metrics]` heading numbered from k+1 in the merged file.
+None of them enters the apply list: `~/.claude/scripts/get-fix-apply-list.py` takes only the `[metrics]` judge findings under `## Findings`, per `quality-gate/SKILL.md` §5.2 and [`fix-judge.md`](../../quality-gate/references/fix-judge.md) §2.
+- [Why] A raw record reaches the fix step only through the finding that cites its key, so the judge's ruling is never bypassed.
+
+In the merged file the rendered numbered entries come first and keep numbers 1 to k, and each judge finding is numbered from k+1.

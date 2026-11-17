@@ -9,7 +9,7 @@ Rules for the verdict's dead code and mutation sections. No entry is a violation
 
 - Delete: write one `[metrics]` finding naming the symbol, its file and line, and the grep that found no caller.
 
-- Keep: one line in the judge file naming the reference the tool missed.
+- Keep: one dismissal line (`metrics-lens.md` §6) naming the reference the tool missed.
 
 - A pessimistic entry (tooling deferred): one finding saying the tool did not run.
 
@@ -19,7 +19,7 @@ Rules for the verdict's dead code and mutation sections. No entry is a violation
 
 - Write one `[metrics]` finding per entry naming the test that should fail and the assertion it lacks: the expected value or effect.
 
-- An equivalent mutant, one that behaves exactly like the original, gets one line in the judge file saying why, no finding.
+- An equivalent mutant, one that behaves exactly like the original, gets one dismissal line saying why, no finding.
 
 - A "no related test" entry: one finding naming the test file to add.
 

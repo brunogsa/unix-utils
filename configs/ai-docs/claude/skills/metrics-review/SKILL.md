@@ -39,6 +39,9 @@ Main performs this skill, because the lens agent never spawns a nested reviewer 
 4. Confirm the outputs exist and are non-empty: `<RUN_DIR>/verdict_metrics_*.md` and `<RUN_DIR>/metrics-judge_*.md`, or `verdict_quality-gate_no-git_*.md` with no git.
    - Missing after one re-dispatch is `metrics: FAIL - leg failed (<reason>)`, never clean (`metrics-leg.md` §4).
 
+   - Run the judge coverage check yourself, with the arguments in `metrics-lens.md` §6; a non-zero exit after one re-dispatch fails the leg the same way.
+     - [Why] The lens runs it too, but only main's own run is one the lens cannot skip or misread.
+
 ## 2. Report
 
 Print both verdict paths, the open-violation and finding counts per severity, each deferred tooling ask with its reading (`pessimistic, tooling deferred` or `not measured: no language entry`, both failing scores), and any detector edit main committed.
