@@ -92,9 +92,12 @@ it('should filter by assignee', ...);
 - [Instruction] After changing code, re-run the full suite across every tier the change could reach (unit, integration/contract, e2e) workspace-wide - not the diff-scoped subset - before declaring done.
   - [Why] A change's blast radius exceeds its diff: a rename or removed export breaks callers a scoped run skips.
 
-- [Instruction] Defer the full suite to push time or CI - running the diff-scoped tier meanwhile - when it outruns your iteration loop or the machine is saturated.
-  - [Why] Deferring the full run keeps its blast-radius catch, while a bare skip ships tiers nobody ever ran.
+- [Instruction] Run focused suites while iterating and the full suite once at batch or PR end - or in CI when it outruns your loop or the machine is saturated.
+  - [Why] A focused run covers one edit's reach at a fraction of the time and load; deferring the full run keeps its catch.
+
   - [Example] Outruns the loop: wall-clock exceeds your edit-test cycle. Saturated: `check-machine-headroom.sh` reports NO-GO.
+
+  - [Example] In a work repo with a slow suite, open the draft PR and fix from its CI logs instead of running the suite locally.
 
 - [Instruction] Prefer the project's ci/agentic test variant when one exists over the bare test runner.
   - [Why] The ci/agentic variant exits non-zero cleanly, so automation can trust its exit code instead of scraping output.
