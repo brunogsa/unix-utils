@@ -318,15 +318,20 @@ class TimeoutPolicy:
                     error, waited_seconds, genuine_timeouts
                 )
 
-    def run_after_headroom(self, attempt):
-        """`run(attempt)`, started only once headroom reads GO.
+    def run_once_after_headroom(self, attempt):
+        """`attempt(timeout_seconds)`, started only once
+        headroom reads GO, and never retried.
 
-        A heavy run must not start on a saturated machine.
-        Raises ToolTimedOutTwice, with no attempt made, when
-        headroom stays NO-GO past HEADROOM_MAX_WAIT_SECONDS.
+        A heavy run must not start on a saturated machine, and
+        a retry of a run that already took its whole budget
+        doubles the wait for a number it will not produce
+        either.
+        Raises subprocess.TimeoutExpired past the budget, and
+        ToolTimedOutTwice, with no attempt made, when headroom
+        stays NO-GO past HEADROOM_MAX_WAIT_SECONDS.
         """
         self._wait_for_headroom(0, "the run never started")
-        return self.run(attempt)
+        return attempt(self.timeout_seconds)
 
     def _count_timeout(self, error, waited_seconds, genuine_timeouts):
         """`(waited_seconds, genuine_timeouts)` after one more

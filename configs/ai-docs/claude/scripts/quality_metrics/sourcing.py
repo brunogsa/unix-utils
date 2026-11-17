@@ -9,6 +9,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from dataclasses import replace
@@ -60,7 +61,7 @@ MEASURING_EXIT_CLASSES = (PASSED, REPO_THRESHOLD)
 # for the side-PR candidate.
 FALL_THROUGH_REASONS = {
     CRASH: "crashed",
-    TIMEOUT: "timed out twice",
+    TIMEOUT: f"timed out at {REPO_TEST_TIMEOUT_SECONDS}s",
     WROTE_NO_COVERAGE: "wrote no coverage data",
     UNCLASSIFIED: "exited non-zero with no recognized cause",
 }
@@ -570,21 +571,21 @@ REPO_COVERAGE_RUNNERS = {JEST: run_repo_jest, PYTEST_COV: run_repo_pytest_cov}
 
 def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_paths=()):
     """The repo `tool`'s coverage run for the changed paths,
-    started once headroom reads GO and bounded by
+    started once headroom reads GO and given one try of
     REPO_TEST_TIMEOUT_SECONDS; `policy` keeps its own timeout
-    for every other tool.
+    and retry for every other tool.
 
     Raises RepoToolFailure naming how the tool failed: a
-    timeout on both attempts, or headroom that never reads GO,
-    is TIMEOUT; any other tool error is CRASH.
+    timeout, or headroom that never reads GO, is TIMEOUT; any
+    other tool error is CRASH.
     """
     run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
     repo_test_policy = replace(policy, timeout_seconds=REPO_TEST_TIMEOUT_SECONDS)
     try:
-        return repo_test_policy.run_after_headroom(
+        return repo_test_policy.run_once_after_headroom(
             lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths)
         )
-    except ToolTimedOutTwice as error:
+    except (subprocess.TimeoutExpired, ToolTimedOutTwice) as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
     except RepoToolFailure:
         raise

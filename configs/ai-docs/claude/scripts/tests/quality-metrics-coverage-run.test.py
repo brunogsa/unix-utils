@@ -1,4 +1,3 @@
-import itertools
 import sys
 from collections import namedtuple
 from pathlib import Path
@@ -151,7 +150,7 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_writes_no_cov
     }, failure.attempts)
 
 
-def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twice(
+def test_should_fall_through_to_the_global_tool_after_one_try_when_the_repo_test_run_times_out(
     tmp_path, monkeypatch
 ):
     repo = make_repo(tmp_path, JEST_REPO_FILES)
@@ -163,32 +162,11 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_tool_times_out_twi
 
     assert_fell_through_to_global(tmp_path, (coverage_run, records, global_calls), {
         "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
-        "exit_class": "timeout", "side_pr_candidate": "repo jest timed out twice",
-    }, 2)
+        "exit_class": "timeout", "side_pr_candidate": "repo jest timed out at 240s",
+    }, 1)
 
 
-def test_should_stop_a_repo_tool_that_always_times_out_after_3_attempts_when_headroom_never_reads_go_on_the_first_poll(
-    tmp_path, monkeypatch
-):
-    repo = make_repo(tmp_path, JEST_REPO_FILES)
-    install_repo_tool_that_always_times_out(tmp_path, monkeypatch)
-    global_calls = []
-    install_global_collector(monkeypatch, global_calls, GLOBAL_HITS)
-
-    # Each timeout polls NO-GO once, then GO.
-    polls = itertools.cycle([False, True])
-    policy = TimeoutPolicy(
-        timeout_seconds=0.5, headroom_is_go=lambda: next(polls), sleep=lambda seconds: None
-    )
-    coverage_run = coverage_run_for(repo, tmp_path, policy=policy)
-
-    coverage_records_of(tmp_path, js_target(repo), coverage_run)
-
-    assert attempts_in(tmp_path) == 3
-    assert len(global_calls) == 1
-
-
-def test_should_give_the_repo_test_run_4_minutes_while_other_tools_keep_their_own_timeout(
+def test_should_give_the_repo_test_run_one_4_minute_try_while_other_tools_keep_their_own_timeout(
     tmp_path, monkeypatch
 ):
     repo = make_repo(tmp_path, JEST_REPO_FILES)
@@ -199,7 +177,7 @@ def test_should_give_the_repo_test_run_4_minutes_while_other_tools_keep_their_ow
 
     coverage_records_of(tmp_path, js_target(repo), coverage_run)
 
-    assert attempt_timeouts_in(tmp_path) == [240, 240]
+    assert attempt_timeouts_in(tmp_path) == [240]
     assert coverage_run.policy.timeout_seconds == 120
 
 

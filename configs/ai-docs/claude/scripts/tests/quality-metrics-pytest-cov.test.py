@@ -215,7 +215,7 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_crashes
     }, failure.attempts)
 
 
-def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_out_twice(
+def test_should_fall_through_to_the_global_tool_after_one_try_when_the_repo_pytest_cov_times_out(
     tmp_path, monkeypatch
 ):
     repo = make_repo(tmp_path, PYTEST_COV_REPO_FILES)
@@ -227,8 +227,8 @@ def test_should_fall_through_to_the_global_tool_when_the_repo_pytest_cov_times_o
 
     assert_fell_through_to_global(tmp_path, (coverage_run, records, global_calls), {
         "metric": "coverage", "language": "python", "source": GLOBAL_COVERAGE_PY_SOURCE,
-        "exit_class": "timeout", "side_pr_candidate": "repo pytest-cov timed out twice",
-    }, 2)
+        "exit_class": "timeout", "side_pr_candidate": "repo pytest-cov timed out at 240s",
+    }, 1)
 
 
 def test_should_read_measurements_as_valid_when_the_repo_pytest_cov_misses_its_own_fail_under_threshold(
