@@ -16,8 +16,10 @@ from quality_metrics_support import (
     coverage_run_for,
     git,
     head_of,
+    install_global_collector,
     install_stub_tool,
     make_repo,
+    path_without_tool,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -168,6 +170,21 @@ class TestNestedWorktree:
 
         assert specs_log.read_text().splitlines() == [str(repo / "src/cart.test.js")]
 
+    def test_should_measure_a_workspace_file_with_the_jest_installed_only_at_the_repo_root_when_a_worktree_is_nested_in_the_workspace(
+        self, tmp_path, monkeypatch
+    ):
+        repo = make_repo(tmp_path, MONOREPO_FILES)
+        git(repo, "worktree", "add", "--quiet", "-b", "nested", "pkg/wt")
+        install_jest_resolving_aliases(tmp_path, monkeypatch)
+        move_stub_jest_to_repo_root_node_modules(tmp_path, repo, monkeypatch)
+        install_global_collector(monkeypatch, [], {})
+        coverage_run = coverage_run_for(repo, tmp_path, changed_files={"pkg/src/cart.js": "js"})
+
+        records = coverage_records_of(tmp_path, workspace_cart(repo), coverage_run)
+
+        assert coverage_run.sources[0]["source"] == {"kind": "repo", "tool": "jest"}
+        assert [record["value"] for record in records] == [92]
+
 
 # Copies the lcov fixture where it is told to, and answers
 # --showConfig with no readable config, so the default ignore
@@ -182,6 +199,15 @@ for argument in "$@"; do
 done
 if [ -n "$report_dir" ]; then cp "$LCOV_FIXTURE" "$report_dir/lcov.info"; fi
 """
+
+
+def move_stub_jest_to_repo_root_node_modules(tmp_path, repo, monkeypatch):
+    """jest hoisted to the repo root's node_modules, as yarn
+    workspaces install it, and nowhere on PATH."""
+    local_bin = repo / "node_modules" / ".bin"
+    local_bin.mkdir(parents=True)
+    (tmp_path / "bin" / "jest").rename(local_bin / "jest")
+    monkeypatch.setenv("PATH", path_without_tool("jest"))
 
 
 SCOPED_WORKSPACE_FILES = {

@@ -235,13 +235,14 @@ def _nested_worktree_paths(run_dir):
     return [path for path in worktree_paths if path.startswith(run_dir_prefix)]
 
 
-def _configured_ignore_patterns(run_dir, config_flags, timeout_seconds):
+def _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
     """The `testPathIgnorePatterns` the jest config resolves to,
-    read through `--showConfig`; jest's own default when that
-    output cannot be read."""
+    read through `--showConfig` from `run_dir` with the repo's
+    installed jest; jest's own default when that output cannot
+    be read."""
     shown = run_command(
         ["jest", "--showConfig", *config_flags],
-        cwd=run_dir, env=_repo_tool_env(run_dir), timeout=timeout_seconds,
+        cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
     )
     try:
         project_configs = json.loads(shown.stdout)["configs"]
@@ -251,7 +252,7 @@ def _configured_ignore_patterns(run_dir, config_flags, timeout_seconds):
     return list(dict.fromkeys(patterns))
 
 
-def _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds):
+def _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds):
     """Flags that keep jest out of every git worktree nested in
     `run_dir`, on top of the config's own ignores.
 
@@ -263,7 +264,8 @@ def _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds):
     if not worktree_paths:
         return []
     worktree_patterns = [re.escape(path) + "/" for path in worktree_paths]
-    patterns = [*_configured_ignore_patterns(run_dir, config_flags, timeout_seconds), *worktree_patterns]
+    configured_patterns = _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds)
+    patterns = [*configured_patterns, *worktree_patterns]
     return [f"--testPathIgnorePatterns={pattern}" for pattern in patterns]
 
 
@@ -299,7 +301,7 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_p
     run_dir = Path(repo) / workspace
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
-        ignore_flags = _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds)
+        ignore_flags = _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds)
         result = run_command(
             [
                 "jest", "--coverage", "--passWithNoTests",
