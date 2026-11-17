@@ -75,7 +75,7 @@ class TestHappyPath:
         assert set(loaded.languages) == {"js", "ts", "html", "css", "python", "bash", "go"}
         assert loaded.per_unit == (
             "size", "nesting", "parameters", "cognitive_complexity",
-            "code_duplication", "test_duplication", "dependency_direction",
+            "dependency_direction",
         )
 
 

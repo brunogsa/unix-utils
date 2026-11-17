@@ -29,7 +29,10 @@ excluded_paths:
 # Non-code extensions, ignored with no language entry asked.
 ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
 
-per_unit: [size, nesting, parameters, cognitive_complexity, code_duplication, test_duplication, dependency_direction]
+# code_duplication and test_duplication stay out of per_unit
+# on purpose, whatever the benchmark times: duplication is a
+# judged soft signal, so only batch end and --diff measure it.
+per_unit: [size, nesting, parameters, cognitive_complexity, dependency_direction]
 
 languages:
   # Dependency direction needs dependency-cruiser for js and ts
