@@ -426,6 +426,9 @@ expect(response.body.pagination).toEqual({ page: 1, pageSize: 20, totalItems: 1,
 - [Instruction] When you move code, move its tests too (if they exist) - adapt them to the new path, don't drop the coverage.
   - [Why] Tests left behind in a move leave the next bug in that area uncaught.
 
+- [Instruction] After resolving a merge conflict, compare each touched suite's test count before and after, treating any drop as a lost test unless one side deleted it on purpose.
+  - [Why] Keeping one side's hunk drops the other side's tests, and a green run cannot show a test that no longer exists.
+
 - [Instruction] Before refactoring or rewriting untested code, pin its current behavior with tests, then keep them green through the change.
   - [Why] Untested code has no suite to lean on, so pinned current behavior is the only proof the change is equivalent.
 
