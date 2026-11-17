@@ -847,6 +847,26 @@ it_should_block_a_push_to_main_in_an_output_process_substitution() {
   assert_eq "should deny git push origin main run in a >(...) process substitution" "yes" "$PUSH_GUARD_DENIED"
 }
 
+it_should_block_a_push_to_main_in_a_substitution_that_appears_only_once_bash_c_dequotes_its_body() {
+  run_hook_reading_push_verdict "bash -c 'echo \$''(git push origin main)'"
+  assert_eq "should deny a bash -c body whose \$''( dequotes into a \$(git push origin main) substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_zsh_equals_process_substitution() {
+  run_hook_reading_push_verdict 'cat =(git push origin main)'
+  assert_eq "should deny git push origin main run in a zsh =(...) process substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_bash_brace_space_command_substitution() {
+  run_hook_reading_push_verdict 'echo ${ git push origin main; }'
+  assert_eq "should deny git push origin main run in a bash 5.3 \${ cmd; } substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
+it_should_block_a_push_to_main_in_a_bash_brace_pipe_command_substitution() {
+  run_hook_reading_push_verdict 'echo ${| git push origin main; }'
+  assert_eq "should deny git push origin main run in a bash 5.3 \${| cmd; } substitution" "yes" "$PUSH_GUARD_DENIED"
+}
+
 it_should_block_a_push_to_main_in_escaped_backticks_nested_inside_backticks() {
   run_hook_reading_push_verdict 'echo `echo \`git push origin main\` `'
   assert_eq "should deny git push origin main in escaped backticks nested inside backticks" "yes" "$PUSH_GUARD_DENIED"
@@ -1432,6 +1452,10 @@ it_should_block_a_push_to_main_after_an_ansi_c_quoted_escaped_quote_in_a_substit
 it_should_block_a_push_to_main_in_an_input_process_substitution
 it_should_block_a_push_to_main_in_an_output_process_substitution
 it_should_block_a_push_to_main_in_escaped_backticks_nested_inside_backticks
+it_should_block_a_push_to_main_in_a_substitution_that_appears_only_once_bash_c_dequotes_its_body
+it_should_block_a_push_to_main_in_a_zsh_equals_process_substitution
+it_should_block_a_push_to_main_in_a_bash_brace_space_command_substitution
+it_should_block_a_push_to_main_in_a_bash_brace_pipe_command_substitution
 it_should_allow_git_push_origin_feature_main_fix
 it_should_allow_git_push_origin_main_v2
 it_should_allow_push_u_origin_feat_from_feature_branch

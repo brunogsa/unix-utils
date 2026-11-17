@@ -468,7 +468,22 @@ def process_git_tokens(tokens, cwd):
         check_push(tokens[i + 1:], git_dir)
 
 
+# Comments, case patterns, `${x:-)}` and `$'...'` each end a
+# substitution where a parser guesses wrong, so none is parsed:
+# any substitution left after heredoc stripping refuses the
+# command, which reached here only by naming git and push.
+#
+# zsh's `=( )` and bash 5.3's `${ cmd; }` and `${| cmd; }` run
+# commands too.
+SUBSTITUTION_OPENER = re.compile(r'\$\(|`|[<>=]\(|\$\{[\s|]')
+
+
+# The refusal runs per text, not once on the outer command, so
+# a `bash -c` body whose `$''(` only dequotes into `$(` is
+# caught too.
 def process_command(text, base_cwd):
+    if SUBSTITUTION_OPENER.search(text):
+        blocked_reasons.append('a $( ), ${ }, backtick, <( ), >( ) or =( ) substitution in a command naming git and push - its push cannot be checked, so it is refused')
     cwd = base_cwd
     for seg in split_segments(text):
         seg = seg.strip()
@@ -499,14 +514,6 @@ cmd = strip_commit_message_heredoc_bodies(
     strip_heredoc_bodies_for_sinks(os.environ.get('CLAUDE_GIT_CMD', ''), NON_EXECUTING_SINK_PATTERN))
 base_cwd = os.environ.get('CLAUDE_GIT_PUSH_CWD', '') or os.getcwd()
 process_command(cmd, base_cwd)
-
-# Comments, case patterns, `${x:-)}` and `$'...'` each end a
-# substitution where a parser guesses wrong, so none is parsed:
-# any left after heredoc stripping refuses the whole command,
-# which reached here only by naming git and push.
-SUBSTITUTION_OPENER = re.compile(r'\$\(|`|[<>]\(')
-if SUBSTITUTION_OPENER.search(cmd):
-    blocked_reasons.append('a $( ), backtick, <( ) or >( ) substitution in a command naming git and push - its push cannot be checked, so it is refused')
 
 if blocked_reasons:
     msg = ['git push to main/master is never allowed. Push by hand instead of asking Claude to push.']
