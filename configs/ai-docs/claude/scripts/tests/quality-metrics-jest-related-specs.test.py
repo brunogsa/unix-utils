@@ -6,6 +6,7 @@ A spec named after the source is taken first. A source with no
 such spec gets the specs jest lists as related to it.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from quality_metrics_support import CART_LCOV, SCRIPTS_DIR, install_stub_tool, m
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from quality_metrics import sourcing
 from quality_metrics.sourcing import run_repo_jest
 from quality_metrics.tools import ToolError
 
@@ -216,3 +218,77 @@ class TestRelatedSpecListingFailure:
 
         with pytest.raises(ToolError, match="haste map error"):
             run_jest_on(files, changed_paths=["pkg/src/fees.js"], listing_fails=True)
+
+
+# The integrator core workspace's own `test` script, which keeps
+# its e2e and integration specs out of a plain `yarn test`.
+INTEGRATOR_TEST_SCRIPT = (
+    "TZ=UTC NODE_OPTIONS='--experimental-vm-modules' jest "
+    r"--testPathIgnorePatterns='.*\.(e2e|integration)\.' --maxWorkers=2"
+)
+FEES_FILES = {**CART_FILES, "pkg/src/fees.js": "module.exports = { fee: () => 5 };\n"}
+FEES_RELATED_SPECS = {"pkg/src/fees.js": [
+    "pkg/test/checkout.test.js", "pkg/test/checkout.e2e.spec.js", "pkg/test/fees.integration.spec.js",
+]}
+
+
+def with_test_script(files, test_script):
+    return {**files, "pkg/package.json": json.dumps({"scripts": {"test": test_script}})}
+
+
+class TestSpecsTheTestScriptIgnores:
+    def test_should_leave_out_of_the_run_the_related_specs_the_workspace_test_script_ignores(self, run_jest_on):
+        repo, calls = run_jest_on(
+            with_test_script(FEES_FILES, INTEGRATOR_TEST_SCRIPT), changed_paths=["pkg/src/fees.js"],
+            related_specs=FEES_RELATED_SPECS,
+        )
+
+        assert calls.scope_of_the_coverage_run() == [
+            str(repo / "pkg/src/fees.js"), str(repo / "pkg/test/checkout.test.js"),
+        ]
+
+    def test_should_keep_both_the_configured_and_the_test_script_ignore_patterns_on_the_coverage_run(
+        self, run_jest_on
+    ):
+        # A CLI --testPathIgnorePatterns replaces the
+        # config's list (https://jestjs.io/docs/cli), so
+        # the run repeats that list.
+        _, calls = run_jest_on(
+            with_test_script(FEES_FILES, INTEGRATOR_TEST_SCRIPT), changed_paths=["pkg/src/fees.js"],
+            related_specs=FEES_RELATED_SPECS,
+        )
+
+        (coverage_run,) = calls.coverage_runs()
+        assert "--testPathIgnorePatterns=/node_modules/" in coverage_run
+        assert r"--testPathIgnorePatterns=.*\.(e2e|integration)\." in coverage_run
+
+    def test_should_start_no_coverage_run_when_every_changed_file_is_a_spec_the_test_script_ignores(
+        self, run_jest_on
+    ):
+        files = {**CART_FILES, "pkg/test/checkout.e2e.spec.js": "require('../src/cart');\n"}
+
+        _, calls = run_jest_on(
+            with_test_script(files, INTEGRATOR_TEST_SCRIPT), changed_paths=["pkg/test/checkout.e2e.spec.js"],
+        )
+
+        assert calls.coverage_runs() == []
+
+
+class TestTestScriptIgnorePatterns:
+    @pytest.mark.parametrize("test_script, patterns", [
+        ("jest --maxWorkers=2", []),
+        ("", []),
+        ("jest --testPathIgnorePatterns=/e2e/", ["/e2e/"]),
+        ("jest --testPathIgnorePatterns /e2e/ --maxWorkers=2", ["/e2e/"]),
+        (r"jest --testPathIgnorePatterns='.*\.(e2e|integration)\.'", [r".*\.(e2e|integration)\."]),
+        ("jest --testPathIgnorePatterns /e2e/ /integration/ --ci", ["/e2e/", "/integration/"]),
+        ("jest --testPathIgnorePatterns=/e2e/ --testPathIgnorePatterns=/slow/", ["/e2e/", "/slow/"]),
+        ("jest --testPathIgnorePatterns /e2e/ && node report.js", ["/e2e/"]),
+        ("jest --testPathIgnorePatterns '/e2e/", []),
+    ], ids=[
+        "no flag", "no test script", "equals form", "space form", "quoted value",
+        "several patterns after one flag", "flag repeated", "next command after the patterns",
+        "unbalanced quote",
+    ])
+    def test_should_read_the_ignore_patterns_a_test_script_passes_jest(self, test_script, patterns):
+        assert sourcing.ignore_patterns_in_test_script(test_script) == patterns

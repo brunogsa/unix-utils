@@ -84,6 +84,11 @@ MAX_WORKERS_PATTERN = re.compile(r"--maxWorkers[= ](\S+)")
 # A shell word assigning a variable, such as `TZ=UTC`.
 ENV_ASSIGNMENT_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
+IGNORE_PATTERNS_FLAG = "--testPathIgnorePatterns"
+
+# The shell words that end one command of a script.
+SHELL_OPERATORS = {"&&", "||", ";", "|"}
+
 # A shared source, such as an error-code enum, reaches 102 to
 # 337 specs, and 344 specs ran jest past its 120s timeout. The
 # sources of one change reached 3 to 9. Past the cap, only the
@@ -264,21 +269,69 @@ def _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
     return list(dict.fromkeys(patterns))
 
 
-def _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds):
-    """Flags that keep jest out of every git worktree nested in
-    `run_dir`, on top of the config's own ignores.
+def ignore_patterns_in_test_script(test_script):
+    """The `--testPathIgnorePatterns` values a package.json
+    `test` script passes jest, in order.
+
+    The flag takes every word up to the next flag or shell
+    operator. A script the shell rules cannot split passes
+    none.
+    """
+    try:
+        words = shlex.split(test_script)
+    except ValueError:
+        return []
+    patterns = []
+    is_reading_patterns = False
+    for word in words:
+        if word.startswith(f"{IGNORE_PATTERNS_FLAG}="):
+            patterns.append(word.split("=", 1)[1])
+            is_reading_patterns = False
+        elif word == IGNORE_PATTERNS_FLAG:
+            is_reading_patterns = True
+        elif word.startswith("-") or word in SHELL_OPERATORS:
+            is_reading_patterns = False
+        elif is_reading_patterns:
+            patterns.append(word)
+    return patterns
+
+
+def declared_ignore_patterns(workspace_dir):
+    """The ignore patterns the workspace's `test` script passes
+    jest; none when it declares no `test` script."""
+    return ignore_patterns_in_test_script(_declared_test_script(workspace_dir))
+
+
+def without_ignored_specs(paths, ignore_patterns, run_dir):
+    """`paths` minus every path an ignore pattern matches, read
+    as jest reads it: a regex searched anywhere in the path,
+    `<rootDir>` standing for `run_dir`. A pattern Python cannot
+    compile matches nothing."""
+    regexes = []
+    for pattern in ignore_patterns:
+        try:
+            regexes.append(re.compile(pattern.replace("<rootDir>", str(run_dir))))
+        except re.error:
+            continue
+    return [path for path in paths if not any(regex.search(path) for regex in regexes)]
+
+
+def _test_path_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
+    """The ignore patterns a coverage run from `run_dir` passes
+    jest: the workspace `test` script's own, plus every git
+    worktree nested in `run_dir`.
 
     A CLI `--testPathIgnorePatterns` replaces the config's
     list (jestjs.io/docs/cli), so that list is repeated here.
-    No flags when no worktree is nested.
+    None when neither the script nor a nested worktree adds a
+    pattern, so the config's list applies unchanged.
     """
-    worktree_paths = _nested_worktree_paths(run_dir)
-    if not worktree_paths:
+    script_patterns = declared_ignore_patterns(run_dir)
+    worktree_patterns = [re.escape(path) + "/" for path in _nested_worktree_paths(run_dir)]
+    if not script_patterns and not worktree_patterns:
         return []
-    worktree_patterns = [re.escape(path) + "/" for path in worktree_paths]
     configured_patterns = _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds)
-    patterns = [*configured_patterns, *worktree_patterns]
-    return [f"--testPathIgnorePatterns={pattern}" for pattern in patterns]
+    return list(dict.fromkeys([*configured_patterns, *script_patterns, *worktree_patterns]))
 
 
 def _declared_test_script(workspace_dir):
@@ -363,9 +416,10 @@ def specs_exercising(source, specs_found, list_related_specs):
     return listed_specs if len(listed_specs) <= MAX_RELATED_SPECS_PER_SOURCE else []
 
 
-def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
-    """Flags that run only the changed specs and the specs
-    exercising each changed source under `run_dir`.
+def _spec_scope(repo, run_dir, changed_paths, list_related_specs, ignore_patterns):
+    """The changed files and the specs exercising each changed
+    source under `run_dir`, minus every spec `ignore_patterns`
+    keeps out of the workspace's own test run.
 
     jest keeps the test files among the paths given and skips
     every other spec. None when no changed file is given, so
@@ -373,13 +427,13 @@ def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
     """
     workspace_paths = _changed_paths_under(repo, run_dir, changed_paths)
     if not workspace_paths:
-        return []
+        return None
     sources = [path for path in workspace_paths if is_spec_candidate_source(path)]
     specs_found = specs_by_stem(run_dir, _nested_worktree_paths(run_dir)) if sources else {}
     specs_by_source = [specs_exercising(source, specs_found, list_related_specs) for source in sources]
     exercising_specs = [spec for specs in specs_by_source for spec in specs]
     scope = list(dict.fromkeys([*workspace_paths, *exercising_specs]))
-    return ["--runTestsByPath", *scope]
+    return without_ignored_specs(scope, ignore_patterns, run_dir)
 
 
 def _without_nested_worktree_files(hits_by_absolute_path, run_dir):
@@ -400,13 +454,20 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_p
     env = jest_env(repo, run_dir)
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
-        ignore_flags = _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds)
-        scope_flags = _spec_scope_flags(
+        ignore_patterns = _test_path_ignore_patterns(repo, run_dir, config_flags, timeout_seconds)
+        ignore_flags = [f"{IGNORE_PATTERNS_FLAG}={pattern}" for pattern in ignore_patterns]
+        scope = _spec_scope(
             repo, run_dir, changed_paths,
             lambda sources: related_specs(
                 sources, flags=[*config_flags, *ignore_flags], cwd=run_dir, env=env, timeout=timeout_seconds,
             ),
+            ignore_patterns,
         )
+
+        # A bare --runTestsByPath runs the whole suite.
+        if scope == []:
+            return {"exit_class": PASSED, "hits_by_file": {}}
+        scope_flags = [] if scope is None else ["--runTestsByPath", *scope]
         result = run_command(
             [
                 "jest", "--coverage", "--passWithNoTests",

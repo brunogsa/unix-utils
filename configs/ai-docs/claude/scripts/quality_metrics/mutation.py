@@ -20,7 +20,9 @@ from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
 from quality_metrics.deadline import run_until
 from quality_metrics.gate_inputs import config_names
 from quality_metrics.jest_specs import specs_by_stem
-from quality_metrics.sourcing import jest_env, jest_workspace_of, related_specs, specs_exercising
+from quality_metrics.sourcing import (
+    declared_ignore_patterns, jest_env, jest_workspace_of, related_specs, specs_exercising, without_ignored_specs,
+)
 from quality_metrics.tools import ToolError
 
 STRYKER = Path(__file__).resolve().parent / "node_tools/node_modules/.bin/stryker"
@@ -52,11 +54,13 @@ class BatchResult:
 def related_tests(tree, path):
     """The test files exercising `path`, picked as the coverage
     run picks them, by the repo's jest run from the file's jest
-    workspace; real paths, as jest names its test files."""
+    workspace, minus the specs its `test` script ignores; real
+    paths, as jest names its test files."""
     run_dir = Path(tree) / jest_workspace_of(tree, path)
     list_related_specs = partial(related_specs, flags=[], cwd=run_dir, env=jest_env(tree, run_dir), timeout=None)
     specs = specs_exercising(str(Path(tree) / path), specs_by_stem(run_dir, []), list_related_specs)
-    return [os.path.realpath(spec) for spec in specs]
+    run_specs = without_ignored_specs(specs, declared_ignore_patterns(run_dir), run_dir)
+    return [os.path.realpath(spec) for spec in run_specs]
 
 
 class StrykerTools(NamedTuple):

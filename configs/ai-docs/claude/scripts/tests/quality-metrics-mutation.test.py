@@ -298,6 +298,15 @@ class TestRelatedTests:
         assert specs == [os.path.realpath(tree / "core/src/price.spec.ts")]
         assert not calls_log.exists()
 
+    def test_leaves_out_the_related_specs_the_workspace_test_script_ignores(self, workspace_tree):
+        tree, _, related_specs_file = workspace_tree
+        test_script = r"TZ=UTC jest --testPathIgnorePatterns='.*\.(e2e|integration)\.' --maxWorkers=2"
+        write_tree(tree, {"core/package.json": json.dumps({"scripts": {"test": test_script}})})
+        unit_spec, e2e_spec = f"{tree}/core/test/checkout.spec.ts", f"{tree}/core/test/checkout.e2e.spec.ts"
+        related_specs_file.write_text(f"{unit_spec}\n{e2e_spec}\n")
+
+        assert related_tests(tree, "core/src/price.ts") == [os.path.realpath(unit_spec)]
+
     def test_lists_no_spec_for_a_source_more_specs_exercise_than_the_cap(self, workspace_tree):
         tree, _, related_specs_file = workspace_tree
         over_cap = MAX_RELATED_SPECS_PER_SOURCE + 1
