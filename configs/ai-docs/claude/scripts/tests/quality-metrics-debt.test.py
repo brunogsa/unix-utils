@@ -64,7 +64,14 @@ class TestDebtScore:
         assert debt.debt_score([record], 1)["minutes"] == 5
 
     def test_should_price_every_metric_the_registry_defines(self):
-        assert set(debt.REMEDIATION_MINUTES) == set(measuring.METRIC_MODULES)
+        assert set(measuring.METRIC_MODULES) <= set(debt.REMEDIATION_MINUTES)
+
+    def test_should_price_a_type_error_at_10_minutes_and_an_unused_code_finding_at_5(self):
+        type_error = function_record("src/a.py", "build", "type_errors", 1, 0)
+        unused_code = function_record("src/a.py", "build", "unused_code", 1, 0)
+
+        assert debt.debt_score([type_error], 1)["minutes"] == 10
+        assert debt.debt_score([unused_code], 1)["minutes"] == 5
 
     def test_should_band_each_ratio_at_the_sonar_maintainability_edges(self):
         edges = [(0.05, "A"), (0.0501, "B"), (0.0999, "B"), (0.10, "C"),

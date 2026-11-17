@@ -38,6 +38,8 @@ REMEDIATION_MINUTES = {
     "code_duplication": 60,
     "test_duplication": 30,
     "dependency_direction": 60,
+    "unused_code": 5,
+    "type_errors": 10,
 }
 
 
