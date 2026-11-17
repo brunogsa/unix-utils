@@ -95,14 +95,14 @@ Two paths - try MCP first, fall back to ICS.
 
 **Path A - Google Calendar MCP (preferred):**
 - Call `mcp__claude_ai_Google_Calendar__list_events` with `startTime` = start date, `endTime` = end date + 1 day (exclusive), `orderBy: startTime`, `pageSize: 250`
-- Save the result to `/tmp/brag-gcal.json`
+- Save the result to `<scratchpad>/brag-gcal.json`
 - Run (both dates exclusive-end - add 1 day to the user's inclusive end date):
   ```bash
-  python3 ~/.claude/skills/brag/scripts/parse_gcal_mcp.py /tmp/brag-gcal.json <start_date> <end_date+1>
+  python3 ~/.claude/skills/brag/scripts/parse_gcal_mcp.py <scratchpad>/brag-gcal.json <start_date> <end_date+1>
   ```
 
 **Path B - ICS fallback (if MCP fails or is unavailable):**
-- Unzip `~/brag/calendar.ical.zip` to `/tmp/brag-cal/` and find the `.ics` inside
+- Unzip `~/brag/calendar.ical.zip` to `<scratchpad>/brag-cal/` and find the `.ics` inside
 - Run (both dates exclusive-end - add 1 day to the user's inclusive end date):
   ```bash
   python3 ~/.claude/skills/brag/scripts/parse_ics.py <ics_path> <start_date> <end_date+1>

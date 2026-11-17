@@ -9,14 +9,14 @@ you don't need to consult the parent session's history.
 1. **Extract messages.** Run:
 
    ```bash
-   bash ~/.claude/skills/english-coach/scripts/extract-user-messages.sh > /tmp/english-coach-input.txt
+   bash ~/.claude/skills/english-coach/scripts/extract-user-messages.sh > <your scratchpad directory>/english-coach-input.txt
    ```
 
    The script walks parent dirs from the current cwd to find the right
    `~/.claude/projects/<encoded-cwd>/`, picks the most-recently-modified
    `.jsonl`, and prints typed user messages separated by `===` lines.
 
-2. **Read** `/tmp/english-coach-input.txt`. Each `===` line marks a message
+2. **Read** `<your scratchpad directory>/english-coach-input.txt`. Each `===` line marks a message
    boundary. If empty or fewer than ~10 non-trivial messages, abort with a
    clear note in the response - there's not enough signal for a useful
    lesson yet.

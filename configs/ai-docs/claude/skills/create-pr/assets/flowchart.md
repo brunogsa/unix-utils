@@ -50,7 +50,7 @@ def create_pr():
     # 5 · changes-gatherer · agent-pinned · background, NOT awaited. Dispatched
     #     the moment the base branch resolves (parent override already applied),
     #     so the interview below runs CONCURRENTLY with it - it writes the full
-    #     commit log + diff to a /tmp artifact and returns only the digest,
+    #     commit log + diff to a scratchpad artifact and returns only the digest,
     #     diffed against the resolved base so a stacked PR digests only its own
     #     delta. Only step 1's last act (9) waits on the result.
     digest_handle = dispatch_background("changes-gatherer", base=base)
@@ -204,7 +204,7 @@ flowchart TD
   n3["3. Step 1 · Glob cwd top-level for spec_*.md / plan_*.md;<br/>none found -&gt; author from the changes digest alone"]
   n3a["3a. Glob cwd top-level for evidence_*.md - a persisted artifact file is<br/>the only path a manual scenario can reach the PR through. The session's own<br/>recollection is never a source, which is the gap that let narrated, unbacked<br/>bullets ship. None found -&gt; 'none', and Evidences carries automated<br/>coverage only"]
   n4["4. Resolve the base branch: default is origin/HEAD (empty -&gt; omit --base<br/>at create time). The optional &lt;parent&gt; invocation arg is this skill's whole<br/>stacked-PR surface: base becomes the parent's head branch, which also scopes<br/>the changes digest to this PR's own delta. Never inferred from ancestry or<br/>the plan - only the explicit arg stacks a PR.<br/>Chain workflow lives in implement's references/stacked-prs.md"]
-  n5[["5. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · background, NOT awaited<br/>dispatched the moment the base branch resolves (parent override applied),<br/>so the interview below runs CONCURRENTLY with it - writes the full commit<br/>log + diff to a /tmp artifact and returns only the digest, diffed against<br/>the resolved base so a stacked PR digests only its own delta"]]:::dispatch
+  n5[["5. Dispatch: Gather PR changes digest<br/>changes-gatherer · agent-pinned · background, NOT awaited<br/>dispatched the moment the base branch resolves (parent override applied),<br/>so the interview below runs CONCURRENTLY with it - writes the full commit<br/>log + diff to a session-scratchpad artifact and returns only the digest, diffed against<br/>the resolved base so a stacked PR digests only its own delta"]]:::dispatch
 
   n6{"6. Anything left ambiguous?<br/>(A) several spec/plan files matched<br/>(B) several PR-N entries in the plan's PR Breakdown<br/>(C) several evidence_*.md matched<br/>(D) zero, 2+, or an unsure ticket ID candidate, collected from a<br/>caller-passed ID, the session, the branch name, and every spec/plan"}
   n6a["6a. ONE AskUserQuestion carrying (A), (B), (C) and (D) as four SEPARATE<br/>questions - they resolve different things (which source file to read,<br/>which plan slice this is, which artifact backs the manual evidence,<br/>which ticket names the PR), so one merged question would force several<br/>answers into one choice"]:::gate

@@ -5,7 +5,7 @@ Human-facing overview for auditing the flow at a glance. Non-authoritative - the
 ```mermaid
 flowchart TD
   n1(["1. /gh-answer-claude-mentions, user-invoked only<br/>PR given as a URL or a number"]):::start
-  n2["2. Step 1 · Fetch the PR comments with gh api into a file under /tmp, then filter locally.<br/>From a URL take owner, repo, number; from a bare number infer the repo from the git remote"]
+  n2["2. Step 1 · Fetch the PR comments with gh api into a file under the session scratchpad, then filter locally.<br/>From a URL take owner, repo, number; from a bare number infer the repo from the git remote"]
   n3["3. Step 2 · Keep comments with @claude, Claude: or a question aimed at the assistant.<br/>Skip bot comments unless the user asks"]
   n4{"4. Any comment addressed to Claude?"}
   n4a(["4a. STOP - tell the user there are none"]):::done

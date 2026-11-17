@@ -16,11 +16,11 @@ with the user on terminal, and post approved replies with a `Claude:` prefix.
 
 ### 1. Fetch comments
 
-Save the full response to `/tmp/` (slow command principle), then filter locally.
+Save the full response to the session scratchpad (slow command principle), then filter locally.
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{number}/comments \
-  > /tmp/pr-{number}-comments.json
+  > <scratchpad>/pr-{number}-comments.json
 ```
 
 If the user provides a PR URL, extract owner/repo/number from it.

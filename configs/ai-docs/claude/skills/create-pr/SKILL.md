@@ -61,7 +61,9 @@ A gap in evidence, or an ambiguity those steps' rules don't cover, becomes an un
   - Resolution, digest-scoping, and hand-off rules: [`references/parent-arg.md`](references/parent-arg.md).
 
 - **Delegate diff/log reading to a subagent, and start it HERE** -- dispatch `agent(subAgent=changes-gatherer, title=Gather PR changes digest)` in the background, then continue into the interview below without waiting on it.
-  - Give it the resolved base branch and a `/tmp` artifact path; it writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
+  - Give it the resolved base branch and an absolute artifact path in the session scratchpad (`<scratchpad>/pr-changes.txt`).
+
+  - It writes the full commit log and diff there and returns only the **changes digest** (`references/changes-digest.md`).
 
   - The digest is what step 2 authors from, so the raw diff never enters the main session's context.
 
