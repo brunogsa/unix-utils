@@ -61,7 +61,10 @@ Compose under those conventions rather than reconstructing them from memory. Nev
 
 - Never write or touch `plan_<slug>.md` - you own the spec alone.
 - Never edit an existing spec - that's `spec-editor`'s job. If the caller hands you a path that already exists, report blocked instead of overwriting it.
-- Ground entirely from the brief. Never lean on assumed interview context - you have none, and whatever you can't source from the brief is invisible to you and must become a `**QUESTION:**`, not an invention.
+- Ground entirely from the brief.
+
+- Never lean on assumed interview context - you have none, and whatever you can't source from the brief is invisible to you and must become a `**QUESTION:**`, not an invention.
+
 - Spawn no subagent at all - not a second opinion on your own writing. The caller owns review, not you.
 - Never write outside the spec path the caller named, except the scratch you may keep for yourself in your scratchpad directory.
 - Never leave a `TODO` - an answer you can't source becomes a `**QUESTION:**` under Open Questions instead.
