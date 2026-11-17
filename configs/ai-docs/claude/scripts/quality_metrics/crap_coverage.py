@@ -33,9 +33,15 @@ def measure(target, metrics, declaration, coverage_run):
         records.append(coverage_measurement(
             target, line_hits=result.hits_by_file.get(key)
         ))
-    if result.has_failed_tests:
-        return [{**record, "pessimistic": True} for record in records]
-    return records
+    if not result.has_failed_tests:
+        return records
+
+    # A record with no value measured nothing that red tests
+    # could have skewed.
+    return [
+        record if record["value"] is None else {**record, "pessimistic": True}
+        for record in records
+    ]
 
 
 def measure_at_full_coverage(target, metrics):

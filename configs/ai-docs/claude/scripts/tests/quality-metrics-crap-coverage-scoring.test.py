@@ -5,8 +5,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_crap_coverage_support import (
     SOURCE_FILE,
+    FixedCoverageRun,
     coverage,
     crap,
+    crap_coverage,
     function_measure,
     functions,
     lcov_report,
@@ -14,6 +16,7 @@ from quality_metrics_crap_coverage_support import (
     python_target,
     touched,
 )
+from quality_metrics.coverage_result import CoverageResult
 
 
 def measure_crap(declaration, language, path, measured, lcov_text):
@@ -169,6 +172,31 @@ class TestUncoveredChangedLines:
         record = coverage.coverage_measurement(python_target({1, 2}), {50: 0})
 
         assert record["uncovered_lines"] is None
+
+
+class TestRedBuildCoverage:
+    def test_should_leave_unflagged_a_coverage_record_with_no_coverable_changed_line_when_the_tests_failed(
+        self, tmp_path
+    ):
+        red_build = CoverageResult(hits_by_file={SOURCE_FILE: {50: 0}}, has_failed_tests=True)
+
+        (record,) = crap_coverage.measure(
+            python_target({1, 2}, repo_path=SOURCE_FILE), ["coverage"],
+            load_declaration(tmp_path), FixedCoverageRun(red_build, tmp_path),
+        )
+
+        assert record["value"] is None
+        assert "pessimistic" not in record
+
+    def test_should_flag_a_measured_coverage_record_as_pessimistic_when_the_tests_failed(self, tmp_path):
+        red_build = CoverageResult(hits_by_file={SOURCE_FILE: {1: 1, 2: 0}}, has_failed_tests=True)
+
+        (record,) = crap_coverage.measure(
+            python_target({1, 2}, repo_path=SOURCE_FILE), ["coverage"],
+            load_declaration(tmp_path), FixedCoverageRun(red_build, tmp_path),
+        )
+
+        assert record["pessimistic"] is True
 
 
 class TestUncoveredFunctionLines:
