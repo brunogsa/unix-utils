@@ -16,7 +16,9 @@ entries).
 """
 
 import importlib.util
+import os
 import re
+import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -196,13 +198,35 @@ def write_base_ref_configs(repo_dir, base_ref, directory):
     order.
     """
     copies = []
-    for name in _config_names("jest"):
+    for name in config_names("jest"):
         text = _text_at(repo_dir, base_ref, name)
         if text is not None:
             copy_path = Path(directory) / name
             copy_path.write_text(text)
             copies.append(copy_path)
     return copies
+
+
+def write_base_ref_workspace_config(repo_dir, base_ref, workspace):
+    """Copy a workspace's jest config as `base_ref` committed
+    it, beside the original under a hidden name.
+
+    Beside it, so the copy's relative requires and
+    `__dirname` resolve as the original's do. Returns the
+    copy's path, or None when the base ref holds no jest
+    config in `workspace` (repo-relative). The caller deletes
+    the copy.
+    """
+    for name in config_names("jest"):
+        text = _text_at(repo_dir, base_ref, f"{workspace}/{name}")
+        if text is not None:
+            handle, copy_path = tempfile.mkstemp(
+                dir=Path(repo_dir) / workspace, prefix=".quality-metrics-base-", suffix=f"-{name}"
+            )
+            with os.fdopen(handle, "w") as copy:
+                copy.write(text)
+            return Path(copy_path)
+    return None
 
 
 # coverage.py reads the first of these that holds coverage
@@ -266,7 +290,7 @@ def _net_suppressions(path, net_added):
 
 def added_coverage_excludes(repo_dir, base_ref, head_ref=None):
     violations = []
-    for name in _config_names("jest"):
+    for name in config_names("jest"):
         base_text = _text_at(repo_dir, base_ref, name)
         head_text = _text_at(repo_dir, head_ref, name)
 
@@ -321,7 +345,7 @@ def _untracked_texts(repo_dir):
     return texts
 
 
-def _config_names(tool):
+def config_names(tool):
     rules = load_detector_rules(DETECTOR_RULES_PATH)
     return next(rule["configs"] for rule in rules if rule["tool"] == tool)
 

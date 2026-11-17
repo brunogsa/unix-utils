@@ -5,6 +5,7 @@ A repo's own tool wins. With none, the global tool measures it
 and the gap is a side-PR candidate.
 """
 
+import json
 import os
 import re
 import tempfile
@@ -14,7 +15,12 @@ from pathlib import Path
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
 from quality_metrics.failures import ToolTimedOutTwice
-from quality_metrics.gate_inputs import write_base_ref_configs, write_base_ref_coverage_config
+from quality_metrics.gate_inputs import (
+    config_names,
+    write_base_ref_configs,
+    write_base_ref_coverage_config,
+    write_base_ref_workspace_config,
+)
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.tool_map import LazyToolMap
 from quality_metrics.tools import ToolError, run_command, run_tool
@@ -57,6 +63,9 @@ FALL_THROUGH_REASONS = {
 }
 
 JEST, PYTEST_COV = "jest", "pytest-cov"
+
+# The repo-relative name of the repo root, as Path parents end.
+ROOT_WORKSPACE = "."
 
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
@@ -147,27 +156,73 @@ def _base_ref_config_flags(repo, base_ref):
         yield ["--config", str(copies[0]), f"--rootDir={repo}"] if copies else []
 
 
-def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
-    """One coverage run of the repo's jest: how it exited, and
-    every file's line hits.
+@contextmanager
+def _workspace_config_flags(repo, workspace, base_ref):
+    """jest's flags for a workspace's config as `base_ref`
+    committed it; the root workspace keeps the repo-wide copy.
 
-    With a `base_ref`, jest reads the config that ref
-    committed, so a branch's own coverage excludes never shape
-    the number.
-
-    The hits read valid when jest passed or exited non-zero on
-    the repo's own threshold: the harness judges the measured
-    value against its own limit. Any other outcome raises
-    RepoToolFailure naming its class.
+    No flags when no ref is given or the base ref holds no
+    jest config in the workspace.
     """
-    with tempfile.TemporaryDirectory() as report_dir, _base_ref_config_flags(repo, base_ref) as config_flags:
+    if workspace == ROOT_WORKSPACE:
+        with _base_ref_config_flags(repo, base_ref) as flags:
+            yield flags
+        return
+    copy = write_base_ref_workspace_config(repo, base_ref, workspace) if base_ref else None
+    try:
+        yield ["--config", str(copy), f"--rootDir={Path(repo) / workspace}"] if copy else []
+    finally:
+        if copy is not None:
+            copy.unlink(missing_ok=True)
+
+
+def _declares_jest_config(directory):
+    """Whether the directory holds its own jest config file, or
+    a package.json with a `jest` key."""
+    if any((directory / name).is_file() for name in config_names("jest")):
+        return True
+    package_json = directory / "package.json"
+    if not package_json.is_file():
+        return False
+    try:
+        return "jest" in json.loads(package_json.read_text())
+    except ValueError:
+        return False
+
+
+def _jest_workspace_of(repo, changed_path):
+    """The repo-relative directory jest must run from for the
+    file: its nearest ancestor below the root holding its own
+    jest config, else the root."""
+    for ancestor in Path(changed_path).parents:
+        if ancestor == Path(ROOT_WORKSPACE):
+            break
+        if _declares_jest_config(Path(repo) / ancestor):
+            return str(ancestor)
+    return ROOT_WORKSPACE
+
+
+def jest_workspaces_for(repo, changed_paths):
+    """The directories jest runs from, one per workspace a
+    changed file lives in; only the root when no file is
+    given."""
+    workspaces = {_jest_workspace_of(repo, path) for path in changed_paths}
+    return sorted(workspaces) or [ROOT_WORKSPACE]
+
+
+def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref):
+    """One jest coverage run from the workspace directory, its
+    hits keyed by repo-relative path."""
+    run_dir = Path(repo) / workspace
+    with tempfile.TemporaryDirectory() as report_dir, \
+            _workspace_config_flags(repo, workspace, base_ref) as config_flags:
         result = run_command(
             [
                 "jest", "--coverage", "--passWithNoTests",
                 "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
                 *config_flags,
             ],
-            cwd=repo, env=_repo_tool_env(repo), timeout=timeout_seconds,
+            cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
         )
         exit_class = classify_exit(result)
         if exit_class not in MEASURING_EXIT_CLASSES:
@@ -175,10 +230,44 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None):
         report = Path(report_dir) / "lcov.info"
         if not report.exists():
             raise RepoToolFailure(WROTE_NO_COVERAGE, "jest wrote no lcov report")
-        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, parse_lcov(report.read_text()))}
+        hits_by_run_path = parse_lcov(report.read_text())
+
+        # jest names a file relative to its run directory.
+        hits_by_absolute_path = {str(run_dir / name): hits for name, hits in hits_by_run_path.items()}
+        return {"exit_class": exit_class, "hits_by_file": repo_relative_hits(repo, hits_by_absolute_path)}
 
 
-def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
+def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
+    """The repo's jest coverage: how it exited, and every
+    file's line hits.
+
+    jest runs once per workspace a changed file lives in, from
+    that workspace's directory with its own config, so a config
+    that only extends the root one still applies. Without
+    changed paths it runs once, from the root.
+
+    With a `base_ref`, jest reads the config that ref
+    committed, so a branch's own coverage excludes never shape
+    the number.
+
+    The hits read valid when jest passed or exited non-zero on
+    the repo's own threshold: the harness judges the measured
+    value against its own limit. The first other outcome raises
+    RepoToolFailure naming its class.
+    """
+    workspace_runs = [
+        _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref)
+        for workspace in jest_workspaces_for(repo, changed_paths)
+    ]
+    hits_by_file = {}
+    for workspace_run in workspace_runs:
+        hits_by_file.update(workspace_run["hits_by_file"])
+    exit_classes = {workspace_run["exit_class"] for workspace_run in workspace_runs}
+    exit_class = REPO_THRESHOLD if REPO_THRESHOLD in exit_classes else PASSED
+    return {"exit_class": exit_class, "hits_by_file": hits_by_file}
+
+
+def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
     """One coverage run of the repo's pytest: how it exited,
     and every file's line hits.
 
@@ -190,7 +279,8 @@ def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
 
     A run that collected no tests reads as no hits. Otherwise
     the hits read valid on the same exit classes as the repo
-    jest's.
+    jest's. It runs once, from the root, whatever
+    `changed_paths` names.
     """
     with tempfile.TemporaryDirectory() as work_dir:
         report = Path(work_dir) / "lcov.info"
@@ -218,9 +308,9 @@ def run_repo_pytest_cov(repo, timeout_seconds=None, base_ref=None):
 REPO_COVERAGE_RUNNERS = {JEST: run_repo_jest, PYTEST_COV: run_repo_pytest_cov}
 
 
-def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None):
-    """The repo `tool`'s coverage run, bounded by `policy`'s
-    timeout.
+def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_paths=()):
+    """The repo `tool`'s coverage run for the changed paths,
+    bounded by `policy`'s timeout.
 
     Raises RepoToolFailure naming how the tool failed: a
     timeout on both attempts is TIMEOUT, any other tool error
@@ -228,7 +318,9 @@ def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None):
     """
     run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
     try:
-        return policy.run(lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref))
+        return policy.run(
+            lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths)
+        )
     except ToolTimedOutTwice as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
     except RepoToolFailure:

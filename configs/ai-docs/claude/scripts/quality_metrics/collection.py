@@ -77,6 +77,9 @@ class CoverageRun:
 
     With a `head_ref`, tests run on an export of that ref, so an
     uncommitted file cannot change the coverage of the range.
+
+    `changed_files` maps each changed repo-relative path to its
+    language; the repo jest runs from the workspace of each.
     """
 
     repo_dir: Path
@@ -85,6 +88,7 @@ class CoverageRun:
     head_ref: Optional[str] = None
     policy: Optional[TimeoutPolicy] = None
     environ: Optional[dict] = None
+    changed_files: dict = field(default_factory=dict)
     sources: list = field(default_factory=list, init=False)
     asks: list = field(default_factory=list, init=False)
     _measured: dict = field(default_factory=dict, init=False)
@@ -116,8 +120,13 @@ class CoverageRun:
 
     def _measure_with_repo_tool(self, language, source, tree):
         tool = source["tool"]
+        collector = COLLECTORS[language]
+        changed_paths = sorted(
+            path for path, changed_language in self.changed_files.items()
+            if COLLECTORS.get(changed_language) is collector
+        )
         try:
-            run = run_repo_coverage_under_policy(tool, tree, self.policy, self.base_ref)
+            run = run_repo_coverage_under_policy(tool, tree, self.policy, self.base_ref, changed_paths)
         except RepoToolFailure as failure:
             if failure.exit_class == FAILED_TESTS:
                 return _Measured(RED_BUILD, FAILED_TESTS, source, None)
