@@ -446,7 +446,9 @@ def specs_exercising(source, specs_found, list_related_specs):
 def _spec_scope(repo, run_dir, changed_paths, list_related_specs, ignore_patterns):
     """The changed files and the specs exercising each changed
     source under `run_dir`, minus every spec `ignore_patterns`
-    keeps out of the workspace's own test run.
+    keeps out of the workspace's own test run. The e2e and
+    integration specs those patterns drop run apart, in
+    `_run_related_e2e_specs`.
 
     jest keeps the test files among the paths given and skips
     every other spec. None when no changed file is given, so
@@ -623,6 +625,12 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
     changed specs there plus the specs exercising each changed
     source, so an unrelated spec never runs. Without changed
     paths it runs the whole suite once, from the root.
+
+    The e2e and integration specs importing a changed file run
+    too, in a second jest run, even when the workspace `test`
+    script ignores them. One that fails or cannot run adds no
+    hits and is named in `failed_related_specs`, with the line
+    saying why.
 
     jest runs with the variables the workspace `test` script
     sets before its first command, such as `TZ=UTC`.
