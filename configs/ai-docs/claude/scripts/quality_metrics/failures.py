@@ -20,6 +20,7 @@ from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.declaration import SOFT_METRIC_KEYS, NoLanguageEntryError, language_for_file
 from quality_metrics.deferred import (
     deferred_coverage_measurement,
+    deferred_flagged_measurement,
     deferred_measurement,
     unmeasured_file_measurement,
 )
@@ -43,6 +44,18 @@ FUNCTION_METRIC_LIMITS = {
     CODE_METRIC: SIMILARITY_LIMIT,
     TEST_METRIC: SIMILARITY_LIMIT,
 }
+
+# The tool each (metric, language) asks about when it fails.
+STATIC_TOOLS = {
+    ("unused_code", "python"): "ruff",
+    ("unused_code", "js"): "eslint",
+    ("unused_code", "ts"): "eslint",
+    ("unused_code", "bash"): "shellcheck",
+    ("type_errors", "python"): "pyright",
+    ("type_errors", "ts"): "tsc",
+    ("type_errors", "go"): "go vet",
+}
+STATIC_METRIC_LIMIT = 0
 
 TOOL_TIMEOUT_SECONDS = 120
 HEADROOM_POLL_SECONDS = 30
@@ -124,12 +137,33 @@ def function_tool_failure_records(target, metrics, error, coverage_run):
     a tool map: the caller re-raises `error` when there is
     none.
     """
-    ask = ask_or_defer(
-        coverage_run.tool_map, error.tool, "function metrics", str(error), coverage_run.environ
-    )
-    if ask and all(known["tool"] != ask["tool"] for known in coverage_run.asks):
-        coverage_run.asks.append(ask)
+    _ask_once(coverage_run, error.tool, "function metrics", str(error))
     return [_deferred_function_metric(target, metric) for metric in metrics]
+
+
+def _ask_once(coverage_run, tool, metric, reason):
+    ask = ask_or_defer(
+        coverage_run.tool_map, tool, metric, reason, coverage_run.environ
+    )
+    known_tools = [known["tool"] for known in coverage_run.asks]
+    if ask and ask["tool"] not in known_tools:
+        coverage_run.asks.append(ask)
+
+
+def static_tool_failure_records(target, metric, error, coverage_run):
+    """The flagged pessimistic record for an unused_code or
+    type_errors `metric` whose tool failed on `target`.
+
+    It reads as a violation with a labelled worst case. With no
+    tool map there is nobody to defer to, so `error` is raised.
+    """
+    if coverage_run is None or coverage_run.tool_map is None:
+        raise error
+    tool = STATIC_TOOLS.get((metric, target.language), metric)
+    _ask_once(coverage_run, tool, metric, str(error))
+    return [
+        deferred_flagged_measurement(target, metric, 1, STATIC_METRIC_LIMIT)
+    ]
 
 
 def session_can_ask(environ=None):
