@@ -22,6 +22,14 @@ JEST_FAILURE_HEADING = "●"
 
 NO_FAILURE_MESSAGE = "jest gave no failure message"
 
+# The heading jest prints over a suite that never loaded, with
+# the load error on the next non-blank line.
+JEST_SUITE_LOAD_HEADING = "● Test suite failed to run"
+
+# Long enough for a module path and the spec importing it,
+# short enough to stay one readable line in the report.
+ERROR_LINE_MAX_CHARS = 300
+
 
 def _load_excluded_specs_script():
     spec = importlib.util.spec_from_file_location("get_excluded_specs_for_range", EXCLUDED_SPECS_SCRIPT_PATH)
@@ -52,6 +60,20 @@ def failure_reason(message):
     lines = [ANSI_ESCAPE.sub("", line).strip() for line in message.splitlines()]
     reasons = [line for line in lines if line and not line.startswith(JEST_FAILURE_HEADING)]
     return (reasons or [NO_FAILURE_MESSAGE])[0]
+
+
+def first_jest_error_line(output):
+    """The line of a failed jest run's output a user acts on,
+    cut to ERROR_LINE_MAX_CHARS: the first suite's load error;
+    None when jest printed none."""
+    lines = [ANSI_ESCAPE.sub("", line).strip() for line in output.splitlines()]
+    non_blank_lines = [line for line in lines if line]
+    load_error_lines = [
+        non_blank_lines[index + 1]
+        for index, line in enumerate(non_blank_lines[:-1])
+        if line == JEST_SUITE_LOAD_HEADING
+    ]
+    return load_error_lines[0][:ERROR_LINE_MAX_CHARS] if load_error_lines else None
 
 
 def failed_specs_in_jest_results(repo, results_path):

@@ -34,6 +34,7 @@ from quality_metrics.related_e2e_specs import (
     every_spec_failed,
     failed_specs_in_jest_results,
     failure_reason,
+    first_jest_error_line,
     summed_hits,
 )
 from quality_metrics.repo_paths import repo_relative_hits
@@ -44,11 +45,24 @@ from quality_metrics.tools import ToolError, run_command, run_tool
 PASSED, UNCLASSIFIED = "passed", "unclassified"
 FAILED_TESTS, REPO_THRESHOLD, CRASH = "failed_tests", "repo_threshold", "crash"
 
+# Suites that failed to load, so no test ran: an environment
+# problem such as an unbuilt workspace package, not a failing
+# assertion.
+UNLOADED_SUITES = "unloaded_suites"
+
+# Exit classes of a test run that went red, whose coverage
+# figure is no valid measurement.
+RED_BUILD_EXIT_CLASSES = (FAILED_TESTS, UNLOADED_SUITES)
+
 # The jest lines are jest's summary, its threshold message and a
 # node stack frame. The pytest lines are pytest's summary,
 # pytest-cov's threshold message (its plugin.py) and pytest's
 # INTERNALERROR trace.
+#
+# Unloaded suites come first: jest's summary for them also
+# matches the failed-suites line.
 EXIT_CLASS_PATTERNS = (
+    (UNLOADED_SUITES, re.compile(r"^Test Suites:.*\d+ failed.*\n^Tests:\s+0 total", re.MULTILINE)),
     (FAILED_TESTS, re.compile(r"^Tests:.*\d+ failed", re.MULTILINE)),
     (FAILED_TESTS, re.compile(r"^Test Suites:.*\d+ failed", re.MULTILINE)),
     (FAILED_TESTS, re.compile(r"\b\d+ (failed|errors?)\b.* in \d+\.\d+s")),
@@ -156,11 +170,13 @@ GLOBAL_TOOLS = {
 
 class RepoToolFailure(ToolError):
     """A repo tool gave no measurement; `exit_class` says
-    why."""
+    why, and `error_line` quotes the tool's own error when one
+    was found."""
 
-    def __init__(self, exit_class, detail):
+    def __init__(self, exit_class, detail, error_line=None):
         super().__init__(f"{exit_class}: {detail}")
         self.exit_class = exit_class
+        self.error_line = error_line
 
 
 class NoGlobalToolError(ToolError):
@@ -539,7 +555,10 @@ def _run_unit_specs(workspace_jest, changed_paths, report_dir):
     )
     exit_class = classify_exit(result)
     if exit_class not in MEASURING_EXIT_CLASSES:
-        raise RepoToolFailure(exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}")
+        raise RepoToolFailure(
+            exit_class, f"jest exited {result.returncode}: {result.stderr.strip()}",
+            error_line=first_jest_error_line(result.stdout + result.stderr),
+        )
     return {"exit_class": exit_class, "hits_by_file": _lcov_hits(workspace_jest, report_dir)}
 
 

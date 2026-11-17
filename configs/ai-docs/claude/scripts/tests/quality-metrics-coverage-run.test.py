@@ -48,6 +48,27 @@ echo "Tests:       2 failed, 10 passed, 12 total" >&2
 exit 1
 """
 
+# Jest's own words when every suite fails to load because a
+# workspace package was never built: no test ran, and the
+# coverage threshold and stack frame lines follow the error.
+JEST_UNLOADED_SUITES_STUB = """#!/bin/bash
+echo "FAIL test/cart.spec.ts" >&2
+echo "  ● Test suite failed to run" >&2
+echo "" >&2
+echo "    Cannot find module '@shop-lib/pricing-client' from 'test/cart.spec.ts'" >&2
+echo "" >&2
+echo "      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)" >&2
+echo "FAIL test/checkout.spec.ts" >&2
+echo "  ● Test suite failed to run" >&2
+echo "" >&2
+echo "    Cannot find module '@shop-lib/logger' from 'test/checkout.spec.ts'" >&2
+echo 'Jest: "global" coverage threshold for lines (80%) not met: 0%' >&2
+echo "Test Suites: 2 failed, 2 total" >&2
+echo "Tests:       0 total" >&2
+echo "Snapshots:   0 total" >&2
+exit 1
+"""
+
 # A jest that finds no tests exits 1 unless it is passed
 # --passWithNoTests (jestjs.io/docs/cli#--passwithnotests).
 JEST_NO_TESTS_STUB = """#!/bin/bash
@@ -302,6 +323,41 @@ def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_bui
         ("coverage", 0, True)
     ]
     assert global_calls == []
+
+
+def test_should_classify_a_repo_jest_whose_suites_never_loaded_as_a_red_build_apart_from_failed_tests(
+    tmp_path, monkeypatch
+):
+    coverage_run, records, global_calls = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_UNLOADED_SUITES_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert source["exit_class"] == "unloaded_suites"
+    assert [(record["value"], record["pessimistic"]) for record in records] == [(0, True)]
+    assert global_calls == []
+
+
+def test_should_name_the_first_module_jest_could_not_find_in_the_source_when_its_suites_never_loaded(
+    tmp_path, monkeypatch
+):
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_UNLOADED_SUITES_STUB
+    )
+
+    (source,) = coverage_run.sources
+    assert source["error"] == "Cannot find module '@shop-lib/pricing-client' from 'test/cart.spec.ts'"
+
+
+def test_should_cut_the_error_named_in_the_source_to_300_characters_when_jest_prints_a_longer_one(
+    tmp_path, monkeypatch
+):
+    long_module = "@shop-lib/" + "pricing-client-" * 30
+    stub = JEST_UNLOADED_SUITES_STUB.replace("@shop-lib/pricing-client", long_module)
+    coverage_run, _, _ = measure_js_with_jest_stub(tmp_path, monkeypatch, stub)
+
+    (source,) = coverage_run.sources
+    assert source["error"] == f"Cannot find module '{long_module}' from 'test/cart.spec.ts'"[:300]
 
 
 def test_should_read_a_repo_jest_that_finds_no_tests_as_no_coverage_data_not_as_a_red_build(

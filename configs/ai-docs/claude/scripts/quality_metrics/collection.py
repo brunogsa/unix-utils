@@ -29,11 +29,11 @@ from quality_metrics.javascript_coverage import collect_javascript, declares_npm
 from quality_metrics.python_coverage import collect_python
 from quality_metrics.related_e2e_specs import failed_specs_reason
 from quality_metrics.sourcing import (
-    FAILED_TESTS,
     FALL_THROUGH_REASONS,
     JEST,
     MUTATION_OPT_OUT_REASONS,
     NO_HEADROOM,
+    RED_BUILD_EXIT_CLASSES,
     REPO_COVERAGE_RUNNERS,
     RepoToolFailure,
     global_tool_for,
@@ -55,12 +55,15 @@ __all__ = [
 
 @dataclass(frozen=True)
 class _Measured:
-    """A language's coverage and the tool that produced it."""
+    """A language's coverage and the tool that produced it,
+    with the repo tool's own error line when its tests went
+    red."""
 
     result: CoverageResult
     exit_class: Optional[str]
     source: dict
     side_pr_candidate: Optional[str]
+    error_line: Optional[str] = None
 
 
 @dataclass(eq=False)
@@ -148,8 +151,8 @@ class CoverageRun:
             )
         except RepoToolFailure as failure:
             self._keep_only_killed_once_started(failure.exit_class)
-            if failure.exit_class == FAILED_TESTS:
-                return _Measured(RED_BUILD, FAILED_TESTS, source, None)
+            if failure.exit_class in RED_BUILD_EXIT_CLASSES:
+                return _Measured(RED_BUILD, failure.exit_class, source, None, failure.error_line)
             self.mutation_opt_out_reason = MUTATION_OPT_OUT_REASONS.get(failure.exit_class)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
@@ -227,13 +230,16 @@ class CoverageRun:
 
 
 def _source_entry(language, measured):
-    return {
+    entry = {
         "metric": "coverage",
         "language": language,
         "source": measured.source,
         "exit_class": measured.exit_class,
         "side_pr_candidate": measured.side_pr_candidate,
     }
+    if measured.error_line is not None:
+        entry["error"] = measured.error_line
+    return entry
 
 
 COLLECTORS = {
