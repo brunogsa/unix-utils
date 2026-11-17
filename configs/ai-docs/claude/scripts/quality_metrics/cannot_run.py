@@ -9,7 +9,7 @@ import re
 from quality_metrics.deferred import DEFERRED_LABEL
 
 # Each mutation record counts one surviving or unchecked mutant
-# against a limit of none, so every such record is over it. It
+# against a limit of zero, so every such record is over it. It
 # lives here, not in mutation.py, because mutation.py imports
 # this module.
 MUTATION_LIMIT = 0
