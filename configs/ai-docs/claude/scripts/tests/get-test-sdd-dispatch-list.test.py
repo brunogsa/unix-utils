@@ -213,6 +213,26 @@ class TestTestSddFindingsSentToTddCoder:
             '### 2. [LOW][test-sdd] Missing planned test - task 5: "open"',
         ]
 
+    def test_should_keep_listing_a_finding_whose_only_skipped_line_is_quoted_inside_a_fenced_code_block(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            '### 1. [HIGH] Missing planned test - task 3: "quotes a ruling"\n\n'
+            "```\n"
+            "SKIPPED (quoted from another verdict)\n"
+            "```\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 1. [HIGH] Missing planned test - task 3: "quotes a ruling"',
+        ]
+
     def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
         self, tmp_path
     ):
