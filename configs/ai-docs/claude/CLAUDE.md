@@ -162,6 +162,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
 ### Single source of truth, no orphans
 
 - [Instruction] **Patch gaps the moment they bite** -- when a missing or wrong doc, test, or script both costs you time and blocks the task, fix it inline.
+  - [Example] Bad: an ERP in scope without the bug in production; a requested field no flow reads. Good: a log line proving the bug per system, a traced consumer per field.
   - [Why] The gap should teach the next reader once; the "blocks the task" trigger keeps the fix in scope, not a derail.
 
 - [Instruction] When a tool in my global setup is missing or crashes mid-task, ask me "fix now or defer" before patching it, even when it blocks the task.
