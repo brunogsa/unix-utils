@@ -82,6 +82,7 @@ def build_verdict(report, exceptions=(), in_git=True):
         _violations_section(open_violations, numbers),
         _gate_inputs_section(report.get("gate_input_violations", []), numbers),
         _duplication_section(report.get("duplication_candidates", []), numbers),
+        *_new_candidate_sections(report, numbers),
         _not_applicable_section(report.get("not_applicable", []), numbers),
         *_ranked_sections(report["measurements"], numbers),
         _sources_section(report.get("sources", []), numbers),
@@ -191,6 +192,58 @@ def _duplication_section(candidates, numbers):
     return _counted_section("Duplication candidates", candidates, numbers, _describe)
 
 
+def _new_candidate_sections(report, numbers):
+    """Dead code and mutation sections; the mutation keys are
+    absent until `--mutation` runs, and then so are the
+    sections."""
+    sections = [
+        _counted_section(
+            "Dead code candidates",
+            report.get("dead_code_candidates", []),
+            numbers,
+            _describe_dead_code,
+        )
+    ]
+    survivors = report.get("surviving_mutants", [])
+    not_run = report.get("mutants_not_run", [])
+    if survivors or not_run:
+        sections.append(
+            _counted_section(
+                "Surviving mutants", survivors, numbers, _describe_mutant
+            )
+        )
+        sections.append(
+            _counted_section(
+                "Mutants not run (budget)", not_run, numbers, _describe_not_run
+            )
+        )
+    return sections
+
+
+def _describe_dead_code(item):
+    text = (
+        f"{item['file']}:{item['line']} - {item.get('name')} "
+        f"({item.get('kind')}, {item.get('tool')})"
+    )
+    if item.get("label") == DEFERRED_LABEL:
+        return f"{text} ({DEFERRED_LABEL})"
+    return text
+
+
+def _describe_mutant(item):
+    text = (
+        f"{item['file']}:{item['line']} - {item.get('mutator')} -> "
+        f"{item.get('replacement')} ({item.get('status')})"
+    )
+    if item.get("label") == DEFERRED_LABEL:
+        return f"{text} ({DEFERRED_LABEL})"
+    return text
+
+
+def _describe_not_run(item):
+    return f"{item['file']} lines {item['lines']} - {item['label']}"
+
+
 def _not_applicable_section(items, numbers):
     """Files a metric could not judge: listed so a reader sees
     they were not measured, never counted as violations."""
@@ -241,7 +294,12 @@ def _is_rankable(record):
 
 
 def _debt_section(report):
-    counted = report["violations"] + report.get("duplication_candidates", [])
+    counted = (
+        report["violations"]
+        + report.get("duplication_candidates", [])
+        + report.get("dead_code_candidates", [])
+        + report.get("surviving_mutants", [])
+    )
     score = debt.debt_score(counted, debt.measured_nloc(report["measurements"]))
     if score["ratio"] is None:
         text = f"{score['minutes']} min of remediation; ratio not computable, no file size was measured"
@@ -299,10 +357,15 @@ def _describe(record):
         f"{subject}{where} - {_metric_name(record)} {_shown_value(record)} "
         f"(limit {record['limit']:g})"
     )
+    lines = [heading]
     uncovered_lines = record.get("uncovered_lines")
-    if not uncovered_lines:
-        return heading
-    return f"{heading}\nUncovered lines: {', '.join(uncovered_lines)}"
+    if uncovered_lines:
+        lines.append(f"Uncovered lines: {', '.join(uncovered_lines)}")
+    lines += [f"- line {f['line']}: {f['rule']} {f['name']}" for f in record.get("findings", [])]
+    lines += [
+        f"- line {e['line']}: {e['rule']} - {e['message']}" for e in record.get("errors", [])
+    ]
+    return "\n".join(lines)
 
 
 def _shown_value(record):
