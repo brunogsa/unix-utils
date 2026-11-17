@@ -101,11 +101,12 @@ Run these on every function the branch touches and every test it adds.
   - A guard assertion that follows no call forms no pair.
   - A parametrized test, or a `for` loop over a table, counts each case or row as its own test.
 
-- **Uncovered lines**: read the `Uncovered lines:` line of each coverage or CRAP entry.
-  - Write one `[metrics]` finding per range, naming the input or branch that reaches it and the test that would cover it.
+- **Uncovered lines**: read the `Uncovered lines:` line of each coverage or CRAP record.
+  - Write one `[metrics]` finding per record key, naming each uncovered range, the input or branch that reaches it, and the test that would cover it.
+
   - A defensive branch not worth a test gets its justification in the finding instead.
 
-- **Duplication candidate**: a clone over its limit, listed under the rendered verdict's `## Duplication candidates (<n>)`. You rule each one.
+- **Duplication candidate**: a clone over its limit, listed under the rendered verdict's `## Duplication candidates (<n>)`.
   - Apply `code-standards`' rule "Extract a helper for 2-4 callsites only when extraction raises BOTH the readability and cognitive-load bars", reading the clone's code at every location.
   - Extract: write one `[metrics]` finding naming the clone's locations and the helper's intended name.
   - Skip: one dismissal (§6) quoting the shortest rule and the considered fix.

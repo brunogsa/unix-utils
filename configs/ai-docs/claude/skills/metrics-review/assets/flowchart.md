@@ -45,6 +45,13 @@ def metrics_review(base_ref_arg=None, pushed=None):          # 1 · /metrics-rev
         if still_missing(run_dir):                           # 6b
             return "metrics: FAIL - leg failed"              # 6b1 · never read as clean
 
+    # 6c · main runs check-metrics-judge-coverage.py itself: every rendered
+    #      Record key ruled exactly once, by a finding or a dismissal
+    if run("check-metrics-judge-coverage.py", run_dir).exit != 0:
+        redispatch_once(lens)                                # 6c1
+        if run("check-metrics-judge-coverage.py", run_dir).exit != 0:
+            return "metrics: FAIL - leg failed"              # 6c2 · same failure as 6b1
+
     # 7 · print both verdict paths, counts, deferred asks and detector edits;
     #     applying is /address-verdicts' job
     return run_dir
@@ -72,6 +79,9 @@ flowchart TD
   n6a["6a. Re-dispatch the lens once"]:::dispatch
   n6b{"6b. Still missing?"}
   n6b1(["6b1. Report: metrics: FAIL - leg failed (reason)"])
+  n6c{"6c. Main runs check-metrics-judge-coverage.py:<br/>every Record key ruled once - exit 0?"}
+  n6c1["6c1. Re-dispatch the lens once with the checker output"]:::dispatch
+  n6c2{"6c2. Checker still non-zero?"}
   n7(["7. Print both verdict paths, counts, deferred asks and<br/>detector edits. Stop: applying is /address-verdicts' job"])
 
   n1 --> n2
@@ -89,7 +99,11 @@ flowchart TD
   n6 -->|"no"| n6a --> n6b
   n6b -->|"yes"| n6b1
   n6b -->|"no"| n6
-  n6 -->|"yes"| n7
+  n6 -->|"yes"| n6c
+  n6c -->|"yes"| n7
+  n6c -->|"no"| n6c1 --> n6c2
+  n6c2 -->|"yes"| n6b1
+  n6c2 -->|"no"| n7
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
