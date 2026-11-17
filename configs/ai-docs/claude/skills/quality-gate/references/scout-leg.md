@@ -18,7 +18,9 @@ Main hands you `<RUN_DIR>`, `<BASE_REF>`, the spec and plan paths (either may be
 
 Read `git diff <BASE_REF>...HEAD`, then the spec and the plan when they resolved. Mark each exported scout in-goal or off-goal.
 
-- **In-goal**: the fix would touch a file the branch changes, or it serves the goal the spec or plan states.
+- **In-goal**: fixing it serves the branch's stated goal, taken from the spec, the plan or the PR description.
+  - The fix touching a file the branch changes is supporting evidence, never enough alone.
+  - Reason: a scout in a touched file may still be unrelated work, and an in-goal call is auto-applied.
 
 - **Off-goal**: everything else.
 
