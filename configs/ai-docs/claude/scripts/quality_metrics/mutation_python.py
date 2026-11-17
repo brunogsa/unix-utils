@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable, NamedTuple
 
 from quality_metrics.deadline import run_until
-from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
+from quality_metrics.cannot_run import MUTATION_LIMIT, cannot_run_ask, cannot_run_record
 from quality_metrics.mutation import NOT_RUN_LABEL
 from quality_metrics.tools import ToolError, run_command
 
@@ -143,7 +143,7 @@ def parse_show(text):
 def _survivor_record(path, line, replacement, status):
     return {
         "file": path, "line": line, "metric": "mutation", "value": 1,
-        "limit": 0, "scope": "file", "mutator": MUTATOR,
+        "limit": MUTATION_LIMIT, "scope": "file", "mutator": MUTATOR,
         "replacement": replacement, "status": status,
     }
 

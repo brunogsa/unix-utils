@@ -13,6 +13,7 @@ from quality_metrics.functions import measurement
 from quality_metrics.tools import ToolError, run_command
 
 METRIC = "unused_code"
+UNUSED_CODE_LIMIT = 0
 NODE_TOOLS = Path(__file__).resolve().parent / "node_tools"
 ESLINT = NODE_TOOLS / "node_modules" / ".bin" / "eslint"
 TS_ESLINT_CONFIG = NODE_TOOLS / "eslint.config.mjs"
@@ -120,6 +121,6 @@ def measure_unused_code(target):
     if finder is None:
         return []
     findings = finder(target.path)
-    record = measurement(target, METRIC, len(findings), 0)
+    record = measurement(target, METRIC, len(findings), UNUSED_CODE_LIMIT)
     record["findings"] = findings
     return [record]

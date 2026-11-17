@@ -8,13 +8,19 @@ import re
 
 from quality_metrics.deferred import DEFERRED_LABEL
 
+# Each mutation record counts one surviving or unchecked mutant
+# against a limit of none, so every such record is over it. It
+# lives here, not in mutation.py, because mutation.py imports
+# this module.
+MUTATION_LIMIT = 0
+
 
 def cannot_run_record(path, ranges, status):
     """One flagged pessimistic record for a file whose mutation
     tool failed."""
     return {
         "file": path, "line": ranges[0][0], "metric": "mutation", "value": 1,
-        "limit": 0, "scope": "file", "mutator": None, "replacement": None,
+        "limit": MUTATION_LIMIT, "scope": "file", "mutator": None, "replacement": None,
         "status": status, "pessimistic": True, "label": DEFERRED_LABEL,
     }
 

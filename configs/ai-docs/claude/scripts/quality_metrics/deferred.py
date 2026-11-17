@@ -16,6 +16,10 @@ from quality_metrics.touched import Target
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 NO_LANGUAGE_ENTRY_STATUS = "not measured: no language entry"
 
+# A file with no language entry is measured by nothing, so its
+# record holds it to no limit at all.
+NO_LANGUAGE_ENTRY_LIMIT = None
+
 
 def _as_deferred(record):
     """`record` marked pessimistic and labelled as deferred."""
@@ -78,6 +82,6 @@ def unmeasured_file_measurement(file_path):
     """
     target = Target(Path(file_path), None, None)
     return {
-        **deferred_measurement(target, "language_entry", None),
+        **deferred_measurement(target, "language_entry", NO_LANGUAGE_ENTRY_LIMIT),
         "status": NO_LANGUAGE_ENTRY_STATUS,
     }

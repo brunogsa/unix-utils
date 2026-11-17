@@ -16,7 +16,7 @@ from functools import partial
 from pathlib import Path
 from typing import Callable, NamedTuple
 
-from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
+from quality_metrics.cannot_run import MUTATION_LIMIT, cannot_run_ask, cannot_run_record
 from quality_metrics.deadline import run_until
 from quality_metrics.gate_inputs import config_names
 from quality_metrics.jest_specs import specs_by_stem
@@ -126,7 +126,7 @@ def stryker_config(path, ranges, jest_options, report_path, minutes_left):
 def _survivor_record(path, mutant, status):
     return {
         "file": path, "line": mutant["location"]["start"]["line"],
-        "metric": "mutation", "value": 1, "limit": 0, "scope": "file",
+        "metric": "mutation", "value": 1, "limit": MUTATION_LIMIT, "scope": "file",
         "mutator": mutant["mutatorName"], "replacement": mutant.get("replacement"),
         "status": status,
     }
@@ -153,7 +153,7 @@ def survivors_from_report(report, path, ranges):
 def _no_related_test_result(path, ranges):
     record = {
         "file": path, "line": ranges[0][0], "metric": "mutation", "value": 1,
-        "limit": 0, "scope": "file", "mutator": None, "replacement": None,
+        "limit": MUTATION_LIMIT, "scope": "file", "mutator": None, "replacement": None,
         "status": NO_RELATED_TEST,
     }
     return BatchResult(killed=0, survivors=[record])
