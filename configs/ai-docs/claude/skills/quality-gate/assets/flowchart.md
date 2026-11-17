@@ -30,160 +30,182 @@ def quality_gate(arg):
         return
 
     # A flag on the command line means this run was dispatched by another
-    # skill, so nobody is standing by to answer a prompt (used at 5x and 7x).
+    # skill, so nobody is standing by to answer a prompt (used at 5a and 8a).
     flag_passed = arg.auto_solve or arg.report_only
 
     if flag_passed:                                          # 3 · either flag passed?
         mode = "auto-solve" if arg.auto_solve else "report-only"
     else:
         # 3a · Step 1 - ONE question, before anything else, so nobody is
-        #      surprised by commits. Covers the refactor and auto-review
-        #      lenses ONLY - test-sdd is outside it, applied on every run
-        #      that dispatches that leg regardless of the answer (§5.1).
-        mode = ask("report only (default), or auto-solve?")
+        #      surprised by commits. Covers the refactor, auto-review,
+        #      metrics and scout lenses ONLY - test-sdd is outside it,
+        #      applied on every run that dispatches that leg (§5.1).
+        mode = ask("report only, or auto-solve (default)?")
 
     # 4 · Step 2 - arg paths by their spec_/plan_ prefix, else glob the CWD.
     specs, plans = resolve_spec_and_plan(arg)
     if len(specs) > 1 or len(plans) > 1:                     # 5 · multi-match?
-        if flag_passed:                                      # 5x · nobody standing by?
-            # 5a · Nobody is standing by, so a prompt would stall a
+        if flag_passed:                                      # 5a · nobody standing by?
+            # 5b · Nobody is standing by, so a prompt would stall a
             #      batch-end caller forever. Drop the multi-matched
             #      kind and say so, exactly as a zero match resolves.
             specs, plans = drop_multi_matched_kind(specs, plans)
         else:
-            specs, plans = ask_numbered_list(specs, plans)   # 5b · §1 already asked, so a human stands by
+            specs, plans = ask_numbered_list(specs, plans)   # 5c · §1 already asked, so a human stands by
 
-    # 6 · Step 2 - from --base-ref when the caller passed one
-    #     (/implement's batch-end tail passes BATCH_BASE_SHA that
-    #     way), else resolve-base-ref.sh: origin/HEAD, then local
-    #     main, then local master.
-    in_git = inside_git_repo()                               # 6x · a git repo encloses CWD?
+    in_git = inside_git_repo()                               # 6 · a git repo encloses CWD?
     if not in_git:
-        # 6y · skip base-ref resolution and NEVER stop; only the metrics
+        # 6a · skip base-ref resolution and NEVER stop; only the metrics
         #      leg runs, and the merged file is named ..._no-git_<ts>.md.
         BASE_REF = None
     else:
+        # 7 · Step 2 - from --base-ref when the caller passed one
+        #     (/implement's batch-end tail passes BATCH_BASE_SHA that
+        #     way), else resolve-base-ref.sh: origin/HEAD, then local
+        #     main, then local master.
         BASE_REF = arg.base_ref or sh("~/.claude/scripts/resolve-base-ref.sh")
-        if base_ref_detection_failed(BASE_REF):              # 7 · detection failed?
-            if flag_passed:                                  # 7x · nobody standing by?
-                halt("base ref detection failed")            # 7a · no safe default the way a missing spec has
+        if base_ref_detection_failed(BASE_REF):              # 8 · detection failed?
+            if flag_passed:                                  # 8a · nobody standing by?
+                halt("base ref detection failed")            # 8b · no safe default the way a missing spec has
                 return
-            BASE_REF = ask("which branch to diff against?")  # 7b · ask which branch
+            BASE_REF = ask("which branch to diff against?")  # 8c · ask which branch
 
-    # ---- 8 · Step 3 - mint the run directory FIRST, then dispatch every
-    #      leg in the SAME turn. Independent report-only passes, no ordering
-    #      between them. Each leg IS the fresh-context reviewer, so none of
-    #      them spawns a nested one. ----
-    run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 8i · minted before any dispatch; step 4.1 reuses it
-    # 8j · metrics-review skill, run by MAIN: it dispatches the read-only
-    #      metrics-tool-inspector (Explore),
-    #      only when the per-session tool map has no entry for this repo.
+    # ---- Step 3 - mint the run directory FIRST, export the open scouts,
+    #      then dispatch every leg in the SAME turn. ----
+    run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 9 · minted before any dispatch; step 4.1 reuses it
+    # 10 · export-open-scouts.py <SESSION_ID> run_dir/open-scouts.md prints
+    #      the count of open [Scout] tasks.
+    open_scouts = int(sh(f"~/.claude/scripts/export-open-scouts.py {session_id} {run_dir}/open-scouts.md"))
+    if open_scouts == 0:                                     # 11 · no open scout?
+        scout_report = "scout leg: not run (no open scout)"  # 11a · the scout leg is not dispatched
+
+    # Independent report-only passes, no ordering between them. Each leg IS
+    # the fresh-context reviewer, so none of them spawns a nested one.
     legs = dispatch_parallel(background=True, legs=[
-        ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 8a · leg dispatch
-        ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 8b · leg dispatch
-        # 8c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
+        ("code-reviewer", "refactor",    "refactor/SKILL.md",    f"verdict_refactor_{branch}_{ts}.md"),      # 12a · leg dispatch
+        ("code-reviewer", "auto-review", "auto-review/SKILL.md", f"verdict_auto-review_{branch}_{ts}.md"),   # 12b · leg dispatch
+        # 12c · scoped by --tasks, passed --out-dir run_dir, dispatched ONLY when a plan resolved.
         ("test-reviewer", "test-sdd",    "test-sdd/SKILL.md",    f"{run_dir}/verdict_test-sdd_{branch}_{ts}.md"),
-        # 8m · the metrics-review skill dispatches the lens agent (metrics-review/references/metrics-lens.md) with run_dir, BASE_REF and HEAD;
-        #      runs the script with --mutation; runs plan-less too. refactor and auto-review get no --metrics flag.
+        # 12d · scout-leg.md: classifies each open scout in-goal or off-goal, writes a
+        #       finding per in-goal scout; dispatched ONLY when open_scouts > 0. Report-only:
+        #       it writes just the two files below and never edits the TaskList.
+        ("code-reviewer", "scout",       "references/scout-leg.md", f"{run_dir}/scout-leg_{ts}.md + scout-classification.md"),
+        # 12e · the metrics-review skill, run by MAIN, dispatches the lens agent
+        #       (metrics-review/references/metrics-lens.md) with run_dir, BASE_REF and HEAD;
+        #       runs the script with --mutation; runs plan-less too; a read-only
+        #       metrics-tool-inspector (Explore) runs only when the per-session
+        #       tool map has no entry for this repo. refactor and auto-review get no --metrics flag.
         ("code-reviewer", "metrics",     "metrics-review",       f"{run_dir}/verdict_metrics_{ts}.md + metrics-judge_{ts}.md"),
     ] if in_git else [metrics_leg_only])
-    # 8d · hook: check-reviewer-writes. Each leg is told /tmp is writable,
+    # 12f · hook: check-reviewer-writes. Each leg is told /tmp is writable,
     #      or it skips the $work_dir persistence its compaction-resume needs.
-    # 8k · a leg's tooling ask is raised by MAIN, never the subagent:
-    #      asked unless a flag or a non-cli CLAUDE_CODE_ENTRYPOINT means
-    #      nobody can answer, then deferred (pessimistic / not measured).
-    #      "fix now" resumes the leg only after the fixed tool runs.
+    # 12g · a leg's tooling ask is raised by MAIN, never the subagent:
+    #      12h · a flag, or a non-cli CLAUDE_CODE_ENTRYPOINT, means nobody can
+    #            answer, so it is deferred (pessimistic / not measured);
+    #      12i · otherwise AskUserQuestion fix now or defer; "fix now" resumes
+    #            the leg only after the fixed tool runs.
 
-    for leg in legs:                                         # 9 · Step 4
+    for leg in legs:                                         # 13 · Step 4
         if not present_and_non_empty(leg.verdict_path):
-            redispatch_once(leg)                             # 9a
+            redispatch_once(leg)                             # 13a
             if still_missing(leg):
-                flag(leg)   # 9a · the other legs still stand; a failed metrics leg reads "FAIL - leg failed"
-        # 9a · never report from a capped return message - always from the file
+                flag(leg)   # 13a · the other legs still stand; a failed metrics leg reads "FAIL - leg failed"
+        # 13a · never report from a capped return message - always from the file
 
-    # ---- 10 · Step 4.1 - merge the four legs' files into ONE verdict.
+    # ---- 14 · Step 4.1 - merge the legs' files into ONE verdict.
     #      Runs on report-only and auto-solve alike, and over a single
     #      surviving file too, so the shape and lens tags are uniform. ----
     rendered = first(run_dir, "verdict_metrics_*.md", "verdict_quality-gate_no-git_*.md")        # copied verbatim and FIRST: entries 1..k, no severity tag
-    sources = [l.verdict_path for l in (refactor_leg, auto_review_leg, test_sdd_leg, judge_file)
+    sources = [l.verdict_path for l in (refactor_leg, auto_review_leg, test_sdd_leg, scout_leg, judge_file)
                if present_and_non_empty(l.verdict_path)]     # + run_dir/detector-edits.md when main committed one
     merged = None
-    if not sources and not rendered:                         # 10 · any leg produced a file?
-        pass                                                 # 10a · none did - skip the step
+    if not sources and not rendered:
+        pass                                                 # 14a · no leg produced a file - skip the step
     else:
         merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')   # or ..._no-git_<ts>.md
-        # 10b · main counts each source's findings itself, fence-aware (awk),
+        # 14b · main counts each source's findings itself, fence-aware (awk),
         #       BEFORE dispatching; k = the rendered file's count (0 with none).
-        #       The agent's own input counts are never trusted.
+        #       The agent's own input counts are never trusted. ONE fresh
+        #       code-reviewer, foreground, given exactly the source paths
+        #       (never a glob), k, and references/merge-review-verdicts.md.
+        #       It writes ONLY run_dir/merged-findings.md, numbered from k+1,
+        #       and a scout merged into another leg's finding hands over its
+        #       **Scout task**: #<id> line.
         k = count_findings_fence_aware(rendered)
         input_counts = {s: count_findings_fence_aware(s) for s in sources}
-        # 10b · ONE fresh code-reviewer, foreground, given exactly the source
-        #       paths (never a glob), k, and references/merge-review-verdicts.md.
-        #       It writes ONLY run_dir/merged-findings.md, numbered from k+1.
         dispatch_foreground("code-reviewer", sources, k, f"{run_dir}/merged-findings.md", "merge-review-verdicts.md")
-        # 10f · main assembles; a killed write leaves no partial verdict.
+        # 14c · main assembles; a killed write leaves no partial verdict.
         sh(f"cat {rendered} {run_dir}/merged-findings.md | write-atomically.py {merged_path}")
-        if merge_verified(merged_path, sources, k):          # 10c · main checks, without reading the file
-            # 10c · non-empty, checker exit 0 on merged-findings.md alone,
+        if merge_verified(merged_path, sources, k):          # 14d · main checks, without reading the file
+            # 14d · non-empty, checker exit 0 on merged-findings.md alone,
             #       count == k + summed input_counts minus findings absorbed
             #       (a group of k duplicates absorbs k-1), and an awk gsub
             #       count on the WHOLE file finds no heading without exactly
-            #       one of auto-review|refactor|test-sdd|metrics.
-            move(refactor_and_auto_review_files, run_dir)    # 10d · never delete; record moved paths for the report
+            #       one of auto-review|refactor|test-sdd|metrics|scout.
+            move(refactor_and_auto_review_files, run_dir)    # 14e · never delete; record moved paths for the report
             merged = merged_path
+            # 14f · delete each in-goal scout task named by a **Scout task**: #<id>
+            #       line (TaskUpdate status deleted); an in-goal id with no such
+            #       line stays in the TaskList and the report names it.
+            for task_id in scout_task_lines(merged):
+                task_update(task_id, status="deleted")
         else:
-            move(merged_path, run_dir)                       # 10e · fallback: every source file goes back to CWD
-            # 10e · as this run's output, and the report says so.
+            move(merged_path, run_dir)                       # 14g · fallback: every source file goes back to CWD
+            # 14g · as this run's output, no scout task is deleted, and the report says so.
 
-    # ---- 11 · Step 5 - assemble the apply list. Compose the whole list
-    #      before invoking or printing anything; the three groups below enter
-    #      on different terms. ----
+    # ---- Step 4.2 - the Fix-or-Skip judge, auto-solve only ----
+    if mode == "auto-solve":                                 # 15 · auto-solve?
+        if not merged:                                       # 15a · did the merge pass?
+            judge_report = "judge: not run (merge fell back)"     # 15b · apply test-sdd only
+        else:
+            # 15c · main copies the merged file to run_dir/pre-judge.md, then
+            #       dispatches ONE code-reviewer (foreground) with fix-judge.md §1.
+            #       It rules refactor, auto-review, metrics and [scout]
+            #       findings Fix or Skip, appending a Standards check line.
+            copy(merged, f"{run_dir}/pre-judge.md")
+            dispatch_foreground("code-reviewer", merged, "fix-judge.md#1")
+            if not judge_checks_pass(merged):                # 15d · no line deleted, apply-list check, body checker
+                # 15e · restore: cat pre-judge.md | write-atomically.py merged,
+                #       then re-dispatch the judge ONCE with the failure output.
+                restore(merged, f"{run_dir}/pre-judge.md")
+                dispatch_foreground("code-reviewer", merged, "fix-judge.md#1")
+                if not judge_checks_pass(merged):            # 15f · still failing?
+                    restore(merged, f"{run_dir}/pre-judge.md")    # 15g · apply test-sdd only; no
+                    judge_report = "judge: FAIL (<reason>)"       #       fallback apply of the other lenses
+
+    # ---- 16 · Step 5 - assemble the apply list. Compose the whole list
+    #      before invoking or printing anything; two groups enter on
+    #      different terms. ----
     apply_list = []
     if plans and merged_or_test_sdd_file_has_test_sdd_findings:
-        # 11a · Step 5.1 - every finding get-test-sdd-dispatch-list.py
+        # 16a · Step 5.1 - every finding get-test-sdd-dispatch-list.py
         #       prints (run on the merged file) enters unconditionally, on a
         #       report-only run exactly as on an auto-solve one. No triage
         #       runs: the plan already declared the test, and the human
-        #       already approved the plan. The script omits the
-        #       unplanned-tests finding; the report step lists that one for
-        #       the human to mark [Done].
+        #       already approved the plan. A planned test whose target is
+        #       prose still enters, and address-verdicts annotates it SKIPPED.
+        #       The script omits the unplanned-tests finding; the report
+        #       step lists that one for the human to mark [Done].
         apply_list += get_test_sdd_dispatch_list(merged or test_sdd_leg.verdict_path)
 
-    # 11c · Step 5.3 - every entry under the rendered file's "## Open
-    #       violations" (fence-aware awk lists their numbers) plus every
-    #       [metrics] judge finding enters, report-only and auto-solve alike:
-    #       the plan approval already asked for measured quality. Ranked
-    #       lists, exceptions and deferred entries stay out; so do duplication,
-    #       dead code and mutant entries - only judge findings enter. A violation the
-    #       fix cannot clear, or a rejected exception, stays unmarked, open
-    #       and first - and never blocks the PR.
-    apply_list += open_violations(rendered) + metrics_judge_findings(merged)
-
-    if mode == "auto-solve":                                 # 11b · Step 5.2
-        # 11b2 · Read the MERGED file IN FULL (the two source files on the
-        #        fallback path), never the legs' return summaries; sort
-        #        every finding addressable vs not; print both lists with
-        #        reasons BEFORE applying. Findings are named
-        #        quality-gate#N [<lens>] (<file>:<lines>), or <lens>#N (...)
-        #        for test-sdd and on the fallback path.
-        addressable, not_addressable = sort_findings(
-            read_in_full(merged) if merged else
-            read_in_full(sources),
-        )
-        print(addressable, not_addressable)
-        apply_list += addressable
+    if mode == "auto-solve":                                 # 16b · Step 5.2 - mode?
+        # 16d · the numbers get-fix-apply-list.py prints for the judge's Fix
+        #       rulings (refactor, auto-review, metrics and scout findings);
+        #       duplication, dead code and mutant sections never enter.
+        apply_list += get_fix_apply_list(merged)
     else:
-        # 11b1 · Report-only - neither lens contributes anything, including
-        #        findings that look trivially safe. The opt-in came from
-        #        §1, and its absence is an answer.
+        # 16c · Report-only - nothing else contributes, including
+        #       findings that look trivially safe. The opt-in came from
+        #       §1, and its absence is an answer.
         pass
+    print(apply_list)                                        # 16e · the whole list, one line per finding, before applying
 
-    if not apply_list:                                       # 12 · apply list empty?
-        # a report-only run that resolved no plan has nothing to apply -
-        # skip §6 entirely and close straight from what this run resolved.
+    if not apply_list:                                       # 17 · apply list empty?
+        # a run with nothing to apply skips §6 entirely and
+        # closes straight from what this run resolved.
         return report(ledger=None)
 
-    # ---- 13 · Step 6 - hand the WHOLE apply list to /address-verdicts in
+    # ---- 18 · Step 6 - hand the WHOLE apply list to /address-verdicts in
     #      ONE invocation, never one call per lens. APPLYING IS NOT THIS
     #      SKILL'S JOB - that skill is the one apply step for every
     #      verdict_*.md on disk; this skill only decides WHICH findings
@@ -192,35 +214,32 @@ def quality_gate(arg):
     #      render in the main session), and its per-finding apply agents
     #      are already fresh-context subagents, so wrapping it would spend
     #      one of four spawn-depth levels on a layer that decides nothing. ----
-    test_cmd = resolve_test_command()                        # 13a · nothing left for the callee to guess
-    ledger = skill("address-verdicts",                       # 13b · invoked in this session
-                   findings=apply_list,                       # 13c · explicit ids plus file paths (the merged file's for merged findings), never a severity floor
-                   no_ask=True,                                # 13d · nobody is standing by, on either mode
-                   test_cmd=test_cmd)                          # 13e · nothing left to infer
-    # 13f · it owns the TaskList seeding, the lens routing, the per-finding
+    test_cmd = resolve_test_command()                        # 18a · nothing left for the callee to guess
+    ledger = skill("address-verdicts",                       # 18b · invoked in this session
+                   findings=apply_list,                       # 18c · explicit ids plus file paths (the merged file's for merged findings), never a severity floor
+                   no_ask=True,                                # 18d · nobody is standing by, on either mode
+                   test_cmd=test_cmd)                          # 18e · nothing left to infer
+    # 18f · a scout found while applying goes to the TaskList; the next
+    #       gate run exports it, and the scout leg never re-runs in this run.
+    # 18g · it owns the TaskList seeding, the lens routing, the per-finding
     #       verify, the commit, and the [Done] / APPLIED / SKIPPED annotation.
-    # 13g · Step 6.1 - the fix review over every applied commit is DISABLED
-    #       since 2026-11-17 (the user is finding out what makes a run slow).
-    #       Skipped; the report says "fix review: disabled". The step's text
-    #       stays in SKILL.md until the user re-enables it.
 
-    # 14 · Step 7 - close with a report that OPENS with a timing table
+    # 19 · Step 6.1 - the fix review over every applied commit is DISABLED
+    #      since 2026-11-17 (the user is finding out what makes a run slow).
+    #      Skipped; the report says "fix review: disabled". The step's text
+    #      stays in SKILL.md until the user re-enables it.
+
+    # 20 · Step 7 - close with a report that OPENS with a timing table
     #      (phase, start, end, minutes) built from the start/end times main
-    #      noted per phase (each leg, merge, judge, each /address-verdicts
-    #      dispatch, report): last row = total vs the 20-minute target,
-    #      slowest phase named. Then: every verdict path (the merged
-    #      file, the rendered metrics verdict and judge file in run_dir, the
-    #      moved source paths, the fallback if it happened, + any leg that
-    #      failed to produce one - a failed metrics leg reads "metrics: not
-    #      measured (<reason>)", never clean), any deferred tooling ask with
-    #      its "pessimistic" / "not measured" reading, the metrics apply
-    #      outcomes, applied findings with SHAs, "fix review: disabled",
-    #      §5.2's not-addressable findings, /address-verdicts' skipped/failed
-    #      findings, the never-dispatched unplanned-tests finding for the
-    #      human to mark [Done], and - on a report-only run - every refactor and
-    #      auto-review finding listed under a heading naming them as NEVER
-    #      TRIAGED, closing with the two ways to work them: /address-verdicts,
-    #      or a re-run as /quality-gate --auto-solve.
+    #      noted per phase: last row = total vs the 20-minute target,
+    #      slowest phase named. Then read references/final-report.md and
+    #      report each item it lists: verdict paths, metrics results, applied
+    #      findings with SHAs, judge Skips with their Standards check,
+    #      never-judged findings on a report-only run, judge and fix-review
+    #      status, [QUESTION] findings, the unplanned-tests finding for the
+    #      human to mark [Done], what /address-verdicts skipped or failed,
+    #      and the scout leg: deleted in-goal ids, in-goal ids kept, off-goal
+    #      ids left in the TaskList (ids only), or "not run (no open scout)".
     return report(ledger)
 ```
 
@@ -232,80 +251,102 @@ flowchart TD
   n2{"2. Both --auto-solve and<br/>--report-only passed?"}
   n2a(["2a. STOP - contradiction, not a<br/>precedence puzzle. Print and halt."])
   n3{"3. Either --auto-solve or<br/>--report-only passed?"}
-  n3a["3a. Step 1 · ONE question, before anything else:<br/>report only (default) or auto-solve?<br/>Covers the refactor and auto-review lenses ONLY -<br/>test-sdd is outside it, applied on every run that<br/>dispatches that leg regardless of the answer (§5.1)"]:::gate
+  n3a["3a. Step 1 · ONE question, before anything else:<br/>report only or auto-solve (default)?<br/>Covers the refactor, auto-review, metrics and scout lenses ONLY -<br/>test-sdd is outside it, applied on every run that<br/>dispatches that leg regardless of the answer (§5.1)"]:::gate
   n4["4. Step 2 · Resolve spec + plan: arg paths by<br/>spec_/plan_ prefix, else glob CWD"]
   n5{"5. More than one spec, or more than one plan?"}
-  n5x{"5x. Either flag passed on the<br/>command line? (nobody standing by)"}
-  n5a["5a. Drop the multi-matched kind and say so,<br/>exactly as a zero match resolves.<br/>A prompt here would stall a batch-end caller forever"]
-  n5b["5b. Prompt with a numbered list;<br/>the user picks which files feed the run.<br/>§1 already asked, so a human stands by"]:::gate
-  n6["6. Step 2 · Resolve BASE_REF from --base-ref when the<br/>caller passed one (/implement's batch-end tail passes<br/>BATCH_BASE_SHA that way), else resolve-base-ref.sh:<br/>origin/HEAD, then local main, then local master"]
-  n6x{"6x. Does a git repo enclose CWD?"}
-  n6y["6y. No git - skip base-ref resolution, NEVER stop.<br/>Only the metrics leg runs; the merged file is<br/>verdict_quality-gate_no-git_&lt;ts&gt;.md"]:::state
-  n7{"7. Base ref detection failed<br/>(none of the three found)?"}
-  n7x{"7x. Either flag passed on the<br/>command line? (nobody standing by)"}
-  n7a(["7a. STOP the run and print what failed -<br/>no safe default the way a missing spec has"])
-  n7b["7b. Ask which branch to diff against"]:::gate
+  n5a{"5a. Either flag passed on the<br/>command line? (nobody standing by)"}
+  n5b["5b. Drop the multi-matched kind and say so,<br/>exactly as a zero match resolves.<br/>A prompt here would stall a batch-end caller forever"]
+  n5c["5c. Prompt with a numbered list;<br/>the user picks which files feed the run.<br/>§1 already asked, so a human stands by"]:::gate
+  n6{"6. Does a git repo enclose CWD?"}
+  n6a["6a. No git - skip base-ref resolution, NEVER stop.<br/>Only the metrics leg runs; the merged file is<br/>verdict_quality-gate_no-git_&lt;ts&gt;.md"]:::state
+  n7["7. Step 2 · Resolve BASE_REF from --base-ref when the<br/>caller passed one (/implement's batch-end tail passes<br/>BATCH_BASE_SHA that way), else resolve-base-ref.sh:<br/>origin/HEAD, then local main, then local master"]
+  n8{"8. Base ref detection failed<br/>(none of the three found)?"}
+  n8a{"8a. Either flag passed on the<br/>command line? (nobody standing by)"}
+  n8b(["8b. STOP the run and print what failed -<br/>no safe default the way a missing spec has"])
+  n8c["8c. Ask which branch to diff against"]:::gate
 
-  n8i["8i. Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
-  n8j["8j. Main runs the metrics-review skill, which dispatches<br/>the read-only metrics-tool-inspector (Explore) only when the per-session tool map has<br/>no entry for this repo; main double-checks its report<br/>and commits any detector edit"]:::dispatch
+  n9["9. Step 3 · Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
+  n10["10. Run export-open-scouts.py with the session id and<br/>RUN_DIR/open-scouts.md; it prints the count of<br/>open Scout tasks in the TaskList"]:::hook
+  n11{"11. Count is 0?"}
+  n11a["11a. Do not dispatch the scout leg;<br/>the report reads scout leg: not run (no open scout)"]
 
-  subgraph legs["8. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
+  subgraph legs["12. Step 3 · Dispatch every leg in the SAME turn - independent report-only passes, no ordering between them. Each leg IS the fresh-context reviewer, so none spawns a nested one."]
     direction TB
-    n8a["8a. code-reviewer · reads refactor/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
-    n8b["8b. code-reviewer · reads auto-review/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
-    n8c["8c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
-    n8m["8m. metrics-review skill → code-reviewer following metrics-review/references/metrics-lens.md<br/>(script run with --mutation) with<br/>RUN_DIR, BASE_REF, HEAD (background, ∥), plan or no plan<br/>→ RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md"]:::dispatch
+    n12a["12a. code-reviewer · reads refactor/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_refactor_&lt;ts&gt;.md"]:::dispatch
+    n12b["12b. code-reviewer · reads auto-review/SKILL.md (no --metrics)<br/>(agent-pinned, background, ∥)<br/>→ verdict_auto-review_&lt;ts&gt;.md"]:::dispatch
+    n12c["12c. test-reviewer · reads test-sdd/SKILL.md,<br/>scoped by --tasks, passed --out-dir RUN_DIR<br/>(agent-pinned, background, ∥)<br/>→ RUN_DIR/verdict_test-sdd_&lt;ts&gt;.md<br/>ONLY when a plan resolved"]:::dispatch
+    n12d["12d. code-reviewer · follows references/scout-leg.md<br/>(agent-pinned, background, ∥): classifies each open scout<br/>in-goal or off-goal (in doubt, off-goal), verifies in-goal ones<br/>against the code, report-only<br/>→ RUN_DIR/scout-leg_&lt;ts&gt;.md + scout-classification.md<br/>ONLY when the export count is above 0"]:::dispatch
+    n12e["12e. Main runs the metrics-review skill (no-git or not, plan or no plan),<br/>which dispatches the read-only metrics-tool-inspector (Explore) only when the<br/>per-session tool map has no entry for this repo, then a code-reviewer<br/>following metrics-lens.md (script run with --mutation) with RUN_DIR, BASE_REF, HEAD<br/>(background, ∥) → RUN_DIR/verdict_metrics_&lt;ts&gt;.md + metrics-judge_&lt;ts&gt;.md.<br/>Main double-checks the inspector's report and commits any detector edit"]:::dispatch
   end
 
-  n8d["8d. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook
-  n8k{"8k. Does a leg report a tooling ask?<br/>MAIN raises it, never the subagent"}
-  n8k1["8k1. A flag, or a non-cli CLAUDE_CODE_ENTRYPOINT: nobody can ask.<br/>Defer - CRAP reads pessimistic, tooling deferred;<br/>no-entry language reads not measured: no language entry"]:::gate
-  n8k2["8k2. AskUserQuestion: fix now or defer.<br/>Fix now resumes the leg only after the fixed tool runs;<br/>a failed fix asks again"]:::gate
-  n9{"9. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
-  n9a["9a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
+  n12f["12f. Hook: check-reviewer-writes.<br/>Each leg is told /tmp is writable, or it skips<br/>the $work_dir persistence its compaction-resume needs"]:::hook
+  n12g{"12g. Does a leg report a tooling ask?<br/>MAIN raises it, never the subagent"}
+  n12h["12h. A flag, or a non-cli CLAUDE_CODE_ENTRYPOINT: nobody can ask.<br/>Defer - CRAP reads pessimistic, tooling deferred;<br/>no-entry language reads not measured: no language entry"]:::gate
+  n12i["12i. AskUserQuestion: fix now or defer.<br/>Fix now resumes the leg only after the fixed tool runs;<br/>a failed fix asks again"]:::gate
+  n13{"13. Step 4 · Each leg's verdict file<br/>present and non-empty?"}
+  n13a["13a. Re-dispatch that leg ONCE; still missing,<br/>flag it and let the others stand.<br/>Never report from a capped return message"]:::dispatch
 
-  subgraph merge["10. Step 4.1 · Merge the legs' files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md (or ..._no-git_&lt;ts&gt;.md) - on report-only and auto-solve runs alike."]
+  subgraph merge["14. Step 4.1 · Merge the legs' files into ONE verdict_quality-gate_&lt;branch&gt;_&lt;ts&gt;.md (or ..._no-git_&lt;ts&gt;.md) - on report-only and auto-solve runs alike."]
     direction TB
-    n10{"10. Did any leg produce a file?"}
-    n10a["10a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: FAIL - leg failed (reason), never clean"]
-    n10b["10b. Record the source paths; k = main's fence-aware<br/>count of the rendered metrics verdict (0 with none).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1"]:::dispatch
-    n10f["10f. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
-    n10c{"10c. Main verifies without reading the file:<br/>non-empty, checker exit 0 on merged-findings.md alone,<br/>count == k + input counts minus absorbed (k duplicates absorb k-1),<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics (fence-aware)?"}
-    n10d["10d. Pass - MOVE (never delete) the refactor and auto-review<br/>files into RUN_DIR so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
-    n10e["10e. Fail - every source file goes back to CWD as this run's<br/>output; move the failed merged file into RUN_DIR<br/>instead, and say so in the report"]:::gate
-    n10 -->|"no"| n10a
-    n10 -->|"yes"| n10b --> n10f --> n10c
-    n10c -->|"yes"| n10d
-    n10c -->|"no"| n10e
+    n14{"14. Did any leg produce a file?"}
+    n14a["14a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: FAIL - leg failed (reason), never clean"]
+    n14b["14b. Record the source paths (refactor, auto-review, test-sdd,<br/>scout-leg, judge file, detector-edits); k = main's fence-aware<br/>count of the rendered metrics verdict (0 with none).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1;<br/>a scout absorbed into another finding hands over its Scout task line"]:::dispatch
+    n14c["14c. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
+    n14d{"14d. Main verifies without reading the file:<br/>non-empty, checker exit 0 on merged-findings.md alone,<br/>count == k + input counts minus absorbed (k duplicates absorb k-1),<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics, scout (fence-aware)?"}
+    n14e["14e. Pass - MOVE (never delete) the refactor and auto-review<br/>files into RUN_DIR so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
+    n14f["14f. Delete each in-goal scout task named by a<br/>Scout task line in the merged file (TaskUpdate status deleted).<br/>An in-goal id with no such line stays in the TaskList<br/>and the report names it"]:::state
+    n14g["14g. Fail - every source file goes back to CWD as this run's<br/>output; move the failed merged file into RUN_DIR<br/>instead; no scout task is deleted; say so in the report"]:::gate
+    n14 -->|"no"| n14a
+    n14 -->|"yes"| n14b --> n14c --> n14d
+    n14d -->|"yes"| n14e --> n14f
+    n14d -->|"no"| n14g
   end
 
-  subgraph applylist["11. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. The three groups below enter on different terms."]
+  subgraph judge["15. Step 4.2 · Fix-or-Skip judge - auto-solve only, when the merge passed"]
     direction TB
-    n11a["11a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints (run on the merged file) enters the apply list<br/>UNCONDITIONALLY, whenever that leg was dispatched (a plan<br/>resolved) - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
-    n11c["11c. Step 5.3 · Every entry under the rendered file's<br/>Open violations (fence-aware awk lists the numbers) plus every<br/>[metrics] judge finding enters, report-only and auto-solve alike.<br/>Ranked lists, exceptions, deferred entries and<br/>duplication, dead code and mutant entries stay out.<br/>A violation the fix cannot clear, or a rejected exception,<br/>stays unmarked, open and first; nothing blocks the PR"]
-    n11b{"11b. Step 5.2 · Mode == auto-solve?"}
-    n11b1["11b1. Report-only - neither lens contributes anything,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
-    n11b2["11b2. Auto-solve - read the MERGED file IN FULL (the two source<br/>files on the fallback path), never the legs' return summaries;<br/>sort every finding addressable vs not; print both lists with<br/>reasons BEFORE applying, each finding as<br/>quality-gate#N [lens] (file:lines), or lens#N (...) for<br/>test-sdd and on the fallback path"]
-    n11a --> n11c --> n11b
-    n11b -->|"report-only"| n11b1
-    n11b -->|"auto-solve"| n11b2
+    n15{"15. Mode is auto-solve?"}
+    n15a{"15a. Did the merge pass (no fallback)?"}
+    n15b["15b. judge: not run (merge fell back) -<br/>apply test-sdd only"]:::gate
+    n15c["15c. Main copies the merged file to RUN_DIR/pre-judge.md, then<br/>dispatches ONE code-reviewer (fresh context, foreground) with<br/>fix-judge.md §1. It rules every refactor, auto-review,<br/>metrics and scout finding Fix or Skip, appending a Standards check line"]:::dispatch
+    n15d{"15d. Main's checks pass: no line deleted or changed,<br/>get-fix-apply-list.py --check exits 0,<br/>finding-body checker exits 0 on the Findings slice?"}
+    n15e["15e. Restore pre-judge.md over the merged file<br/>(cat pre-judge.md | write-atomically.py merged),<br/>then re-dispatch the judge ONCE with the failure output"]:::dispatch
+    n15f{"15f. Checks pass now?"}
+    n15g["15g. Restore pre-judge.md again, apply test-sdd only,<br/>report judge: FAIL (reason). No fallback apply of the<br/>other lenses; fix the judge, then re-run"]:::gate
+    n15 -->|"yes"| n15a
+    n15a -->|"no"| n15b
+    n15a -->|"yes"| n15c --> n15d
+    n15d -->|"no"| n15e --> n15f
+    n15f -->|"no"| n15g
   end
 
-  n12{"12. Step 6 · Apply list empty?"}
-
-  subgraph delegate["13. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
+  subgraph applylist["16. Step 5 · Assemble the apply list - compose the whole list before invoking or printing anything. Two groups enter on different terms."]
     direction TB
-    n13a["13a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
-    n13b["13b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>four spawn-depth levels on nothing"]:::skill
-    n13c["13c. Pass the apply list as EXPLICIT ids with their<br/>verdict file paths (the merged file's for merged findings),<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
-    n13d["13d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
-    n13e["13e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
-    n13f["13f. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
-    n13g["13g. Step 6.1 · Fix review over every applied commit:<br/>DISABLED since 2026-11-17 while the user finds out what<br/>makes a run slow. Skip it; the report says<br/>fix review: disabled"]:::gate
-    n13a --> n13b --> n13c --> n13d --> n13e --> n13f --> n13g
+    n16a["16a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints (run on the merged file) enters the apply list<br/>UNCONDITIONALLY, whenever that leg was dispatched (a plan<br/>resolved) - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>A planned test over prose still enters; address-verdicts marks it SKIPPED.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
+    n16b{"16b. Step 5.2 · Mode == auto-solve?"}
+    n16c["16c. Report-only - nothing else contributes,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
+    n16d["16d. Auto-solve - add the numbers get-fix-apply-list.py prints<br/>for the judge's Fix rulings across refactor, auto-review,<br/>metrics and scout findings. Duplication, dead code and<br/>mutant sections never enter"]
+    n16e["16e. Print the composed list, one finding per line,<br/>before applying anything"]
+    n16a --> n16b
+    n16b -->|"report-only"| n16c --> n16e
+    n16b -->|"auto-solve"| n16d --> n16e
   end
 
-  n14(["14. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named), built from the start and end times<br/>main noted per phase. Then: every verdict path (the merged<br/>file, the rendered metrics verdict and judge file in RUN_DIR, the moved<br/>source paths, the fallback if it happened, + any leg that failed;<br/>a failed metrics leg reads FAIL - leg failed, never clean), any deferred<br/>tooling ask with its reading, the metrics apply outcomes,<br/>applied findings with SHAs, fix review: disabled,<br/>§5.2's not-addressable findings, /address-verdicts'<br/>skipped/failed findings, the never-dispatched<br/>unplanned-tests finding for the human to mark Done, and - on a report-only run -<br/>every refactor/auto-review finding under a heading<br/>naming them NEVER TRIAGED, closing with the two ways<br/>to work them: /address-verdicts, or a re-run as<br/>/quality-gate --auto-solve"])
+  n17{"17. Step 6 · Apply list empty?"}
+
+  subgraph delegate["18. Step 6 · Hand the WHOLE apply list to /address-verdicts in ONE invocation - never one call per lens. Applying is NOT this skill's job: that skill is the one apply step for every verdict_*.md on disk; this skill only decides WHICH findings deserve a fix."]
+    direction TB
+    n18a["18a. Resolve the repo's test command<br/>(package.json script, Makefile target, its CLAUDE.md)<br/>so the callee has nothing left to guess about"]
+    n18b["18b. Invoke /address-verdicts IN THIS SESSION,<br/>never wrapped in a subagent: it commits the refactor<br/>agent's work and permission prompts render only in the<br/>main session; and its apply agents are already<br/>fresh-context subagents, so wrapping it spends one of<br/>four spawn-depth levels on nothing"]:::skill
+    n18c["18c. Pass the apply list as EXPLICIT ids with their<br/>verdict file paths (the merged file's for merged findings),<br/>never a severity floor - nothing re-derives<br/>the triage and quietly widens the scope"]
+    n18d["18d. Pass --no-ask: nobody is standing by,<br/>on either mode, and a prompt mid-batch would<br/>stall a batch-end caller indefinitely"]:::gate
+    n18e["18e. Pass --test-cmd, so its own inference<br/>step has nothing left to guess"]
+    n18f["18f. A scout found while applying goes to the TaskList;<br/>the next gate run exports it. The scout leg never<br/>re-runs in this run, so the run never loops"]:::state
+    n18g["18g. It owns the TaskList seeding, the lens routing,<br/>the per-finding verify, the commit, and the<br/>[Done] / APPLIED / SKIPPED annotation"]:::state
+    n18a --> n18b --> n18c --> n18d --> n18e --> n18f --> n18g
+  end
+
+  n19["19. Step 6.1 · Fix review over every applied commit:<br/>DISABLED since 2026-11-17 while the user finds out what<br/>makes a run slow. Skip it; the report says<br/>fix review: disabled"]:::gate
+  n20(["20. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named). Then read references/final-report.md<br/>and report each item it lists: verdict paths, metrics results,<br/>applied findings with SHAs, judge Skips, never-judged findings on a<br/>report-only run, judge and fix-review status, QUESTION findings,<br/>the unplanned-tests finding for the human to mark Done,<br/>what /address-verdicts skipped or failed, and the scout leg:<br/>deleted in-goal ids, in-goal ids kept, off-goal ids left in<br/>the TaskList (ids only), or not run (no open scout)"])
 
   n1 --> n2
   n2 -->|"yes"| n2a
@@ -314,42 +355,49 @@ flowchart TD
   n3 -->|"no"| n3a --> n4
   n4 --> n5
   n5 -->|"no"| n6
-  n5 -->|"yes"| n5x
-  n5x -->|"yes"| n5a --> n6
-  n5x -->|"no"| n5b --> n6
-  n6 --> n6x
-  n6x -->|"no"| n6y --> n8i
-  n6x -->|"yes"| n7
-  n7 -->|"no"| n8i
-  n7 -->|"yes"| n7x
-  n7x -->|"yes"| n7a
-  n7x -->|"no"| n7b --> n8i
-  n8i --> n8j
-  n8j --> n8a
-  n8j --> n8b
-  n8j --> n8c
-  n8j --> n8m
-  n8a -.->|"guards"| n8d
-  n8b -.->|"guards"| n8d
-  n8c -.->|"guards"| n8d
-  n8m -.->|"guards"| n8d
-  n8m --> n8k
-  n8k -->|"no ask"| n9
-  n8k -->|"ask, nobody can answer"| n8k1 --> n9
-  n8k -->|"ask, a human can"| n8k2 --> n9
-  n8a --> n9
-  n8b --> n9
-  n8c --> n9
-  n9 -->|"yes"| n10
-  n9 -->|"no"| n9a --> n10
-  n10a --> n11a
-  n10d --> n11a
-  n10e --> n11a
-  n11b1 --> n12
-  n11b2 --> n12
-  n12 -->|"yes"| n14
-  n12 -->|"no"| n13a
-  n13g --> n14
+  n5 -->|"yes"| n5a
+  n5a -->|"yes"| n5b --> n6
+  n5a -->|"no"| n5c --> n6
+  n6 -->|"no"| n6a --> n9
+  n6 -->|"yes"| n7 --> n8
+  n8 -->|"no"| n9
+  n8 -->|"yes"| n8a
+  n8a -->|"yes"| n8b
+  n8a -->|"no"| n8c --> n9
+  n9 --> n10 --> n11
+  n11 -->|"yes"| n11a
+  n11 -->|"no"| n12d
+  n11a --> n12a
+  n11a --> n12b
+  n11a --> n12c
+  n11a --> n12e
+  n12d -.->|"guards"| n12f
+  n12a -.->|"guards"| n12f
+  n12b -.->|"guards"| n12f
+  n12c -.->|"guards"| n12f
+  n12e -.->|"guards"| n12f
+  n12e --> n12g
+  n12g -->|"no ask"| n13
+  n12g -->|"ask, nobody can answer"| n12h --> n13
+  n12g -->|"ask, a human can"| n12i --> n13
+  n12a --> n13
+  n12b --> n13
+  n12c --> n13
+  n12d --> n13
+  n13 -->|"yes"| n14
+  n13 -->|"no"| n13a --> n14
+  n14a --> n15
+  n14f --> n15
+  n14g --> n15
+  n15 -->|"no"| n16a
+  n15b --> n16a
+  n15d -->|"yes"| n16a
+  n15f -->|"yes"| n16a
+  n15g --> n16a
+  n16e --> n17
+  n17 -->|"yes"| n20
+  n17 -->|"no"| n18a
+  n18g --> n19 --> n20
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
