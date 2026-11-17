@@ -251,5 +251,8 @@ class TestE2eSpecsThatFailOrCannotRun:
         assert [record["value"] for record in records] == [pytest.approx(100 / 3)]
         (ask,) = coverage_run.asks
         assert (ask["tool"], ask["metric"]) == ("jest", "coverage")
-        assert "test/checkout.e2e.spec.js" in ask["reason"]
-        assert "Can't reach database server at localhost:5433" in ask["reason"]
+        assert ask["failed_specs"] == [{
+            "spec": "test/checkout.e2e.spec.js",
+            "reason": "PrismaClientInitializationError: Can't reach database server at localhost:5433",
+        }]
+        assert ask["reason"].startswith("1 e2e or integration spec importing a changed file")

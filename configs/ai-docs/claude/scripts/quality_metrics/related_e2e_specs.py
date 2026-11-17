@@ -75,6 +75,18 @@ def every_spec_failed(repo, specs, reason):
     return [{"spec": repo_relative(repo, spec), "reason": reason} for spec in specs]
 
 
+def failed_specs_reason(failed_specs):
+    """The tooling ask's reason for `failed_specs`: their count
+    and the problem, never their paths, which ride in the ask's
+    own `failed_specs` list."""
+    count = len(failed_specs)
+    noun = "spec" if count == 1 else "specs"
+    return (
+        f"{count} e2e or integration {noun} importing a changed file failed or could not run,"
+        " so coverage counts only the specs that ran"
+    )
+
+
 def summed_hits(first_hits_by_file, second_hits_by_file):
     """The line hits of two runs added per file and line; None
     when neither run wrote any."""

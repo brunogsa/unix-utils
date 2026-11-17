@@ -27,6 +27,7 @@ from quality_metrics.failures import TimeoutPolicy, add_ask_once, ask_or_defer
 from quality_metrics.go_coverage import collect_go
 from quality_metrics.javascript_coverage import collect_javascript, declares_npm_test
 from quality_metrics.python_coverage import collect_python
+from quality_metrics.related_e2e_specs import failed_specs_reason
 from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
@@ -163,14 +164,10 @@ class CoverageRun:
         pass unseen; coverage keeps the other specs' figure."""
         if not failed_specs or self.tool_map is None:
             return
-        named_specs = "; ".join(f"{failed['spec']} ({failed['reason']})" for failed in failed_specs)
-        reason = (
-            f"e2e or integration specs importing a changed file failed or could not run: {named_specs}."
-            " Coverage counts only the specs that ran."
-        )
+        reason = failed_specs_reason(failed_specs)
         ask = ask_or_defer(self.tool_map, tool, "coverage", reason, self.environ)
         if ask is not None:
-            add_ask_once(self, ask)
+            add_ask_once(self, {**ask, "failed_specs": list(failed_specs)})
 
     def _reclaimer(self):
         if self.reclaim_leaked_processes is None:

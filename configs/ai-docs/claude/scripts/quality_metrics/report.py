@@ -256,7 +256,25 @@ def _asks_section(asks, numbers):
 
 
 def _describe_ask(ask):
-    return f"{ask['tool']} ({ask['metric']}) - {ask['reason']}"
+    """The ask's heading text, then one bullet per failed spec
+    it carries, so no spec path ever lengthens the heading."""
+    heading = f"{ask['tool']} ({ask['metric']}) - {ask['reason']}"
+    failed_specs = ask.get("failed_specs", [])
+    if not failed_specs:
+        return heading
+    return "\n\n".join([heading, *_failed_spec_lines(failed_specs)])
+
+
+def _failed_spec_lines(failed_specs):
+    """A reason every spec shares, stated once above bare spec
+    bullets; otherwise each spec's bullet keeps its own
+    reason."""
+    reasons = {failed["reason"] for failed in failed_specs}
+    if len(reasons) == 1:
+        (shared_reason,) = reasons
+        spec_bullets = [_bullet(failed["spec"]) for failed in failed_specs]
+        return [f"Each spec below failed the same way: {shared_reason}.", *spec_bullets]
+    return [_bullet(f"{failed['spec']} ({failed['reason']})") for failed in failed_specs]
 
 
 def _sources_section(sources):

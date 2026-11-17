@@ -16,7 +16,7 @@ import quality_metrics_support as support
 
 sys.path.insert(0, str(support.SCRIPTS_DIR))
 
-from quality_metrics import failures, report
+from quality_metrics import failures, related_e2e_specs, report
 
 section = support.verdict_section
 entry_headings = support.verdict_entry_headings
@@ -39,6 +39,86 @@ class TestToolingAsks:
         ]
         assert verdict.index("## Deferred metrics") < verdict.index("## Tooling asks")
         assert verdict.index("## Tooling asks") < verdict.index("## Exceptions")
+
+
+TIMED_OUT = "jest timed out at 240s"
+
+EIGHTEEN_TIMED_OUT_SPECS = [
+    {"spec": f"core/test/modules/orders/order-{index:02d}.e2e.spec.ts", "reason": TIMED_OUT}
+    for index in range(1, 19)
+]
+
+
+def _failed_specs_ask(failed_specs):
+    """The ask collection raises for `failed_specs`."""
+    reason = related_e2e_specs.failed_specs_reason(failed_specs)
+    return {**failures.tooling_ask("jest", "coverage", reason), "failed_specs": failed_specs}
+
+
+def _tooling_verdict_for(failed_specs):
+    return report.build_tooling_verdict(empty_report(asks=[_failed_specs_ask(failed_specs)]))
+
+
+def _ask_entry(verdict):
+    """The ask entry's text: its heading down to the next
+    heading."""
+    match = re.search(r"^### 1\. .*?(?=^##|\Z)", verdict, re.M | re.S)
+    assert match, verdict
+    return match.group(0)
+
+
+class TestFailedRelatedSpecsAsk:
+    def test_should_name_the_failed_spec_count_in_the_ask_heading_without_any_spec_path(self):
+        verdict = _tooling_verdict_for(EIGHTEEN_TIMED_OUT_SPECS)
+
+        (heading,) = entry_headings(verdict)
+        assert heading.startswith("### 1. [metrics] jest (coverage) - 18 e2e or integration specs")
+        assert ".spec.ts" not in heading
+
+    def test_should_list_each_failed_spec_on_its_own_bullet_with_a_blank_line_between_bullets(self):
+        verdict = _tooling_verdict_for(EIGHTEEN_TIMED_OUT_SPECS)
+
+        entry = _ask_entry(verdict)
+        bullets = support.verdict_record_bullets(entry)
+        assert bullets == [f"- {failed['spec']}" for failed in EIGHTEEN_TIMED_OUT_SPECS]
+        bullet_block = entry[entry.index(bullets[0]):].rstrip("\n")
+        assert bullet_block == "\n\n".join(bullets)
+
+    def test_should_state_a_reason_every_failed_spec_shares_once_in_the_entry_body(self):
+        verdict = _tooling_verdict_for(EIGHTEEN_TIMED_OUT_SPECS)
+
+        assert verdict.count(TIMED_OUT) == 1
+        body = _ask_entry(verdict).split("\n\n")[1]
+        assert TIMED_OUT in body
+
+    def test_should_keep_each_failed_spec_reason_on_its_bullet_when_the_reasons_differ(self):
+        failed_specs = [
+            {"spec": "core/test/orders/checkout.e2e.spec.ts", "reason": TIMED_OUT},
+            {
+                "spec": "core/test/orders/invoice.integration.spec.ts",
+                "reason": "PrismaClientInitializationError: Can't reach database server at localhost:5433",
+            },
+        ]
+
+        verdict = _tooling_verdict_for(failed_specs)
+
+        assert support.verdict_record_bullets(_ask_entry(verdict)) == [
+            "- core/test/orders/checkout.e2e.spec.ts (jest timed out at 240s)",
+            "- core/test/orders/invoice.integration.spec.ts"
+            " (PrismaClientInitializationError: Can't reach database server at localhost:5433)",
+        ]
+
+    @pytest.mark.parametrize("checker", support_report.PROSE_CHECKERS)
+    def test_should_render_eighteen_failed_specs_the_prose_checker_passes(self, tmp_path, checker):
+        verdict_path = tmp_path / "tooling.md"
+        verdict_path.write_text(_tooling_verdict_for(EIGHTEEN_TIMED_OUT_SPECS))
+
+        result = subprocess.run(
+            [str(support_report.DOC_SCRIPTS_DIR / checker), str(verdict_path)],
+            capture_output=True, text=True,
+        )
+
+        assert (result.returncode, result.stdout) == (0, ""), result.stdout + result.stderr
 
 
 class TestCoverageSources:
