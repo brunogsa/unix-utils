@@ -550,7 +550,11 @@ def read_double_quoted(text: str, index: int, bodies: list[str]) -> int | None:
 
 
 def read_substitution_or_escape(text: str, index: int, bodies: list[str]) -> int | None:
-    if text[index] == "\\" or text.startswith(PROCESS_ID_EXPANSION, index):
+    # A # right after an escaped char sits mid-word, where it
+    # starts no comment, so the scan fails closed there.
+    if text[index] == "\\" and text.startswith("#", index + 2):
+        return None
+    elif text[index] == "\\" or text.startswith(PROCESS_ID_EXPANSION, index):
         return index + 2
     elif text.startswith(COMMAND_SUBSTITUTION_START, index):
         return read_command_substitution_body(text, index + 2, bodies)
