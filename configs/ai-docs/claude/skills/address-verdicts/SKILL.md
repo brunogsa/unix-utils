@@ -184,7 +184,7 @@ Why two marks, and why lens by lens: [`references/design-rationale.md`](referenc
 
 ## 6. Close with a report
 
-Outside marked mode, run the §2 test command once, after §5 annotated the last lens, saving its full output to a `/tmp` file and reading the result there. Why: [`references/design-rationale.md`](references/design-rationale.md).
+Outside marked mode, run the §2 test command once, after §5 annotated the last lens, saving its full output to a file in the session scratchpad and reading the result there. Why: [`references/design-rationale.md`](references/design-rationale.md).
 
 - Red is reported, never fixed: list each failing test and the commit range covered, under its own heading.
 - No test command (§2 under `--no-ask`): report `full suite: not run (no test command)` as a failure, never as clean.

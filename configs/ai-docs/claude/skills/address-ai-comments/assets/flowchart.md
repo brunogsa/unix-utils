@@ -19,7 +19,7 @@ def address_ai_comments(arg):
     )
 
     # 3 · run-state file, persisted before any scanning starts
-    state = create(f"/tmp/address-ai-comments_{session_id}_{ts}.json")
+    state = create(f"{scratchpad_dir}/address-ai-comments_{session_id}_{ts}.json")
     state.write(targets=targets, run_tails=run_tails)
 
     if run_tails:                                          # 4
@@ -89,7 +89,7 @@ def address_ai_comments(arg):
 flowchart TD
   n1(["1. /address-ai-comments &lt;path(s)&gt;<br/>or natural phrasing: 'raise/gather/check/find/see<br/>the AI?/AI! comments I left on &lt;path&gt;'"]):::start
   n2["2. Step 1 · Ask together (one message): 'Which file(s)/folder(s)<br/>to sweep?' + 'Run refactor/auto-review tails after? (default no)'"]:::gate
-  n3["3. Create run-state file<br/>/tmp/address-ai-comments_&lt;session_id&gt;_&lt;ts&gt;.json;<br/>persist target(s) + toggle answer"]:::state
+  n3["3. Create run-state file<br/>scratchpad/address-ai-comments_&lt;session_id&gt;_&lt;ts&gt;.json;<br/>persist target(s) + toggle answer"]:::state
   n4{"4. Tails toggle on?"}
   n4a["4a. Capture BATCH_BASE_SHA = git rev-parse HEAD;<br/>persist into run-state JSON immediately"]:::state
   n5{"5. Scan fits main session cheaply?<br/>(judged once, start of step 2,<br/>before grep+read pass begins)"}

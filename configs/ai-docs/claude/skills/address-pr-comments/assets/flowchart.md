@@ -23,7 +23,7 @@ Python-shaped for readability only; nothing here runs, and the function names st
 ```python
 # 1 · Entry: /address-pr-comments PR# [filters]
 def address_pr_comments(pr, filters):
-    state = create(f"/tmp/address-pr-comments_{session_id}_{ts}.json")   # 2
+    state = create(f"{scratchpad_dir}/address-pr-comments_{session_id}_{ts}.json")   # 2
 
     # 3 · Step 0 - read-only probing: is the tree dirty, which runners exist,
     #     is this checkout on the PR's branch, and does another worktree hold it?
@@ -236,7 +236,7 @@ def address_pr_comments(pr, filters):
 ```mermaid
 flowchart TD
   n1(["1. /address-pr-comments PR# [filters]"]):::start
-  n2["2. Create run-state file<br/>/tmp/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
+  n2["2. Create run-state file<br/>scratchpad/address-pr-comments_&lt;session_id&gt;_&lt;ts&gt;.json"]:::state
   n3["3. Step 0: git status --porcelain;<br/>probe lint/test runner markers;<br/>compare PR head branch to current branch;<br/>git worktree list (all read-only)"]
   n4["4. Step 0: AskUserQuestion, 4 per call<br/>(only conditions that hold; a 5th/6th goes in a second call)<br/><br/>- Switch this checkout to the PR branch?<br/>(if not on it and no other worktree holds it)<br/>- Dirty tree -&gt; commit now? (if dirty)<br/>- Green baseline check? (default no)<br/>- Runner pick (if ambiguous/none)<br/>- Repo-green gate after changes? (default no)<br/>- Tails after this batch? (default no)"]:::gate
   n5["5. Persist step-0 answers to<br/>run-state file - survives compaction"]:::state

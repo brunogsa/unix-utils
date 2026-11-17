@@ -44,7 +44,7 @@ Once step 5's debate closes the run asks the user nothing (they may be away): a 
 
 ## Run-state file + TaskList state
 
-At skill start, create `/tmp/address-pr-comments_<session_id>_<ts>.json` as this run's working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`).
+At skill start, create `<scratchpad>/address-pr-comments_<session_id>_<ts>.json` as this run's working-state file (`<ts>` = `date +%Y%m%d-%H%M%S`).
 
 Persist as produced, never at the end: pre-flight answers, then each cluster's title, action, marker kinds, planned change, Rule and Sites as the debate leaves them (apply), drop reason, reply text, step 6's checked plan, and commit SHA. Step 6's subagent takes every decision from this file alone, so one missing here is missing from the plan.
 

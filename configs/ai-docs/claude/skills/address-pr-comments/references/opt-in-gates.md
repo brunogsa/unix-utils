@@ -20,8 +20,8 @@ Discover the runners (cheap probe, no full project scan):
 If multiple or no markers matched, use the persisted step-0 answer instead. Run lint then test:
 
 ```bash
-<lint-cmd> > /tmp/apc-lint.txt 2>&1; echo "exit: $?"; tail -20 /tmp/apc-lint.txt
-<test-cmd> > /tmp/apc-test.txt 2>&1; echo "exit: $?"; tail -30 /tmp/apc-test.txt
+<lint-cmd> > <scratchpad>/apc-lint.txt 2>&1; echo "exit: $?"; tail -20 <scratchpad>/apc-lint.txt
+<test-cmd> > <scratchpad>/apc-test.txt 2>&1; echo "exit: $?"; tail -30 <scratchpad>/apc-test.txt
 ```
 
 If either is red, abort - fix pre-existing breakage first so cluster commits don't conflate new regressions with old.
