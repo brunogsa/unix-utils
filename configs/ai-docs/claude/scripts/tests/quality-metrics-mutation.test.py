@@ -7,6 +7,7 @@ back as surviving mutants.
 import copy
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -25,6 +26,7 @@ from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.mutation import (
     BatchResult,
     StrykerTools,
+    jest_runner_options,
     measure_javascript_mutation,
     related_tests,
     run_stryker_batch,
@@ -178,16 +180,15 @@ class TestStrykerReport:
             ("src/orphan.js", 4, "no related test"),
         ]
 
-    def test_pins_stryker_to_the_related_tests_and_the_changed_ranges(self, tmp_path):
+    def test_pins_stryker_to_the_changed_ranges(self, tmp_path):
         config = stryker_config(
             path="src/price.js", ranges=[(2, 3), (9, 9)],
-            tests=["/repo/src/price [v2].test.js"], report_path=tmp_path / "r.json",
-            minutes_left=4.2,
+            jest_options=jest_runner_options(tests=["/repo/src/price [v2].test.js"], config_file="jest.config.js"),
+            report_path=tmp_path / "r.json", minutes_left=4.2,
         )
 
         assert config["testRunner"] == "jest"
         assert config["jest"]["enableFindRelatedTests"] is True
-        assert config["jest"]["config"] == {"testMatch": ["/repo/src/price \\[v2\\].test.js"]}
         assert config["mutate"] == ["src/price.js:2-3", "src/price.js:9-9"]
         assert config["coverageAnalysis"] == "perTest"
         assert config["reporters"] == ["json"]
@@ -288,6 +289,102 @@ class TestRelatedTests:
         related_specs_file.write_text("".join(f"{tree}/core/test/flow-{n}.spec.ts\n" for n in range(over_cap)))
 
         assert related_tests(tree, "core/src/price.ts") == []
+
+
+class FakeStryker:
+    """Stands in for `run_until` running Stryker: records the
+    call, keeps the config it was given, and writes a report
+    keyed by the workspace-relative path, as Stryker run from
+    that workspace does."""
+
+    REPORT_KEY = "src/price.ts"
+
+    def __init__(self):
+        self.cwd = self.env = self.config = None
+
+    def __call__(self, command, deadline, cwd, env):
+        self.cwd, self.env = cwd, env
+        self.config = json.loads(Path(command[2]).read_text())
+        mutants = [
+            {"id": "1", "mutatorName": "EqualityOperator", "replacement": "total >= 100",
+             "status": "Survived", "location": {"start": {"line": 2, "column": 7}}},
+            {"id": "2", "mutatorName": "ArithmeticOperator", "replacement": "total + 10",
+             "status": "Killed", "location": {"start": {"line": 3, "column": 12}}},
+        ]
+        report = {"files": {self.REPORT_KEY: {"mutants": mutants}}}
+        Path(self.config["jsonReporter"]["fileName"]).write_text(json.dumps(report))
+        return type("R", (), {"killed": False, "returncode": 0, "stderr": ""})()
+
+
+@pytest.fixture
+def stryker_in_workspace(tmp_path):
+    """Runs one batch over core/src/price.ts lines 2-3 in a
+    monorepo tree, with a fake Stryker; returns the fake and
+    the batch result."""
+    tree = write_tree(tmp_path / "tree", WORKSPACE_FILES)
+    fake = FakeStryker()
+    tools = StrykerTools(list_tests=lambda tree, path: [str(tree / "core/test/price.spec.ts")], run=fake)
+    result = run_stryker_batch(tree, "core/src/price.ts", [(2, 3)], time.monotonic() + 60, tools=tools)
+    return tree, fake, result
+
+
+class TestStrykerInJestWorkspace:
+    def test_runs_stryker_from_the_changed_files_jest_workspace(self, stryker_in_workspace):
+        tree, fake, _ = stryker_in_workspace
+
+        assert Path(fake.cwd) == tree / "core"
+
+    def test_points_the_jest_runner_at_the_workspace_jest_config_file(self, stryker_in_workspace):
+        _, fake, _ = stryker_in_workspace
+
+        assert fake.config["jest"]["projectType"] == "custom"
+        assert fake.config["jest"]["configFile"] == "jest.config.js"
+
+    def test_mutates_the_changed_ranges_by_their_workspace_relative_path(self, stryker_in_workspace):
+        _, fake, _ = stryker_in_workspace
+
+        assert fake.config["mutate"] == ["src/price.ts:2-3"]
+
+    def test_runs_stryker_with_the_workspace_test_script_env_and_the_repo_binaries_on_path(self, stryker_in_workspace):
+        tree, fake, _ = stryker_in_workspace
+
+        assert fake.env["TZ"] == "UTC"
+        assert fake.env["PATH"].startswith(f"{tree / 'node_modules/.bin'}{os.pathsep}")
+
+    def test_reads_the_workspace_keyed_report_back_under_the_repo_relative_path(self, stryker_in_workspace):
+        _, _, result = stryker_in_workspace
+
+        assert result.killed == 1
+        assert [(s["file"], s["line"], s["status"]) for s in result.survivors] == [
+            ("core/src/price.ts", 2, "survived"),
+        ]
+
+
+class TestStrykerJestConfigOverride:
+    # jest 29 refuses testMatch beside a configured testRegex
+    # ("cannot be used together", jest-config's
+    # build/normalize.js), and a monorepo root config often
+    # sets testRegex.
+    def test_pins_jest_to_exactly_the_related_tests_by_path_regex_with_test_match_cleared(self):
+        options = jest_runner_options(tests=["/repo/src/price [v2].test.js"], config_file="jest.config.js")
+
+        override = options["config"]
+        [pattern] = override["testRegex"]
+        assert override["testMatch"] is None
+        assert re.search(pattern, "/repo/src/price [v2].test.js")
+        assert not re.search(pattern, "/repo/src/price [v2].test.jsx")
+        assert not re.search(pattern, "/other/repo/src/price [v2].test.js")
+
+    # Stryker's sandbox copies only its cwd, so a workspace
+    # config doing require('../jest.config') breaks there.
+    def test_mutates_the_checked_tree_in_place_so_a_config_requiring_a_file_above_the_workspace_resolves(self, tmp_path):
+        config = stryker_config(
+            path="src/price.js", ranges=[(2, 3)],
+            jest_options=jest_runner_options(tests=["/repo/src/price.test.js"], config_file="jest.config.js"),
+            report_path=tmp_path / "r.json", minutes_left=4.2,
+        )
+
+        assert config["inPlace"] is True
 
 
 def crashing_batch(failing_paths, message):

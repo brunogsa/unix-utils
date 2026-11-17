@@ -37,9 +37,6 @@ CANNOT_RUN_STATUS = "stryker could not run"
 SURVIVED_STATUSES = {"Survived": "survived", "NoCoverage": "no coverage"}
 KILLED_STATUSES = ("Killed", "Timeout")
 
-# Characters that are glob syntax in a jest `testMatch` entry.
-GLOB_SPECIAL = re.compile(r"([\\\[\]{}()*?!+@])")
-
 SECONDS_PER_MINUTE = 60
 
 
@@ -70,17 +67,40 @@ class StrykerTools(NamedTuple):
     run: Callable = run_until
 
 
-def stryker_config(path, ranges, tests, report_path, minutes_left):
-    """The temp Stryker config for one file.
+def jest_runner_options(tests, config_file):
+    """The Stryker jest-runner options for one file's batch.
 
-    The `testMatch` guard makes it impossible for jest to run
-    any test the file's related-test list does not name, however
-    Stryker's own dry run picks its files.
+    - The `testRegex` guard makes it impossible for jest to run
+      any test the related-test list does not name, however
+      Stryker's own dry run picks its files.
+
+    - `testMatch` is cleared, since jest refuses it beside a
+      `testRegex` the workspace config may set.
+
+    - A None `config_file` leaves the runner to its default.
     """
-    test_match = [GLOB_SPECIAL.sub(r"\\\1", test) for test in tests]
+    test_regexes = [f"^{re.escape(test)}$" for test in tests]
+    options = {
+        "projectType": "custom",
+        "enableFindRelatedTests": True,
+        "config": {"testMatch": None, "testRegex": test_regexes},
+    }
+    if config_file is not None:
+        options["configFile"] = config_file
+    return options
+
+
+def stryker_config(path, ranges, jest_options, report_path, minutes_left):
+    """The temp Stryker config for one file, `path` relative to
+    the jest workspace Stryker runs from.
+
+    `inPlace` keeps the workspace config able to require files
+    above it; the tree is a throwaway copy.
+    """
     return {
         "testRunner": "jest",
-        "jest": {"enableFindRelatedTests": True, "config": {"testMatch": test_match}},
+        "jest": jest_options,
+        "inPlace": True,
         "mutate": [f"{path}:{start}-{end}" for start, end in ranges],
         "coverageAnalysis": "perTest",
         "reporters": ["json"],
@@ -126,24 +146,46 @@ def _no_related_test_result(path, ranges):
     return BatchResult(killed=0, survivors=[record])
 
 
+def _jest_config_file(run_dir):
+    """The jest config file `run_dir` holds; None leaves the
+    Stryker jest runner to its own default lookup there."""
+    return next((name for name in config_names("jest") if (run_dir / name).is_file()), None)
+
+
+def _report_keyed_by_repo_path(report, workspace):
+    """The Stryker report with each file keyed by its repo
+    path; Stryker keys it relative to where it ran."""
+    files_by_run_path = report.get("files", {})
+    return {**report, "files": {str(Path(workspace) / name): data for name, data in files_by_run_path.items()}}
+
+
 def run_stryker_batch(tree, path, ranges, deadline, tools=StrykerTools()):
-    """Mutate one file's changed ranges; None when the deadline
-    killed Stryker, a ToolError when it crashed."""
+    """Mutate one file's changed ranges from its jest workspace;
+    None when the deadline killed Stryker, a ToolError when it
+    crashed."""
     tests = tools.list_tests(tree, path)
     if not tests:
         return _no_related_test_result(path, ranges)
+    workspace = jest_workspace_of(tree, path)
+    run_dir = Path(tree) / workspace
+    workspace_path = str(Path(path).relative_to(workspace))
     with tempfile.TemporaryDirectory() as work_dir:
         report_path = Path(work_dir) / "report.json"
         minutes_left = (deadline - time.monotonic()) / SECONDS_PER_MINUTE
-        config = stryker_config(path, ranges, tests, report_path, minutes_left)
+        config = stryker_config(
+            path=workspace_path, ranges=ranges,
+            jest_options=jest_runner_options(tests=tests, config_file=_jest_config_file(run_dir)),
+            report_path=report_path, minutes_left=minutes_left,
+        )
         config_path = Path(work_dir) / "stryker.config.json"
         config_path.write_text(json.dumps(config))
-        result = tools.run([str(STRYKER), "run", str(config_path)], deadline, tree, None)
+        result = tools.run([str(STRYKER), "run", str(config_path)], deadline, run_dir, jest_env(tree, run_dir))
         if result.killed:
             return None
         if result.returncode != 0 or not report_path.is_file():
             raise ToolError(f"Stryker failed on {path}: {result.stderr.strip()}")
-        killed, survivors = survivors_from_report(json.loads(report_path.read_text()), path, ranges)
+        report = _report_keyed_by_repo_path(json.loads(report_path.read_text()), workspace)
+        killed, survivors = survivors_from_report(report, path, ranges)
     return BatchResult(killed=killed, survivors=survivors)
 
 
