@@ -139,7 +139,7 @@ Every list-bullet carries one marker for deterministic counting via `grep` - no 
   - [Example] Stale comments, budget overruns, lint gaps, dead config, type-check failures, failing/skipped tests, circular deps, dead code.
 
 - [Instruction] **Surface every Scout, one TaskCreate each** -- never pre-filter; give each your fix-or-skip prior, and never bundle findings under an umbrella like "investigate the failures".
-  - [Why] Only the human or a requested fresh-eyes judge (`/quality-gate` scout leg) can triage a scout as now-vs-later.
+  - [Why] Only the human, or a qualified fresh judge they requested, triages a scout as now-vs-later - each as its own entry.
 
 ### Robust, in-scope work
 
