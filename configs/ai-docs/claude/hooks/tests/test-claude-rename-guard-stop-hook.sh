@@ -14,7 +14,7 @@
 # instead of this machine's real corpus.
 #
 # The one exception is the real-corpus case below,
-# matching the checker's own 2-second-budget test's
+# matching the checker's own time-budget test's
 # fixtures-only exception.
 #
 # The checker itself is NOT stubbed: these tests assert
@@ -26,15 +26,6 @@ set -uo pipefail
 
 hooks_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOOK="$hooks_dir/claude-rename-guard-stop-hook.sh"
-
-# CPU-time budget (user+sys seconds) for the real-corpus scan
-# below.
-#
-# Not wall-clock: a concurrently running ./run-tests.sh/pytest
-# steals scheduler time from this process without adding to ITS
-# OWN user+sys total, so this budget tracks the scan's workload,
-# not the machine's.
-REAL_CORPUS_CPU_BUDGET_SECONDS=2.0
 
 work_dir=$(mktemp -d)
 trap 'rm -rf "$work_dir"' EXIT
@@ -160,44 +151,42 @@ it_should_stay_silent_when_the_checker_script_is_missing() {
   assert_eq "should stay silent (fail open) when the checker script is missing beside the wrapper" "" "$HOOK_OUT"
 }
 
-it_should_stay_silent_on_the_real_corpus_within_the_2_second_budget() {
-  # [Fixtures exception] mirrors
-  # check-rename-references.test.py's own 2-second-budget corner
-  # test: runs against THIS machine's real unix-utils checkout.
+it_should_scan_the_real_corpus_once_per_stop_and_stay_silent() {
+  # [Fixtures exception] runs against THIS machine's real
+  # unix-utils checkout, with no --repo/--settings override, so
+  # the real checker reads the actual ~240-WARN corpus.
   #
-  # No --repo/--settings override: proves AC2's pass-through on
-  # the actual ~240-WARN corpus with a real test, not by reading
-  # the code.
+  # The scan's time budget is gated by
+  # check-rename-references.test.py, not here: CPU time moves
+  # with kernel contention, so a time assertion in this file
+  # flaked under load.
   #
-  # Wall-clock elapsed time used to gate this: it failed at
-  # 3.36s when ./run-tests.sh and pytest happened to run
-  # concurrently, even though the scan itself did no more work
-  # than usual.
-  #
-  # A wall-clock budget measures the whole machine's business,
-  # not this scan.
-  #
-  # CPU time (user+sys) only accrues while this process is
-  # actually executing on a core, so a competing process delays
-  # it without inflating its own total.
-  #
-  # It still catches the regression this test exists for: a scan
-  # that starts doing dramatically more work burns dramatically
-  # more CPU time too.
-  #
-  # Proven by temporarily repeating the scan 40x
-  # during authoring (14.6s CPU vs. the budget below,
-  # reverted before commit).
-  local timing_file cpu_seconds
-  timing_file="$work_dir/real-corpus-timing.txt"
+  # This case pins the hook's own workload instead: a counting
+  # shim stands in for the checker beside an isolated copy of
+  # the hook, appends one line per run, then execs the real
+  # checker with the same args.
+  local isolated_dir="$work_dir/counting-hooks"
+  local invocations_file="$work_dir/checker-invocations.txt"
+  mkdir -p "$isolated_dir"
+  cp "$HOOK" "$isolated_dir/claude-rename-guard-stop-hook.sh"
+  : > "$invocations_file"
 
-  TIMEFORMAT='%U %S'
-  { time run_hook '{"session_id": "sess-rg-real", "stop_hook_active": false}'; } 2> "$timing_file"
-  cpu_seconds=$(awk '{ print $1 + $2 }' "$timing_file")
+  cat > "$isolated_dir/check-rename-references.py" <<SHIM
+import os
+import sys
+
+with open("$invocations_file", "a") as invocations:
+    invocations.write("run\n")
+
+real_checker = "$hooks_dir/check-rename-references.py"
+os.execv(sys.executable, [sys.executable, real_checker] + sys.argv[1:])
+SHIM
+
+  HOOK_OUT=$(printf '%s' '{"session_id": "sess-rg-real", "stop_hook_active": false}' \
+    | bash "$isolated_dir/claude-rename-guard-stop-hook.sh" 2>/dev/null)
 
   assert_eq "should stay silent on the real corpus's current WARN-only state" "" "$HOOK_OUT"
-  assert_true "should keep the real-corpus scan's own workload bounded regardless of what else is running on the machine" \
-    "awk -v c=\"$cpu_seconds\" -v budget=\"$REAL_CORPUS_CPU_BUDGET_SECONDS\" 'BEGIN{exit !(c<budget)}'"
+  assert_eq "should run the checker exactly once per stop on the real corpus" "1" "$(wc -l < "$invocations_file" | tr -d ' ')"
 }
 
 it_should_stay_silent_when_the_repo_has_no_dangling_reference
@@ -205,7 +194,7 @@ it_should_stay_silent_when_only_a_markdown_warn_finding_exists
 it_should_block_when_the_checker_finds_a_dangling_fail_reference
 it_should_stay_silent_when_its_own_block_caused_this_stop
 it_should_stay_silent_when_the_checker_script_is_missing
-it_should_stay_silent_on_the_real_corpus_within_the_2_second_budget
+it_should_scan_the_real_corpus_once_per_stop_and_stay_silent
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
