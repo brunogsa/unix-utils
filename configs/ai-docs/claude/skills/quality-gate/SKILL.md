@@ -135,11 +135,11 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings fence-aware, since a finding may quote a `### 1.` line in a fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
-- Run it on each source, and on the rendered verdict for k (0 with none): its deferred, tooling-ask and exception entries, never a record bullet.
+- Run it on each source, and on `<tooling>` for k (0 with none): the `tooling_metrics_*.md` beside the rendered verdict, numbered as it numbers its deferred, tooling-ask and exception entries.
 
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
-Then assemble: `cat <rendered> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
+Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only the run's tooling problems above `## Findings`; the full render stays in `<RUN_DIR>`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
 
 Verify without reading the merged file into main:
 
@@ -176,7 +176,7 @@ One exception: a planned test whose target is prose is never written, because CL
 
 ### 5.2. Fix-ruled findings go in on an auto-solve run
 
-Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. Entries under the duplication, dead code and mutant sections do not enter; only the judge's `[metrics]` findings do.
+Auto-solve adds the numbers `~/.claude/scripts/get-fix-apply-list.py <merged>` prints, per [`references/fix-judge.md`](references/fix-judge.md) §2. The tooling entries above `## Findings` never enter; only the judge's `[metrics]` findings do.
 
 Report-only adds nothing else.
 

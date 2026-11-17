@@ -7,6 +7,9 @@
 #     [--exceptions <exceptions.json>] --out-dir <dir>
 #   render-metrics-verdict.py --help
 #
+# Beside the verdict it writes tooling_metrics_<ts>.md, only
+#   its tooling problems, empty when there are none.
+#
 # stdin: none.
 # stdout: the verdict file path.
 # exit: 0 on success, 2 on bad input: a bad report or claim,
@@ -94,6 +97,10 @@ def main():
     text = verdict_report.build_verdict(measure_report, exceptions, in_git=in_git)
     timestamp = datetime.now().strftime(TIMESTAMP_FORMAT)
     written = verdict_report.write_verdict(arguments.out_dir, timestamp, text, in_git)
+    tooling_text = verdict_report.build_tooling_verdict(
+        measure_report, exceptions, in_git=in_git
+    )
+    verdict_report.write_tooling_verdict(arguments.out_dir, timestamp, tooling_text)
     print(written)
 
 

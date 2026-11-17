@@ -126,7 +126,8 @@ def quality_gate(arg):
     # ---- 14 · Step 4.1 - merge the legs' files into ONE verdict.
     #      Runs on report-only and auto-solve alike, and over a single
     #      surviving file too, so the shape and lens tags are uniform. ----
-    rendered = first(run_dir, "verdict_metrics_*.md", "verdict_quality-gate_no-git_*.md")        # copied verbatim and FIRST: deferred/tooling/exception entries 1..k, no severity tag; record bullets unnumbered
+    rendered = first(run_dir, "verdict_metrics_*.md", "verdict_quality-gate_no-git_*.md")        # full render: the metrics judge's input, stays in run_dir
+    tooling = first(run_dir, "tooling_metrics_*.md")         # copied verbatim and FIRST: only non-zero tooling subsections, entries 1..k, no severity tag
     sources = [l.verdict_path for l in (refactor_leg, auto_review_leg, test_sdd_leg, scout_leg, judge_file)
                if present_and_non_empty(l.verdict_path)]     # + run_dir/detector-edits.md when main committed one
     merged = None
@@ -135,19 +136,19 @@ def quality_gate(arg):
     else:
         merged_path = sh('date "+verdict_quality-gate_<branch>_%Y-%m-%d_%H:%M.md"')   # or ..._no-git_<ts>.md
         # 14b · main counts each source's findings itself, fence-aware (awk),
-        #       BEFORE dispatching; k = the rendered file's numbered deferred,
-        #       tooling-ask and exception entries (0 with none), never a record bullet.
+        #       BEFORE dispatching; k = the tooling file's numbered deferred,
+        #       tooling-ask and exception entries (0 with none).
         #       The agent's own input counts are never trusted. ONE fresh
         #       code-reviewer, foreground, given exactly the source paths
         #       (never a glob), k, and references/merge-review-verdicts.md.
         #       It writes ONLY run_dir/merged-findings.md, numbered from k+1,
         #       and a scout merged into another leg's finding hands over its
         #       **Scout task**: #<id> line.
-        k = count_findings_fence_aware(rendered)
+        k = count_findings_fence_aware(tooling)
         input_counts = {s: count_findings_fence_aware(s) for s in sources}
         dispatch_foreground("code-reviewer", sources, k, f"{run_dir}/merged-findings.md", "merge-review-verdicts.md")
         # 14c · main assembles; a killed write leaves no partial verdict.
-        sh(f"cat {rendered} {run_dir}/merged-findings.md | write-atomically.py {merged_path}")
+        sh(f"cat {tooling} {run_dir}/merged-findings.md | write-atomically.py {merged_path}")
         if merge_verified(merged_path, sources, k):          # 14d · main checks, without reading the file
             # 14d · non-empty, body checker and the 3 prose checkers exit 0
             #       on merged-findings.md alone (a prose hit re-dispatches the
@@ -205,7 +206,7 @@ def quality_gate(arg):
     if mode == "auto-solve":                                 # 16b · Step 5.2 - mode?
         # 16d · the numbers get-fix-apply-list.py prints for the judge's Fix
         #       rulings (refactor, auto-review, metrics and scout findings);
-        #       no rendered metrics section enters, only [metrics] judge findings.
+        #       no tooling entry enters, only [metrics] judge findings.
         apply_list += get_fix_apply_list(merged)
     else:
         # 16c · Report-only - nothing else contributes, including
@@ -306,8 +307,8 @@ flowchart TD
     direction TB
     n14{"14. Did any leg produce a file?"}
     n14a["14a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: FAIL - leg failed (reason), never clean"]
-    n14b["14b. Record the source paths (refactor, auto-review, test-sdd,<br/>scout-leg, judge file, detector-edits); k = main's fence-aware<br/>count of the rendered metrics verdict's numbered deferred,<br/>tooling-ask and exception entries (0 with none; record bullets never count).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1;<br/>a scout absorbed into another finding hands over its Scout task line"]:::dispatch
-    n14c["14c. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
+    n14b["14b. Record the source paths (refactor, auto-review, test-sdd,<br/>scout-leg, judge file, detector-edits); k = main's fence-aware<br/>count of the tooling_metrics file's numbered deferred,<br/>tooling-ask and exception entries (0 with none).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1;<br/>a scout absorbed into another finding hands over its Scout task line"]:::dispatch
+    n14c["14c. Main assembles: cat tooling merged-findings.md<br/>| write-atomically.py merged path. Only the non-zero tooling<br/>problems go verbatim and FIRST, the full render stays in<br/>RUN_DIR; a killed write leaves no partial verdict"]:::state
     n14d{"14d. Main verifies without reading the file:<br/>non-empty, body and 3 prose checkers exit 0<br/>on merged-findings.md alone (a prose hit<br/>re-dispatches the merge agent ONCE first),<br/>count == k + input counts minus absorbed,<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics, scout (fence-aware)?"}
     n14e["14e. Pass - MOVE (never delete) the refactor and auto-review<br/>files into RUN_DIR so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
     n14f["14f. Delete each in-goal scout task named by a<br/>Scout task line in the merged file (TaskUpdate status deleted).<br/>An in-goal id with no such line stays in the TaskList<br/>and the report names it"]:::state
@@ -340,7 +341,7 @@ flowchart TD
     n16a["16a. Step 5.1 · Every finding get-test-sdd-dispatch-list.py<br/>prints (run on the merged file) enters the apply list<br/>UNCONDITIONALLY, whenever that leg was dispatched (a plan<br/>resolved) - report-only exactly as auto-solve. No triage: the<br/>plan already declared it, the human already approved the plan.<br/>A planned test over prose still enters; address-verdicts marks it SKIPPED.<br/>The script omits the unplanned-tests finding - it is reported<br/>for the human to mark Done, never applied"]
     n16b{"16b. Step 5.2 · Mode == auto-solve?"}
     n16c["16c. Report-only - nothing else contributes,<br/>including trivially-safe findings.<br/>The opt-in came from §1; its absence is an answer"]
-    n16d["16d. Auto-solve - add the numbers get-fix-apply-list.py prints<br/>for the judge's Fix rulings across refactor, auto-review,<br/>metrics and scout findings. No rendered metrics section<br/>enters; metrics enter only as [metrics] judge findings"]
+    n16d["16d. Auto-solve - add the numbers get-fix-apply-list.py prints<br/>for the judge's Fix rulings across refactor, auto-review,<br/>metrics and scout findings. No tooling entry<br/>enters; metrics enter only as [metrics] judge findings"]
     n16e["16e. Print the composed list, one finding per line,<br/>before applying anything"]
     n16a --> n16b
     n16b -->|"report-only"| n16c --> n16e

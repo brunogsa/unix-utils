@@ -68,4 +68,4 @@ The rendered verdict lists every raw record (open and gate-input violations, dup
 None of them enters the apply list: `~/.claude/scripts/get-fix-apply-list.py` takes only the `[metrics]` judge findings under `## Findings`, per `quality-gate/SKILL.md` §5.2 and [`fix-judge.md`](../../quality-gate/references/fix-judge.md) §2.
 - [Why] A raw record reaches the fix step only through the finding that cites its key, so the judge's ruling is never bypassed.
 
-In the merged file the rendered numbered entries come first and keep numbers 1 to k, and each judge finding is numbered from k+1.
+In the merged file only the tooling problems, from `tooling_metrics_*.md`, come first, and their numbered entries keep numbers 1 to k, and each judge finding is numbered from k+1.

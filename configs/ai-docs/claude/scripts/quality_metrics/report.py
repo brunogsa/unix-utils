@@ -7,6 +7,9 @@ before the code design.
 An exception counts only with a split diff saved on disk and no
 rejection by the judge, so a claim made in prose alone, or one
 the judge rejected, stays an open violation.
+
+A second, tooling-only text keeps just the non-empty sections
+about what did not measure, for the human ahead of the findings.
 """
 
 import collections
@@ -17,8 +20,11 @@ from quality_metrics import debt, hotspots, record_keys
 from quality_metrics.atomic_write import write_text_atomically
 from quality_metrics.deferred import DEFERRED_LABEL
 from quality_metrics.functions import display_value
+from quality_metrics.sourcing import MEASURING_EXIT_CLASSES
 
 METRICS_TAG = "[metrics]"
+
+TOOLING_HEADING = "## Tooling / Process issues"
 
 METRIC_TITLES = {
     ("crap", "function"): "CRAP",
@@ -112,6 +118,60 @@ def build_verdict(report, exceptions=(), in_git=True):
     if not in_git:
         sections.append(_section("Skipped checks", [NO_GIT_SKIPPED]))
     return "\n\n".join(sections) + "\n"
+
+
+def build_tooling_verdict(report, exceptions=(), in_git=True):
+    """The tooling-only verdict quality-gate puts ahead of the
+    merged findings: one `## Tooling / Process issues` section,
+    each non-empty tooling section of `build_verdict` a `###`
+    subsection under it, and "" when every one is empty.
+
+    The deferred, ask and exception entries keep the numbers
+    `build_verdict` gives them. Records the judge rules on stay
+    out: they reach the human as judge findings.
+    """
+    numbers = itertools.count(1)
+    accepted, _ = partition_claims(report["violations"], exceptions)
+    sections = [
+        _deferred_section(report["measurements"], numbers),
+        _asks_section(report.get("asks", []), numbers),
+        _exceptions_section(accepted, numbers),
+        _not_measured_section(report["measurements"]),
+        _counted_section(
+            "Mutants not run", report.get("mutants_not_run", []), _describe_not_run
+        ),
+        _not_applicable_section(report.get("not_applicable", [])),
+        _failed_sources_section(report.get("sources", [])),
+        *_leaked_processes_sections(report.get("leaked_processes")),
+    ]
+    if not in_git:
+        sections.append(_section("Skipped checks", [NO_GIT_SKIPPED]))
+    subsections = ["#" + section for section in sections if _has_entries(section)]
+    if not subsections:
+        return ""
+    return "\n\n".join([TOOLING_HEADING, *subsections]) + "\n"
+
+
+def write_tooling_verdict(directory, timestamp, text):
+    """Write the tooling-only verdict beside the full one, the
+    same atomic way, and return its path."""
+    target = Path(directory) / f"tooling_metrics_{timestamp}.md"
+    write_text_atomically(target, text, temp_prefix=".verdict-tmp-")
+    return target
+
+
+def _failed_sources_section(sources):
+    """The coverage sources whose measurement is not the repo
+    tool's own valid one: a repo tool that failed, or a global
+    tool standing in for it."""
+    failed = [item for item in sources if item["exit_class"] not in MEASURING_EXIT_CLASSES]
+    return _counted_section(
+        "Coverage sources with a tooling problem", failed, _describe_source
+    )
+
+
+def _has_entries(section):
+    return "\n" in section
 
 
 def partition_claims(violations, exceptions):

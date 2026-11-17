@@ -13,6 +13,9 @@ What `SKILL.md` §7 closes the run with, read at §7 so the list loads fresh aft
 
 - Metrics apply outcomes: each `[metrics]` judge finding fixed with its SHA, and each record still open, including rejected exceptions.
 
+- The judge's dismissed-record count with the judge file path, since the merged file omits dismissals: ``awk '/^## /{p=/^## Dismissed records/} p && /^- `/' <judge file> | wc -l``.
+  - With no judge file it reads `dismissed: not counted (no judge file)`, never 0.
+
 ## Findings
 
 - **Every finding below carries its `quality-gate#N [<lens>] (<file>:<lines>)` reference (`<lens>#N (...)` on the fallback) plus a one-line recap - never a bare id, count, or SHA alone.**

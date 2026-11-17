@@ -126,6 +126,45 @@ class TestRenderedVerdict:
         assert list(out_dir.glob("verdict_metrics_*")) == []
 
 
+class TestToolingOnlyVerdict:
+    # why: quality-gate §4.1 puts this file ahead of the
+    # merged findings, while the judge keeps the full one.
+    def test_should_write_the_tooling_only_verdict_beside_the_full_one_and_print_only_the_full_verdict_path(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"README.md": "fixture\n"})
+        not_run = {"file": "src/invoice.py", "lines": "1-40", "label": "not run (budget)"}
+        report = {**_report(OVER_LIMIT_FUNCTION), "mutants_not_run": [not_run]}
+        report_path = _write_json(tmp_path / "report.json", report)
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(repo, "--report", str(report_path), "--out-dir", str(out_dir))
+
+        assert completed.returncode == 0, completed.stderr
+        [full] = out_dir.glob("verdict_metrics_*.md")
+        [tooling] = out_dir.glob("tooling_metrics_*.md")
+        assert completed.stdout.splitlines() == [str(full)]
+        text = tooling.read_text(encoding="utf-8")
+        assert text.startswith("## Tooling / Process issues\n")
+        assert "### Mutants not run (1)" in text
+        assert "reconcile_invoice" not in text
+
+    def test_should_write_an_empty_tooling_only_verdict_when_the_run_had_no_tooling_problem(
+        self, tmp_path
+    ):
+        repo = make_repo(tmp_path, {"README.md": "fixture\n"})
+        report_path = _write_json(tmp_path / "report.json", _report(OVER_LIMIT_FUNCTION))
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        completed = _render(repo, "--report", str(report_path), "--out-dir", str(out_dir))
+
+        assert completed.returncode == 0, completed.stderr
+        [tooling] = out_dir.glob("tooling_metrics_*.md")
+        assert tooling.read_text(encoding="utf-8") == ""
+
+
 class TestBadInputWritesNoVerdict:
     def test_should_exit_2_naming_the_report_file_when_it_is_missing(self, tmp_path):
         _assert_report_rejected(tmp_path, tmp_path / "no-such-report.json")

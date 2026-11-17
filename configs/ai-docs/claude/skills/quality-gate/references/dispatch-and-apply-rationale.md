@@ -56,21 +56,21 @@ An apply step after the review would need its own review, so the run would loop.
 
 A missing planned test is already approved by the plan, so it needs no judge. Every other finding needs the judge, and report-only runs none.
 
-## Why the rendered metrics verdict goes first
+## Why the metrics tooling problems go first
 
-The rendered file is copied verbatim ahead of every other finding, so an open metrics violation or a rejected exception is the first thing a reader meets, and the PR is never blocked on it.
+The script's `tooling_metrics_*.md` is copied verbatim ahead of every finding, so a metric that never measured is the first thing a reader meets, and the PR is never blocked on it.
 
 Only its deferred metrics, tooling asks and accepted exceptions are numbered, `1` to `k` with no severity tag, because the script owns that numbering and a merge agent renumbering them would break an exception's link to its split diff.
 
-Its raw records are unnumbered bullets, each with a `**Record**:` key: judge input, not findings. The metrics judge turns each into a finding citing that key or a dismissal, so every problem gets exactly one number.
+The full render's raw records stay in `<RUN_DIR>` as judge input. The judge turns each into a finding citing its `**Record**:` key or a dismissal, so every problem gets exactly one number.
 
 Every other finding is numbered from `k+1` for the same reason: one run, one numbering, so `/address-verdicts` names a finding by a single number.
 
 ## Why main assembles with `cat`
 
-The merge agent writes only `<RUN_DIR>/merged-findings.md`. Main then runs `cat <rendered> <RUN_DIR>/merged-findings.md | write-atomically.py <merged path>`.
+The merge agent writes only `<RUN_DIR>/merged-findings.md`. Main then runs `cat <tooling> <RUN_DIR>/merged-findings.md | write-atomically.py <merged path>`.
 
-That keeps the rendered file byte-identical to what the script wrote, which a model rewriting it could not promise. The atomic write also means a killed run leaves no partial merged verdict in CWD.
+That keeps the tooling file byte-identical to what the script wrote, which a model rewriting it could not promise. The atomic write also means a killed run leaves no partial merged verdict in CWD.
 
 The `test-sdd` leg's verdict lands in `<RUN_DIR>` for the same reason: a quality-gate run leaves no `verdict_test-sdd_*` file in CWD, only the one merged verdict.
 

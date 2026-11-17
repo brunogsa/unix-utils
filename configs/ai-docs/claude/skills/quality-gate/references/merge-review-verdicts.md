@@ -2,7 +2,7 @@
 
 Rules for the `code-reviewer` agent that `/quality-gate` §4.1 dispatches to fold the legs' findings into one file. Main hands over the source paths that exist, the number `k`, and the one path to write, `<RUN_DIR>/merged-findings.md`.
 
-The sources are up to six files: the `refactor` verdict, the `auto-review` verdict, the `test-sdd` verdict, the `scout` file (`scout-leg_<ts>.md`), the metrics judge file (`metrics-judge_<ts>.md`), and a `detector-edits.md` main wrote. The rendered metrics verdict is not a source: main puts it ahead of your file, holding entries `1` to `k`.
+The sources are up to six files: the `refactor` verdict, the `auto-review` verdict, the `test-sdd` verdict, the `scout` file (`scout-leg_<ts>.md`), the metrics judge file (`metrics-judge_<ts>.md`), and a `detector-edits.md` main wrote. The rendered metrics verdict is not a source: main puts its tooling problems ahead of your file, holding entries `1` to `k`.
 
 ## Scope
 
@@ -15,7 +15,7 @@ The sources are up to six files: the `refactor` verdict, the `auto-review` verdi
 
 ## Layout
 
-Write the file in the layout of [`local-review-template.md`](../../code-review-pipeline/references/local-review-template.md): same four-part body, same budget. Skip the template's header: main puts the rendered metrics verdict first.
+Write the file in the layout of [`local-review-template.md`](../../code-review-pipeline/references/local-review-template.md): same four-part body, same budget. Skip the template's header: main puts the metrics tooling problems first.
 
 - One numbered list, `### k+1.`, `### k+2.`, ... in that order, ordered by severity as that template orders it. With `k` = 0 it starts at `### 1.`.
 
@@ -31,12 +31,8 @@ Write the file in the layout of [`local-review-template.md`](../../code-review-p
 
 - A metrics judge finding is copied verbatim; its heading already reads `[SEV][metrics]`, and its `**Record**:` line stays word for word.
 
-- Copy the judge file's `## Dismissed records` section unchanged, as your file's last section, after every finding.
-  - Reason: the human must see every dismissal and its reason in the file they read.
-
-  - Reason: `check-metrics-judge-coverage.py --judge` must pass on the merged file as on the judge file, and a dropped key breaks it.
-
-  - Reason for last: a `## ` heading ends `## Findings`, so findings after it would never reach the apply list.
+- Never copy the judge file's `## Dismissed records` section: `/quality-gate` §7 reports its count and the judge file path.
+  - Reason: the human reads the merged file for findings, and a dismissal is a record the judge ruled no finding.
 
 - A `scout` finding keeps its `[scout]` tag, and its `**Scout task**: #<id>` line stays in the body, at column 0 after a blank line.
   - Reason: main reads that line to delete the task, and the tag must stay `[scout]`, never `[scout #<id>]`, since the apply scripts match tags as an exact set.
