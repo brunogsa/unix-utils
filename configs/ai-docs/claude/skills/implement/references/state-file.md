@@ -20,7 +20,7 @@ Each state file has exactly this shape:
   "gate_dispatches": 0,
   "baseline": { "log_path": "", "failures": [] },
   "repo_green_gate": { "wanted": true },
-  "quality_gate": { "wanted": true, "reports": [] },
+  "quality_gate": { "wanted": true, "auto_fix": true, "reports": [] },
   "worktree": { "created": false, "path": "", "branch": "" },
   "pr": { "wanted": false, "ticket": "" },
   "stack": { "wanted": false, "order": [], "refused": "" }
@@ -33,6 +33,7 @@ Each state file has exactly this shape:
 - `batch_base_sha` stays `""` until that unit starts (§3.2) - a dependent PR branches off its parent, so its base doesn't exist yet.
 - One `tasks[]` entry per task-id that unit resolved, flipped to `"in_progress"` at dispatch.
   - `branch` / `worktree_path` are set only for a per-task worktree; `worktree`, `pr`, `repo_green_gate.wanted`, and `quality_gate.wanted` come from §1.2's answers.
+  - `quality_gate.auto_fix` is §1.2's auto-fix answer, default true, read only when `wanted` is true.
 
 - Populate `depends_on` from the plan's `**Depends on**:` clause `check-tasks-dag.sh` validated (§1.3), as bare id strings (`["3", "5"]`; `none` → `[]`).
   - `implement-loop-state.py` reads it to pick a DAG-eligible next task; unset, it degrades to lowest-id-first - seed it here.

@@ -39,13 +39,13 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 ## The quality-gate tail (§8.2)
 
-**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request. No retroactive re-run; invoke `/quality-gate` manually later.
+**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.3's repo-green gate so that gate gets the last word, measuring a tree that already carries the `test-sdd` leg's written tests.
 
-The `refactor` and `auto-review` legs are always report-only - findings land as verdict files, applied manually via `/address-verdicts`.
+§1.2's auto-fix answer picks the flag: yes passes `--auto-solve`, no `--report-only`.
 
-**Invoke the skill in this session** - `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> --report-only`.
+**Invoke the skill in this session** - `/quality-gate [<spec>] <plan> --tasks <this unit's task-ids> --base-ref <BATCH_BASE_SHA> <--auto-solve | --report-only>`.
 
 Pass `<spec>` only when §1.1 resolved one - `/quality-gate` matches each path by its `spec_`/`plan_` prefix, not position, so a missing argument needs no placeholder.
 
@@ -58,13 +58,13 @@ It runs here, not in a subagent, for two reasons:
 - Its `test-sdd` leg's write-permission prompt only renders in the main session.
 - Its four legs are already fresh-context subagents - wrapping it would spend a nesting level deciding nothing.
 
-**`--report-only` is always passed, never omitted** - omitting it makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
+**One of the two flags is always passed, never omitted** - omitting both makes `/quality-gate` run its own opening interview, stalling the batch on a prompt nobody is watching.
 
-All four legs run regardless - the tail never skips one, and never applies a `refactor` or `auto-review` finding.
+All four legs run regardless - the tail never skips one.
 
 `--tasks` scopes only the planned-test leg to **this** unit's task-ids - on a PR-label run, keeping PR-2's tail from reporting PR-3's unwritten tests as misses.
 
-What `/quality-gate` owns, and this skill does not restate: its verdict files, the triage call on which findings are addressable, the per-finding apply/commit/`[Done]` loop, and its closing report.
+What `/quality-gate` owns, and this skill does not restate: its verdict files, the Fix-or-Skip judge, the per-finding apply/commit/`[Done]` loop, and its closing report.
 
 What this skill does with the result:
 
@@ -123,7 +123,7 @@ A unit only reaches this package with every task `[Done]` - anything unfinished 
 
   - A finding on the fallback path reads `<lens>#N (<file>:<lines>)`.
 
-  - Outcome is applied (with its commit SHA), judged not addressable (with the reason), or failed to apply (with what it needs to retry).
+  - Outcome is applied (with its commit SHA), ruled Skip (with its `**Standards check**` line), or failed to apply (with what it needs to retry).
 
 - **Missing planned tests** - the `test-sdd` leg's misses, called out on their own line, not buried in the finding list; the gap this batch exists to close, attempted every run.
 

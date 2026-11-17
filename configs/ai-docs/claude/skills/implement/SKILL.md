@@ -65,8 +65,6 @@ This skill **never merges or deletes §1.2's worktree**; `parallel-worktrees` ca
 
 **TaskCreate a lightweight tracking entry for any §1.4-§1.6 step before running it**, when that step takes non-trivial wall-clock (worktree creation, dependency install/build, baseline capture) - flip it `in_progress`/`completed` around the step.
 
-This is scaffolding visibility only, prior to §2's per-plan-task seeding; §2 still creates every plan-task and reminder entry.
-
 ### 1.1. Locate the plan (and spec)
 
 Glob in CWD (top-level only):
@@ -103,6 +101,9 @@ Mid-run `.env` needs are self-served (copied from the original checkout), never 
   - Both run in a **follow-up** `AskUserQuestion` call; a `no` loads nothing.
 
 - **Run the quality-gate batch-end tail?** (yes/no, default yes) - decides whether §8.2 runs `/quality-gate`.
+  - On yes, a follow-up `AskUserQuestion`: **Auto-fix review findings?** (yes/no, default yes).
+    - Yes passes `--auto-solve`: a fresh judge rules each finding Fix or Skip, every Fix applies, then one fix review reports on the commits.
+    - No passes `--report-only`: only `test-sdd` findings apply and the rest wait for you.
 
 - **Run the repo-green gate at batch end?** (yes/no, default yes, independent of the quality-gate toggle).
   - Yes runs BOTH §1.6's baseline capture and §8.3's batch-end gate; no runs NEITHER.
@@ -333,13 +334,9 @@ Everything else is baked into `tdd-coder.md`. Don't re-push any of it.
 
 `tdd-coder.md` owns how it resolves a fork the plan didn't pre-decide; only the outcome reaches you (§4.4) - a **soft** fork as a Deviation, a rare **hard** one as `blocked`.
 
-The second opinion isn't lost, just deferred to §8.2's quality-gate tail.
-
 ### 4.3. Routing mid-execution discoveries
 
 Anything outside the task's core work routes through three channels `tdd-coder.md` defines: **Drift** (fix in place), **abstract-in-place** (dissolve into the code), **Scout** (leave it, return it) - `direct-coder.md` shares only Drift and Scout.
-
-There's no separate carry-forward digest: a Drift fix travels in its commit body.
 
 **Only Scouts need you.** `TaskCreate` one `[Scout]` task each, cite that id on the plan.
 
@@ -460,8 +457,8 @@ Run the batch-end flow over `<BATCH_BASE_SHA>..HEAD`, then present the batch for
 
 - **§8.1 - push the branch, record it, open the draft PR via the pr-creator agent.** The push is unconditional unless `~/.claude/skills/implement/scripts/get-push-route.py` prints `by-hand` (main/master); only the PR is opt-in.
 
-- **§8.2 - the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, always `--report-only`. Skipped entirely when §1.2's toggle said no.
-  - The human applies its verdicts afterward, via `/address-verdicts` - never this run.
+- **§8.2 - the quality-gate tail.** One `/quality-gate` run scoped to this unit's task-ids, with §1.2's auto-fix flag. Skipped entirely when §1.2's toggle said no.
+  - Findings it leaves unapplied are the human's, via `/address-verdicts`.
 
 - **§8.3 - repo-green gate.** Full lint + full test suite, repo-wide, fixed in a loop until green. Skipped entirely when §1.2's gate toggle said no.
 
