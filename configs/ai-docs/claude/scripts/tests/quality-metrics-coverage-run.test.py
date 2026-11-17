@@ -399,7 +399,7 @@ def test_should_still_measure_a_subprocess_when_the_repo_pyproject_has_no_covera
     assert result.hits_by_file["tool.py"][1] > 0
 
 
-def test_should_leave_only_the_lcov_report_as_a_new_file_in_the_repo_after_a_subprocess_coverage_run(tmp_path):
+def test_should_add_no_new_file_to_the_repo_after_a_python_coverage_run(tmp_path):
     from quality_metrics.collection import collect_python
 
     repo = write_repo(tmp_path, SUBPROCESS_REPO_FILES)
@@ -407,7 +407,7 @@ def test_should_leave_only_the_lcov_report_as_a_new_file_in_the_repo_after_a_sub
 
     collect_python(repo)
 
-    assert files_under(repo) - files_before == {"coverage/lcov.info"}
+    assert files_under(repo) - files_before == set()
 
 
 VANISHING_SUBPROCESS_REPO_FILES = {

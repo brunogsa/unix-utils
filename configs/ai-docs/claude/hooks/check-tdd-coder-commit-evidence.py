@@ -188,7 +188,8 @@ NO_SCRIPT = object()
 BINARY_PROBE_BYTES = 8192
 
 SCREEN_GUIDANCE = (
-    "This hook screens every Bash call: one whose text names the word commit, runs git with "
+    "This hook screens every Bash call: one whose text names the word commit outside one plain "
+    "grep, runs git with "
     f"anything but `git <{'|'.join(sorted(NO_COMMIT_GIT_SUBCOMMANDS))}>` or `git -C <plain path> "
     "<status|diff|log>` in a repo whose config runs no program and has no such alias, runs git "
     "in a dir that is no repo or a bare one, names a GIT_*, IFS or already "

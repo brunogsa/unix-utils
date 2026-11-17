@@ -69,11 +69,10 @@ class TestGoModulePathLcovNames:
     ):
         if go_mod is not None:
             (tmp_path / "go.mod").write_text(go_mod)
-        lcov_file = tmp_path / "coverage" / "lcov.info"
-        lcov_file.parent.mkdir()
+        lcov_file = tmp_path / "report.lcov"
         lcov_file.write_text(lcov_report(source_name, {1: 1, 2: 0}))
 
-        result = collection.read_fresh_lcov(tmp_path, run_started=0)
+        result = collection.read_fresh_lcov(lcov_file, tmp_path, run_started=0)
 
         assert result.hits_by_file == {expected: {1: 1, 2: 0}}
 
@@ -85,12 +84,11 @@ class TestLcovPathForms:
         # c8 writes absolute SF paths; git names the
         # changed file repo-relative.
         absolute_source = tmp_path / SOURCE_FILE
-        lcov_file = tmp_path / "coverage" / "lcov.info"
-        lcov_file.parent.mkdir()
+        lcov_file = tmp_path / "report.lcov"
         lcov_file.write_text(
             lcov_report(absolute_source, {1: 1, 2: 1, 3: 0, 4: 1})
         )
-        result = collection.read_fresh_lcov(tmp_path, run_started=0)
+        result = collection.read_fresh_lcov(lcov_file, tmp_path, run_started=0)
 
         records = crap_coverage.measure(
             python_target({1, 2, 3, 4}, repo_path=SOURCE_FILE), ["coverage"],
@@ -163,12 +161,15 @@ def put_fake_tools_on_path(tmp_path, monkeypatch, tool_bodies):
 
 
 def write_lcov_shell(hits_by_line):
-    """Shell lines that write an lcov report to
-    coverage/lcov.info."""
+    """Shell lines that write an lcov report into the
+    directory named by the `--reports-dir=` argument."""
     report = lcov_report(SOURCE_FILE, hits_by_line)
     return (
-        "mkdir -p coverage\n"
-        f"cat > coverage/lcov.info <<'LCOV'\n{report}\nLCOV"
+        'for arg in "$@"; do\n'
+        '  case "$arg" in --reports-dir=*) reports_dir="${arg#--reports-dir=}";; esac\n'
+        "done\n"
+        'mkdir -p "$reports_dir"\n'
+        f"cat > \"$reports_dir/lcov.info\" <<'LCOV'\n{report}\nLCOV"
     )
 
 
@@ -243,10 +244,22 @@ class TestNodeTestFallback:
         assert result == collection.CoverageResult(
             {SOURCE_FILE: {1: 3, 2: 0}}, has_failed_tests=False
         )
-        assert argv_log.read_text().split() == [
-            "--reporter=lcov", "--reports-dir=coverage",
-            "node", "--test", "a.test.js", "sub/b.test.js",
-        ]
+        argv = argv_log.read_text().split()
+        assert argv[0] == "--reporter=lcov"
+        assert argv[1].startswith("--reports-dir=")
+        assert argv[2:] == ["node", "--test", "a.test.js", "sub/b.test.js"]
+
+    def test_should_add_no_coverage_directory_to_the_repo_after_a_c8_run(
+        self, tmp_path, monkeypatch
+    ):
+        put_fake_tools_on_path(tmp_path, monkeypatch, {
+            "c8": write_lcov_shell({1: 3, 2: 0}),
+        })
+        repo = make_node_test_repo(tmp_path)
+
+        collection.collect_javascript(repo)
+
+        assert not (repo / "coverage").exists()
 
     def test_should_score_a_red_build_when_the_node_tests_fail(
         self, tmp_path, monkeypatch
@@ -327,3 +340,4 @@ class TestGoCollector:
         assert result == collection.CoverageResult(
             {SOURCE_FILE: {1: 2, 2: 0, 3: 4}}, has_failed_tests=False
         )
+        assert not (repo / "coverage").exists()

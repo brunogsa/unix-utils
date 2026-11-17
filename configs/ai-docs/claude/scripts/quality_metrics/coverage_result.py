@@ -1,8 +1,9 @@
 """The coverage result every collector returns, and the lcov
 report reading they share.
 
-Every language writes `coverage/lcov.info` under the repo, as c8
-does by default.
+Each collector writes its lcov report into a temp dir and passes
+that file here, so a run leaves no `coverage/` in the measured
+repo.
 
 A run that reads as no coverage data (no tests, no report, or a
 report older than the run) scores 0%.
@@ -11,14 +12,11 @@ pessimistic.
 """
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Optional
 
 from quality_metrics.crap import parse_lcov
 from quality_metrics.repo_paths import repo_relative_hits
 from quality_metrics.tools import ToolError
-
-LCOV_PATH = Path("coverage") / "lcov.info"
 
 
 @dataclass(frozen=True)
@@ -46,17 +44,9 @@ class NoFreshCoverageError(ToolError):
     run."""
 
 
-def prepare_lcov_file(repo_dir):
-    """The repo's lcov path, with its directory created."""
-    lcov_file = repo_dir / LCOV_PATH
-    lcov_file.parent.mkdir(exist_ok=True)
-    return lcov_file
-
-
-def read_fresh_lcov(repo_dir, run_started):
-    """Hits from the lcov file, or no data when it predates the
-    run."""
-    lcov_file = repo_dir / LCOV_PATH
+def read_fresh_lcov(lcov_file, repo_dir, run_started):
+    """Hits from the lcov file, or no data when it is missing or
+    predates the run; names are made relative to `repo_dir`."""
     if not lcov_file.exists() or lcov_file.stat().st_mtime < run_started:
         raise NoFreshCoverageError(f"the passing coverage run wrote no coverage data under {repo_dir}")
     hits_by_file = parse_lcov(lcov_file.read_text())

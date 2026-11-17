@@ -3,13 +3,14 @@ writes the lcov report."""
 
 import json
 import os
+import tempfile
 import time
+from pathlib import Path
 
 from quality_metrics.coverage_result import NO_COVERAGE_DATA, RED_BUILD, read_fresh_lcov
 from quality_metrics.tools import run_command, ToolError
 
-C8_LCOV_COMMAND = ["c8", "--reporter=lcov", "--reports-dir=coverage"]
-NPM_TEST_COMMAND = [*C8_LCOV_COMMAND, "npm", "test"]
+C8_LCOV_COMMAND = ["c8", "--reporter=lcov"]
 
 # `npm init` writes this test script, which runs no tests.
 NPM_INIT_TEST_STUB = 'echo "Error: no test specified"'
@@ -24,19 +25,23 @@ NODE_TEST_FILE_SUFFIX = ".test.js"
 
 def collect_javascript(repo_dir):
     if declares_npm_test(repo_dir):
-        test_command = NPM_TEST_COMMAND
+        wrapped_command = ["npm", "test"]
     else:
         node_test_files = find_node_test_files(repo_dir)
         if not node_test_files:
             return NO_COVERAGE_DATA
+        wrapped_command = ["node", "--test", *node_test_files]
+    with tempfile.TemporaryDirectory() as reports_dir:
         test_command = [
-            *C8_LCOV_COMMAND, "node", "--test", *node_test_files,
+            *C8_LCOV_COMMAND, f"--reports-dir={reports_dir}", *wrapped_command,
         ]
-    run_started = time.time()
-    test_run = run_command(test_command, cwd=repo_dir)
-    if test_run.returncode != 0:
-        return RED_BUILD
-    return read_fresh_lcov(repo_dir, run_started)
+        run_started = time.time()
+        test_run = run_command(test_command, cwd=repo_dir)
+        if test_run.returncode != 0:
+            return RED_BUILD
+        return read_fresh_lcov(
+            Path(reports_dir) / "lcov.info", repo_dir, run_started
+        )
 
 
 def find_node_test_files(repo_dir):

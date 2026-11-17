@@ -2,7 +2,6 @@
 the per-process data files into the lcov report."""
 
 import os
-import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -10,7 +9,6 @@ from pathlib import Path
 from quality_metrics.coverage_result import (
     NO_COVERAGE_DATA,
     CoverageResult,
-    prepare_lcov_file,
     read_fresh_lcov,
 )
 from quality_metrics.python_test_deps import declared_test_dependency_args
@@ -133,15 +131,14 @@ def _lcov_report_of_measured_run(repo_dir, env, report_file, run_started):
     if combine_run.returncode != 0:
         if NO_DATA_TO_COMBINE in combine_run.stdout + combine_run.stderr:
             # Nothing was measured, e.g. all omitted.
-            return read_fresh_lcov(repo_dir, run_started)
+            return read_fresh_lcov(report_file, repo_dir, run_started)
         return _failed_report_step("combine", combine_run)
     report_run = run_command(
         [*PYTHON_LCOV_COMMAND, str(report_file)], cwd=repo_dir, env=env
     )
     if report_run.returncode != 0:
         return _failed_report_step("lcov", report_run)
-    shutil.copyfile(report_file, prepare_lcov_file(repo_dir))
-    return read_fresh_lcov(repo_dir, run_started)
+    return read_fresh_lcov(report_file, repo_dir, run_started)
 
 
 def collect_python(repo_dir):
