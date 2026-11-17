@@ -14,4 +14,6 @@ You cannot write files, so compose the plan as your reply: one entry per cluster
 
 The user settled every decision in the file during the debate, so never reopen one: main checks your plan against the file and replaces any departure with the file's value.
 
+Never post, commit, push or run `gh`: use `reply-patterns.md` for its templates only, since main does every write after checking your plan.
+
 Return ONLY the plan text.

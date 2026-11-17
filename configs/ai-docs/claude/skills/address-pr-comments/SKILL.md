@@ -143,7 +143,7 @@ Debate rules:
 
 - That conclusion gets its own `[Sub-Step]` under the cluster's `[Task]`.
 
-- Leave only on a user reply that comes once every question is done and no challenge is open - even with nothing to debate, since that reply is the approval.
+- Leave only after a user reply, once handled, leaves no question or challenge open and changes no decision - even with nothing to debate, since that reply is the approval.
 
 That close is the user's last look and the single gate for those irreversible writes: `settings.json` runs bypassPermissions, so none fires a prompt.
 

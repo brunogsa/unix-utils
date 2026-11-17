@@ -110,12 +110,8 @@ def address_pr_comments(pr, filters):
     #      push and the replies - the user's only look before those writes.
     send_qa_message(clusters)
 
-    while True:                                            # 15 · debate in chat
+    while True:                                            # debate in chat
         reply = read_user()
-        # 15 · only a user reply closes the debate, even with nothing to
-        #      debate: that reply is the approval
-        if not open_questions() and not open_challenges():
-            break
         if is_bare_ok(reply) and len(open_items()) > 1:    # 15a
             ask_which_items_it_closes()                    # 15a1
         elif reply.names_a_conclusion:                     # 15b
@@ -124,6 +120,11 @@ def address_pr_comments(pr, filters):
             TaskCreate("[Sub-Step] <conclusion>", parent=c.task)  # 15b1 · its own sub-step
         if reply.says_question_is_clear:                   # 15c
             mark_sub_step_done(reply.question)             # 15c1
+        # 15 · handle the reply first, then leave only when it changed no
+        #      decision and nothing is open - even with nothing to debate,
+        #      since that reply is the approval
+        if not (open_questions() or open_challenges() or reply.names_a_conclusion):
+            break
 
     # The debate's close approves every commit, the push and every reply:
     # bypassPermissions means none of them fires a permission prompt.
@@ -266,8 +267,8 @@ flowchart TD
   n12b["12b. Step 3: launch lateral learn run<br/>/improve-from-user PR &lt;OWNER_REPO&gt;#&lt;n&gt;<br/>same message as step 4, never wait on the window"]:::dispatch
   n13["13. Step 4: Create the TaskList (before any chat or edit)<br/>one parent [Task] per cluster<br/>one [Sub-Step] per marker, metadata.kind = command | question<br/>parent metadata: comment_ids, thread_ids, urls<br/>(an answer-only cluster still gets a [Task])"]:::state
   n14["14. Step 5: ONE chat message<br/>answer EVERY AI? from its Draft answer first,<br/>then challenge each AI! that looks wrong, over-reaching,<br/>or already handled (seeded by its Concern:)<br/>each tied to path:line;<br/>lists every apply cluster's Rule + Sites;<br/>ends: closing the debate approves the commits, push, replies"]:::gate
-  n15{"15. User replies: any question<br/>or challenge still open?"}
-  n15a{"15a. Bare ok while<br/>several items are open?"}
+  n15{"15. Reply handled: any question or<br/>challenge open, or did it change a decision?"}
+  n15a{"15a. User replies: bare ok while<br/>several items are open?"}
   n15a1["15a1. Ask which open items it closes<br/>(never guess)"]:::gate
   n15b{"15b. User names a conclusion?<br/>(change X / tell reviewer Y / drop it)"}
   n15b1["15b1. Record as a planned command or reply,<br/>persisted to the run-state file<br/>(no GitHub round-trip)<br/>+ its own [Sub-Step] under the cluster's [Task]"]:::state
@@ -340,8 +341,8 @@ flowchart TD
   n12 -->|"no"| n12b
   n12b --> n13
   n13 --> n14
-  n14 --> n15
-  n15 -->|"yes"| n15a
+  n14 --> n15a
+  n15 -->|"yes - wait for the next reply"| n15a
   n15a -->|"yes"| n15a1
   n15a1 --> n15
   n15a -->|"no"| n15b
