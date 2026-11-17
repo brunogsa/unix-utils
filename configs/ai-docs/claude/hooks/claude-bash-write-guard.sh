@@ -931,6 +931,7 @@ blocked = []
 directory_copies = []
 script_shape_blocked = []
 format_reports = []
+has_repo_move_block = False
 cwd = os.getcwd()
 segments = split_segments(cmd)
 
@@ -973,7 +974,13 @@ for segment, is_piped_into in segments:
         if is_directory:
             record_directory_copy(guarded_tree_path(cwd, target))
         else:
+            report_count = len(format_reports)
             record_write(block_reason(cwd, target), None if source is None else [source])
+            is_failed_repo_move = (exe == 'mv' and source is not None
+                                   and len(format_reports) > report_count
+                                   and block_reason(cwd, source))
+            if is_failed_repo_move:
+                has_repo_move_block = True
     arguments = arguments_after(exe, tokens) if exe else []
     edited_files = in_place_edit_targets(exe, arguments, cwd)
     if edited_files and not is_plain_replace_all(exe, arguments):
@@ -997,6 +1004,8 @@ if blocked:
     if format_reports:
         message.append('A `cat`, `cp`, `mv` or `install` copy of existing files passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
+    if has_repo_move_block:
+        message.append('To rename a tracked file, use `git mv` instead: it is always allowed and rewrites no text.')
     if directory_copies:
         message.append('A directory copy (a directory source, or cp -r, -R or -a) into a git work tree always blocks, since its files cannot be checked one by one - copy each file by name instead.')
 if script_shape_blocked:

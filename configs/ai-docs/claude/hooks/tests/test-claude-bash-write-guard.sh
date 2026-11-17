@@ -380,6 +380,20 @@ it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tra
   assert_eq "should block mv moving a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
 }
 
+# why: a rename inside the repo needs no text rewrite, and
+# `git mv` is the form the guard never blocks.
+it_should_suggest_git_mv_when_it_blocks_an_in_repo_mv_of_a_markdown_file_that_breaks_the_format_rules() {
+  printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$sandbox_dir/docs/wrapped.md"
+  run_hook_capturing_stderr "mv docs/wrapped.md docs/renamed.md"
+  rm -f "$sandbox_dir/docs/wrapped.md"
+  assert_eq "should block mv renaming a repo markdown file whose prose breaks the format rules" "2" "$HOOK_EXIT"
+  local names_git_mv="no"
+  case "$HOOK_STDERR" in
+    *'git mv'*) names_git_mv="yes" ;;
+  esac
+  assert_eq "should suggest git mv when it blocks mv renaming a repo markdown file whose prose breaks the format rules" "yes" "$names_git_mv"
+}
+
 it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
   run_hook "install $scratch_dir/batch.md README.md"
   assert_eq "should block install copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
@@ -731,6 +745,7 @@ it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_suggest_git_mv_when_it_blocks_an_in_repo_mv_of_a_markdown_file_that_breaks_the_format_rules
 it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
