@@ -127,6 +127,7 @@ def assert_import_linter_config_layers(capture_dir):
 
 def assert_go_arch_lint_config_layers(capture_dir):
     go_arch_lint = yaml.safe_load((capture_dir / "go-arch-lint.config").read_text())
+    assert isinstance(go_arch_lint, dict)
     assert list(go_arch_lint["components"]) == ["infra", "domain"]
     assert go_arch_lint["deps"] == {
         "infra": {"mayDependOn": ["infra", "domain"]},
