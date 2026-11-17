@@ -31,7 +31,8 @@ def implement(arg):
 
     # 4 · §1.2 - ONE up-front interview, the only round until the review package:
     #     plan pick · plan path, if none found (§1.1) · worktree · draft PR
-    #     · quality-gate tail (default yes, always --report-only) · repo-green
+    #     · quality-gate tail (default yes; on yes, a follow-up call asks
+    #       'Auto-fix review findings?', default yes) · repo-green
     #     gate (default yes, runs BOTH the full-suite baseline AND the
     #     batch-end gate, or neither) · confirm base branch
     #     · PLUS 'Deliver each task as its own stacked PR?' - default NO.
@@ -115,7 +116,7 @@ def implement(arg):
         for step in BATCH_END_STEPS:      # FOUR separate entries:
             task_create(f"[Reminder] {step}")
             # 16a · 1/4 push the branch(es); record it in the PR entry; draft PR when wanted
-            # 16b · 2/4 quality-gate tail, always report-only (opt-in)
+            # 16b · 2/4 quality-gate tail, auto-fix or report-only per §1.2 (opt-in)
             # 16c · 3/4 repo-green gate, fix-loop until green (opt-in)
             # 16d · 4/4 re-push + PR-body refresh when 16b/16c landed commits;
             #           package print, closing review notification
@@ -126,6 +127,8 @@ def implement(arg):
     for unit in units:
         write_json(f"/tmp/implement_{session_id}{unit.suffix}.json",
                    phase="tasks", start_sha=head(), batch_base_sha="",
+                   quality_gate={"wanted": answers.quality_gate_tail,
+                                 "auto_fix": answers.auto_fix},   # default true
                    stack={"wanted": stack_choice.wanted,        # this unit's confirmed
                           "order": stack_choice.layer_order,    # layer order (§3.4 advances
                           "refused": stack_choice.forced_reason})  # through it) + which gate,
@@ -305,28 +308,38 @@ def run_unit(unit):
         #     already fresh-context reviewers, and its commits need a permission
         #     prompt only main can render. The spec argument goes in only when
         #     §1.1 resolved one - the skill matches paths by spec_/plan_ prefix.
+        #     §1.2's auto-fix answer picks the flag: yes → --auto-solve,
+        #     no → --report-only. One of the two is ALWAYS passed -
+        #     omitting both drops into /quality-gate's own interview,
+        #     stalling on a prompt nobody is watching.
         run_skill("/quality-gate", spec_if_resolved, plan,
                   tasks=unit.task_ids, base_ref=state.batch_base_sha,
-                  # ALWAYS report_only - omitting it drops into
-                  # /quality-gate's own interview, stalling on a
-                  # prompt nobody is watching. The human applies
-                  # verdicts manually afterward via /address-verdicts.
-                  report_only=True)
+                  flag="--auto-solve" if state.quality_gate.auto_fix
+                       else "--report-only")
         # 41a · inside it: refactor ∥ auto-review ∥ test-sdd ∥ metrics legs →
         #       one merged verdict_quality-gate_*.md carrying metrics and
-        #       test-sdd entries, then per-finding apply → commit → mark [Done].
+        #       test-sdd entries. Auto-fix yes: a fresh judge rules each
+        #       finding Fix or Skip, every Fix applies (commit → mark
+        #       [Done]), then one fix review reports on those commits.
+        #       Auto-fix no: only test-sdd findings apply; the rest wait
+        #       for /address-verdicts.
         # 41b · hook: check-reviewer-writes (only verdict_*.md writes approved).
-        state.record_verdict_paths()   # 41c · PATHS, never content; a declined
-                                       #       finding stays in its verdict file,
-                                       #       never a [Scout];
+        state.record_verdict_paths()   # 41c · PATHS, never content; a finding
+                                       #       left unapplied stays in its verdict
+                                       #       file, never a [Scout];
         state.phase = "tails"          #       then phase=tails
+    else:
+        # 40a · quality gate skipped by request: the package says exactly
+        #       "hard metrics not run (quality gate skipped by request)".
+        package.note("hard metrics not run (quality gate skipped by request)")
 
     if answers.repo_green_gate:                             # 42 · else skipped by request
         while True:
             # 43 · §8.3 - repo-wide, never scoped to the batch's own files. Runs
             #     AFTER the quality gate, so it measures a tree already holding
             #     whatever this tail applied - true under EITHER flag, since the
-            #     test-sdd leg writes the plan's missing tests on every run of it.
+            #     test-sdd leg writes the plan's missing tests on every run of it
+            #     (and --auto-solve also applies every Fix-ruled finding).
             #     That's why no "the gate applied something, so re-run the suite"
             #     rule exists.
             if full_lint() and full_test_suite():           # 43a
@@ -530,7 +543,7 @@ flowchart TD
   n2["2. Step 1.1 · Locate plan_&lt;slug&gt;.md (+ the spec when one<br/>exists - a plan-only run is a supported mode)"]
   n3{"3. Plan found?"}
   n3a(["3a. Stop: no plan given"])
-  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- Repo-green gate? (default yes,<br/>runs both the full-suite baseline<br/>and the batch-end gate, or neither)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)<br/>- On a draft-PR yes: the ticket ID, asked<br/>in a follow-up call only when not obvious<br/>(passed to pr-creator, which cannot ask)"]:::gate
+  n4["4. Step 1.2 · ONE up-front interview, one call:<br/><br/>- Plan pick, if multiple candidates<br/>- Plan path, if none found (§1.1)<br/>- Run in a git worktree?<br/>- Open a draft PR at batch end?<br/>- Quality-gate tail? (default yes)<br/>- On yes, a follow-up call: Auto-fix review<br/>findings? (default yes)<br/>- Repo-green gate? (default yes,<br/>runs both the full-suite baseline<br/>and the batch-end gate, or neither)<br/>- Confirm the base branch<br/>- Deliver each task as its own stacked PR?<br/>(yes/no, default NO)<br/>- On a draft-PR yes: the ticket ID, asked<br/>in a follow-up call only when not obvious<br/>(passed to pr-creator, which cannot ask)"]:::gate
   n5{"5. Step 1.2 · Stacked answered yes? Stacked is<br/>OPT-IN because it turns the whole unit strictly<br/>sequential - no parallel dispatch for the run"}
   n5a["5a. Default 'no': the unit ships as ONE PR,<br/>its tasks commits inside it - nothing else in<br/>step 1.2 runs, and stacked-by-task.md is<br/>never loaded"]
   n6["6. Step 1.2 · Load references/stacked-by-task.md<br/>- only on a 'yes', before its two gates below"]:::skill
@@ -558,7 +571,7 @@ flowchart TD
   subgraph seedRemind["16. Step 2.2 · After each PR's task entries, seed that batch's [Reminder]s - N of up to 4, per §2.2 - separate entries, never one chain:<br/>a combined entry has one completed flag, so a step-level skip would have nowhere to land."]
     direction TB
     n16a["16a. Add to TaskList a [Reminder] for<br/>Batch-end (push): push the branch(es); record it in the<br/>PR entry; open the draft PR via pr-creator when wanted"]:::state
-    n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end (quality-gate tail), always<br/>report-only (only when opted in)"]:::state
+    n16b["16b. Add to TaskList a [Reminder] for<br/>Batch-end (quality-gate tail), auto-fix or<br/>report-only per §1.2 (only when opted in)"]:::state
     n16c["16c. Add to TaskList a [Reminder] for<br/>Batch-end (repo-green gate), fix-loop until green<br/>(only when opted in)"]:::state
     n16d["16d. Add to TaskList a [Reminder] for<br/>Batch-end (package): re-push and refresh the PR body when<br/>16b/16c landed commits; package print,<br/>closing review notification"]:::state
     n16a --> n16b --> n16c --> n16d
@@ -624,12 +637,13 @@ flowchart TD
     n38["38. Native mode + the run's LAST PR only (skipped<br/>otherwise): load references/batch-end-pr-native-link.md.<br/>Registers the CROSS-UNIT chain - independent of 37b2a,<br/>which registers only this unit's own layers; both can<br/>fire on the same run"]:::skill
     n39["39. gh stack link registers the cross-unit chain,<br/>reusing the already-created PRs. Linking runs LAST so no<br/>branch is server-rebased mid-run; a failed link downgrades<br/>the plan's Mode: to merge and continues - never a halt"]
     n40{"40. Quality-gate tail requested?"}
-    n41["41. Step 8.2 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>always carrying --report-only (never omitted - that<br/>drops /quality-gate into its own interview and stalls<br/>the batch on an unwatched prompt). The human applies<br/>verdicts manually afterward via /address-verdicts.<br/>Spec argument goes in only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
-    n41a["41a. Inside it: refactor ∥ auto-review ∥ test-sdd ∥ metrics leg<br/>→ one merged verdict_quality-gate_*.md (metrics and test-sdd<br/>entries included), then per-finding apply → commit → mark [Done]"]:::dispatch
+    n41["41. Step 8.2 · Invoke /quality-gate [&lt;spec&gt;] &lt;plan&gt;<br/>--tasks &lt;this unit's ids&gt;, base ref = BATCH_BASE_SHA,<br/>plus §1.2's auto-fix flag: yes → --auto-solve, no →<br/>--report-only (one is always passed, never both omitted -<br/>that drops /quality-gate into its own interview and stalls<br/>the batch on an unwatched prompt). Findings it leaves<br/>unapplied are the human's, via /address-verdicts.<br/>Spec argument goes in only when §1.1 resolved one.<br/>IN THIS SESSION, never wrapped in a subagent:<br/>its legs are already fresh-context reviewers, and<br/>its commits need a prompt only main can render"]:::skill
+    n41a["41a. Inside it: refactor ∥ auto-review ∥ test-sdd ∥ metrics leg<br/>→ one merged verdict_quality-gate_*.md (metrics and test-sdd<br/>entries included). Auto-fix yes: a fresh judge rules each<br/>finding Fix or Skip, every Fix applies → commit → mark [Done],<br/>then one fix review reports on those commits. Auto-fix no:<br/>only test-sdd findings apply"]:::dispatch
     n41b["41b. Hook: check-reviewer-writes<br/>(only verdict_*.md writes are approved)"]:::hook
-    n41c["41c. Record each verdict PATH into the state file<br/>(never its content); a declined finding stays<br/>in its verdict file, never a [Scout]; then phase=tails"]:::state
+    n41c["41c. Record each verdict PATH into the state file<br/>(never its content); a finding left unapplied stays<br/>in its verdict file, never a [Scout]; then phase=tails"]:::state
+    n40a["40a. Quality gate skipped by request: the package says<br/>'hard metrics not run (quality gate skipped by request)'"]
     n42{"42. Repo-green gate requested?"}
-    n43["43. Step 8.3 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding the test-sdd leg's written tests<br/>- the tail's refactor and auto-review legs<br/>are always report-only and never touch the tree. Why<br/>no 'it applied something, so re-run the suite' rule<br/>exists"]:::gate
+    n43["43. Step 8.3 · Repo-green GATE: full lint + full test<br/>suite, repo-wide, never scoped to the batch's own<br/>files. Runs AFTER the quality gate, so it measures a<br/>tree already holding whatever the tail applied: the<br/>test-sdd leg's written tests under either flag, plus every<br/>Fix-ruled finding under --auto-solve. Why<br/>no 'it applied something, so re-run the suite' rule<br/>exists"]:::gate
     n43a{"43a. Green? (a failure the batch didn't<br/>cause is a [Scout], never a blocker)"}
     n43b{"43b. Fix attempts left?"}
     n43c["43c. Step 8.3 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
@@ -729,7 +743,7 @@ flowchart TD
   n37 -->|"no"| n40
   n40 -->|"yes"| n41 --> n41a --> n41c --> n42
   n41a -.->|"guards"| n41b
-  n40 -->|"no, skipped by request"| n42
+  n40 -->|"no, skipped by request"| n40a --> n42
   n42 -->|"yes"| n43 --> n43a
   n43a -->|"no"| n43b
   n43b -->|"no"| n47
