@@ -119,3 +119,22 @@ class TestStripHeredocBodiesForSinks:
         stripped = parse_shell_command.strip_heredoc_bodies_for_sinks(command, parse_shell_command.NON_EXECUTING_SINK_PATTERN)
 
         assert "git push origin main" in stripped
+
+
+class TestCommandSubstitutionBodies:
+    def test_should_return_the_command_inside_a_dollar_paren_substitution(self):
+        assert parse_shell_command.command_substitution_bodies("echo $(git push origin main)") == ["git push origin main"]
+
+    def test_should_end_a_substitution_at_its_own_closing_paren_not_at_one_inside_its_quotes(self):
+        command = "echo $(printf ')'; git push origin main) done"
+
+        assert parse_shell_command.command_substitution_bodies(command) == ["printf ')'; git push origin main"]
+
+    def test_should_return_the_rest_of_the_command_when_a_substitution_never_closes(self):
+        assert parse_shell_command.command_substitution_bodies("echo $(git push origin main") == ["git push origin main"]
+
+    def test_should_report_a_substitution_inside_single_quotes_since_an_unquoted_heredoc_body_still_runs_it(self):
+        assert parse_shell_command.command_substitution_bodies("echo '$(git push origin main)'") == ["git push origin main"]
+
+    def test_should_return_no_substitution_for_a_command_without_one(self):
+        assert parse_shell_command.command_substitution_bodies('echo "git push origin main"') == []

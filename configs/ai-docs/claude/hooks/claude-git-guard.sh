@@ -310,6 +310,7 @@ _spec.loader.exec_module(_parse_shell_command)
 strip_heredoc_bodies_for_sinks = _parse_shell_command.strip_heredoc_bodies_for_sinks
 strip_commit_message_heredoc_bodies = _parse_shell_command.strip_commit_message_heredoc_bodies
 split_into_pipelines = _parse_shell_command.split_into_pipelines
+command_substitution_bodies = _parse_shell_command.command_substitution_bodies
 NON_EXECUTING_SINK_PATTERN = _parse_shell_command.NON_EXECUTING_SINK_PATTERN
 
 BLOCKED_BRANCHES = ('main', 'master')
@@ -469,6 +470,11 @@ def process_git_tokens(tokens, cwd):
 
 
 def process_command(text, base_cwd):
+    # A substitution runs wherever it sits, so its push is
+    # checked with no known directory: an implicit push fails
+    # closed.
+    for body in command_substitution_bodies(text):
+        process_command(body, None)
     cwd = base_cwd
     for seg in split_segments(text):
         seg = seg.strip()

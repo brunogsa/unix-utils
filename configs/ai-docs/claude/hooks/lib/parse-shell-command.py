@@ -197,6 +197,52 @@ def strip_heredoc_bodies(text):
     return strip_heredoc_bodies_for_sinks(text, _ANY_SINK_PATTERN)
 
 
+def command_substitution_bodies(text):
+    """Return the command inside every outermost `$(...)`
+    substitution in `text`.
+
+    An opener counts even inside single quotes, since an
+    unquoted heredoc body runs `$(...)` whatever quotes surround
+    it, and this parser cannot tell such a body from a quoted
+    argument.
+
+    A substitution that never closes yields the rest of the
+    text, so the caller still scans it.
+    """
+    bodies = []
+    index = 0
+    while index < len(text):
+        if text.startswith('$(', index):
+            end = _dollar_paren_end(text, index + 2)
+            bodies.append(text[index + 2:end])
+            index = end + 1
+        else:
+            index += 1
+    return bodies
+
+
+# Quotes inside a `$(...)` body belong to that body, so a `)`
+# inside them closes nothing. Returns len(text) when unclosed.
+def _dollar_paren_end(text, start):
+    depth = 0
+    quote = None
+    index = start
+    while index < len(text):
+        char = text[index]
+        if quote is not None:
+            quote = None if char == quote else quote
+        elif char in ('"', "'"):
+            quote = char
+        elif char == '(':
+            depth += 1
+        elif char == ')' and depth == 0:
+            return index
+        elif char == ')':
+            depth -= 1
+        index += 2 if char == '\\' and quote != "'" else 1
+    return len(text)
+
+
 def split_into_pipelines(text):
     """Split a command into statements of pipeline stages.
 
