@@ -82,3 +82,15 @@ Main reads it for the final report and keeps it as the audit trail. It is never 
 ## Return
 
 The two paths written, the exported count, and the in-goal and off-goal counts.
+
+## Settle the tasks
+
+Main runs this right after §4.1's merge passes, never later, and never on the fallback.
+
+- **Delete** an id (`TaskUpdate` status `deleted`) only when all 3 hold: it has a `## #<id>` section in `<RUN_DIR>/open-scouts.md`, `<RUN_DIR>/scout-classification.md` lists it as in-goal, and the merged file carries its `**Scout task**: #<id>` line outside code fences.
+  - Reason: a task that fails any check may be a mis-typed id or a finding the merge dropped, and deleting it loses the scout for good.
+
+- **Keep** an id that fails a check, and every off-goal id.
+
+- Write `<RUN_DIR>/scout-outcomes.md`, one line per id: `#<id> - deleted|kept|off-goal - <reason>`. Main reads it at §7.
+  - Reason: after a compaction main can no longer recall which ids it deleted.
