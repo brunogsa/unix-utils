@@ -71,6 +71,13 @@ ROOT_WORKSPACE = "."
 # (testPathIgnorePatterns).
 JEST_DEFAULT_IGNORE_PATTERNS = ("/node_modules/",)
 
+# The jest worker cap when the workspace's `test` script sets
+# none, so a coverage run never takes every core of the
+# machine; jest takes both `--maxWorkers=N` and
+# `--maxWorkers N` (jestjs.io/docs/cli#--maxworkersnumstring).
+DEFAULT_JEST_MAX_WORKERS = "2"
+MAX_WORKERS_PATTERN = re.compile(r"--maxWorkers[= ](\S+)")
+
 # The repo's own pytest under pytest-cov, which uv adds with no
 # install step. Flags are documented at
 # pytest-cov.readthedocs.io/en/latest/config.html
@@ -260,7 +267,33 @@ def _nested_worktree_ignore_flags(run_dir, config_flags, timeout_seconds):
     return [f"--testPathIgnorePatterns={pattern}" for pattern in patterns]
 
 
-def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref):
+def _declared_max_workers(workspace_dir):
+    """The `--maxWorkers` the workspace's package.json `test`
+    script passes jest; the default cap when it declares
+    none."""
+    package_json = workspace_dir / "package.json"
+    try:
+        test_script = json.loads(package_json.read_text())["scripts"]["test"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return DEFAULT_JEST_MAX_WORKERS
+    declared = MAX_WORKERS_PATTERN.search(str(test_script))
+    return declared.group(1) if declared else DEFAULT_JEST_MAX_WORKERS
+
+
+def _changed_files_scope_flags(repo, run_dir, changed_paths):
+    """Flags that run only the changed files under `run_dir`:
+    jest keeps the test files among them and skips every other
+    spec. None when no changed file is given, so the whole
+    suite runs."""
+    run_dir_prefix = os.path.realpath(run_dir) + os.sep
+    absolute_paths = [str(Path(repo) / path) for path in changed_paths]
+    workspace_paths = [path for path in absolute_paths if os.path.realpath(path).startswith(run_dir_prefix)]
+    if not workspace_paths:
+        return []
+    return ["--runTestsByPath", *workspace_paths]
+
+
+def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_paths):
     """One jest coverage run from the workspace directory, its
     hits keyed by repo-relative path."""
     run_dir = Path(repo) / workspace
@@ -271,7 +304,9 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref):
             [
                 "jest", "--coverage", "--passWithNoTests",
                 "--coverageReporters=lcov", f"--coverageDirectory={report_dir}",
+                f"--maxWorkers={_declared_max_workers(run_dir)}",
                 *config_flags, *ignore_flags,
+                *_changed_files_scope_flags(repo, run_dir, changed_paths),
             ],
             cwd=run_dir, env=_repo_tool_env(repo), timeout=timeout_seconds,
         )
@@ -294,8 +329,10 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
 
     jest runs once per workspace a changed file lives in, from
     that workspace's directory with its own config, so a config
-    that only extends the root one still applies. Without
-    changed paths it runs once, from the root.
+    that only extends the root one still applies. It runs only
+    the changed files there, so an unchanged spec never runs.
+    Without changed paths it runs the whole suite once, from
+    the root.
 
     With a `base_ref`, jest reads the config that ref
     committed, so a branch's own coverage excludes never shape
@@ -308,7 +345,7 @@ def run_repo_jest(repo, timeout_seconds=None, base_ref=None, changed_paths=()):
     RepoToolFailure naming its class.
     """
     workspace_runs = [
-        _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref)
+        _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_paths)
         for workspace in jest_workspaces_for(repo, changed_paths)
     ]
     hits_by_file = {}

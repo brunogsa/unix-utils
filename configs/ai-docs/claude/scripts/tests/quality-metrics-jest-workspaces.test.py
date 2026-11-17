@@ -22,6 +22,7 @@ from quality_metrics_support import (
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
+from quality_metrics.sourcing import run_repo_jest
 from quality_metrics.touched import Target
 
 # The root file is only a base: the workspace config extends it
@@ -166,3 +167,74 @@ class TestNestedWorktree:
         )
 
         assert specs_log.read_text().splitlines() == [str(repo / "src/cart.test.js")]
+
+
+# Copies the lcov fixture where it is told to, and answers
+# --showConfig with no readable config, so the default ignore
+# list applies. Logs its arguments one per line when ARGS_LOG
+# names a file.
+JEST_LCOV_COPY_STUB = """#!/bin/bash
+if [ -n "$ARGS_LOG" ]; then printf '%s\\n' "$@" > "$ARGS_LOG"; fi
+for argument in "$@"; do
+  case "$argument" in
+    --coverageDirectory=*) report_dir="${argument#--coverageDirectory=}";;
+  esac
+done
+if [ -n "$report_dir" ]; then cp "$LCOV_FIXTURE" "$report_dir/lcov.info"; fi
+"""
+
+
+SCOPED_WORKSPACE_FILES = {
+    "pkg/jest.config.js": "module.exports = {};\n",
+    "pkg/src/cart.js": "module.exports = { total: () => 1 };\n",
+    "pkg/src/shipping.js": "module.exports = { fee: () => 5 };\n",
+    "pkg/test/cart.test.js": "require('../src/cart');\n",
+    "pkg/test/shipping.test.js": "require('../src/shipping');\n",
+}
+SCOPED_CHANGED_PATHS = ["pkg/src/cart.js", "pkg/test/cart.test.js"]
+
+
+def jest_arguments_for_scoped_run(tmp_path, monkeypatch, extra_files):
+    """The repo, and the arguments jest got when the cart and
+    its spec changed in a workspace that also holds an
+    unchanged shipping spec."""
+    repo = make_repo(tmp_path, {**SCOPED_WORKSPACE_FILES, **extra_files})
+    lcov_fixture = tmp_path / "cart.lcov"
+    lcov_fixture.write_text(CART_LCOV)
+    monkeypatch.setenv("LCOV_FIXTURE", str(lcov_fixture))
+    args_log = tmp_path / "args.log"
+    monkeypatch.setenv("ARGS_LOG", str(args_log))
+    install_stub_tool(tmp_path, monkeypatch, "jest", JEST_LCOV_COPY_STUB)
+    run_repo_jest(repo, changed_paths=SCOPED_CHANGED_PATHS)
+    return repo, args_log.read_text().splitlines()
+
+
+class TestChangedFileScope:
+    def test_should_run_only_the_changed_files_of_the_workspace_so_an_unchanged_spec_never_runs(
+        self, tmp_path, monkeypatch
+    ):
+        repo, arguments = jest_arguments_for_scoped_run(tmp_path, monkeypatch, {})
+
+        assert "--runTestsByPath" in arguments
+        scope_start = arguments.index("--runTestsByPath") + 1
+        assert arguments[scope_start:scope_start + 2] == [str(repo / path) for path in SCOPED_CHANGED_PATHS]
+        assert str(repo / "pkg/test/shipping.test.js") not in arguments
+
+    def test_should_cap_the_jest_workers_at_the_count_the_workspace_test_script_declares(
+        self, tmp_path, monkeypatch
+    ):
+        test_script = "TZ=UTC jest --testPathIgnorePatterns='.*\\.e2e\\.' --maxWorkers=3"
+        package_json = json.dumps({"scripts": {"test": test_script}}) + "\n"
+
+        _, arguments = jest_arguments_for_scoped_run(tmp_path, monkeypatch, {"pkg/package.json": package_json})
+
+        assert "--maxWorkers=3" in arguments
+
+    def test_should_cap_the_jest_workers_at_two_when_the_workspace_test_script_declares_no_cap(
+        self, tmp_path, monkeypatch
+    ):
+        package_json = json.dumps({"scripts": {"test": "jest"}}) + "\n"
+
+        _, arguments = jest_arguments_for_scoped_run(tmp_path, monkeypatch, {"pkg/package.json": package_json})
+
+        assert "--maxWorkers=2" in arguments
