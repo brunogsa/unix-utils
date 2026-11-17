@@ -307,54 +307,48 @@ def split_into_pipelines(text):
     current = []
     quote = None
     index = 0
-    total = len(text)
-    while index < total:
-        char = text[index]
-        if quote is not None:
-            if quote == '"' and char == '\\' and index + 1 < total:
-                current.append(char)
-                current.append(text[index + 1])
-                index += 2
-                continue
-            current.append(char)
-            if char == quote:
-                quote = None
-            index += 1
+    while index < len(text):
+        separator = _separator_at(text, index, current) if quote is None else None
+        if separator is None:
+            width, quote = _literal_step(text, index, quote)
+            current.append(text[index:index + width])
+            index += width
             continue
-        if char == '\\' and index + 1 < total:
-            current.append(char)
-            current.append(text[index + 1])
-            index += 2
-            continue
-        if char in ('"', "'"):
-            quote = char
-            current.append(char)
-            index += 1
-            continue
-        if text[index:index + 2] in ('&&', '||'):
-            stages.append(''.join(current))
+        ends_statement, width = separator
+        stages.append(''.join(current))
+        current = []
+        if ends_statement:
             statements.append(stages)
-            current, stages = [], []
-            index += 2
-            continue
-        if char == '&' and (''.join(current).rstrip().endswith(('>', '<'))
-                            or text[index + 1:index + 2] == '>'):
-            current.append(char)
-            index += 1
-            continue
-        if char in (';', '\n', '&'):
-            stages.append(''.join(current))
-            statements.append(stages)
-            current, stages = [], []
-            index += 1
-            continue
-        if char == '|':
-            stages.append(''.join(current))
-            current = []
-            index += 1
-            continue
-        current.append(char)
-        index += 1
+            stages = []
+        index += width
     stages.append(''.join(current))
     statements.append(stages)
     return statements
+
+
+# A backslash keeps the next character literal, except inside
+# single quotes. Returns the literal's width and the quote
+# still open after it.
+def _literal_step(text, index, quote):
+    char = text[index]
+    if char == '\\' and index + 1 < len(text) and quote != "'":
+        return 2, quote
+    if quote is None:
+        return 1, char if char in ('"', "'") else None
+    return 1, None if char == quote else quote
+
+
+# Returns (ends_statement, width) for an unquoted separator,
+# or None. A redirect's `&` (`2>&1`, `&>log`) is no separator.
+def _separator_at(text, index, current):
+    if text[index:index + 2] in ('&&', '||'):
+        return True, 2
+    char = text[index]
+    if char == '&' and (''.join(current).rstrip().endswith(('>', '<'))
+                        or text[index + 1:index + 2] == '>'):
+        return None
+    if char in (';', '\n', '&'):
+        return True, 1
+    if char == '|':
+        return False, 1
+    return None
