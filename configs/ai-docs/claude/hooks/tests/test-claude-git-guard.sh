@@ -992,6 +992,11 @@ it_should_allow_a_git_command_no_alias_can_shadow() {
   done
 }
 
+it_should_allow_git_hash_object_a_builtin_that_writes_no_commit() {
+  run_hook "git hash-object README.md"
+  assert_eq "should allow git hash-object, a builtin that writes no commit" "0" "$HOOK_EXIT"
+}
+
 it_should_allow_a_plain_git_status
 it_should_block_git_push_force
 it_should_block_git_reset_hard
@@ -1092,6 +1097,7 @@ it_should_block_a_commit_run_through_an_unknown_command_word
 it_should_allow_a_command_whose_paths_only_contain_the_word_commit
 it_should_block_a_commit_run_through_a_git_alias
 it_should_allow_a_git_command_no_alias_can_shadow
+it_should_allow_git_hash_object_a_builtin_that_writes_no_commit
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
