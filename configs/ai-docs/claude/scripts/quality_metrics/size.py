@@ -8,17 +8,25 @@ plain count that drops blank lines and comment text.
 """
 
 import re
+from pathlib import Path
 
+from quality_metrics.declaration import is_test_file
 from quality_metrics.functions import (
     BASH,
     measurement,
     run_function_tool,
     touched_functions,
 )
+from quality_metrics.repo_paths import repo_relative
 from quality_metrics.tools import ToolError, bash_file_lloc
 
 FUNCTION_LINES_LIMIT = 30
 FILE_LINES_LIMIT = 300
+
+# A test file is a flat list of independent cases bounded by its
+# subject; per-test size, duplication and entangled-test metrics
+# already cover what hurts in tests.
+TEST_FILE_LINES_LIMIT = 1024
 
 # HTML and CSS have no function syntax: only file length
 # applies.
@@ -67,7 +75,9 @@ def _file_length_measurement(target):
         lines = _count_web_lines(target)
     else:
         lines = _count_code_lines(target)
-    return measurement(target, "size", lines, FILE_LINES_LIMIT)
+    repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
+    limit = TEST_FILE_LINES_LIMIT if is_test_file(repo_path) else FILE_LINES_LIMIT
+    return measurement(target, "size", lines, limit)
 
 
 def _count_web_lines(target):
