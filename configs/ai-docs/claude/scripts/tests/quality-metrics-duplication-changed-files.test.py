@@ -27,11 +27,11 @@ class TestDuplicationCorpusExcludedPaths:
 
         excluded_peer = measure_report(
             repo, declaration_path, "--files", "src/pricing.py"
-        )["violations"]
+        )["duplication_candidates"]
         (repo / "src/costing.py").write_text(COSTING)
         included_peer = measure_report(
             repo, declaration_path, "--files", "src/pricing.py"
-        )["violations"]
+        )["duplication_candidates"]
 
         assert excluded_peer == []
         assert {item["other_file"] for item in included_peer} == {"src/costing.py"}

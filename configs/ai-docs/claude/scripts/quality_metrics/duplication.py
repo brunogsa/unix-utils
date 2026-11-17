@@ -26,6 +26,7 @@ from quality_metrics.tools import run_tool
 
 CODE_METRIC = "code_duplication"
 TEST_METRIC = "test_duplication"
+DUPLICATION_METRICS = (CODE_METRIC, TEST_METRIC)
 
 SIMILARITY_LIMIT = 0.82
 

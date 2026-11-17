@@ -23,7 +23,7 @@ from quality_metrics.deferred import (
     deferred_measurement,
     unmeasured_file_measurement,
 )
-from quality_metrics.duplication import CODE_METRIC, SIMILARITY_LIMIT, TEST_METRIC
+from quality_metrics.duplication import CODE_METRIC, DUPLICATION_METRICS, SIMILARITY_LIMIT, TEST_METRIC
 from quality_metrics.functions import (
     COGNITIVE_COMPLEXITY_LIMIT,
     NESTING_LIMIT,
@@ -191,9 +191,14 @@ def holds_commit(records):
     A pessimistic record (a deferred tool, a red build) never
     holds the commit: it states a worst case, not a measured
     violation.
+    A duplication record never holds it either: whether to
+    extract a clone is a judgment call, left to the judge.
     """
     return any(
-        record["scope"] == "function" and is_over_limit(record) and not record.get("pessimistic")
+        record["scope"] == "function"
+        and is_over_limit(record)
+        and not record.get("pessimistic")
+        and record["metric"] not in DUPLICATION_METRICS
         for record in records
     )
 

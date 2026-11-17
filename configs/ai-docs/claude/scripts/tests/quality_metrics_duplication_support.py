@@ -75,7 +75,7 @@ def measure_files(tmp_path, files, declaration_file=None):
     declaration_path = declaration_file or tmp_path / "quality-metrics.yaml"
     if declaration_file is None:
         declaration_path.write_text(DECLARATION)
-    return measure_report(repo, declaration_path, "--files", *files)["violations"]
+    return measure_report(repo, declaration_path, "--files", *files)["duplication_candidates"]
 
 
 def measure_uncommitted_changes(tmp_path, committed, changed):
@@ -92,4 +92,4 @@ def measure_uncommitted_changes(tmp_path, committed, changed):
     declaration_path.write_text(DECLARATION)
     return measure_report(
         repo, declaration_path, "--batch-end", "--base", "HEAD"
-    )["violations"]
+    )["duplication_candidates"]

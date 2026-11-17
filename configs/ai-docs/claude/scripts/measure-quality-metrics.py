@@ -35,6 +35,7 @@ from quality_metrics import dependencies, gate_inputs
 from quality_metrics.collection import CoverageRun
 from quality_metrics.debt import debt_score, measured_nloc
 from quality_metrics.debt_delta import branch_debt_delta
+from quality_metrics.duplication import DUPLICATION_METRICS
 from quality_metrics.failures import holds_commit
 from quality_metrics.functions import is_over_limit
 from quality_metrics.measuring import (
@@ -129,12 +130,18 @@ def _print_report(measurements, found, coverage_run, delta):
     resolved and unclaimed_files.
     """
     gate_input_violations = found["gate_input_violations"]
-    violations = [item for item in measurements if is_over_limit(item)]
+    over_limit = [item for item in measurements if is_over_limit(item)]
+    candidates = [item for item in over_limit if item["metric"] in DUPLICATION_METRICS]
+    violations = [item for item in over_limit if item["metric"] not in DUPLICATION_METRICS]
     report = {
         "measurements": measurements,
         "violations": violations,
+        "duplication_candidates": candidates,
         "holds_commit": holds_commit(measurements),
-        "debt": {**debt_score(violations, measured_nloc(measurements)), "delta": delta},
+        "debt": {
+            **debt_score(violations + candidates, measured_nloc(measurements)),
+            "delta": delta,
+        },
         **found,
         "sources": coverage_run.sources,
         "asks": coverage_run.asks,
