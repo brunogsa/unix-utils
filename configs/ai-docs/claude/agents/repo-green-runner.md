@@ -46,7 +46,7 @@ Bash to run the suite commands and save their output. Read/Edit to diagnose and 
    You cannot classify a failure as pre-existing without evidence, and guessing is not an option - return `HALT` naming the missing input, and run nothing else.
 
 3. Run the caller-given full lint + full test command(s).
-   Save the complete output to a stable path (e.g. `/tmp/repo-green-runner_<mode>_<timestamp>.log`) and read the result from that file, per the slow-command discipline.
+   Save the complete output to a stable path (e.g. `<scratchpad>/repo-green-runner_<mode>_<timestamp>.log`, in your scratchpad directory) and read the result from that file, per the slow-command discipline.
    A command's exit code alone can under-report failures.
 
 4. Extract every failing test/lint into a short signature: file + test name, or lint rule + file - the same shape as `baseline.failures`, so the two sets compare directly.

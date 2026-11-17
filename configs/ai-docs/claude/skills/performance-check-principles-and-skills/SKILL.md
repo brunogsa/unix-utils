@@ -158,7 +158,7 @@ When the report shows overages, end it with an offer: delegate the **candidate h
 On the user's go-ahead, main spawns `agent(subAgent=performance-check-auditor, title=Audit performance-check overages)`, which reads the flagged files in its own context and returns a ranked menu:
 
 - Walk trim-hierarchy steps 1-4 over every offending file, collecting candidates rather than stopping at the first that clears the overage.
-- Verify each candidate's arithmetic on a `/tmp` copy - the script measures, the auditor proposes, neither edits the source.
+- Verify each candidate's arithmetic on a scratchpad copy - the script measures, the auditor proposes, neither edits the source.
 - Never the override step (`words-budget`/`instructions-budget`) - that's a budget trade-off the user owns, not a trim.
 
 **`performance-check-auditor` is pinned to opus, never a cheaper tier.** Delegation moves the *reading* off main, not the judgment.

@@ -56,9 +56,9 @@ That is what the opus pin buys.
 2. For each offending file, walk the trim hierarchy's steps 1-4 in order and
    collect candidates - keep going past the first one that would clear the
    overage, because the user picks from the menu, not from your favourite.
-3. Verify every candidate's arithmetic on a `/tmp` copy: copy the file, apply
-   the candidate there, re-run `check.sh` against the copy. Never edit the
-   source to measure it.
+3. Verify every candidate's arithmetic on a copy in your scratchpad
+   directory: copy the file, apply the candidate there, re-run `check.sh`
+   against the copy. Never edit the source to measure it.
 4. Mark a file stuck when steps 1-4 cannot clear its overage without merging
    two separately-violable instructions or dropping a rule, and name the
    step-5 override as the decision it leaves the user.

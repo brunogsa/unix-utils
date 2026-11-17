@@ -259,7 +259,7 @@ Throughout:
   - **Soft** fork - take the sensible default, proceed, and flag the choice under Deviations. Most forks are this.
   - **Hard** fork - you can't sensibly proceed; stop and return `blocked`, naming the open decision so the human can settle it.
 
-- Run Verification as one foreground Bash call with an explicit `timeout: 600000` and its output redirected to a stable `/tmp` path, then read the summary back from that file.
+- Run Verification as one foreground Bash call with an explicit `timeout: 600000` and its output redirected to a stable path in your scratchpad, then read the summary back from that file.
   - Never wrap it in an `until <check>; do sleep 2; done` polling loop.
     - 16 past dispatches burned the full 10-minute cap inside such a loop and lost the run's output - an hour of wall time that produced nothing.
 
