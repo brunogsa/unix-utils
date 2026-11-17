@@ -83,8 +83,8 @@ class TestMutantSections:
         assert "src/a.py:4" in first and "ArithmeticOperator" in first
         assert "a - b" in first and "survived" in first
         assert "src/b.ts:9" in second and "no coverage" in second
-        not_run = section(verdict, "Mutants not run (budget)")
-        assert "(1)" in not_run.splitlines()[0]
+        not_run = section(verdict, "Mutants not run")
+        assert not_run.splitlines()[0] == "## Mutants not run (1)"
         [entry] = entry_headings(not_run)
         assert "src/c.ts" in entry and "10-20" in entry
 

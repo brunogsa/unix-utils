@@ -219,7 +219,7 @@ def _new_candidate_sections(report, numbers):
         )
         sections.append(
             _counted_section(
-                "Mutants not run (budget)", not_run, numbers, _describe_not_run
+                "Mutants not run", not_run, numbers, _describe_not_run
             )
         )
     return sections
