@@ -19,8 +19,8 @@ Two renderings of the same flow, kept cross-checkable on purpose. The `# N` comm
 Python-shaped for readability only; nothing here runs, and the function names stand for steps this skill performs, not real APIs.
 
 ```python
-# 1 · Entry (a whole run targets 20 minutes or less; main notes each
-#     phase's start and end with date +%H:%M:%S as it happens):
+# 1 · Entry (a whole run targets 20 minutes or less; the clock
+#     script records each phase's start and end as it happens):
 #     /quality-gate <spec> <plan> --tasks <ids>
 #     --base-ref <ref> --auto-solve | --report-only, or
 #     another skill's batch-end dispatch.
@@ -244,10 +244,10 @@ def quality_gate(arg):
     #      Skipped; the report says "fix review: disabled". The step's text
     #      stays in SKILL.md until the user re-enables it.
 
-    # 20 · Step 7 - close with a report that OPENS with a timing table
-    #      (phase, start, end, minutes) built from the start/end times main
-    #      noted per phase: last row = total vs the 20-minute target,
-    #      slowest phase named. Then read references/final-report.md and
+    # 20 · Step 7 - close with a report that OPENS with the clock script's
+    #      timing report (phase, start, end, minutes; last row = total vs
+    #      the 20-minute target, slowest phase named), pasted verbatim.
+    #      Then read references/final-report.md and
     #      report each item it lists: verdict paths, metrics results, applied
     #      findings with SHAs, judge Skips with their Standards check,
     #      never-judged findings on a report-only run, judge and fix-review
@@ -262,7 +262,7 @@ def quality_gate(arg):
 
 ```mermaid
 flowchart TD
-  n1(["1. A whole run targets 20 minutes or less; main notes each<br/>phase's start and end (date +%H:%M:%S) as it happens<br/><br/>/quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt;<br/>--auto-solve | --report-only<br/><br/>or another skill's batch-end dispatch"]):::start
+  n1(["1. A whole run targets 20 minutes or less; the clock script<br/>records each phase's start and end as it happens<br/><br/>/quality-gate &lt;spec&gt; &lt;plan&gt;<br/>--tasks &lt;ids&gt; --base-ref &lt;ref&gt;<br/>--auto-solve | --report-only<br/><br/>or another skill's batch-end dispatch"]):::start
   n2{"2. Both --auto-solve and<br/>--report-only passed?"}
   n2a(["2a. STOP - contradiction, not a<br/>precedence puzzle. Print and halt."])
   n3{"3. Either --auto-solve or<br/>--report-only passed?"}
@@ -363,7 +363,7 @@ flowchart TD
   end
 
   n19["19. Step 6.1 · Fix review over every applied commit:<br/>DISABLED since 2026-11-17 while the user finds out what<br/>makes a run slow. Skip it; the report says<br/>fix review: disabled"]:::gate
-  n20(["20. Step 7 · Close with a report that opens with a timing table<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named). Then read references/final-report.md<br/>and report each item it lists: verdict paths, metrics results,<br/>applied findings with SHAs, judge Skips, never-judged findings on a<br/>report-only run, judge and fix-review status, QUESTION findings,<br/>the unplanned-tests finding for the human to mark Done,<br/>what /address-verdicts skipped or failed, and the scout leg:<br/>deleted, completed and kept in-goal ids, off-goal ids left in<br/>the TaskList (ids only), a merge fallback, or not run (no pending scout)"])
+  n20(["20. Step 7 · Close with a report that opens with the clock script's report<br/>(phase, start, end, minutes; last row = total vs the 20-minute<br/>target, slowest phase named). Then read references/final-report.md<br/>and report each item it lists: verdict paths, metrics results,<br/>applied findings with SHAs, judge Skips, never-judged findings on a<br/>report-only run, judge and fix-review status, QUESTION findings,<br/>the unplanned-tests finding for the human to mark Done,<br/>what /address-verdicts skipped or failed, and the scout leg:<br/>deleted, completed and kept in-goal ids, off-goal ids left in<br/>the TaskList (ids only), a merge fallback, or not run (no pending scout)"])
 
   n1 --> n2
   n2 -->|"yes"| n2a

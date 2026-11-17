@@ -20,7 +20,11 @@ Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 
 A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less, never a reason to cut a gate short.
 
-Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it happens: each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch's start and end, and §7.
+Main records each phase as it happens with `scripts/quality-gate-clock.py mark <RUN_DIR> <phase> start|end`, using labels like `3-refactor`, `4.1-judge`, `6-apply-1`.
+
+The phases are each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch, and §7. `<RUN_DIR>` is minted at the top of §3, before any phase starts.
+
+The marks outlive the session, so the user can see where time goes across runs.
 
 ## Usage
 
@@ -216,7 +220,9 @@ Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the 
 
 ## 7. Close with a report
 
-**Open with a timing table** from the notes above: phase, start, end, minutes. Its last row is the total against the 20-minute target, and the report names the slowest phase.
+**Open with the timing report**: paste the output of `scripts/quality-gate-clock.py report <RUN_DIR> --repo <repo name> --branch <branch>` verbatim. A non-zero exit reports `timing: not measured`, never an empty table, because a missing measurement must never read as a fast run.
+
+Tell the user that `scripts/quality-gate-clock.py history` shows where time goes across runs.
 
 Then read [`references/final-report.md`](references/final-report.md) and report every item it lists: the verdict file paths, metrics results, findings by outcome, judge and fix-review status, the scout leg, and what `/address-verdicts` skipped or failed.
 

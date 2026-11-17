@@ -82,9 +82,9 @@ An upper bound would let dropped findings pass, and the agent's own counts would
 
 With no git repo there is no base to diff against, so only the metrics leg can run, on the files the session edited. The verdict is still written, as `verdict_quality-gate_no-git_<ts>.md`, because stopping would hide a measurable result; the rendered file states which checks it skipped.
 
-## Why the run has a 20-minute target and per-phase notes
+## Why the run has a 20-minute target and per-phase marks
 
-The user waits on the run, and a 2-hour run per PR stalls a stacked series of PRs. The notes exist because the user tunes the gate from where its time goes.
+The user waits on the run, and a 2-hour run per PR stalls a stacked series of PRs. The marks are recorded by the clock script, and its ledger exists so the user tunes the gate from where time goes across runs.
 
 ## Why the scout leg runs beside the others
 
