@@ -20,10 +20,11 @@ RUFF = "ruff@0.17.5"
 
 # The first quoted word of a tool's message names the variable.
 QUOTED_NAME = re.compile(r"[`'\"]([^`'\"]+)[`'\"]")
+FIRST_WORD = re.compile(r"(\S+)")
 
 
-def _name_in(message):
-    found = QUOTED_NAME.search(message)
+def _name_in(message, pattern=QUOTED_NAME):
+    found = pattern.search(message)
     return found.group(1) if found else message
 
 
@@ -79,10 +80,22 @@ def _typescript_findings(path):
     ])
 
 
+def _bash_findings(path):
+    command = [
+        "shellcheck", "--norc", "--include=SC2034", "-f", "json", str(path),
+    ]
+    return [
+        {"line": entry["line"], "rule": f"SC{entry['code']}",
+         "name": _name_in(entry["message"], FIRST_WORD)}
+        for entry in _json_output(command)
+    ]
+
+
 FINDERS = {
     "python": _ruff_findings,
     "js": _javascript_findings,
     "ts": _typescript_findings,
+    "bash": _bash_findings,
 }
 
 

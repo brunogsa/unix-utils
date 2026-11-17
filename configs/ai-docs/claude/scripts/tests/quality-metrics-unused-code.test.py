@@ -30,6 +30,7 @@ JS_SUPPRESSED = (
     "// eslint-" + "disable-next-line no-unused-vars\n"
     "const leftover = 1;\nconsole.log(2);\n"
 )
+BASH_UNUSED_VARIABLE = "#!/bin/bash\nleftover=1\necho hello\n"
 
 
 def target_for(tmp_path, name, text, language):
@@ -112,6 +113,15 @@ def test_should_raise_a_tool_error_when_eslint_ignores_the_file(tmp_path):
 
     with pytest.raises(tools.ToolError, match="ignored"):
         unused_code.measure_unused_code(target)
+
+
+def test_should_count_an_unused_bash_variable_on_its_line(tmp_path):
+    target = target_for(tmp_path, "deploy.sh", BASH_UNUSED_VARIABLE, "bash")
+
+    record = single_record(target)
+
+    assert record["value"] == 1
+    assert record["findings"] == [{"line": 2, "rule": "SC2034", "name": "leftover"}]
 
 
 def test_should_measure_nothing_for_go_because_its_compiler_rejects_unused_code(tmp_path):
