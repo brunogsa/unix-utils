@@ -75,6 +75,8 @@ setup_fixtures() {
   mkdir -p "$scratch_dir/notes"
   printf 'This paragraph was typed by hand and\nhard-wrapped across two lines.\n' > "$scratch_dir/notes/batch.md"
   printf '{"name": "old-name"}\n' > "$scratch_dir/config.json"
+  printf '### 1. [metrics] Function over its size limit\n- The function spans\n80 lines.\n- Split it in two.\n' \
+    > "$scratch_dir/findings.md"
 }
 
 teardown_fixtures() {
@@ -356,6 +358,24 @@ it_should_block_a_copy_through_cat_with_a_rewritten_search_path() {
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules() {
   run_hook "cat $scratch_dir/batch.md >> README.md"
   assert_eq "should block copying a /tmp scratch file whose prose breaks the markdown format rules" "2" "$HOOK_EXIT"
+}
+
+# write-atomically.py writes its stdin to the path it is given,
+# so a cat piped into it is a cat copy onto that path, as in
+# quality-gate's verdict assembly.
+it_should_block_cat_piping_a_hard_wrapped_finding_file_into_write_atomically_onto_a_repo_markdown_file() {
+  run_hook "cat README.md $scratch_dir/findings.md | $HOME/.claude/scripts/write-atomically.py docs/verdict.md"
+  assert_eq "should block cat piping a /tmp finding file with hard-wrapped, gap-less bullets into write-atomically.py onto a markdown file inside the repo" "2" "$HOOK_EXIT"
+}
+
+it_should_allow_cat_piping_files_that_pass_the_format_rules_into_write_atomically() {
+  run_hook "cat README.md $outside_dir/batch.md | $HOME/.claude/scripts/write-atomically.py docs/verdict.md"
+  assert_eq "should allow cat piping files that pass the markdown format rules into write-atomically.py onto a markdown file inside the repo" "0" "$HOOK_EXIT"
+}
+
+it_should_allow_write_atomically_restoring_a_file_from_a_stdin_redirect() {
+  run_hook "$HOME/.claude/scripts/write-atomically.py README.md < $outside_dir/batch.md"
+  assert_eq "should allow write-atomically.py writing a repo markdown file from a stdin redirect, which it does not check" "0" "$HOOK_EXIT"
 }
 
 # why: tasklist.md holds verbatim TaskGet text no edit may fix,
@@ -742,6 +762,9 @@ it_should_block_cat_with_a_flag_that_rewrites_the_copied_content
 it_should_block_a_copy_run_through_a_local_script_named_cat
 it_should_block_a_copy_through_cat_with_a_rewritten_search_path
 it_should_block_copying_a_scratch_file_whose_text_breaks_the_destinations_format_rules
+it_should_block_cat_piping_a_hard_wrapped_finding_file_into_write_atomically_onto_a_repo_markdown_file
+it_should_allow_cat_piping_files_that_pass_the_format_rules_into_write_atomically
+it_should_allow_write_atomically_restoring_a_file_from_a_stdin_redirect
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file

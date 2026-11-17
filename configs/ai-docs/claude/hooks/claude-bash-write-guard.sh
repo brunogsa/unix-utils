@@ -67,6 +67,13 @@
 #
 # A heredoc, a pipe, `-` stdin or a `cat` flag still blocks.
 #
+# Such a `cat` piped into `write-atomically.py <path>` is the
+# same copy onto <path>, so it gets the same source check.
+#
+# quality-gate assembles its verdict that way from /tmp files
+# no checker saw. Any other stdin of write-atomically.py fails
+# open.
+#
 # A bare system `cp`, `mv` or `install` into a guarded path
 # gets the same check: each literal source must pass the
 # checker of the file it lands as. A directory destination or
@@ -111,7 +118,7 @@ CMD=$(jq -r '.tool_input.command // empty' 2>/dev/null)
 # reach no write form this guard knows, so it skips the Python
 # parse.
 printf '%s' "$CMD" \
-  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node|cp|mv|install)([^A-Za-z0-9_-]|$)' \
+  | grep -qE '>|(^|[^A-Za-z0-9_-])(tee|sed|gsed|perl|python[0-9.]*|node|cp|mv|install|write-atomically)([^A-Za-z0-9_-]|$)' \
   || exit 0
 
 # Resolved via BASH_SOURCE (never `$0`, which breaks under
@@ -177,6 +184,9 @@ WRAPPERS = ('sudo', 'command', 'env', 'nice', 'nohup', 'time', 'xargs')
 SYSTEM_BINARY_DIRECTORIES = ('', '/bin/', '/usr/bin/')
 
 FILE_COPY_COMMANDS = ('cp', 'mv', 'install')
+
+# Writes its stdin to the path given as its first argument.
+ATOMIC_WRITER = 'write-atomically.py'
 
 # The flags that take the next token as their argument, on
 # both BSD and GNU.
@@ -658,6 +668,15 @@ def copied_source_paths(exe, tokens, cwd, is_piped_into):
     return paths
 
 
+def atomic_write_target(exe, tokens):
+    """The path a write-atomically.py segment writes its stdin to, else None."""
+    if exe != ATOMIC_WRITER:
+        return None
+    executable_indexes = [index for index, token in enumerate(tokens) if os.path.basename(token) == exe]
+    arguments = positional_arguments(tokens[executable_indexes[0] + 1:])
+    return arguments[0] if arguments else None
+
+
 def is_system_executable(token, name):
     return token in [directory + name for directory in SYSTEM_BINARY_DIRECTORIES]
 
@@ -965,7 +984,10 @@ opener_count = sum(len(HEREDOC_OPENER.findall(segment)) for segment, _piped in s
 if opener_count != len(heredoc_body_queue):
     heredoc_body_queue = [''] * opener_count
 
+previous_cat_sources = None
 for segment, is_piped_into in segments:
+    upstream_cat_sources = previous_cat_sources if is_piped_into else None
+    previous_cat_sources = None
     exe, tokens = parse_segment(segment)
     segment_opener_count = len(HEREDOC_OPENER.findall(segment))
     stdin_bodies = [body for body in heredoc_body_queue[:segment_opener_count] if body]
@@ -990,8 +1012,12 @@ for segment, is_piped_into in segments:
         cwd = destination
         continue
     sources = copied_source_paths(exe, tokens, cwd, is_piped_into)
+    previous_cat_sources = sources
     for target in write_targets(exe, tokens, cwd):
         record_write(block_reason(cwd, target), sources)
+    target = atomic_write_target(exe, tokens)
+    if target and upstream_cat_sources is not None:
+        record_write(block_reason(cwd, target), upstream_cat_sources)
     for target, source, is_directory in copy_destinations(exe, tokens, cwd):
         if is_directory:
             record_directory_copy(guarded_tree_path(cwd, target))
@@ -1024,7 +1050,7 @@ if blocked:
     if not GUARDED_EXTENSIONS:
         message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
     if format_reports:
-        message.append('A `cat`, `cp`, `mv` or `install` copy of existing files passes only when every source passes the destination format checker; these did not:')
+        message.append('A `cat`, `cp`, `mv` or `install` copy of existing files, or a `cat` of them piped into `write-atomically.py`, passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
     if has_repo_move_block:
         message.append('To rename a tracked file, use `git mv` instead: it is always allowed and rewrites no text.')
