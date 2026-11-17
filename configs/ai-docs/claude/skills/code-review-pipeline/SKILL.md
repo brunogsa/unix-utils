@@ -24,7 +24,7 @@ Never Read a `tool-results/*.txt` file the post-compaction reminder names as too
 
 `/auto-review` (local) and `/pr-review` (github) each resolve their own input header, then spawn one `agent(subAgent=code-reviewer, title=Run code-review pipeline)` in the background, with the header in its prompt body.
 
-Tell it to read this SKILL.md and orchestrate every wave (0 → 6) from there, then wait for its completion notification; the caller prints only what the orchestrator reports back.
+Tell it to read this SKILL.md and orchestrate every wave (0-6) from there, then wait for its completion notification; the caller prints only what the orchestrator reports back.
 
 One path for both modes, on purpose: `/auto-review` runs in the session that produced the diff, so CLAUDE.md's fresh-context-subagent rule requires the isolation.
 
@@ -59,7 +59,7 @@ Wave 2 never hits GitHub or any external system - pre-built Wave 1 context only,
 
 ## Wave 0 - Early-exit guard
 
-Deterministic check; no subagent needed. Only aborts on hard no-ops.
+Deterministic check, no subagent; aborts only on hard no-ops.
 
 - **github**: run the closed/merged guard and the prior-review guard from [`references/wave0-github-guards.md`](./references/wave0-github-guards.md) - abort per its stop conditions.
 
