@@ -127,7 +127,7 @@ Why settle by default: the common path is a plan with no open question left, and
 
 Read `~/.claude/skills/spec-driven-development/references/self-review-checks.md` now.
 
-Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`.
+Run the deterministic gates first with `~/.claude/skills/spec-driven-development/scripts/check-deterministic-gates.sh <plan> [<spec>]`, passing the spec path when one exists, and fix each miss through `plan-editor`. Re-run the same gates after every `plan-editor` batch in this step, and send each new miss back through `plan-editor` the same way.
 
 A runner exit of 1 is a finding to fix. **Exit 2, or a `FAIL exit=2` line, means a gate could not run** - report it to the user, never route it to `plan-editor`, and never count the plan as gated.
 
@@ -137,11 +137,19 @@ Its qualitative leg runs only when `qualitative_pass` is true, read back from `/
 
 Decide each finding yourself and dispatch `plan-editor` with the ones you accept. When the human corrects that handling, the dispatch is the second move of the correction-round block in step 3.
 
-Report every finding to the user in one block, applied or skipped with the reason, naming any check skipped by toggle.
+Before the first `plan-editor` dispatch, copy the plan file to the session scratchpad. The plan is untracked in git, so `git diff` shows nothing, and the copy is the only baseline.
 
-This runs once per plan, never twice over the same text.
+After the last `plan-editor` batch and its gate re-run, run `diff -u <copy> <plan>` and dispatch `agent(subAgent=plan-reviewer, effort=xhigh, title=Fresh-eyes review of plan edits)` in the background, pointed at that diff and the plan path. It judges only the changed lines, plus enough context to read them.
+
+That review reports findings only. No `plan-editor` dispatch follows it, so there is no loop.
+
+Report every finding to the user in one block, applied or skipped with the reason, naming any check skipped by toggle. Include the post-apply review's findings in that same block.
+
+The full review runs once per plan, never twice over the same text. The post-apply review reads only the editor's diff, and its findings are reported, never re-applied.
 
 Why fresh eyes: this session never wrote the plan, but it holds the context and would read the plan as complete from memory.
+
+Why the post-apply review: a `plan-editor` applying findings can break a gate or add a defect, and nothing downstream reads the plan again before the human does.
 
 ### 6. Offer `sdd-to-linear`
 
