@@ -98,6 +98,7 @@ A lens with no finding gets no entry. The first entry is `in_progress`, the rest
 **One entry per lens, whoever invoked this skill** - except in marked mode, where `references/stack-mode.md` seeds one per branch and lens.
 
 Each entry names its dispatched count.
+
 Add one closing `[Reminder]` entry for the final report (§6), so a mid-run compaction can't silently skip the wrap-up.
 
 ## 4. Apply each lens through one pinned subagent
