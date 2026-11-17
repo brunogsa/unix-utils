@@ -849,6 +849,21 @@ class TestConfigPlantWithNoGitWord:
     def test_should_deny_a_config_plant_before_a_trusted_script_that_runs_git(self, tmp_path, command):
         possible_commit_reason(tmp_path, command, cwd=str(committed_status_script(tmp_path)))
 
+    # A $( ) body holding a case pattern is one the scan cannot
+    # split, so the script's words are unknown, never empty.
+    @pytest.mark.parametrize(
+        "unscreenable_line",
+        ["", ': "$(case a in a) ;; esac)"\n'],
+        ids=["screenable-script", "script-with-an-unscreenable-body"],
+    )
+    def test_should_deny_a_script_planting_config_before_a_trusted_script_that_runs_git(
+        self, tmp_path, unscreenable_line
+    ):
+        repo = committed_status_script(tmp_path)
+        (repo / "plant.sh").write_text(f"#!/bin/sh\n{unscreenable_line}{PLANT_FSMONITOR}.g*/config\n", encoding="utf-8")
+
+        possible_commit_reason(tmp_path, f"sh {repo}/plant.sh; ./status.sh", cwd=str(repo))
+
     @pytest.mark.parametrize(
         "command",
         ["cat .gitignore; ./status.sh", 'ls "$HOME/x"; ./status.sh'],

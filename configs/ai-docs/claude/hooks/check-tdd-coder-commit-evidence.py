@@ -753,10 +753,10 @@ def names_commit_in_script(script: object, cwd: str | None, has_moved: bool, mov
     if text is None or may_commit(text, cwd, has_moved):
         return True
 
-    # Source in another language need not split into shell
-    # words; the raw screen above already read all of it.
+    # Words the scan cannot split are unknown, never empty, so a
+    # script whose text does not split is denied.
     words = get_command_words(text)
-    return words is not None and writes_program_input(words)
+    return words is None or writes_program_input(words)
 
 
 def get_command_words(command: str) -> list[str] | None:
