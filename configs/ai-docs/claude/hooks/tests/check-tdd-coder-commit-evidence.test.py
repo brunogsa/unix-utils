@@ -281,8 +281,16 @@ class TestCallsLetThrough:
             "pytest configs/ai-docs/claude/hooks/tests/check-tdd-coder-commit-evidence.test.py",
             f"cat >> {EVIDENCE} <<'EOF'\n{RED_ENTRY}EOF",
             "python3 - <<'EOF'\nprint('green')\nEOF",
+            "echo ${x:-{a}}",
         ],
-        ids=["git-status", "git-log", "pytest-on-a-commit-named-path", "evidence-heredoc", "python-heredoc"],
+        ids=[
+            "git-status",
+            "git-log",
+            "pytest-on-a-commit-named-path",
+            "evidence-heredoc",
+            "python-heredoc",
+            "parameter-expansion-holding-a-brace-pair",
+        ],
     )
     def test_should_let_a_bash_call_through_when_it_runs_no_git_commit(self, tmp_path, command):
         assert check_commit(tmp_path, command=command, cwd=str(git_repo(tmp_path))) is None
@@ -1485,6 +1493,7 @@ class TestReadOnlyCallsBeforeGreen:
             "echo $$'\\' ' `./x.sh` ' #'",
             "echo $(true)# `./x.sh`",
             "echo ${x:- # `./x.sh`}",
+            "echo ${x:-{a} # `./x.sh`}",
         ],
         ids=[
             "single-quote-inside-double-quotes",
@@ -1501,6 +1510,7 @@ class TestReadOnlyCallsBeforeGreen:
             "after-a-process-id-expansion-zsh-reads-as-an-ansi-c-string",
             "after-a-hash-right-after-a-substitution-closing-paren",
             "after-a-hash-inside-a-parameter-expansion",
+            "after-a-hash-inside-a-parameter-expansion-holding-a-brace-pair",
         ],
     )
     def test_should_deny_a_substitution_that_runs_outside_single_quotes(self, tmp_path, command):

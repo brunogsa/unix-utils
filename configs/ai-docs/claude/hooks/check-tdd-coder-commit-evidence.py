@@ -619,7 +619,11 @@ def read_shell_construct(text: str, index: int, bodies: list[str], comments: lis
 
 def get_parameter_expansion_depth(text: str, index: int, depth: int) -> int:
     # The } of a { } group outside any ${ closes nothing here.
-    if text.startswith(PARAMETER_EXPANSION_START, index):
+    # Inside a ${, zsh nests a bare { and bash does not, so
+    # counting it as zsh does keeps the expansion open longer,
+    # which fails closed when the two shells disagree.
+    is_nested_brace = depth > 0 and text[index] == "{"
+    if text.startswith(PARAMETER_EXPANSION_START, index) or is_nested_brace:
         return depth + 1
     return depth - 1 if text[index] == "}" and depth > 0 else depth
 
