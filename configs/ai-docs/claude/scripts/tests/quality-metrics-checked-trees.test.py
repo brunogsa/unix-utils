@@ -7,13 +7,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_support import SCRIPTS_DIR, commit_all, head_of, make_repo
+from quality_metrics_support import SCRIPTS_DIR, commit_all, git, head_of, make_repo
 
 sys.path.insert(0, str(SCRIPTS_DIR))
 
 from quality_metrics.checked_trees import checked_tree
+from quality_metrics.tools import ToolError
 
 TSC = SCRIPTS_DIR / "quality_metrics/node_tools/node_modules/.bin/tsc"
 
@@ -52,6 +55,78 @@ def test_batch_end_tree_holds_tracked_and_untracked_but_no_ignored_file(tmp_path
         assert (tree / "tracked.py").read_text() == "tracked\n"
         assert (tree / "untracked.py").read_text() == "untracked\n"
         assert not (tree / "pyrightconfig.json").exists()
+
+
+def test_head_symlinked_config_is_replaced_without_writing_through_it(tmp_path):
+    # Extraction already refuses a link leaving the tree, so
+    # the threat left is a link to another file of the tree.
+    repo = make_repo(tmp_path, {"tsconfig.json": "base-text\n", "notes.txt": "victim\n"})
+    base = head_of(repo)
+    (repo / "tsconfig.json").unlink()
+    (repo / "tsconfig.json").symlink_to("notes.txt")
+    commit_all(repo, "branch")
+
+    with checked_tree(repo, head_of(repo), base, ["tsconfig*.json"]) as tree:
+        assert not (tree / "tsconfig.json").is_symlink()
+        assert (tree / "tsconfig.json").read_text() == "base-text\n"
+        assert (tree / "notes.txt").read_text() == "victim\n"
+
+
+def test_head_link_leaving_the_tree_is_refused_naming_the_path(tmp_path):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("victim\n")
+    repo = make_repo(tmp_path, {"tsconfig.json": "base-text\n"})
+    base = head_of(repo)
+    (repo / "tsconfig.json").unlink()
+    (repo / "tsconfig.json").symlink_to(outside)
+    commit_all(repo, "branch")
+
+    with pytest.raises(ToolError, match="tsconfig.json"):
+        with checked_tree(repo, head_of(repo), base, ["tsconfig*.json"]):
+            pass
+
+    assert outside.read_text() == "victim\n"
+
+
+def test_batch_end_symlinked_config_is_replaced_without_writing_through_it(tmp_path):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("victim\n")
+    repo = make_repo(tmp_path, {"tsconfig.json": "base-text\n"})
+    (repo / "tsconfig.json").unlink()
+    (repo / "tsconfig.json").symlink_to(outside)
+
+    with checked_tree(repo, None, "HEAD", ["tsconfig*.json"]) as tree:
+        assert not (tree / "tsconfig.json").is_symlink()
+        assert (tree / "tsconfig.json").read_text() == "base-text\n"
+
+    assert outside.read_text() == "victim\n"
+
+
+def test_config_under_a_symlinked_directory_is_refused_naming_the_path(tmp_path):
+    repo = make_repo(tmp_path, {"web/tsconfig.json": "base-text\n", "shared/keep.txt": "keep\n"})
+    base = head_of(repo)
+    git(repo, "rm", "--quiet", "-r", "web")
+    (repo / "web").symlink_to("shared")
+    commit_all(repo, "branch")
+
+    with pytest.raises(ToolError, match="web/tsconfig.json"):
+        with checked_tree(repo, head_of(repo), base, ["tsconfig*.json"]):
+            pass
+
+
+def test_batch_end_config_under_a_directory_linked_outside_is_refused(tmp_path):
+    outside = tmp_path / "outside_dir"
+    outside.mkdir()
+    repo = make_repo(tmp_path, {"web/tsconfig.json": "base-text\n"})
+    (repo / "web/tsconfig.json").unlink()
+    (repo / "web").rmdir()
+    (repo / "web").symlink_to(outside)
+
+    with pytest.raises(ToolError, match="web/tsconfig.json"):
+        with checked_tree(repo, None, "HEAD", ["tsconfig*.json"]):
+            pass
+
+    assert list(outside.iterdir()) == []
 
 
 def test_linked_node_modules_lets_real_tsc_resolve_a_package_type(tmp_path):

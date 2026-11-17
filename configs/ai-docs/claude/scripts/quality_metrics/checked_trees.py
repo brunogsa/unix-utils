@@ -6,12 +6,13 @@ gate.
 import fnmatch
 import os
 import shutil
+import tarfile
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 
 from quality_metrics.dependency_trees import extract_tree_at
-from quality_metrics.tools import run_tool
+from quality_metrics.tools import ToolError, run_tool
 
 DEPENDENCY_DIRECTORY = "node_modules"
 
@@ -31,12 +32,19 @@ def checked_tree(repo_dir, head_ref, base_ref, config_names):
     with tempfile.TemporaryDirectory() as tree_dir:
         tree = Path(tree_dir)
         if head_ref:
-            extract_tree_at(repo, head_ref, tree)
+            _extract_head(repo, head_ref, tree)
         else:
             _copy_working_files(repo, tree)
         _pin_configs_to_base(repo, tree, base_ref, config_names)
         _link_dependencies(repo, tree)
         yield tree
+
+
+def _extract_head(repo, head_ref, tree):
+    try:
+        extract_tree_at(repo, head_ref, tree)
+    except tarfile.FilterError as refusal:
+        raise ToolError(f"{head_ref} holds a link leaving the tree: {refusal}") from refusal
 
 
 def _copy_working_files(repo, tree):
@@ -59,14 +67,36 @@ def _pin_configs_to_base(repo, tree, base_ref, config_names):
         ["git", "ls-tree", "-r", "-z", "--name-only", base_ref], cwd=repo
     ).split("\0")
     base_configs = {name for name in base_files if name and _is_config(name, config_names)}
-    for path in tree.rglob("*"):
-        relative = path.relative_to(tree).as_posix()
-        if path.is_file() and relative not in base_configs and _is_config(relative, config_names):
-            path.unlink()
+    for current, _, files in os.walk(tree):
+        for file_name in files:
+            path = Path(current) / file_name
+            relative = path.relative_to(tree).as_posix()
+            if relative not in base_configs and _is_config(relative, config_names):
+                path.unlink()
     for name in sorted(base_configs):
         text = run_tool(["git", "show", f"{base_ref}:{name}"], cwd=repo)
-        (tree / name).parent.mkdir(parents=True, exist_ok=True)
-        (tree / name).write_text(text)
+        _write_fresh_file(tree, name, text)
+
+
+def _write_fresh_file(tree, name, text):
+    """Write `text` at `name` in `tree` as a new regular file.
+
+    A link at the destination is replaced. A link at a
+    directory above it would carry the write out of the tree
+    or onto another file, so it is refused.
+    """
+    parent = tree
+    for part in Path(name).parent.parts:
+        parent = parent / part
+        if parent.is_symlink():
+            raise ToolError(f"{name} sits under a symlink the branch committed: {part}")
+    destination = tree / name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.is_symlink() or destination.exists():
+        destination.unlink()
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+    with os.fdopen(os.open(destination, flags, 0o644), "w") as handle:
+        handle.write(text)
 
 
 def _link_dependencies(repo, tree):
