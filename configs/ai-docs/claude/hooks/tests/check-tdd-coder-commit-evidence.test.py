@@ -1069,8 +1069,13 @@ class TestGrepForTheWordGit:
 
 
 class TestGrepForTheWordCommit:
-    def test_should_let_a_plain_grep_for_the_word_commit_through(self, tmp_path):
-        assert check_commit(tmp_path, command="grep -n commit quality_metrics/x.py") is None
+    @pytest.mark.parametrize(
+        "command",
+        ["grep -n commit quality_metrics/x.py", 'grep -rn "git commit" configs/', "egrep -c commit a.py b.py"],
+        ids=["bare-pattern", "quoted-pattern-with-a-space", "egrep-over-two-files"],
+    )
+    def test_should_let_a_plain_grep_for_the_word_commit_through(self, tmp_path, command):
+        assert check_commit(tmp_path, command=command) is None
 
     @pytest.mark.parametrize(
         "command",
