@@ -313,6 +313,17 @@ def _read_option(text):
     return SHORT_VALUE_OPTIONS.get(letter, ""), value, bool(value)
 
 
+def _take_option_value(words, index, attached_value, has_value):
+    """Return (value, index of the word it came from, index past
+    that word), or None when a separate value word is missing;
+    index is the one after the option word."""
+    if has_value:
+        return attached_value, index - 1, index
+    if index >= len(words):
+        return None
+    return words[index].text, index, index + 1
+
+
 def _read_commit_options(words):
     """Return ({"message": [...], "file": [...]}, index of
     the -- ending options or None, the word index each -F value
@@ -336,13 +347,10 @@ def _read_commit_options(words):
         kind, value, has_value = option
         if not kind:
             continue
-        value_word_index = index - 1
-        if not has_value:
-            if index >= len(words):
-                return None
-            value_word_index = index
-            value = words[index].text
-            index += 1
+        taken = _take_option_value(words, index, value, has_value)
+        if taken is None:
+            return None
+        value, value_word_index, index = taken
         values[kind].append(value)
         if kind == "file":
             file_word_indexes.append(value_word_index)

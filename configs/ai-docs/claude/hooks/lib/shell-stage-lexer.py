@@ -63,6 +63,49 @@ def _read_heredoc_body(lines, start, is_tab_stripped, delimiter):
     raise CannotBeSure
 
 
+def _is_substitution_line(line, openers):
+    """True when the line's last opener ends it, right after the
+    substitution opener."""
+    if not openers:
+        return False
+    last = openers[-1]
+    return line[: last.start()].endswith(SUBSTITUTION_OPENER) and last.end() == len(line)
+
+
+def _lift_substitution(lines, index, line, openers, values):
+    """Return (the line with its HEREDOC-form message swapped
+    for a placeholder, index past the closer line); index is
+    the one after the line."""
+    if len(openers) > 1:
+        raise CannotBeSure
+    last = openers[-1]
+    body, index = _read_heredoc_body(lines, index, last.group(1) == "-", last.group(3))
+    if index >= len(lines) or not lines[index].startswith(SUBSTITUTION_CLOSER):
+        raise CannotBeSure
+
+    # Command substitution drops every trailing newline.
+    values.append(body.rstrip("\n"))
+    head = line[: last.start() - len(SUBSTITUTION_OPENER)]
+    tail = lines[index][len(SUBSTITUTION_CLOSER) :]
+    return head + _placeholder(SUBSTITUTION_KIND, len(values) - 1) + tail, index + 1
+
+
+def _lift_plain_heredocs(lines, index, line, openers, values):
+    """Return (the line with each heredoc swapped for a
+    placeholder, index past the last body); index is the one
+    after the line."""
+    pieces = []
+    position = 0
+    for opener in openers:
+        body, index = _read_heredoc_body(lines, index, opener.group(1) == "-", opener.group(3))
+        values.append(body)
+        pieces.append(line[position : opener.start()])
+        pieces.append(_placeholder(HEREDOC_KIND, len(values) - 1))
+        position = opener.end()
+    pieces.append(line[position:])
+    return "".join(pieces), index
+
+
 def lift_heredocs(command, heredoc_opener):
     """Return (text, values): each heredoc and each HEREDOC-form
     message swapped for a placeholder keyed into values.
@@ -81,36 +124,11 @@ def lift_heredocs(command, heredoc_opener):
         line = lines[index]
         index += 1
         openers = list(heredoc_opener.finditer(line))
-        last = openers[-1] if openers else None
-        is_substitution = (
-            last is not None
-            and line[: last.start()].endswith(SUBSTITUTION_OPENER)
-            and last.end() == len(line)
-        )
-        if last is not None and is_substitution:
-            if len(openers) > 1:
-                raise CannotBeSure
-            body, index = _read_heredoc_body(lines, index, last.group(1) == "-", last.group(3))
-            if index >= len(lines) or not lines[index].startswith(SUBSTITUTION_CLOSER):
-                raise CannotBeSure
-
-            # Command substitution drops every trailing newline.
-            values.append(body.rstrip("\n"))
-            head = line[: last.start() - len(SUBSTITUTION_OPENER)]
-            tail = lines[index][len(SUBSTITUTION_CLOSER) :]
-            kept.append(head + _placeholder(SUBSTITUTION_KIND, len(values) - 1) + tail)
-            index += 1
-            continue
-        pieces = []
-        position = 0
-        for opener in openers:
-            body, index = _read_heredoc_body(lines, index, opener.group(1) == "-", opener.group(3))
-            values.append(body)
-            pieces.append(line[position : opener.start()])
-            pieces.append(_placeholder(HEREDOC_KIND, len(values) - 1))
-            position = opener.end()
-        pieces.append(line[position:])
-        kept.append("".join(pieces))
+        if _is_substitution_line(line, openers):
+            kept_line, index = _lift_substitution(lines, index, line, openers, values)
+        else:
+            kept_line, index = _lift_plain_heredocs(lines, index, line, openers, values)
+        kept.append(kept_line)
     text = "\n".join(kept)
 
     # An unquoted delimiter expands its body, and any other <<
