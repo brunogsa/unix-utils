@@ -9,13 +9,15 @@ from quality_metrics_report_support import (
     SCRIPTS_DIR,
     coverage,
     crap_record,
-    entry_headings,
     file_record,
     function_record,
     measured,
     report,
-    section,
     target,
+)
+from quality_metrics_support import (
+    verdict_entry_headings as entry_headings,
+    verdict_section as section,
 )
 
 

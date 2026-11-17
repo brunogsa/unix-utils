@@ -12,9 +12,13 @@ from quality_metrics_report_support import (
     function_record,
     measured,
     report,
-    section,
 )
-from quality_metrics_support import make_repo, run_measure, stubbed_env
+from quality_metrics_support import (
+    make_repo,
+    run_measure,
+    stubbed_env,
+    verdict_section as section,
+)
 
 LONG_FUNCTION = function_record("src/a.py", "build", "size", 90, 30)
 MEASURED_LINES = 10

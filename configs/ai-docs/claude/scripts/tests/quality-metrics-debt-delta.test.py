@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from quality_metrics_report_support import measured, report, section
+from quality_metrics_report_support import measured, report
 from quality_metrics_support import (
     SCRIPTS_DIR,
     commit_all,
@@ -17,6 +17,7 @@ from quality_metrics_support import (
     make_repo,
     run_measure,
     stubbed_env,
+    verdict_section as section,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))

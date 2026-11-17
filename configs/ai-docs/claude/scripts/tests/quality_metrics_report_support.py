@@ -14,8 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_support import (
     SCRIPTS_DIR,
-    verdict_entry_headings as entry_headings,
-    verdict_section as section,
 )
 
 sys.path.insert(0, str(SCRIPTS_DIR))
@@ -90,4 +88,6 @@ def nodes_by_file(view):
 
 
 def mermaid_block(verdict):
-    return re.search(r"```mermaid\n(.*?)```", verdict, re.S).group(1)
+    match = re.search(r"```mermaid\n(.*?)```", verdict, re.S)
+    assert match is not None
+    return match.group(1)
