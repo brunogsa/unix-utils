@@ -11,9 +11,9 @@ Inputs: the merged verdict's path (a top-level `verdict_*.md` in CWD, which `hoo
 - Load `code-standards` and `test-standards` through the Skill tool first. The global principles are already in your context.
 - Read the code each entry cites, at HEAD.
 - Rule only the entries `~/.claude/scripts/get-fix-apply-list.py <merged>` lists, never a scope you derive yourself.
-- Rule a `[scout]` finding like a `refactor`, `auto-review` or `metrics` one: the same Fix or Skip lines, judged against the code at HEAD.
+- Rule a `[scout]` finding, or any finding carrying a `**Scout task**:` line, like a `refactor`, `auto-review` or `metrics` one: the same Fix or Skip lines, judged against the code at HEAD.
 
-  - A Skip on a scout quotes the rule that makes the fix wrong, never "out of scope": the scout leg already tied it to this branch.
+  - A Skip on such a finding quotes the rule that makes the fix wrong, never "out of scope": the scout leg already tied it to this branch.
 
 - Append, as the last body lines of each in-scope entry, exactly one of:
 

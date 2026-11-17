@@ -54,9 +54,9 @@ A duplicate is the same defect at overlapping lines of the same file, across the
 
 - Tag it `refactor` when the fix is structure-only.
 
-A `scout` finding that duplicates another leg's finding collapses into it like any duplicate, and the absorbing finding gains the `**Scout task**: #<id>` line, so main can still find the id. If it absorbs two scouts, it keeps both lines.
+A `scout` finding that duplicates a finding from any other leg, metrics included, collapses into that finding, and two `scout` findings that duplicate each other collapse into one. The absorbing finding keeps every `**Scout task**: #<id>` line of what it absorbed, so main can still find each id.
 
-A `test-sdd`, metrics judge or detector-edit finding never collapses into another, even at the same lines. Everything that is not a duplicate is copied verbatim, with its source lens as its tag. The checker below skips `[test-sdd]` findings, because they follow test-sdd's own schema instead of the review-comment layout.
+Apart from that scout rule, a `test-sdd`, metrics judge or detector-edit finding never collapses into another, even at the same lines. Everything that is not a duplicate is copied verbatim, with its source lens as its tag. The checker below skips `[test-sdd]` findings, because they follow test-sdd's own schema instead of the review-comment layout.
 
 ## Check and return
 
