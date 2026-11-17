@@ -27,7 +27,7 @@ excluded_paths:
   - vendor/
 
 # Non-code extensions, ignored with no language entry asked.
-ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml]
+ignored_extensions: [.md, .txt, .json, .yaml, .yml, .toml, .params, .example]
 
 # code_duplication and test_duplication stay out of per_unit
 # on purpose, whatever the benchmark times: duplication is a
