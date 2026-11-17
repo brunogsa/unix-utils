@@ -7,16 +7,21 @@ killed.
 
 import json
 import math
+import os
 import re
 import tempfile
 import time
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Callable, NamedTuple
 
 from quality_metrics.cannot_run import cannot_run_ask, cannot_run_record
 from quality_metrics.deadline import run_until
-from quality_metrics.tools import ToolError, run_command
+from quality_metrics.gate_inputs import config_names
+from quality_metrics.jest_specs import specs_by_stem
+from quality_metrics.sourcing import jest_env, jest_workspace_of, related_specs, specs_exercising
+from quality_metrics.tools import ToolError
 
 STRYKER = Path(__file__).resolve().parent / "node_tools/node_modules/.bin/stryker"
 
@@ -48,11 +53,13 @@ class BatchResult:
 
 
 def related_tests(tree, path):
-    """The test files jest says exercise `path`."""
-    result = run_command(["jest", "--listTests", "--findRelatedTests", path], cwd=tree)
-    if result.returncode != 0:
-        raise ToolError(f"jest --listTests failed on {path}: {result.stderr.strip()}")
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    """The test files exercising `path`, picked as the coverage
+    run picks them, by the repo's jest run from the file's jest
+    workspace; real paths, as jest names its test files."""
+    run_dir = Path(tree) / jest_workspace_of(tree, path)
+    list_related_specs = partial(related_specs, flags=[], cwd=run_dir, env=jest_env(tree, run_dir), timeout=None)
+    specs = specs_exercising(str(Path(tree) / path), specs_by_stem(run_dir, []), list_related_specs)
+    return [os.path.realpath(spec) for spec in specs]
 
 
 class StrykerTools(NamedTuple):

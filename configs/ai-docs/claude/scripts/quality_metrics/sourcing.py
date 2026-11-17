@@ -212,7 +212,7 @@ def _declares_jest_config(directory):
         return False
 
 
-def _jest_workspace_of(repo, changed_path):
+def jest_workspace_of(repo, changed_path):
     """The repo-relative directory jest must run from for the
     file: its nearest ancestor below the root holding its own
     jest config, else the root."""
@@ -228,7 +228,7 @@ def jest_workspaces_for(repo, changed_paths):
     """The directories jest runs from, one per workspace a
     changed file lives in; only the root when no file is
     given."""
-    workspaces = {_jest_workspace_of(repo, path) for path in changed_paths}
+    workspaces = {jest_workspace_of(repo, path) for path in changed_paths}
     return sorted(workspaces) or [ROOT_WORKSPACE]
 
 
@@ -253,7 +253,7 @@ def _configured_ignore_patterns(repo, run_dir, config_flags, timeout_seconds):
     be read."""
     shown = run_command(
         ["jest", "--showConfig", *config_flags],
-        cwd=run_dir, env=_jest_env(repo, run_dir), timeout=timeout_seconds,
+        cwd=run_dir, env=jest_env(repo, run_dir), timeout=timeout_seconds,
     )
     try:
         project_configs = json.loads(shown.stdout)["configs"]
@@ -318,7 +318,7 @@ def _declared_test_env(workspace_dir):
     return assignments
 
 
-def _jest_env(repo, run_dir):
+def jest_env(repo, run_dir):
     """The environment jest runs in from `run_dir`: the
     workspace `test` script's own variables, with the repo's
     local binaries first on PATH."""
@@ -332,7 +332,7 @@ def _changed_paths_under(repo, run_dir, changed_paths):
     return [path for path in absolute_paths if os.path.realpath(path).startswith(run_dir_prefix)]
 
 
-def _related_specs(sources, *, flags, cwd, env, timeout):
+def related_specs(sources, *, flags, cwd, env, timeout):
     """The specs jest lists as exercising `sources`, read from
     the dependency graph `--findRelatedTests` walks.
 
@@ -347,16 +347,24 @@ def _related_specs(sources, *, flags, cwd, env, timeout):
     return [line.strip() for line in listing.stdout.splitlines() if line.strip()]
 
 
+def specs_exercising(source, specs_found, list_related_specs):
+    """The specs a run over the changed `source` takes.
+
+    - The specs named after it, when `specs_found` holds any.
+
+    - Else the specs `list_related_specs` returns for it,
+      unless there are more than MAX_RELATED_SPECS_PER_SOURCE.
+    """
+    named_specs = specs_named_after(source, specs_found)
+    if named_specs:
+        return named_specs
+    listed_specs = list_related_specs([source])
+    return listed_specs if len(listed_specs) <= MAX_RELATED_SPECS_PER_SOURCE else []
+
+
 def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
-    """Flags that run only the specs exercising the changed
-    files under `run_dir`.
-
-    - The run takes the changed specs and the specs named after
-      each changed source.
-
-    - A source with no spec of its name adds the specs that
-      `list_related_specs` returns for it, unless there are
-      more than MAX_RELATED_SPECS_PER_SOURCE of them.
+    """Flags that run only the changed specs and the specs
+    exercising each changed source under `run_dir`.
 
     jest keeps the test files among the paths given and skips
     every other spec. None when no changed file is given, so
@@ -367,16 +375,9 @@ def _spec_scope_flags(repo, run_dir, changed_paths, list_related_specs):
         return []
     sources = [path for path in workspace_paths if is_spec_candidate_source(path)]
     specs_found = specs_by_stem(run_dir, _nested_worktree_paths(run_dir)) if sources else {}
-    named_specs_by_source = {source: specs_named_after(source, specs_found) for source in sources}
-    named_specs = [spec for specs in named_specs_by_source.values() for spec in specs]
-    sources_without_named_spec = [source for source, specs in named_specs_by_source.items() if not specs]
-    related_specs_by_source = [list_related_specs([source]) for source in sources_without_named_spec]
-    related_specs = [
-        spec for specs in related_specs_by_source
-        if len(specs) <= MAX_RELATED_SPECS_PER_SOURCE
-        for spec in specs
-    ]
-    scope = list(dict.fromkeys([*workspace_paths, *named_specs, *related_specs]))
+    specs_by_source = [specs_exercising(source, specs_found, list_related_specs) for source in sources]
+    exercising_specs = [spec for specs in specs_by_source for spec in specs]
+    scope = list(dict.fromkeys([*workspace_paths, *exercising_specs]))
     return ["--runTestsByPath", *scope]
 
 
@@ -395,13 +396,13 @@ def _run_jest_in_workspace(repo, workspace, timeout_seconds, base_ref, changed_p
     """One jest coverage run from the workspace directory, its
     hits keyed by repo-relative path."""
     run_dir = Path(repo) / workspace
-    env = _jest_env(repo, run_dir)
+    env = jest_env(repo, run_dir)
     with tempfile.TemporaryDirectory() as report_dir, \
             _workspace_config_flags(repo, workspace, base_ref) as config_flags:
         ignore_flags = _nested_worktree_ignore_flags(repo, run_dir, config_flags, timeout_seconds)
         scope_flags = _spec_scope_flags(
             repo, run_dir, changed_paths,
-            lambda sources: _related_specs(
+            lambda sources: related_specs(
                 sources, flags=[*config_flags, *ignore_flags], cwd=run_dir, env=env, timeout=timeout_seconds,
             ),
         )

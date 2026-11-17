@@ -26,10 +26,12 @@ from quality_metrics.mutation import (
     BatchResult,
     StrykerTools,
     measure_javascript_mutation,
+    related_tests,
     run_stryker_batch,
     stryker_config,
     survivors_from_report,
 )
+from quality_metrics.sourcing import MAX_RELATED_SPECS_PER_SOURCE
 from quality_metrics.tools import ToolError
 
 STRYKER = SCRIPTS_DIR / "quality_metrics/node_tools/node_modules/.bin/stryker"
@@ -211,6 +213,81 @@ class TestStrykerReport:
                 tmp_path, "src/price.js", [(1, 2)], time.monotonic() + 60,
                 tools=StrykerTools(list_tests=lambda tree, path: ["/t.test.js"], run=crashed),
             )
+
+
+# Stands in for the repo's installed jest: logs its real cwd,
+# its arguments and TZ, then lists the specs RELATED_SPECS_FILE
+# names.
+JEST_LISTING_STUB = """#!/bin/bash
+{ pwd -P; printf '%s\\t' "$@"; echo; echo "TZ=$TZ"; } >> "$JEST_CALLS_LOG"
+cat "$RELATED_SPECS_FILE"
+"""
+
+WORKSPACE_FILES = {
+    "core/jest.config.js": "module.exports = {};\n",
+    "core/package.json": json.dumps({"scripts": {"test": "TZ=UTC jest --maxWorkers=2"}}),
+    "core/src/price.ts": PRICE_SOURCE,
+}
+
+
+def write_tree(root, files):
+    for name, text in files.items():
+        (root / name).parent.mkdir(parents=True, exist_ok=True)
+        (root / name).write_text(text)
+    return root
+
+
+@pytest.fixture
+def workspace_tree(tmp_path, monkeypatch):
+    """A monorepo tree whose jest lives only in its own
+    node_modules/.bin, with PATH holding no jest; returns the
+    tree, the jest calls log and the related-specs file."""
+    tree = write_tree(tmp_path / "tree", WORKSPACE_FILES)
+    stub = tree / "node_modules/.bin/jest"
+    stub.parent.mkdir(parents=True)
+    stub.write_text(JEST_LISTING_STUB)
+    stub.chmod(0o755)
+    calls_log, related_specs_file = tmp_path / "jest-calls.log", tmp_path / "related-specs.txt"
+    related_specs_file.write_text("")
+    monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("JEST_CALLS_LOG", str(calls_log))
+    monkeypatch.setenv("RELATED_SPECS_FILE", str(related_specs_file))
+    return tree, calls_log, related_specs_file
+
+
+class TestRelatedTests:
+    def test_lists_the_related_specs_with_the_repo_jest_when_no_jest_is_on_path(self, workspace_tree):
+        tree, _, related_specs_file = workspace_tree
+        spec = write_tree(tree, {"core/test/checkout.spec.ts": "require('../src/price');\n"}) / "core/test/checkout.spec.ts"
+        related_specs_file.write_text(f"{os.path.realpath(spec)}\n")
+
+        assert related_tests(tree, "core/src/price.ts") == [os.path.realpath(spec)]
+
+    def test_lists_the_related_specs_from_the_changed_files_workspace_with_its_test_script_env(self, workspace_tree):
+        tree, calls_log, _ = workspace_tree
+
+        related_tests(tree, "core/src/price.ts")
+
+        run_dir, arguments, timezone = calls_log.read_text().splitlines()
+        assert run_dir == os.path.realpath(tree / "core")
+        assert "--findRelatedTests" in arguments.split("\t")
+        assert timezone == "TZ=UTC"
+
+    def test_takes_the_spec_named_after_the_changed_source_without_asking_jest(self, workspace_tree):
+        tree, calls_log, _ = workspace_tree
+        write_tree(tree, {"core/src/price.spec.ts": "require('./price');\n"})
+
+        specs = related_tests(tree, "core/src/price.ts")
+
+        assert specs == [os.path.realpath(tree / "core/src/price.spec.ts")]
+        assert not calls_log.exists()
+
+    def test_lists_no_spec_for_a_source_more_specs_exercise_than_the_cap(self, workspace_tree):
+        tree, _, related_specs_file = workspace_tree
+        over_cap = MAX_RELATED_SPECS_PER_SOURCE + 1
+        related_specs_file.write_text("".join(f"{tree}/core/test/flow-{n}.spec.ts\n" for n in range(over_cap)))
+
+        assert related_tests(tree, "core/src/price.ts") == []
 
 
 def crashing_batch(failing_paths, message):
