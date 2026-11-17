@@ -20,7 +20,7 @@ Report only: it edits no source file, limit or opt-out.
 
 A caller such as `/quality-gate` pushes in `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>`, so none of them is resolved a second time. Run alone, mint or resolve each:
 
-- `<RUN_DIR>`: `mktemp -d /tmp/metrics-review.XXXXXX`.
+- `<RUN_DIR>`: `mktemp -d <scratchpad>/metrics-review.XXXXXX`, passed to the lens as an absolute path.
 - `<BASE_REF>`: the argument, else `~/.claude/scripts/resolve-base-ref.sh`; when detection fails, ask which branch to diff against.
 - `<SESSION_ID>`: the path segment just above `scratchpad` in your scratchpad path.
   - [Why] Only the main session's id keys the per-session tool map, and the lens's subagent has another.

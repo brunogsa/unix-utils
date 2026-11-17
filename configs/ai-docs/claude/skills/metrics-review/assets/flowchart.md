@@ -20,7 +20,7 @@ def metrics_review(base_ref_arg=None, pushed=None):          # 1 · /metrics-rev
     if pushed:                                               # 2
         run_dir, base_ref, session_id = pushed               # 2a · a caller pushed them in; resolve nothing twice
     else:
-        run_dir = mktemp_dir("/tmp/metrics-review.XXXXXX")   # 2b
+        run_dir = mktemp_dir("<scratchpad>/metrics-review.XXXXXX")   # 2b
         base_ref = base_ref_arg or run("resolve-base-ref.sh")   # 2b · asks which branch when detection fails
         session_id = scratchpad_segment_above("scratchpad")  # 2b
 
@@ -64,7 +64,7 @@ flowchart TD
   n1(["1. /metrics-review [--base-ref ref], or /quality-gate section 3<br/>pushing in RUN_DIR, BASE_REF, HEAD, SESSION_ID"]):::start
   n2{"2. Did a caller push the inputs in?"}
   n2a["2a. Use the pushed RUN_DIR, BASE_REF and SESSION_ID"]
-  n2b["2b. Mint RUN_DIR (mktemp -d /tmp/metrics-review.XXXXXX),<br/>resolve BASE_REF (argument, else resolve-base-ref.sh,<br/>else ask which branch), take SESSION_ID from the scratchpad path"]:::state
+  n2b["2b. Mint RUN_DIR (mktemp -d scratchpad/metrics-review.XXXXXX),<br/>resolve BASE_REF (argument, else resolve-base-ref.sh,<br/>else ask which branch), take SESSION_ID from the scratchpad path"]:::state
   n3{"3. Per-session tool map has no entry<br/>for this repo and base ref?"}
   n3a["3a. Main dispatches the read-only metrics-tool-inspector<br/>(Explore · serial) and double-checks its report"]:::dispatch
   n3a1["3a1. Commit each detector edit it justifies<br/>in the global config repo"]:::state

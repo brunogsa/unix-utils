@@ -45,7 +45,7 @@ With a user-provided path/glob argument, pass it as the script's optional traili
 Mint a work dir, then call the script:
 
 ```bash
-work_dir=$(mktemp -d /tmp/refactor.XXXXXX)
+work_dir=$(mktemp -d <scratchpad>/refactor.XXXXXX)
 bash ~/.claude/skills/refactor/scripts/prep-refactor-context.sh [--base-ref <ref>] "$work_dir" [<path>...]
 ```
 

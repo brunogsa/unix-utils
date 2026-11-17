@@ -82,7 +82,7 @@ The marker never changes whether a task is checked - it is carried into the repo
 
 Run `date "+verdict_test-sdd_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as the file name, and set `$VERDICT_PATH` to that name inside `--out-dir` when it was given, otherwise in CWD.
 
-Standalone (no `--out-dir`), never use `/tmp/`, since the user reads the file alongside the plan in their editor. With `--out-dir` the file lands in `/tmp/` on purpose, and the user reads the merged quality-gate verdict instead.
+Standalone (no `--out-dir`), never use `/tmp/`, since the user reads the file alongside the plan in their editor. With `--out-dir` the file lands in quality-gate's `<RUN_DIR>` on purpose, and the user reads the merged quality-gate verdict instead.
 
 The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes
 are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.

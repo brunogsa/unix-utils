@@ -86,7 +86,7 @@ If detection fails, ask which branch to diff against; under either flag, stop an
 
 ## 3. Dispatch the legs in parallel
 
-First mint the run directory: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
+First mint the run directory: `RUN_DIR=$(mktemp -d <scratchpad>/quality-gate.XXXXXX)`. §4.1 reuses it.
 
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 

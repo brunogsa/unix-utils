@@ -31,7 +31,7 @@ def refactor(arg):
     #     script: base resolution (@{upstream}, falling back to
     #     resolve-base-ref.sh), the merge-base diff, and the
     #     untracked scan. Nothing here runs git directly anymore.
-    work_dir = mktemp_dir("/tmp/refactor.XXXXXX")
+    work_dir = mktemp_dir("<scratchpad>/refactor.XXXXXX")
     result = sh("prep-refactor-context.sh", work_dir, *path_args)
 
     if result.exit_code != 0:                              # 4
@@ -113,7 +113,7 @@ flowchart TD
   n2{"2. Was a path or glob passed?"}
   n2a["2a. Pass it as prep-refactor-context.sh's<br/>trailing path argument"]
   n2b["2b. Call prep-refactor-context.sh with no<br/>path arguments - covers the whole repo"]
-  n3["3. Step 1 · Mint work_dir = mktemp -d<br/>/tmp/refactor.XXXXXX, then run<br/>prep-refactor-context.sh work_dir [path...].<br/>Resolves base via @{upstream}, falling back to<br/>resolve-base-ref.sh - all a fresh /implement branch<br/>has, its tail running before the first push.<br/>Diffs -U20 from the merge-base to the working tree;<br/>writes diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt into work_dir"]:::state
+  n3["3. Step 1 · Mint work_dir = mktemp -d<br/>scratchpad/refactor.XXXXXX, then run<br/>prep-refactor-context.sh work_dir [path...].<br/>Resolves base via @{upstream}, falling back to<br/>resolve-base-ref.sh - all a fresh /implement branch<br/>has, its tail running before the first push.<br/>Diffs -U20 from the merge-base to the working tree;<br/>writes diff, changed-files.txt, untracked-files.txt,<br/>commit-messages.txt into work_dir"]:::state
   n4{"4. Script exited 0 (found target files)?"}
   n4a["4a. Inform the user and stop - script exited 1:<br/>not a git repo, no resolvable base ref, or nothing<br/>changed/untracked in the given scope (reason on<br/>stderr). Collapsed: the script's own reason, not a<br/>branch this skill's flow makes"]:::gate
   n5{"5. Was --metrics passed?"}

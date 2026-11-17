@@ -72,7 +72,7 @@ def quality_gate(arg):
 
     # ---- Step 3 - mint the run directory FIRST, export the pending scouts,
     #      then dispatch every leg in the SAME turn. ----
-    run_dir = sh("mktemp -d /tmp/quality-gate.XXXXXX")       # 9 · minted before any dispatch; step 4.1 reuses it
+    run_dir = sh("mktemp -d <scratchpad>/quality-gate.XXXXXX")       # 9 · minted before any dispatch; step 4.1 reuses it
     # 10 · export-open-scouts.py <SESSION_ID> run_dir/open-scouts.md prints
     #      the count of pending [Scout] tasks.
     rc, out, err = sh_rc(f"~/.claude/scripts/export-open-scouts.py {session_id} {run_dir}/open-scouts.md")
@@ -280,7 +280,7 @@ flowchart TD
   n8b(["8b. STOP the run and print what failed -<br/>no safe default the way a missing spec has"])
   n8c["8c. Ask which branch to diff against"]:::gate
 
-  n9["9. Step 3 · Mint RUN_DIR (mktemp -d /tmp/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
+  n9["9. Step 3 · Mint RUN_DIR (mktemp -d scratchpad/quality-gate.XXXXXX)<br/>BEFORE any dispatch; step 4.1 reuses it"]:::state
   n10["10. Run export-open-scouts.py with the session id and<br/>RUN_DIR/open-scouts.md; it prints the count of<br/>pending Scout tasks in the TaskList"]:::hook
   n10a{"10a. Export exited non-zero?"}
   n10b["10b. Do not dispatch the scout leg;<br/>the report reads scout leg: FAIL (export exited rc: its stderr)"]
