@@ -11,6 +11,10 @@ Inputs: the merged verdict's path (a top-level `verdict_*.md` in CWD, which `hoo
 - Load `code-standards` and `test-standards` through the Skill tool first. The global principles are already in your context.
 - Read the code each entry cites, at HEAD.
 - Rule only the entries `~/.claude/scripts/get-fix-apply-list.py <merged>` lists, never a scope you derive yourself.
+- Rule a `[scout]` finding like a `refactor`, `auto-review` or `metrics` one: the same Fix or Skip lines, judged against the code at HEAD.
+
+  - A Skip on a scout quotes the rule that makes the fix wrong, never "out of scope": the scout leg already tied it to this branch.
+
 - Append, as the last body lines of each in-scope entry, exactly one of:
 
   ```
@@ -57,9 +61,16 @@ None of these reads the merged file into main.
 3. The finding-body checker exits 0 on the `## Findings` slice, catching a stray line the judge appended:
 
    ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^## Findings/{p=1} p' <merged> | ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py /dev/stdin``
-4. A failed check: restore `pre-judge.md` over the merged file with `~/.claude/scripts/write-atomically.py`, then re-dispatch the judge once with the failure output.
-   - Fails again: restore `pre-judge.md`, apply the report-only list (`test-sdd` only), and report `judge: FAIL (<reason>)`. The judge gets fixed, then `/quality-gate` re-runs.
-   - No fallback apply of `refactor`, `auto-review` or `metrics` findings.
+4. A failed check: restore `pre-judge.md` over the merged file, then re-dispatch the judge once with the failure output.
+
+   ```bash
+   cat <RUN_DIR>/pre-judge.md | ~/.claude/scripts/write-atomically.py <merged>
+   ```
+
+   - Fails again: restore `pre-judge.md` the same way, apply the report-only list (`test-sdd` only), and report `judge: FAIL (<reason>)`.
+     - Fix the judge, then re-run `/quality-gate`.
+
+   - No fallback apply of `refactor`, `auto-review`, `metrics` or `scout` findings.
 
 ## 4. The fix review's brief
 
