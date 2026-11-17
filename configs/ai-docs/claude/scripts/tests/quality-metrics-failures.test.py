@@ -31,6 +31,7 @@ from quality_metrics.failures import (
     machine_has_headroom,
     measure_language_entry_or_ask,
 )
+from quality_metrics.crap import CRAP_LIMIT
 from quality_metrics.deferred import deferred_crap_measurements, deferred_measurement
 from quality_metrics.declaration import load_declaration
 from quality_metrics.functions import FunctionMeasure, is_over_limit, measurement
@@ -140,6 +141,7 @@ def test_should_list_every_touched_function_as_a_pessimistic_crap_violation_when
         ("formatRow", "crap"),
     ]
     assert all(is_over_limit(record) for record in records)
+    assert all(record["value"] > CRAP_LIMIT for record in records)
     assert {record["label"] for record in records} == {"pessimistic, tooling deferred"}
     assert all(record["pessimistic"] is True for record in records)
     assert holds_commit(records) is False

@@ -37,7 +37,7 @@ Principles for any git commit. Each rule is an instruction with its nested why; 
 - [Instruction] Land an over-limit metric fix as its own structure-only commit, before the behavior change.
   - [Why] The fix then reviews as pure structure, and the behavior change lands on code already under the limit.
 
-  - [Example] `buildReport` at CRAP 11 against a limit of 8: split it in its own structure-only commit first, then commit the behavior change on top.
+  - [Example] `buildReport` at CRAP 42 against a limit of 30: split it in its own structure-only commit first, then commit the behavior change on top.
 
 - [Instruction] **Split entangled commits by staging with `git-hunk`, never by editing code - committed content stays byte-identical to what was authored and reviewed.**
   - [Why] Editing to stage selectively risks altering the code under review and breaks the audit trail.

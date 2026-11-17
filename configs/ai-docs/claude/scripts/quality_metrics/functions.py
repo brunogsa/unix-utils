@@ -140,7 +140,9 @@ def measure(target, metrics):
 
 def is_over_limit(item):
     """A record flags past its limit, at it when it says so
-    (CRAP), or under it when it says so (coverage).
+    (duplication), or under it when it says so (coverage).
+    A CRAP record flags only above its limit, so a score equal
+    to it passes.
 
     The comparison reads the unrounded value; display_value is
     for showing it only.

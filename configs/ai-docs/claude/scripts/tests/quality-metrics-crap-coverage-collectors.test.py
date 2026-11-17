@@ -37,7 +37,7 @@ class TestDeferredCoverage:
         )
 
         assert [(record["metric"], record["value"], record["pessimistic"]) for record in records] == [
-            ("crap", crap.CRAP_LIMIT, True),
+            ("crap", crap.DEFERRED_CRAP_SCORE, True),
             ("coverage", 0, True),
         ]
 

@@ -50,9 +50,9 @@ class TestRankedLists:
 
 
 HOTSPOT_RUN = measured(
-    crap_record("src/red.py", "tangle", 14),
+    crap_record("src/red.py", "tangle", 42),
     file_record("src/red.py", "size", 100, FILE_LINES_LIMIT),
-    crap_record("src/amber.py", "branchy", 6),
+    crap_record("src/amber.py", "branchy", 24),
     crap_record("src/green.py", "tidy", 3),
     file_record("src/limit.py", "size", 300, FILE_LINES_LIMIT),
     file_record("src/edge70.py", "size", 210, FILE_LINES_LIMIT),
@@ -119,14 +119,14 @@ class TestCoverageDirection:
     def test_should_draw_a_file_by_its_amber_crap_when_its_coverage_of_95_percent_passes(self):
         run = measured(
             coverage.coverage_record(target("src/mixed.py"), 95),
-            crap_record("src/mixed.py", "branchy", 6),
+            crap_record("src/mixed.py", "branchy", 24),
         )
 
         view = hotspots.hotspot_view(run["measurements"])
 
         [(_, label, color)] = NODE_LINE.findall(view)
         assert color == "amber"
-        assert "crap 75%" in label
+        assert "crap 80%" in label
 
 
 class TestNoValueRecords:

@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_report_support import (
     CRAP_LIMIT,
+    DEFERRED_CRAP_SCORE,
     DEFERRED_LABEL,
     FunctionMeasure,
     crap_record,
@@ -28,7 +29,7 @@ class TestExceptions:
             "file": "src/report.py", "function": "buildReport", "metric": "crap",
             "split_value": 6, "diff_path": str(split_diff),
         }
-        run = measured(crap_record("src/report.py", "buildReport", 11))
+        run = measured(crap_record("src/report.py", "buildReport", 42))
 
         verdict = report.build_verdict(run, exceptions=[claim])
 
@@ -37,7 +38,7 @@ class TestExceptions:
         [entry] = entry_headings(exceptions)
         assert entry.startswith("### 1. [metrics]")
         assert "buildReport" in entry
-        assert "CRAP 11" in entry
+        assert "CRAP 42" in entry
         assert "split CRAP 6" in entry
         assert f"]({split_diff})" in entry
         assert verdict.index("## Exceptions") < verdict.index("## Open violations")
@@ -50,7 +51,7 @@ class TestExceptions:
             "file": "src/report.py", "function": "buildReport", "metric": "crap",
             "split_value": 6, "diff_path": str(unsaved_diff),
         }
-        run = measured(crap_record("src/report.py", "buildReport", 11))
+        run = measured(crap_record("src/report.py", "buildReport", 42))
 
         verdict = report.build_verdict(run, exceptions=[claim])
 
@@ -59,7 +60,7 @@ class TestExceptions:
         assert "(1)" in violations.splitlines()[0]
         [entry] = entry_headings(violations)
         assert "buildReport" in entry
-        assert "CRAP 11" in entry
+        assert "CRAP 42" in entry
 
 
     def test_should_keep_an_unfixable_violation_and_a_rejected_exception_open_and_first(
@@ -72,8 +73,8 @@ class TestExceptions:
             "split_value": 5, "diff_path": str(split_diff), "rejected": True,
         }
         run = measured(
-            crap_record("src/rows.py", "mergeRows", 12),
-            crap_record("src/cells.py", "splitCells", 9),
+            crap_record("src/rows.py", "mergeRows", 45),
+            crap_record("src/cells.py", "splitCells", 36),
         )
 
         verdict = report.build_verdict(run, exceptions=[rejected_claim])
@@ -93,7 +94,7 @@ class TestDeferredMetrics:
         label = "pessimistic, tooling deferred"
         deferred = [
             {
-                **crap_record("src/report.py", name, CRAP_LIMIT),
+                **crap_record("src/report.py", name, DEFERRED_CRAP_SCORE),
                 "pessimistic": True, "label": label,
             }
             for name in ("buildReport", "mergeRows")
@@ -116,7 +117,7 @@ class TestDeferredMetrics:
 
     def test_should_not_list_a_failed_test_run_as_a_deferred_metric_and_still_build_the_verdict(self):
         failed_run = [
-            {**crap_record("src/report.py", "buildReport", 12), "pessimistic": True}
+            {**crap_record("src/report.py", "buildReport", 42), "pessimistic": True}
         ]
 
         verdict = report.build_verdict(measured(*failed_run))
@@ -141,7 +142,7 @@ class TestDeferredMetrics:
     def test_should_print_the_deferred_label_on_a_deferred_crap_violation_but_not_on_a_measured_one(self):
         function = FunctionMeasure("buildReport", 4, 30, 26, 12, None, None)
         [deferred] = deferred_records.deferred_crap_measurements(target("src/deferred.py"), [function])
-        run = measured(crap_record("src/measured.py", "mergeRows", CRAP_LIMIT), deferred)
+        run = measured(crap_record("src/measured.py", "mergeRows", DEFERRED_CRAP_SCORE), deferred)
 
         verdict = report.build_verdict(run)
 
@@ -168,7 +169,7 @@ class TestDeferredMetrics:
 class TestGateInputViolations:
     def test_should_list_each_gate_input_violation_in_its_own_section_after_the_open_violations(self):
         run = {
-            **measured(crap_record("src/report.py", "buildReport", 11)),
+            **measured(crap_record("src/report.py", "buildReport", 42)),
             "gate_input_violations": [
                 {"kind": "declaration_change", "file": "layers.yaml", "value": "excluded_paths"},
                 {"kind": "opt_out", "file": "layers.yaml", "value": "ts.size"},

@@ -32,6 +32,7 @@ FunctionMeasure = importlib.import_module("quality_metrics.functions").FunctionM
 Target = importlib.import_module("quality_metrics.touched").Target
 
 CRAP_LIMIT = crap.CRAP_LIMIT
+DEFERRED_CRAP_SCORE = crap.DEFERRED_CRAP_SCORE
 FILE_LINES_LIMIT = size.FILE_LINES_LIMIT
 DEFERRED_LABEL = "pessimistic, tooling deferred"
 
@@ -46,9 +47,8 @@ def function_record(file, function, metric, value, limit):
 
 
 def crap_record(file, function, value):
-    """A CRAP record, flagged at its limit as crap.py does."""
-    record = function_record(file, function, "crap", value, CRAP_LIMIT)
-    return {**record, "flagged_at_limit": True}
+    """A CRAP record, flagged only above its limit."""
+    return function_record(file, function, "crap", value, CRAP_LIMIT)
 
 
 def file_record(file, metric, value, limit):

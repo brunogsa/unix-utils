@@ -9,7 +9,7 @@ holding a commit.
 from pathlib import Path
 
 from quality_metrics.coverage import coverage_record
-from quality_metrics.crap import CRAP_LIMIT, crap_record
+from quality_metrics.crap import DEFERRED_CRAP_SCORE, crap_record
 from quality_metrics.functions import measurement
 from quality_metrics.touched import Target
 
@@ -49,11 +49,14 @@ def deferred_crap_measurements(target, functions):
     is deferred.
 
     Without a complexity there is no score, so each record
-    reads the lowest score that flags (CRAP_LIMIT): a worst
-    case that lists as a violation yet, being pessimistic,
-    never holds a commit.
+    reads the lowest score that flags (DEFERRED_CRAP_SCORE,
+    just above CRAP_LIMIT): a worst case that lists as a
+    violation yet, being pessimistic, never holds a commit.
     """
-    return [_as_deferred(crap_record(target, function, CRAP_LIMIT)) for function in functions]
+    return [
+        _as_deferred(crap_record(target, function, DEFERRED_CRAP_SCORE))
+        for function in functions
+    ]
 
 
 def deferred_coverage_measurement(target):

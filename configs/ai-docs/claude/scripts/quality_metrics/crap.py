@@ -2,9 +2,10 @@
 CRAP.
 
 CRAP = complexity^2 * (1 - coverage)^3 + complexity.
-A function is flagged at CRAP 8 or above, so complexity 8 is
-flagged even at full coverage, while complexity 7 at full
-coverage scores 7 and passes.
+A function is flagged only above CRAP 30, the original Crap4j
+convention, so a score of exactly 30 passes: complexity 8 at
+full coverage scores 8 and passes, complexity 5 at 0% scores
+30 and passes, complexity 6 at 0% scores 42 and flags.
 
 Coverage comes from an lcov report.
 A language that declares crap without coverage opts coverage
@@ -15,7 +16,11 @@ or has not run reads 0%, never a pass.
 from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import measurement
 
-CRAP_LIMIT = 8
+CRAP_LIMIT = 30
+
+# The lowest worst-case score that still flags, now that a
+# score equal to the limit passes.
+DEFERRED_CRAP_SCORE = CRAP_LIMIT + 1
 
 FULL_COVERAGE = 1.0
 NO_COVERAGE = 0.0
@@ -60,8 +65,7 @@ def crap_measurements(declaration, target, functions, line_hits):
 
 
 def crap_record(target, function, score):
-    record = measurement(target, "crap", score, CRAP_LIMIT, function)
-    return {**record, "flagged_at_limit": True}
+    return measurement(target, "crap", score, CRAP_LIMIT, function)
 
 
 def function_coverage(function, line_hits):

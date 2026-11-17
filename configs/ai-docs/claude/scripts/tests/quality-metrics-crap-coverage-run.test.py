@@ -159,11 +159,11 @@ def branchy_function(name, complexity):
 
 
 class TestRemovedFunctionScoredAtBase:
-    def test_should_list_a_removed_untested_complexity_30_function_as_resolved_at_crap_30(
+    def test_should_list_a_removed_untested_complexity_31_function_as_resolved_at_crap_31(
         self, tmp_path
     ):
         repo = make_repo(tmp_path, {
-            "legacy.py": branchy_function("legacy_parse", 30),
+            "legacy.py": branchy_function("legacy_parse", 31),
             "keep.py": "def keep():\n    return 1\n",
         })
         base = head_of(repo)
@@ -178,7 +178,7 @@ class TestRemovedFunctionScoredAtBase:
         assert [
             (item["file"], item["function"], item["metric"], item["value"])
             for item in report["resolved"]
-        ] == [("legacy.py", "legacy_parse", "crap", 30)]
+        ] == [("legacy.py", "legacy_parse", "crap", 31)]
 
 
 class TestDiffCoverageOnHeadRefExport:

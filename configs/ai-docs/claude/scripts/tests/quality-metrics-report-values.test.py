@@ -20,17 +20,17 @@ from quality_metrics_report_support import (
 
 
 class TestTruncatedValueDisplay:
-    def test_should_show_a_crap_of_9_996_as_9_99_and_a_coverage_of_89_996_percent_as_89_99(self):
+    def test_should_show_a_crap_of_30_996_as_30_99_and_a_coverage_of_89_996_percent_as_89_99(self):
         run = measured(
-            crap_record("src/report.py", "buildReport", 9.996),
+            crap_record("src/report.py", "buildReport", 30.996),
             coverage.coverage_record(target("src/untested.py"), 89.996),
         )
 
         verdict = report.build_verdict(run)
 
         violations = section(verdict, "Open violations")
-        assert "CRAP 9.99 " in violations
-        assert "9.996" not in violations
+        assert "CRAP 30.99 " in violations
+        assert "30.996" not in violations
         assert "89.99 " in violations
         assert "89.996" not in violations
 
@@ -46,7 +46,7 @@ class TestTruncatedValueDisplay:
         run = measured(
             function_record("src/report.py", "nested", "nesting", 4, 3),
             file_record("src/big.py", "file_lines", 301, 300),
-            crap_record("src/report.py", "half", 8.9),
+            crap_record("src/report.py", "half", 30.9),
         )
 
         verdict = report.build_verdict(run)
@@ -54,21 +54,21 @@ class TestTruncatedValueDisplay:
         violations = section(verdict, "Open violations")
         assert " 4 (limit 3)" in violations
         assert " 301 (limit 300)" in violations
-        assert " 8.9 (limit 8)" in violations
+        assert " 30.9 (limit 30)" in violations
         assert "4.00" not in verdict
-        assert "8.90" not in verdict
+        assert "30.90" not in verdict
 
     def test_should_truncate_the_value_on_a_deferred_violation_beside_its_label(self):
         deferred = {
-            **crap_record("src/report.py", "buildReport", 9.996),
+            **crap_record("src/report.py", "buildReport", 30.996),
             "pessimistic": True, "label": DEFERRED_LABEL,
         }
 
         verdict = report.build_verdict(measured(deferred))
 
         violations = section(verdict, "Open violations")
-        assert f"9.99 ({DEFERRED_LABEL})" in violations
-        assert "9.996" not in violations
+        assert f"30.99 ({DEFERRED_LABEL})" in violations
+        assert "30.996" not in violations
 
     def test_should_truncate_the_split_score_of_an_accepted_exception(self, tmp_path):
         split_diff = tmp_path / "split_buildReport.diff"
@@ -77,7 +77,7 @@ class TestTruncatedValueDisplay:
             "file": "src/report.py", "function": "buildReport", "metric": "crap",
             "split_value": 7.996, "diff_path": str(split_diff),
         }
-        run = measured(crap_record("src/report.py", "buildReport", 11))
+        run = measured(crap_record("src/report.py", "buildReport", 42))
 
         verdict = report.build_verdict(run, exceptions=[claim])
 
