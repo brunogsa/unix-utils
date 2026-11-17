@@ -31,6 +31,19 @@ One command covers the whole repo:
 ./run-tests.py   # every bash and node:test suite (all four test trees) plus the pytest.ini python suites
 ```
 
+**Run only the suites a change touches; run the full suite sparingly.**
+
+While working, pass the affected test files by name: `./run-tests.py <path> [<path>...]`.
+
+Find them by grepping the four test trees for the changed file's name - a suite that never names the file cannot exercise it.
+
+Run the full suite only in these two cases:
+
+- Once at the end of a batch of commits, before reporting the batch done.
+- When a change touches what many suites share: `run-tests.py` itself, `pytest.ini`, or a script or library that more than one suite runs.
+
+Why: a full run executes every suite in the repo on the human's daily-driver machine, while a targeted run already covers everything the change can break.
+
 `run-tests.py` discovers bash suites by glob, so a new `test-*.sh` under any of the four trees is picked up with no registration step.
 
 It discovers `node:test` suites the same way, by a `*.test.js` glob over those same four trees, so a new node suite needs no registration step either.
