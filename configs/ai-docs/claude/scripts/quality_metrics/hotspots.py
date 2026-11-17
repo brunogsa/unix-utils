@@ -63,7 +63,7 @@ def _colors_by_touched_file(measurements):
     for record in measurements:
         if is_neutral(record):
             continue
-        worst =worst_by_file.get(record["file"])
+        worst = worst_by_file.get(record["file"])
         if worst is None or _severity(record) > _severity(worst):
             worst_by_file[record["file"]] = record
     return {path: _color_and_label(record) for path, record in worst_by_file.items()}
