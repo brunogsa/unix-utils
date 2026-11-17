@@ -203,7 +203,24 @@ def test_should_never_start_the_repo_test_run_while_headroom_stays_no_go(tmp_pat
     )
 
     assert attempts_in(tmp_path) == 0
-    assert coverage_run.sources[0]["exit_class"] == "timeout"
+
+
+def test_should_name_a_repo_test_run_that_never_started_for_lack_of_headroom_apart_from_a_timeout(
+    tmp_path, monkeypatch
+):
+    policy = TimeoutPolicy(
+        timeout_seconds=60, headroom_is_go=lambda: False, sleep=lambda seconds: None
+    )
+
+    coverage_run, _, _ = measure_js_with_jest_stub(
+        tmp_path, monkeypatch, JEST_NO_REPORT_STUB, policy=policy
+    )
+
+    assert coverage_run.sources == [{
+        "metric": "coverage", "language": "js", "source": GLOBAL_C8_SOURCE,
+        "exit_class": "no_headroom",
+        "side_pr_candidate": "repo jest never started: machine headroom stayed NO-GO",
+    }]
 
 
 def test_should_classify_a_non_zero_test_run_reporting_failed_tests_as_a_red_build_not_a_tooling_gap(

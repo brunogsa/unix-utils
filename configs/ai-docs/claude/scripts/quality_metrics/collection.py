@@ -31,8 +31,8 @@ from quality_metrics.sourcing import (
     FAILED_TESTS,
     FALL_THROUGH_REASONS,
     JEST,
+    MUTATION_OPT_OUT_REASONS,
     REPO_COVERAGE_RUNNERS,
-    TIMEOUT,
     RepoToolFailure,
     global_tool_for,
     run_repo_coverage_under_policy,
@@ -77,8 +77,8 @@ class CoverageRun:
 
     `sources` gets one entry per language measured, naming the
     tool and the repo gap; `asks` gets one entry per ask raised.
-    A repo test run that timed out sets
-    `is_repo_test_run_timed_out`, which opts mutation out.
+    A repo test run that timed out or never started sets
+    `mutation_opt_out_reason`, which opts mutation out.
 
     With a `head_ref`, tests run on an export of that ref, so an
     uncommitted file cannot change the coverage of the range.
@@ -96,7 +96,7 @@ class CoverageRun:
     changed_files: dict = field(default_factory=dict)
     sources: list = field(default_factory=list, init=False)
     asks: list = field(default_factory=list, init=False)
-    is_repo_test_run_timed_out: bool = field(default=False, init=False)
+    mutation_opt_out_reason: Optional[str] = field(default=None, init=False)
     _measured: dict = field(default_factory=dict, init=False)
 
     def __post_init__(self):
@@ -137,8 +137,7 @@ class CoverageRun:
         except RepoToolFailure as failure:
             if failure.exit_class == FAILED_TESTS:
                 return _Measured(RED_BUILD, FAILED_TESTS, source, None)
-            if failure.exit_class == TIMEOUT:
-                self.is_repo_test_run_timed_out = True
+            self.mutation_opt_out_reason = MUTATION_OPT_OUT_REASONS.get(failure.exit_class)
             reason = FALL_THROUGH_REASONS[failure.exit_class]
             return self._measure_globally(language, f"repo {tool} {reason}", tree, failure.exit_class)
         result = CoverageResult(normalized_hits(run_dir, run["hits_by_file"], ""), False)

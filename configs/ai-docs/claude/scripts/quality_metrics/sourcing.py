@@ -17,7 +17,11 @@ from pathlib import Path
 
 from quality_metrics.crap import parse_lcov
 from quality_metrics.dependencies import DEPENDENCY_CRUISER, GO_ARCH_LINT, IMPORT_LINTER
-from quality_metrics.failures import REPO_TEST_TIMEOUT_SECONDS, ToolTimedOutTwice
+from quality_metrics.failures import (
+    REPO_TEST_TIMEOUT_SECONDS,
+    RunNeverStarted,
+    ToolTimedOutTwice,
+)
 from quality_metrics.gate_inputs import (
     config_names,
     write_base_ref_configs,
@@ -49,6 +53,7 @@ EXIT_CLASS_PATTERNS = (
 
 # Failures that are not exits of a finished run.
 TIMEOUT, WROTE_NO_COVERAGE = "timeout", "no_coverage_data"
+NO_HEADROOM = "no_headroom"
 
 # pytest exits 5 when it collected no tests.
 PYTEST_NO_TESTS_EXIT = 5
@@ -62,8 +67,16 @@ MEASURING_EXIT_CLASSES = (PASSED, REPO_THRESHOLD)
 FALL_THROUGH_REASONS = {
     CRASH: "crashed",
     TIMEOUT: f"timed out at {REPO_TEST_TIMEOUT_SECONDS}s",
+    NO_HEADROOM: "never started: machine headroom stayed NO-GO",
     WROTE_NO_COVERAGE: "wrote no coverage data",
     UNCLASSIFIED: "exited non-zero with no recognized cause",
+}
+
+# Why a failed repo test run opts mutation out, which reruns
+# those tests once per mutant.
+MUTATION_OPT_OUT_REASONS = {
+    TIMEOUT: f"the repo test run timed out at {REPO_TEST_TIMEOUT_SECONDS}s",
+    NO_HEADROOM: "the repo test run never started, as machine headroom stayed NO-GO",
 }
 
 JEST, PYTEST_COV = "jest", "pytest-cov"
@@ -576,8 +589,8 @@ def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_pa
     and retry for every other tool.
 
     Raises RepoToolFailure naming how the tool failed: a
-    timeout, or headroom that never reads GO, is TIMEOUT; any
-    other tool error is CRASH.
+    timeout is TIMEOUT, headroom that never reads GO is
+    NO_HEADROOM, and any other tool error is CRASH.
     """
     run_repo_coverage = REPO_COVERAGE_RUNNERS[tool]
     repo_test_policy = replace(policy, timeout_seconds=REPO_TEST_TIMEOUT_SECONDS)
@@ -585,6 +598,8 @@ def run_repo_coverage_under_policy(tool, repo, policy, base_ref=None, changed_pa
         return repo_test_policy.run_once_after_headroom(
             lambda timeout_seconds: run_repo_coverage(repo, timeout_seconds, base_ref, changed_paths)
         )
+    except RunNeverStarted as error:
+        raise RepoToolFailure(NO_HEADROOM, str(error)) from error
     except (subprocess.TimeoutExpired, ToolTimedOutTwice) as error:
         raise RepoToolFailure(TIMEOUT, str(error)) from error
     except RepoToolFailure:

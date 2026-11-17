@@ -182,6 +182,25 @@ class TestRepoTestRunTimeout:
         assert result["mutation_opted_out"] is True
 
 
+class TestRepoTestRunNeverStarted:
+    def test_lists_each_changed_range_as_opted_out_because_headroom_stayed_no_go(
+        self, mutation_after_repo_test_run
+    ):
+        handed_to_stryker, result = mutation_after_repo_test_run(HEADROOM_NO_GO_POLICY)
+
+        assert handed_to_stryker == []
+        assert result["mutants_not_run"] == [{
+            "file": "src/discount.ts",
+            "lines": "1-3",
+            "label": "not run (opted out: the repo test run never started, as machine headroom stayed NO-GO)",
+        }]
+
+    def test_flags_the_mutation_run_as_opted_out(self, mutation_after_repo_test_run):
+        _, result = mutation_after_repo_test_run(HEADROOM_NO_GO_POLICY)
+
+        assert result["mutation_opted_out"] is True
+
+
 class TestCodeFreeFilesAreNeverMutated:
     def test_hands_a_type_only_file_and_a_barrel_to_no_stryker_batch(self, mutated_paths):
         handed, result = mutated_paths({

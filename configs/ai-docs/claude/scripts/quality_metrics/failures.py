@@ -89,6 +89,10 @@ class ToolTimedOutTwice(ToolError):
     """A tool ran past its time budget on both attempts."""
 
 
+class RunNeverStarted(ToolError):
+    """Headroom stayed NO-GO, so the run was never started."""
+
+
 def machine_has_headroom():
     """True when check-machine-headroom.sh exits 0 (GO).
 
@@ -335,10 +339,13 @@ class TimeoutPolicy:
         doubles the wait for a number it will not produce
         either.
         Raises subprocess.TimeoutExpired past the budget, and
-        ToolTimedOutTwice, with no attempt made, when headroom
+        RunNeverStarted, with no attempt made, when headroom
         stays NO-GO past HEADROOM_MAX_WAIT_SECONDS.
         """
-        self._wait_for_headroom(0, "the run never started")
+        try:
+            self._wait_for_headroom(0, "the run never started")
+        except ToolTimedOutTwice as error:
+            raise RunNeverStarted(str(error)) from error
         return attempt(self.timeout_seconds)
 
     def _count_timeout(self, error, waited_seconds, genuine_timeouts):
