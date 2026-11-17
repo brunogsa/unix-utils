@@ -1463,6 +1463,7 @@ class TestReadOnlyCallsBeforeGreen:
             "echo \"$(case a in a) ./x.sh ;; esac)\"",
             "echo \"$(cat <<E\n)\nE\n./x.sh)\"",
             "echo \\ # `./x.sh`",
+            "echo $$'\\' ' `./x.sh` ' #'",
         ],
         ids=[
             "single-quote-inside-double-quotes",
@@ -1476,6 +1477,7 @@ class TestReadOnlyCallsBeforeGreen:
             "after-a-case-pattern-closing-paren",
             "after-a-here-document-line-holding-a-closing-paren",
             "after-an-escaped-space-before-a-hash",
+            "after-a-process-id-expansion-zsh-reads-as-an-ansi-c-string",
         ],
     )
     def test_should_deny_a_substitution_that_runs_outside_single_quotes(self, tmp_path, command):

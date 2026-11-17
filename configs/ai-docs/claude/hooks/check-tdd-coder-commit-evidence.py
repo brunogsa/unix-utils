@@ -197,9 +197,11 @@ BACKTICK_ESCAPE = re.compile(r"\\([\\`$])")
 COMMAND_SUBSTITUTION_START = "$("
 ANSI_C_QUOTE_START = "$'"
 
-# $$ is the shell's process id, so a ' after it opens a plain
-# single quote, not a $'...' string.
+# $$ is the shell's process id. bash reads a ' after it as a
+# plain single quote, zsh as a $'...' string, so the scan fails
+# closed on $$'.
 PROCESS_ID_EXPANSION = "$$"
+PROCESS_ID_BEFORE_QUOTE = "$$'"
 
 # A ) inside ${...}, a here-document or a case pattern does not
 # close $( ), but the paren count reads it as the close, so a
@@ -552,7 +554,8 @@ def read_double_quoted(text: str, index: int, bodies: list[str]) -> int | None:
 def read_substitution_or_escape(text: str, index: int, bodies: list[str]) -> int | None:
     # A # right after an escaped char sits mid-word, where it
     # starts no comment, so the scan fails closed there.
-    if text[index] == "\\" and text.startswith("#", index + 2):
+    is_escaped_hash = text[index] == "\\" and text.startswith("#", index + 2)
+    if is_escaped_hash or text.startswith(PROCESS_ID_BEFORE_QUOTE, index):
         return None
     elif text[index] == "\\" or text.startswith(PROCESS_ID_EXPANSION, index):
         return index + 2
