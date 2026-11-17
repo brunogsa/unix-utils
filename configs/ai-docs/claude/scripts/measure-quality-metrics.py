@@ -44,6 +44,7 @@ from quality_metrics.measuring import (
     range_ends,
     resolved_since,
 )
+from quality_metrics.mutation_run import run_mutation
 from quality_metrics.repo_paths import repo_relative
 from quality_metrics.sourcing import lazy_tool_map_for
 from quality_metrics.static_run import StaticRun
@@ -92,11 +93,18 @@ def main(arguments):
         setup = MeasureSetup(declaration, mode, coverage_run, dependency_run, static_run)
         try:
             measurements, unclaimed = measure_files(setup, touched_by_file, head_ref)
+            mutated = (
+                run_mutation(setup, touched_by_file, changed_files)
+                if options.mutation else None
+            )
         finally:
             if static_run:
                 static_run.close()
         measurements = with_churn(measurements)
+        if mutated:
+            measurements += mutated.pop("surviving_mutants")
         found = {
+            **(mutated or {}),
             "not_applicable": dependency_run.not_applicable_files,
             "gate_input_violations": _gate_input_violations(options, judged_against, head_ref),
             "resolved": resolved_since(declaration, mode, options.diff, coverage_run.policy),
@@ -185,6 +193,9 @@ def _parse_arguments(arguments):
                         help="review mode: measure every declared metric on the code "
                              "the committed range changes, and list the over-limit "
                              "functions it removes as resolved")
+    parser.add_argument("--mutation", action="store_true",
+                        help="with --diff, also mutate the changed lines and "
+                             "report the survivors (up to 5 minutes)")
     parser.add_argument("--layers", metavar="FILE",
                         help="layer map the layer imports are checked against "
                              "(default: none, so only cycles are checked)")
@@ -194,6 +205,8 @@ def _parse_arguments(arguments):
     options = parser.parse_args(arguments)
     if options.diff and (options.files or options.per_unit):
         parser.error("--diff cannot be combined with --files or --per-unit")
+    if options.mutation and not options.diff:
+        parser.error("--mutation requires --diff")
     if options.diff and "..." not in options.diff:
         parser.error("--diff takes a range written BASE...HEAD")
     return options
