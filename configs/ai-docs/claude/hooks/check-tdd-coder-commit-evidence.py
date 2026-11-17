@@ -207,7 +207,9 @@ SCREEN_GUIDANCE = (
     "or includes run a program or whose hooks are active or outside the default hooks dir, "
     "or runs a script not committed unchanged whose text does any of these, counts as a possible "
     "commit. If this call is no commit, reword it so it no longer does that; if it is "
-    "one, append the GREEN entry first"
+    "one, append the GREEN entry first. To run a new, uncommitted test suite whose fixtures "
+    "commit into scratch repos, call it through the repo's declared test runner (e.g. "
+    "`./run-tests.py <path>`) rather than `bash <suite>`"
 )
 
 # Only the agent's file writes bind its run label: a Bash
