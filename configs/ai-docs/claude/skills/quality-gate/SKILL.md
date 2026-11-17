@@ -22,7 +22,9 @@ A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock o
 
 Main records each phase as it happens with `scripts/quality-gate-clock.py mark <RUN_DIR> <phase> start|end`, using labels like `3-refactor`, `4.1-judge`, `6-apply-1`.
 
-The phases are each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch, and §7. `<RUN_DIR>` is minted at the top of §3, before any phase starts.
+The phases are each §3 leg with its own end, §4.1, §4.2, and §6 with each `/address-verdicts` dispatch. `<RUN_DIR>` is minted at the top of §3, before any phase starts.
+
+§7 is not a phase: its report stops the clock, so a §7 mark would always read unclosed.
 
 The marks outlive the session, so the user can see where time goes across runs.
 
@@ -220,7 +222,7 @@ Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the 
 
 ## 7. Close with a report
 
-**Open with the timing report**: paste the output of `scripts/quality-gate-clock.py report <RUN_DIR> --repo <repo name> --branch <branch>` verbatim. A non-zero exit reports `timing: not measured`, never an empty table, because a missing measurement must never read as a fast run.
+**Open with the timing report**: mark the last open phase's `end` first, then paste the output of `scripts/quality-gate-clock.py report <RUN_DIR> --repo <repo name> --branch <branch>` verbatim. A non-zero exit reports `timing: not measured`, never an empty table, because a missing measurement must never read as a fast run.
 
 Tell the user that `scripts/quality-gate-clock.py history` shows where time goes across runs.
 
