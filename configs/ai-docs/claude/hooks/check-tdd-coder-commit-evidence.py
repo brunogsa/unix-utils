@@ -208,6 +208,10 @@ PROCESS_ID_BEFORE_QUOTE = "$$'"
 # any )#.
 PAREN_BEFORE_HASH = ")#"
 
+# A # inside ${ } after a blank starts no comment, but the
+# comment check would read one, so the scan fails closed there.
+PARAMETER_EXPANSION_START = "${"
+
 # A ) inside ${...}, a here-document or a case pattern does not
 # close $( ), but the paren count reads it as the close, so a
 # body holding one is never screened as split.
@@ -593,12 +597,23 @@ def read_shell_construct(text: str, index: int, bodies: list[str]) -> int | None
     return read_substitution_or_escape(text, index, bodies)
 
 
+def get_parameter_expansion_depth(text: str, index: int, depth: int) -> int:
+    # The } of a { } group outside any ${ closes nothing here.
+    if text.startswith(PARAMETER_EXPANSION_START, index):
+        return depth + 1
+    return depth - 1 if text[index] == "}" and depth > 0 else depth
+
+
 def scan_shell_text(text: str, index: int, bodies: list[str], closes_paren: bool) -> int | None:
     # With closes_paren, returns the index of the ) that closes
     # the scan's opening $(; otherwise the text's length.
     depth = 0
+    expansion_depth = 0
     while index < len(text):
-        if closes_paren and text[index] == ")" and depth == 0:
+        expansion_depth = get_parameter_expansion_depth(text, index, expansion_depth)
+        if expansion_depth > 0 and is_comment_start(text, index):
+            return None
+        elif closes_paren and text[index] == ")" and depth == 0:
             return index
         elif closes_paren and text[index] in "()":
             depth += 1 if text[index] == "(" else -1
