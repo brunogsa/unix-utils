@@ -1311,3 +1311,105 @@ class TestAgentFileWiring:
         EVIDENCE.write_text(entries.replace("<timestamp>", "2026-11-16T14:10:30Z"), encoding="utf-8")
 
         assert check_commit(tmp_path) is None
+
+
+PROSE_MESSAGE = "-m 'docs(skills): reword the RED step' -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'"
+
+
+def prose_repo(tmp_path):
+    """A repo of committed prose and code files, each edited
+    since, plus a new .md file and a dir whose name ends in
+    .md but holds code."""
+    repo = git_repo(tmp_path)
+    for name in ("SKILL.md", "notes.txt", "lib.py"):
+        (repo / name).write_text("first\n", encoding="utf-8")
+    commit_all(repo, "seed")
+    for name in ("SKILL.md", "notes.txt", "lib.py"):
+        (repo / name).write_text("second\n", encoding="utf-8")
+    (repo / "NEW.md").write_text("# New\n", encoding="utf-8")
+    (repo / "guide.md").mkdir()
+    (repo / "guide.md" / "run.py").write_text("print(1)\n", encoding="utf-8")
+    return repo
+
+
+# A tdd-coder run that edits only prose has no behavior to
+# test, so its commit must not demand a RED and a GREEN.
+class TestProseOnlyCommitWithNoEvidence:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"git commit SKILL.md notes.txt {PROSE_MESSAGE}",
+            f"git commit {PROSE_MESSAGE} -- SKILL.md",
+            f"git commit --message='docs: x' --trailer 'Co-Authored-By: Claude' -q -- SKILL.md",
+            "git add -- NEW.md",
+            "git add NEW.md SKILL.md",
+        ],
+        ids=["paths-before-messages", "paths-after-double-dash", "long-options", "add-new-prose", "add-two-prose"],
+    )
+    def test_should_let_a_commit_or_add_through_without_evidence_when_every_named_path_is_prose(
+        self, tmp_path, command
+    ):
+        assert check_commit(tmp_path, command=command, cwd=str(prose_repo(tmp_path))) is None
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"git commit SKILL.md lib.py {PROSE_MESSAGE}",
+            f"git commit {PROSE_MESSAGE} -- lib.py",
+            f"git commit {PROSE_MESSAGE}",
+            f"git commit -a {PROSE_MESSAGE} -- SKILL.md",
+            f"git commit --amend {PROSE_MESSAGE} -- SKILL.md",
+            f"git commit -i {PROSE_MESSAGE} -- SKILL.md",
+            f"git commit {PROSE_MESSAGE} -- '*.md'",
+            f"git commit {PROSE_MESSAGE} -- guide.md",
+            f"git commit {PROSE_MESSAGE} -- ':(glob)**/*.md'",
+            f"git commit {PROSE_MESSAGE} -- SKILL.md && ./release.sh",
+            f"git commit {PROSE_MESSAGE} -- SKILL.md; git commit -am x",
+            "git commit -m \"$(./release.sh)\" -- SKILL.md",
+            f"git -c core.hooksPath=/tmp/hooks commit {PROSE_MESSAGE} -- SKILL.md",
+            f"GIT_INDEX_FILE=/tmp/index git commit {PROSE_MESSAGE} -- SKILL.md",
+            f"git commit {PROSE_MESSAGE} -- $F",
+            "git add -A",
+            "git add -- lib.py NEW.md",
+        ],
+        ids=[
+            "prose-and-code",
+            "code-only",
+            "no-path-commits-the-index",
+            "all-tracked",
+            "amend",
+            "include-the-index",
+            "glob-pathspec",
+            "dir-named-like-prose",
+            "pathspec-magic",
+            "and-chain",
+            "second-command",
+            "substitution-in-message",
+            "dash-c-before-commit",
+            "prefix-assignment",
+            "variable-path",
+            "add-all",
+            "add-code",
+        ],
+    )
+    def test_should_still_deny_a_commit_or_add_that_can_reach_a_non_prose_file(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(prose_repo(tmp_path)))
+
+    def test_should_still_deny_a_prose_only_commit_in_a_repo_whose_config_runs_a_program(self, tmp_path):
+        repo = prose_repo(tmp_path)
+        git(repo, "config", "core.fsmonitor", "./release.sh")
+
+        possible_commit_reason(tmp_path, f"git commit {PROSE_MESSAGE} -- SKILL.md", cwd=str(repo))
+
+    def test_should_still_deny_a_prose_only_commit_in_a_repo_with_an_active_hook(self, tmp_path):
+        repo = prose_repo(tmp_path)
+        hook = repo / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        hook.chmod(0o755)
+
+        possible_commit_reason(tmp_path, f"git commit {PROSE_MESSAGE} -- SKILL.md", cwd=str(repo))
+
+    def test_should_tell_a_denied_commit_that_a_prose_only_pathspec_commit_needs_no_evidence(self, tmp_path):
+        reason = possible_commit_reason(tmp_path, COMMIT)
+
+        assert "prose" in reason

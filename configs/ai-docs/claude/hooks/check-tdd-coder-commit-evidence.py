@@ -30,6 +30,11 @@
 # A script committed and unchanged since is trusted, so
 # tdd-coder's own preflight scripts never count.
 #
+# A prose-only call needs no evidence, since prose has no
+# behavior to test. It is one plain `git commit` or `git add`
+# naming only literal .md or .txt files, in a repo whose
+# config and hooks run no program of their own.
+#
 # Known limits: a name built at run time - concatenated
 # strings, base64, an env var holding "commit" - passes the
 # screen, as does a script another script runs, or one read
@@ -65,6 +70,7 @@ def load_module(name: str, path: Path) -> ModuleType:
 
 report_files = load_module("check_tdd_coder_report_files", HOOKS_DIR / "check-tdd-coder-report-files.py")
 parse_shell_command = load_module("parse_shell_command", HOOKS_DIR / "lib" / "parse-shell-command.py")
+suppression_patterns = load_module("suppression_patterns", HOOKS_DIR / "lib" / "suppression_patterns.py")
 
 EVIDENCE_PATH = "/tmp/tdd-coder_evidences_{label}.txt"
 RED_HEADER = "=== RED <timestamp> ==="
@@ -214,6 +220,24 @@ SCREEN_GUIDANCE = (
     "one, append the GREEN entry first. To run a new, uncommitted test suite whose fixtures "
     "commit into scratch repos, call it through the repo's declared test runner (e.g. "
     "`./run-tests.py <path>`) rather than `bash <suite>`"
+)
+
+# A prose-only call skips the evidence check, so it allows
+# only words whose meaning the screen can read off the text.
+PROSE_GIT_SUBCOMMANDS = frozenset({"commit", "add"})
+PROSE_COMMIT_VALUE_OPTIONS = frozenset({"-m", "--message", "--trailer"})
+PROSE_COMMIT_FLAGS = frozenset({"-q", "--quiet"})
+END_OF_OPTIONS = "--"
+
+# A glob, brace list, tilde or expansion can turn into other
+# paths when the shell runs it, and a # can hide the rest of
+# a line from the word split but not from the shell.
+UNREADABLE_WORD = re.compile(r"[*?\[\]{}~$`\\]")
+PROSE_GUIDANCE = (
+    "A prose-only call needs no evidence: one plain `git commit <paths> -m <message>` or "
+    f"`git add <paths>` whose every path is a literal {' or '.join(suppression_patterns.PROSE_SUFFIXES)} "
+    "file, with no option but -m, --message, --trailer, -q or --, and no separator, redirect, "
+    "glob, $, backtick, backslash or #"
 )
 
 # Only the agent's file writes bind its run label: a Bash
@@ -748,7 +772,7 @@ def print_deny(problem: str) -> None:
     reason = (
         f"tdd-coder commits only after its evidence file holds a confirmed {RED_HEADER} entry "
         f"followed by a confirmed {GREEN_HEADER} entry, appended as each run is read, "
-        f"never reconstructed afterwards: {problem}. {SCREEN_GUIDANCE}."
+        f"never reconstructed afterwards: {problem}. {SCREEN_GUIDANCE}. {PROSE_GUIDANCE}."
     )
     output = {
         "hookSpecificOutput": {
@@ -773,9 +797,63 @@ def get_label_problem(labels: list[str]) -> str | None:
     return None
 
 
+def get_commit_option_width(word: str) -> int | None:
+    # 0 marks a path, None an option no prose-only call takes.
+    if word in PROSE_COMMIT_VALUE_OPTIONS:
+        return 2
+    is_short_message = word.startswith("-m") and not word.startswith("--")
+    is_attached_value = is_short_message or word.startswith(("--message=", "--trailer="))
+    if is_attached_value or word in PROSE_COMMIT_FLAGS:
+        return 1
+    return None if word.startswith("-") else 0
+
+
+def get_commit_paths(arguments: list[str]) -> list[str] | None:
+    # git commit reads paths before and after its options, and
+    # every word after -- as a path.
+    paths = []
+    index = 0
+    while index < len(arguments) and arguments[index] != END_OF_OPTIONS:
+        width = get_commit_option_width(arguments[index])
+        if width is None:
+            return None
+        if width == 0:
+            paths.append(arguments[index])
+        index += max(width, 1)
+    return paths + arguments[index + 1 :]
+
+
+def get_add_paths(arguments: list[str]) -> list[str]:
+    # Any option, a later -- included, fails the path check.
+    return arguments[1:] if arguments[:1] == [END_OF_OPTIONS] else arguments
+
+
+def is_prose_path(path: str, cwd: str) -> bool:
+    # A pathspec naming a dir reaches every file under it, and
+    # a leading : turns on pathspec magic such as (glob).
+    is_literal = not path.startswith(("-", ":")) and UNREADABLE_WORD.search(path) is None
+    is_prose = path.lower().endswith(suppression_patterns.PROSE_SUFFIXES)
+    return is_literal and is_prose and not (Path(cwd) / path).is_dir()
+
+
+def is_prose_only_call(command: str, cwd: str | None) -> bool:
+    # The raw text is split, not the heredoc-stripped one, so
+    # every word the shell reads is checked here.
+    words = get_shell_words(command)
+    if cwd is None or words is None or "#" in command or len(words) < 2:
+        return False
+    is_one_plain_command = not any(is_separator(word) or UNREADABLE_WORD.search(word) for word in words)
+    if not is_one_plain_command or words[0] != "git" or words[1] not in PROSE_GIT_SUBCOMMANDS:
+        return False
+
+    paths = get_commit_paths(words[2:]) if words[1] == "commit" else get_add_paths(words[2:])
+    has_only_prose = bool(paths) and all(is_prose_path(path, cwd) for path in paths)
+    return has_only_prose and has_dot_git_dir(cwd) and not runs_configured_program(cwd)
+
+
 def get_commit_problem(payload: dict, command: str) -> str | None:
     cwd = payload.get("cwd") if isinstance(payload.get("cwd"), str) else None
-    if not is_possible_commit(command, cwd):
+    if not is_possible_commit(command, cwd) or is_prose_only_call(command, cwd):
         return None
 
     transcript_path = get_agent_transcript_path(payload)
