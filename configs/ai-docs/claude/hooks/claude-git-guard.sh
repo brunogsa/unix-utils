@@ -208,6 +208,10 @@ def scan_quoted(text, j, stack):
         # the commands inside the substitution become visible.
         stack.append(0)
         return "xx", 2
+    if state == "\"" and c == "\x60":
+        # Bash runs a backtick substitution here as a command, and
+        # this scan does not pair backticks, so it fails closed.
+        raise CannotClassify()
     return blank(c), 1
 
 
