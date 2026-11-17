@@ -67,31 +67,27 @@ Exit codes:
      not valid UTF-8
 """
 
-import importlib.util
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
 
-# A load failure exits 2: the hook reads exit 1 as findings.
+# A missing loader exits 2: the hook reads exit 1 as findings.
 try:
-    _spec = importlib.util.spec_from_file_location(
-        "input_readability", SCRIPT_DIR / "input_readability.py"
-    )
-    if _spec is None or _spec.loader is None:
-        raise ImportError("no import spec")
-    input_readability = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(input_readability)
-except Exception as error:
+    from sibling_module_loader import load_sibling_module
+except ImportError as error:
     print(
-        f"check-bullet-gap.py: cannot load input_readability.py "
+        f"check-bullet-gap.py: cannot load sibling_module_loader.py "
         f"from {SCRIPT_DIR}: {error}",
         file=sys.stderr,
     )
     sys.exit(2)
+CHANGED_LINES_SCRIPT = SCRIPT_DIR / "get-changed-lines.sh"
+
+# A load failure exits 2: the hook reads exit 1 as findings.
+input_readability = load_sibling_module(__file__, "input_readability.py")
 
 # Defaults mirror check-density.sh's bullet cap only (not the
 # prose cap);
