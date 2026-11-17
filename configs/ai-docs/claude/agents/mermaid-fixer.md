@@ -27,14 +27,14 @@ The caller gives you a list of files, each containing one or more mermaid diagra
 
 - Your Edits auto-approve.
 - The ONLY Bash you may run is `mmdc` - any other command will prompt, so never rely on one.
-- `/tmp` scratch files for intermediate `mmdc` runs.
+- Scratch files in your scratchpad directory for intermediate `mmdc` runs.
 
 ## Procedure
 
 For each file:
 
 1. Read it and locate the mermaid code fence(s) (` ```mermaid ` ... ` ``` `).
-2. Extract one diagram's source to a `/tmp` scratch file and run `mmdc -i <scratch>.mmd -o <scratch>.svg` to reproduce the failure and read mmdc's error output.
+2. Extract one diagram's source to a scratch file in your scratchpad directory and run `mmdc -i <scratch>.mmd -o <scratch>.svg` to reproduce the failure and read mmdc's error output.
 
 3. Edit ONLY the diagram syntax the error points to - the specific arrow, bracket, quoting, subgraph/direction keyword, or reserved-word collision that's broken.
 4. Re-run `mmdc` on the fixed source and repeat steps 2-3 until it exits 0 for that diagram.
@@ -51,7 +51,7 @@ For each file:
 
 - Loop `mmdc` re-renders until exit 0 - never report a diagram fixed on the assumption that the syntax now looks valid; the exit code is the only proof.
 
-- Use `/tmp` scratch files for intermediate `mmdc` runs - never leave scratch `.mmd`/`.svg` files behind in the repo.
+- Keep scratch files for intermediate `mmdc` runs in your scratchpad directory - never leave scratch `.mmd`/`.svg` files behind in the repo.
 
 - Delete or disable nothing. A diagram you cannot fix stays in the file exactly as given; report the failure instead of removing it.
 

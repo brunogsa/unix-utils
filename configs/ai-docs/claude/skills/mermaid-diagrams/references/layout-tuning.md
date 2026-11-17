@@ -21,10 +21,11 @@ That containment is exactly what you want sometimes - and exactly what fights yo
 For flowcharts with subgraphs or > 6 nodes, `TD` and `LR` produce meaningfully different auto-layouts. Render both and judge from rendered PNG:
 
 ```bash
-cp diagram.mmd /tmp/td.mmd
-sed 's/^flowchart TD/flowchart LR/' /tmp/td.mmd > /tmp/lr.mmd
-mmdc -i /tmp/td.mmd -o /tmp/td.png -w 1600 -H 1200
-mmdc -i /tmp/lr.mmd -o /tmp/lr.png -w 1600 -H 1200
+# <scratchpad> = the scratchpad directory your system prompt names.
+cp diagram.mmd <scratchpad>/td.mmd
+sed 's/^flowchart TD/flowchart LR/' <scratchpad>/td.mmd > <scratchpad>/lr.mmd
+mmdc -i <scratchpad>/td.mmd -o <scratchpad>/td.png -w 1600 -H 1200
+mmdc -i <scratchpad>/lr.mmd -o <scratchpad>/lr.png -w 1600 -H 1200
 # View both with the Read tool (Claude is multimodal).
 ```
 

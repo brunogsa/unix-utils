@@ -14,13 +14,14 @@ Mermaid has subtle syntax traps the eye misses.
 - No exceptions, even one-liners - the trap is usually a one-char typo that looks fine.
 
 ```bash
+# <scratchpad> = the scratchpad directory your system prompt names.
 # Single diagram saved to a .mmd file:
-mmdc -i /tmp/d.mmd -o /tmp/d.svg
+mmdc -i <scratchpad>/d.mmd -o <scratchpad>/d.svg
 echo "exit: $?"   # non-zero = parse error; read the message, fix, re-run.
 
 # Validate every block already inside a markdown file (use this BEFORE you commit / open the PR):
-awk '/^```mermaid/{f=1; n++; out="/tmp/d"n".mmd"; next} /^```$/{if(f){f=0; close(out)}} f{print > out}' file.md
-for f in /tmp/d*.mmd; do
+awk '/^```mermaid/{f=1; n++; out="<scratchpad>/d"n".mmd"; next} /^```$/{if(f){f=0; close(out)}} f{print > out}' file.md
+for f in <scratchpad>/d*.mmd; do
   printf "%s: " "$(basename "$f")"
   mmdc -i "$f" -o "${f%.mmd}.svg" >/dev/null 2>&1 && echo OK || echo FAIL
 done
