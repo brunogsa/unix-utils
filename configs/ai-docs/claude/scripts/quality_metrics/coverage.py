@@ -46,7 +46,7 @@ def uncovered_ranges(line_hits):
     ranges = []
     first = last = None
     for line in sorted(line for line, hits in line_hits.items() if hits == 0):
-        if first is not None and line == last + 1:
+        if last is not None and line == last + 1:
             last = line
             continue
         if first is not None:

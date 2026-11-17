@@ -315,5 +315,7 @@ def _shown_value(record):
     return display_value(record)
 
 
-def _metric_name(record):
-    return METRIC_TITLES.get((record["metric"], record["scope"]), record["metric"])
+def _metric_name(record) -> str:
+    metric = record["metric"]
+    assert isinstance(metric, str), f"measurement record lacks a metric name: {record}"
+    return METRIC_TITLES.get((metric, record["scope"]), metric)

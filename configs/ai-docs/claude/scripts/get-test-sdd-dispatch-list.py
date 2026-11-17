@@ -48,6 +48,8 @@ PARSE_FENCES_PATH = Path(__file__).with_name("parse-fences.py")
 
 def load_toggle_fence():
     spec = importlib.util.spec_from_file_location("parse_fences", PARSE_FENCES_PATH)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {PARSE_FENCES_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module.toggle_fence

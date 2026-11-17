@@ -15,8 +15,8 @@ A coverage exclude is read from the literal lists
 entries).
 """
 
+import importlib.util
 import re
-import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -32,8 +32,25 @@ from quality_metrics.tools import run_command, run_tool
 
 # The edit-time hook reads the same shared pattern, so a token
 # it blocks is also listed here.
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "hooks" / "lib"))
-from suppression_patterns import PROSE_SUFFIXES, count_suppressions
+SUPPRESSION_PATTERNS_PATH = (
+    Path(__file__).resolve().parents[2] / "hooks" / "lib" / "suppression_patterns.py"
+)
+
+
+def _load_suppression_patterns():
+    spec = importlib.util.spec_from_file_location(
+        "suppression_patterns", SUPPRESSION_PATTERNS_PATH
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load {SUPPRESSION_PATTERNS_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_suppression_patterns = _load_suppression_patterns()
+PROSE_SUFFIXES = _suppression_patterns.PROSE_SUFFIXES
+count_suppressions = _suppression_patterns.count_suppressions
 
 SUPPRESSION_KIND = "suppression"
 COVERAGE_EXCLUDE_KIND = "coverage_exclude"

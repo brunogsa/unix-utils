@@ -63,7 +63,7 @@ REPORT_NAME = "jscpd-report.json"
 def measure(target, metrics, declaration):
     """One flagged record per duplicated pair touching the
     target."""
-    repo_path = repo_relative(Path.cwd(), target.repo_path or target.path)
+    repo_path = str(repo_relative(Path.cwd(), target.repo_path or target.path))
     suffix = Path(repo_path).suffix
     is_test = is_test_file(repo_path)
     metric = TEST_METRIC if is_test else CODE_METRIC

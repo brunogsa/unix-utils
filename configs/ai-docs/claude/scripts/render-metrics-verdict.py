@@ -17,6 +17,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import NoReturn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -27,7 +28,7 @@ REQUIRED_REPORT_KEYS = ("measurements", "violations")
 REQUIRED_CLAIM_KEYS = ("file", "function", "metric", "diff_path", "split_value", "rejected")
 
 
-def fail(message):
+def fail(message) -> NoReturn:
     print(f"render-metrics-verdict: {message}", file=sys.stderr)
     sys.exit(2)
 
