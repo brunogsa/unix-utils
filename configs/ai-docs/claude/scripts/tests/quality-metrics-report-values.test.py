@@ -56,7 +56,7 @@ class TestTruncatedValueDisplay:
         violations = section(verdict, "Open violations")
         assert " 4 (limit 3)" in violations
         assert " 301 (limit 300)" in violations
-        assert " 30.9 (limit 30)" in violations
+        assert " 30.9 (limit 16)" in violations
         assert "4.00" not in verdict
         assert "30.90" not in verdict
 

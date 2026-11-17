@@ -54,7 +54,7 @@ class TestRankedLists:
 HOTSPOT_RUN = measured(
     crap_record("src/red.py", "tangle", 42),
     file_record("src/red.py", "size", 100, FILE_LINES_LIMIT),
-    crap_record("src/amber.py", "branchy", 24),
+    crap_record("src/amber.py", "branchy", 12.8),
     crap_record("src/green.py", "tidy", 3),
     file_record("src/limit.py", "size", 512, FILE_LINES_LIMIT),
     file_record("src/edge70.py", "size", 359, FILE_LINES_LIMIT),
@@ -121,7 +121,7 @@ class TestCoverageDirection:
     def test_should_draw_a_file_by_its_amber_crap_when_its_coverage_of_95_percent_passes(self):
         run = measured(
             coverage.coverage_record(target("src/mixed.py"), 95),
-            crap_record("src/mixed.py", "branchy", 24),
+            crap_record("src/mixed.py", "branchy", 12.8),
         )
 
         view = hotspots.hotspot_view(run["measurements"])
@@ -225,7 +225,7 @@ def labels_in_order(view):
 
 class TestHotspotChurn:
     def test_should_print_the_90_day_change_count_after_the_worst_metric_in_the_label_of_a_file(self):
-        run = measured(with_churn(crap_record("src/busy.py", "branchy", 24), 2))
+        run = measured(with_churn(crap_record("src/busy.py", "branchy", 12.8), 2))
 
         view = hotspots.hotspot_view(run["measurements"])
 
@@ -236,8 +236,8 @@ class TestHotspotChurn:
         self,
     ):
         run = measured(
-            with_churn(crap_record("src/a_rare_but_bad.py", "tangle", 27), 1),
-            with_churn(crap_record("src/z_busy_but_fine.py", "tidy", 15), 10),
+            with_churn(crap_record("src/a_rare_but_bad.py", "tangle", 14.4), 1),
+            with_churn(crap_record("src/z_busy_but_fine.py", "tidy", 8), 10),
         )
 
         view = hotspots.hotspot_view(run["measurements"])

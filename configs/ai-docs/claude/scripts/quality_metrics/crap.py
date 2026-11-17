@@ -2,10 +2,11 @@
 CRAP.
 
 CRAP = complexity^2 * (1 - coverage)^3 + complexity.
-A function is flagged only above CRAP 30, the original Crap4j
-convention, so a score of exactly 30 passes: complexity 8 at
-full coverage scores 8 and passes, complexity 5 at 0% scores
-30 and passes, complexity 6 at 0% scores 42 and flags.
+A function is flagged only above CRAP 16, a power of 2 chosen
+to be tighter than the original Crap4j limit of 30, so a score
+of exactly 16 passes: complexity 8 at full coverage scores 8
+and passes, complexity 8 at 50% coverage scores 16 and passes,
+complexity 4 at 0% scores 20 and flags.
 
 Coverage comes from an lcov report.
 A language that declares crap without coverage opts coverage
@@ -17,7 +18,7 @@ from quality_metrics.coverage import uncovered_ranges
 from quality_metrics.declaration import is_coverage_opted_out
 from quality_metrics.functions import measurement
 
-CRAP_LIMIT = 30
+CRAP_LIMIT = 16
 
 # The lowest worst-case score that still flags, now that a
 # score equal to the limit passes.

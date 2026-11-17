@@ -56,26 +56,26 @@ class TestCrapScoring:
         assert crap_by_function(records) == {"apply_discount": 42, "round_to_cents": 6}
         assert flagged_functions(records) == ["apply_discount"]
 
-    def test_should_pass_a_score_of_exactly_30_and_flag_a_score_above_it(self, tmp_path):
+    def test_should_pass_a_score_of_exactly_16_and_flag_a_score_above_it(self, tmp_path):
         declaration = load_declaration(tmp_path)
         measured = [
-            function_measure("at_limit", 1, 10, 5),
-            function_measure("over_limit", 12, 21, 6),
+            function_measure("at_limit", 1, 10, 8),
+            function_measure("over_limit", 12, 21, 4),
             function_measure("well_tested", 23, 40, 8),
         ]
         lcov_text = lcov_report(SOURCE_FILE, {
-            1: 0, 2: 0, 12: 0, 13: 0, 23: 3, 24: 3,
+            1: 1, 2: 1, 3: 0, 4: 0, 12: 0, 13: 0, 23: 3, 24: 3,
         })
 
         records = measure_crap(declaration, "python", SOURCE_FILE, measured, lcov_text)
 
-        assert crap_by_function(records) == {"at_limit": 30, "over_limit": 42, "well_tested": 8}
+        assert crap_by_function(records) == {"at_limit": 16, "over_limit": 20, "well_tested": 8}
         assert flagged_functions(records) == ["over_limit"]
 
-    def test_should_flag_a_score_of_30_01(self):
+    def test_should_flag_a_score_of_16_01(self):
         record = crap.crap_record(
             touched.Target(Path(SOURCE_FILE), "python", touched.WHOLE_FILE),
-            function_measure("just_over", 1, 10, 5), 30.01,
+            function_measure("just_over", 1, 10, 5), 16.01,
         )
 
         assert functions.is_over_limit(record)
