@@ -189,19 +189,27 @@ Tasks opted out via `**DECISION:** Skip planned-test check`: <ids with reasons, 
 ### 1. [HIGH] Missing planned test - task <N>: "<planned title>"
 
 - **Task:** <N> - <task heading title> <status marker, or "no status marker">
+
 - **Planned title:** the title verbatim, as `extract-planned-tests-for-task.sh` printed it
+
 - **Searched:** the grep command run, and what the semantic pass looked for after it
+
 - **Nearest existing test:** `path:line` of the closest match, or `none found`
+
 - **Why it is a miss:** why the nearest match does not cover the planned title
 
 ### 2. [LOW] Unplanned tests added by the branch
 
-- `path:line` - "<title>" - <one-line design of what it asserts> - gate: <changed-line coverage | CRAP | entangled-test split | gate unknown>
+- `path:line` - gate: <changed-line coverage | CRAP | entangled-test split | gate unknown>
+
+  "<title>" - <one-line design of what it asserts>
 ```
 
 Rules the schema depends on:
 
-- Severity is fixed at `[HIGH]` for every missing title - a test the plan declared is not optional, so there is no judgment call to make and none to get wrong.
+- Keep a blank line between bullets and every line within the doc-standards caps: `/quality-gate` copies findings verbatim into a checked repo file.
+
+- Severity is fixed at `[HIGH]` for every missing title - a test the plan declared is not optional, so there is no judgment call to make.
 
 - The unplanned-tests finding is one per run, listing every unplanned test, at fixed severity `[LOW]`.
   - Its title is exactly `Unplanned tests added by the branch`, which `get-test-sdd-dispatch-list.py` matches to keep it away from `tdd-coder`.

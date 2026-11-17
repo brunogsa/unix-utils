@@ -75,6 +75,21 @@ python3 ~/.claude/skills/code-review-pipeline/scripts/check-finding-bodies.py <R
 
 - On exit 1, rewrite only the flagged findings, at most twice, then report any leftovers.
 
+Main writes the merged verdict into a repo file, where the doc-standards prose hook blocks it on any hit, so it must also pass:
+
+```bash
+~/.claude/skills/doc-standards/scripts/check-density.sh <RUN_DIR>/merged-findings.md
+~/.claude/skills/doc-standards/scripts/check-hard-wrap.py <RUN_DIR>/merged-findings.md
+~/.claude/skills/doc-standards/scripts/check-bullet-gap.py <RUN_DIR>/merged-findings.md
+```
+
+- Repair each flagged line by layout only: a blank line between bullets, or an over-cap bullet split into a short bullet plus an indented paragraph after a blank line.
+  - Reason: "verbatim" above guards the words that titles, keys and tags match on, never the line breaks.
+
+- The words stay as the source wrote them, so a hit traces back to the lens that wrote that line.
+
+- When main re-dispatches you with this checker output, repair only the lines it names, the same way.
+
 Return exactly this:
 
 - The path written.
@@ -82,4 +97,4 @@ Return exactly this:
 - Duplicate groups collapsed, each listing every member: `refactor#A + auto-review#B + refactor#C → #N`.
 - Total findings absorbed: a group of n findings collapsed into one absorbs n-1, so sum n-1 over all groups.
 - Output finding count.
-- The checker's exit code.
+- The exit code of `check-finding-bodies.py` and of each prose checker.

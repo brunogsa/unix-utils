@@ -149,7 +149,9 @@ def quality_gate(arg):
         # 14c · main assembles; a killed write leaves no partial verdict.
         sh(f"cat {rendered} {run_dir}/merged-findings.md | write-atomically.py {merged_path}")
         if merge_verified(merged_path, sources, k):          # 14d · main checks, without reading the file
-            # 14d · non-empty, checker exit 0 on merged-findings.md alone,
+            # 14d · non-empty, body checker and the 3 prose checkers exit 0
+            #       on merged-findings.md alone (a prose hit re-dispatches the
+            #       merge agent ONCE with that output before failing),
             #       count == k + summed input_counts minus findings absorbed,
             #       and an awk gsub
             #       count on the WHOLE file finds no heading without exactly
@@ -306,7 +308,7 @@ flowchart TD
     n14a["14a. None did - skip the merge.<br/>A failed metrics leg is reported as<br/>metrics: FAIL - leg failed (reason), never clean"]
     n14b["14b. Record the source paths (refactor, auto-review, test-sdd,<br/>scout-leg, judge file, detector-edits); k = main's fence-aware<br/>count of the rendered metrics verdict's numbered deferred,<br/>tooling-ask and exception entries (0 with none; record bullets never count).<br/>Main counts each source's findings itself.<br/>Dispatch ONE code-reviewer (fresh context, foreground) with<br/>exactly those paths - never a glob - k and<br/>references/merge-review-verdicts.md. It merges reports only<br/>and writes ONLY RUN_DIR/merged-findings.md, numbered from k+1;<br/>a scout absorbed into another finding hands over its Scout task line"]:::dispatch
     n14c["14c. Main assembles: cat rendered merged-findings.md<br/>| write-atomically.py merged path. The rendered file goes<br/>verbatim and FIRST; a killed write leaves no partial verdict"]:::state
-    n14d{"14d. Main verifies without reading the file:<br/>non-empty, checker exit 0 on merged-findings.md alone,<br/>count == k + input counts minus absorbed,<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics, scout (fence-aware)?"}
+    n14d{"14d. Main verifies without reading the file:<br/>non-empty, body and 3 prose checkers exit 0<br/>on merged-findings.md alone (a prose hit<br/>re-dispatches the merge agent ONCE first),<br/>count == k + input counts minus absorbed,<br/>no heading without exactly one of<br/>auto-review, refactor, test-sdd, metrics, scout (fence-aware)?"}
     n14e["14e. Pass - MOVE (never delete) the refactor and auto-review<br/>files into RUN_DIR so address-verdicts cannot apply<br/>a finding from the merge and its source.<br/>Record the moved paths for the report"]:::state
     n14f["14f. Delete each in-goal scout task named by a<br/>Scout task line in the merged file (TaskUpdate status deleted).<br/>An in-goal id with no such line stays in the TaskList<br/>and the report names it"]:::state
     n14g["14g. Fail - every source file goes back to CWD as this run's<br/>output; move the failed merged file into RUN_DIR<br/>instead; no scout task is deleted; say so in the report"]:::gate

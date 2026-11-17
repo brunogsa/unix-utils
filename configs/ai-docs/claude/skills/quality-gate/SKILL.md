@@ -18,7 +18,7 @@ Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
 | `scout` | pending `[Scout]` tasks that belong to this branch, judged fresh | `[scout]` |
 
-A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less; it is a target, never a reason to cut a gate short.
+A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less, never a reason to cut a gate short.
 
 Main notes each phase's start and end (`date +%H:%M:%S`) in its scratchpad as it happens: each §3 leg with its own end, §4.1, §4.2, §6 with each `/address-verdicts` dispatch's start and end, and §7.
 
@@ -85,7 +85,7 @@ If detection fails, ask which branch to diff against; under either flag, stop an
 
 ## 3. Dispatch the legs in parallel
 
-First mint the run directory, before any dispatch: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
+First mint the run directory: `RUN_DIR=$(mktemp -d /tmp/quality-gate.XXXXXX)`. §4.1 reuses it.
 
 `<SESSION_ID>` is the path segment just above `scratchpad` in the main session's scratchpad path.
 
@@ -134,7 +134,7 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 
 Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
-Count findings yourself, fence-aware, since a finding may quote a `### 1.` line inside a code fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
+Count findings fence-aware, since a finding may quote a `### 1.` line in a fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on the rendered verdict for k (0 with none): its deferred, tooling-ask and exception entries, never a record bullet.
 
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
@@ -143,7 +143,8 @@ Then assemble: `cat <rendered> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/
 
 Verify without reading the merged file into main:
 
-- It exists and is non-empty, and `check-finding-bodies.py` exits 0 on `<RUN_DIR>/merged-findings.md` alone.
+- It exists and is non-empty, and `check-finding-bodies.py` and the [`merge-review-verdicts.md`](references/merge-review-verdicts.md) prose checkers exit 0 on `<RUN_DIR>/merged-findings.md` alone.
+  - A prose hit first re-dispatches the merge agent once with that output.
 
 - The merged count, fence-aware, equals k plus the sources' summed findings minus those absorbed.
 
@@ -166,8 +167,6 @@ The judge rules `[scout]` findings exactly like `refactor`, `auto-review` and `m
 On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: not run (merge fell back)`.
 
 ## 5. Assemble the apply list
-
-Compose and print the whole list before applying anything.
 
 ### 5.1. Every missing-planned-test finding goes in, without triage
 
