@@ -172,6 +172,47 @@ class TestTestSddFindingsSentToTddCoder:
             '### 1. [HIGH] Missing planned test - task 3: "after the indent"',
         ]
 
+    def test_should_leave_a_finding_off_the_dispatch_list_once_its_body_holds_a_skipped_annotation_line_while_an_unannotated_sibling_stays_listed(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_test-sdd_master_2026-11-15_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            '### 1. [HIGH] Missing planned test - task 3: "already ruled"\n\n'
+            "- **Task:** 3 - Parse quoted fields\n\n"
+            "SKIPPED (needs an answer: which delimiter does the csv use?)\n\n"
+            '### 2. [HIGH] Missing planned test - task 4: "still open"\n\n'
+            "- **Task:** 4 - Sum a column\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 2. [HIGH] Missing planned test - task 4: "still open"',
+        ]
+
+    def test_should_leave_a_skipped_test_sdd_finding_off_the_list_when_the_merged_verdict_tags_it_test_sdd(
+        self, tmp_path
+    ):
+        verdict = tmp_path / "verdict_quality-gate_master_2026-11-16_10:00.md"
+        verdict.write_text(
+            "## Findings\n\n"
+            '### 1. [LOW][test-sdd] Missing planned test - task 2: "ruled"\n\n'
+            "SKIPPED (out of scope for this branch)\n\n"
+            '### 2. [LOW][test-sdd] Missing planned test - task 5: "open"\n\n'
+            "## Other section\n",
+            encoding="utf-8",
+        )
+
+        completed = _run(verdict)
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.splitlines() == [
+            '### 2. [LOW][test-sdd] Missing planned test - task 5: "open"',
+        ]
+
     def test_fails_with_a_stderr_message_when_the_verdict_file_is_unreadable(
         self, tmp_path
     ):

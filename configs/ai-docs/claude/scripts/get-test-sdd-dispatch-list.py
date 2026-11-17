@@ -9,8 +9,10 @@
 #   verdict_quality-gate_*.md (only [test-sdd] findings listed).
 #
 # stdin: none.
+#
 # stdout: heading line of each finding to dispatch, verbatim,
-#   one per line in file order; empty when none qualify.
+#   one per line in file order; SKIPPED findings are left out;
+#   empty when none qualify.
 # exit: 0 success, 1 unreadable verdict file
 import argparse
 import importlib.util
@@ -37,6 +39,15 @@ FINDING_HEADING = re.compile(
 )
 
 BRACKET_TAG = re.compile(r"\[([^\]]*)\]")
+
+# Any finding heading, dispatchable or not: it ends the
+# previous finding's body.
+FINDING_START = re.compile(r"^### \d+\. ")
+
+# A ruling /address-verdicts wrote into a finding body at
+# column 0; the finding is final, so it is never dispatched
+# again.
+SKIPPED_ANNOTATION = re.compile(r"^SKIPPED \(")
 
 
 def is_test_sdd_finding(heading):
@@ -75,17 +86,29 @@ def is_dispatchable_heading(line):
     return is_test_sdd_finding(heading)
 
 
-def list_dispatchable_headings(verdict_text):
-    headings = []
+def iter_lines_outside_fences(verdict_text):
     toggle_fence = load_toggle_fence()
     fence_state = (False, "", 0)
     for line in verdict_text.splitlines():
         previous_state = fence_state
         fence_state = toggle_fence(line, *fence_state)
         is_inside_fence = previous_state[0] or fence_state[0]
-        if not is_inside_fence and is_dispatchable_heading(line):
-            headings.append(line)
-    return headings
+        if not is_inside_fence:
+            yield line
+
+
+def list_dispatchable_headings(verdict_text):
+    findings = []
+    current_finding = None
+    for line in iter_lines_outside_fences(verdict_text):
+        if FINDING_START.match(line) or line.startswith("## "):
+            current_finding = None
+            if is_dispatchable_heading(line):
+                current_finding = {"heading": line, "is_skipped": False}
+                findings.append(current_finding)
+        elif current_finding and SKIPPED_ANNOTATION.match(line):
+            current_finding["is_skipped"] = True
+    return [f["heading"] for f in findings if not f["is_skipped"]]
 
 
 def main():
