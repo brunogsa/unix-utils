@@ -10,7 +10,7 @@ SEVERITY_TAG_LINE = re.compile(r"^\*\*\[([^\]]+)\]\*\*$")
 # Lines appended after review by /address-verdicts or by the
 # quality-gate judge, never part of the comment a reviewer
 # wrote.
-ANNOTATION_PREFIXES = ("APPLIED (", "SKIPPED (", "**Standards check**: ")
+ANNOTATION_PREFIXES = ("APPLIED (", "SKIPPED (", "**Standards check**: ", "**Record**: ")
 
 ORDINAL_BY_TAG = {
     "MANDATORY": "HIGH",

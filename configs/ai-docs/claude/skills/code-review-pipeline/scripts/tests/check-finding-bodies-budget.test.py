@@ -140,6 +140,19 @@ class TestAddressVerdictsAnnotations:
         assert_passes(check_text(tmp_path, make_verdict(finding)))
 
 
+class TestMetricsJudgeRecordLine:
+    def test_record_line_naming_the_measured_records_is_not_charged_against_the_budget(
+        self, tmp_path
+    ):
+        spec = "core/test/modules/sales-agreements/shared/utils/merged-agreement.base.spec.ts"
+        record = "**Record**: " + ", ".join(
+            f"`size {spec}:{line} (anonymous)`" for line in (74, 184, 657)
+        )
+        body = padded_body(NON_MANDATORY_CAP, "RECOMMENDED") + "\n\n" + record
+        finding = make_finding(prefix="[MEDIUM][metrics]", body=body)
+        assert_passes(check_text(tmp_path, make_verdict(finding)))
+
+
 class TestQualityGateJudgeRuling:
     RULING = (
         '**Standards check**: Skip - "Keep functions short"; '
