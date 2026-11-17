@@ -112,7 +112,7 @@ class TestCoverageDirection:
 
         verdict = report.build_verdict(run)
 
-        first, second = entry_headings(section(verdict, "Ranked: coverage"))
+        first, second = entry_headings(section(verdict, "Ranked: Coverage"))
         assert "src/untested.py" in first
         assert "src/solid.py" in second
 
@@ -138,7 +138,7 @@ class TestNoValueRecords:
 
         verdict = report.build_verdict(run)
 
-        assert "Ranked: coverage" not in verdict
+        assert "Ranked: Coverage" not in verdict
         assert nodes_by_file(mermaid_block(verdict)) == {"src/prose_only.py": "green"}
 
     def test_should_rank_a_deferred_crap_first_print_it_as_no_value_and_paint_its_file_red(self):

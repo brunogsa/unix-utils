@@ -1,6 +1,9 @@
 import sys
 from pathlib import Path
 
+import pytest
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from quality_metrics_report_support import (
@@ -8,6 +11,7 @@ from quality_metrics_report_support import (
     DEFERRED_CRAP_SCORE,
     DEFERRED_LABEL,
     FunctionMeasure,
+    function_record,
     crap_record,
     deferred_records,
     entry_headings,
@@ -17,6 +21,12 @@ from quality_metrics_report_support import (
     section,
     target,
 )
+
+
+# entangled_tests has no script module: the code-reviewer lens
+# judges it, so the script never renders a section for it.
+NO_SCRIPT_MODULE = {"entangled_tests"}
+DECLARATION = Path(__file__).resolve().parent.parent / "quality-metrics.yaml"
 
 
 class TestExceptions:
@@ -133,10 +143,10 @@ class TestDeferredMetrics:
 
         verdict = report.build_verdict(measured(failed_run, measured_zero))
 
-        entries = entry_headings(section(verdict, "Ranked: coverage"))
+        entries = entry_headings(section(verdict, "Ranked: Coverage"))
         [failed_entry] = [entry for entry in entries if "src/report.py" in entry]
         [measured_entry] = [entry for entry in entries if "src/other.py" in entry]
-        assert "coverage 0 (pessimistic)" in failed_entry
+        assert "Coverage 0 (pessimistic)" in failed_entry
         assert "pessimistic" not in measured_entry
 
     def test_should_print_the_deferred_label_on_a_deferred_crap_violation_but_not_on_a_measured_one(self):
@@ -274,3 +284,32 @@ class TestNoGitVerdict:
         assert "removed-code check" in skipped
         assert "base-ref" in skipped
         assert "Skipped" not in report.build_verdict(run)
+
+
+class TestRankedSectionTitles:
+    @pytest.mark.parametrize("metric, title, make_record", [
+        ("cognitive_complexity", "Cognitive complexity",
+         lambda metric: function_record("src/report.py", "build", metric, 30, 10)),
+        ("code_duplication", "Code duplication",
+         lambda metric: file_record("src/report.py", metric, 30, 10)),
+    ])
+    def test_should_title_a_ranked_section_with_the_display_name_not_the_raw_metric_key(
+        self, metric, title, make_record
+    ):
+        record = make_record(metric)
+
+        verdict = report.build_verdict(measured(record))
+
+        assert f"## Ranked: {title}" in verdict
+        assert f"Ranked: {metric}" not in verdict
+
+    def test_should_title_every_metric_the_declaration_lists_so_a_new_metric_cannot_render_a_raw_key(self):
+        declaration = yaml.safe_load(DECLARATION.read_text())
+        declared = {
+            metric
+            for language in declaration["languages"].values()
+            for metric in language["metrics"]
+        } - NO_SCRIPT_MODULE
+        titled = {metric for metric, _scope in report.METRIC_TITLES}
+
+        assert sorted(declared - titled) == []

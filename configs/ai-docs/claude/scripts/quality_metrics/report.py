@@ -24,6 +24,13 @@ METRIC_TITLES = {
     ("crap", "function"): "CRAP",
     ("size", "function"): "Function size",
     ("size", "file"): "File size",
+    ("nesting", "function"): "Nesting",
+    ("parameters", "function"): "Parameters",
+    ("cognitive_complexity", "function"): "Cognitive complexity",
+    ("coverage", "file"): "Coverage",
+    ("code_duplication", "file"): "Code duplication",
+    ("test_duplication", "file"): "Test duplication",
+    ("dependency_direction", "file"): "Dependency direction",
 }
 
 PESSIMISTIC_NOTE = "pessimistic"
