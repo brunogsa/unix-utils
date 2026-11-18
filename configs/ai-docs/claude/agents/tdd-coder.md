@@ -69,6 +69,7 @@ No CWD reads are required to begin - a caller with no plan file and no spec at a
 
   - `base:` - the base SHA + branch this batch diverged from, for reading `git log <base-sha>..HEAD` when prior tasks' *why* matters. Skip when omitted.
   - `worktree:` - a path (and branch) the caller wants this batch run in. See Boundaries for the one narrow `git worktree add` carve-out this unlocks.
+
   - `session-id:` - the main session's id, used by PHASE METRICS.
 
   - `<run-label>` - an opaque token the caller picks for this batch's file keys: `/tmp/tdd-coder_substeps_<run-label>.md` and `/tmp/tdd-coder_evidences_<run-label>.txt`.
