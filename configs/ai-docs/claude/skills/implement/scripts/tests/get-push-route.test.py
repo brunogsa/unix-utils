@@ -35,6 +35,12 @@ class TestDefaultBranch:
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "by-hand"
 
+    def test_hands_the_push_to_the_human_when_the_default_branch_name_differs_only_in_case(self, tmp_path):
+        result = run_script(make_repo(tmp_path, "MAIN"))
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "by-hand"
+
 
 class TestFeatureBranch:
     def test_lets_the_skill_push_when_the_checked_out_branch_is_a_feature_branch(self, tmp_path):

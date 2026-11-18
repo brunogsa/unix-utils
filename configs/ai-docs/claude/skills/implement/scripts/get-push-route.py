@@ -20,16 +20,15 @@ from pathlib import Path
 
 # why: the guard owns which branches Claude may never push
 # to, so asking it keeps that list in one place.
-GIT_GUARD = Path(__file__).resolve().parents[3] / "hooks" / "claude-git-guard.sh"
-BATCH_END_PUSH = "git push -u origin HEAD"
+GIT_GUARD = Path(__file__).resolve().parents[3] / "hooks" / "claude-git-guard.py"
 GUARD_ALLOWS = 0
 GUARD_BLOCKS = 2
 SYMBOLIC_REF_DETACHED = 1
 
 
-def check_branch_checked_out():
-    # why: the guard allows a push it cannot pin to a branch,
-    # so without this check a detached HEAD would read "push".
+def get_checked_out_branch():
+    # why: the guard only allows a push that names its branch,
+    # and a detached HEAD has no branch to name.
     result = subprocess.run(
         ["git", "symbolic-ref", "--short", "-q", "HEAD"],
         capture_output=True,
@@ -39,12 +38,14 @@ def check_branch_checked_out():
         sys.exit("error: HEAD is detached, so no branch names the push target; check out a branch first")
     if result.returncode != 0:
         sys.exit(f"error: not a git repository: {os.getcwd()}")
+    return result.stdout.strip()
 
 
-def get_guard_route(cwd):
-    hook_input = json.dumps({"tool_input": {"command": BATCH_END_PUSH}, "cwd": cwd})
+def get_guard_route(branch, cwd):
+    batch_end_push = f"git push -u origin {branch}"
+    hook_input = json.dumps({"tool_input": {"command": batch_end_push}, "cwd": cwd})
     result = subprocess.run(
-        ["bash", str(GIT_GUARD)],
+        [sys.executable, str(GIT_GUARD)],
         input=hook_input,
         capture_output=True,
         text=True,
@@ -55,7 +56,7 @@ def get_guard_route(cwd):
         sys.stderr.write(result.stderr)
         return "by-hand"
     sys.stderr.write(result.stderr)
-    sys.exit(f"error: {GIT_GUARD} exited {result.returncode} instead of allowing (0) or blocking (2) '{BATCH_END_PUSH}'")
+    sys.exit(f"error: {GIT_GUARD} exited {result.returncode} instead of allowing (0) or blocking (2) '{batch_end_push}'")
 
 
 def main(argv):
@@ -65,8 +66,8 @@ def main(argv):
     if argv:
         sys.stderr.write("usage: get-push-route.py\n")
         return 2
-    check_branch_checked_out()
-    print(get_guard_route(os.getcwd()))
+    branch = get_checked_out_branch()
+    print(get_guard_route(branch, os.getcwd()))
     return 0
 
 

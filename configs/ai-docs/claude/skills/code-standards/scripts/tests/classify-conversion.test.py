@@ -184,7 +184,7 @@ class TestClassifyConversionHappy(_TempDirTestCase):
         # basename is one of the hooks known to fire on every
         # tool call.
         body = ["awk '{print}' x"] + [f"echo {i}" for i in range(LINE_CAP)]
-        script = _write_script(tmp_path, "claude-git-guard.sh", ["#!/usr/bin/env bash", *body])
+        script = _write_script(tmp_path, "claude-rm-guard.sh", ["#!/usr/bin/env bash", *body])
         payload = _single_result(_run(script))
         self.assertEqual(payload["verdict"], "stays-sh")
 

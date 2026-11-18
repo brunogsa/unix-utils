@@ -50,7 +50,6 @@ RISKY_CONSTRUCT_PATTERNS = (
 # hook, a one-shot CLI helper) is not in this set and takes
 # the ordinary verdict below.
 COLD_START_SENSITIVE_BASENAMES = frozenset({
-    "claude-git-guard.sh",
     "claude-rm-guard.sh",
     "check-reviewer-writes.sh",
     "statusline-tier.sh",
