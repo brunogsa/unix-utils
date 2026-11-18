@@ -64,7 +64,7 @@ The fetcher logs one `issue-context:` line per reference on stderr; a reference 
 gh repo clone "$repo" "$work_dir/repo" -- --depth=50 --filter=blob:none
 git -C "$work_dir/repo" fetch origin "pull/$pr_number/head" --depth=50
 # The guard blocks `$` beside checkout: write the work dir's literal path here.
-git -C /tmp/pr-review.<suffix>/repo checkout FETCH_HEAD
+git -C /tmp/pr-review-<pr_number>/repo checkout FETCH_HEAD
 ```
 
 Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, print the path.

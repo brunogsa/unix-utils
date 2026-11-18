@@ -8,4 +8,4 @@ Move the merged file into `<RUN_DIR>`, and move every source file except the sco
 
 Leave `scout-leg_<ts>.md` in `<RUN_DIR>` and change no scout task: they stay pending for the next gate run.
 
-Say so in §7.
+Say so in `SKILL.md` §7.

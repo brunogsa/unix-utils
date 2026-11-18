@@ -147,6 +147,7 @@ Count findings fence-aware, since a finding may quote a `### 1.` line in a fence
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
 Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only tooling problems above `## Findings`.
+
 Verify without reading the merged file into main:
 
 - It exists and is non-empty, and `check-finding-bodies.py` and the [`merge-review-verdicts.md`](references/merge-review-verdicts.md) prose checkers exit 0 on `<RUN_DIR>/merged-findings.md` alone.
@@ -168,7 +169,7 @@ Runs on auto-solve when §4.1 passed. Report-only and §4.1's fallback skip it.
 
 Main copies the merged file to `<RUN_DIR>/pre-judge.md`, then dispatches ONE `agent(subAgent=code-reviewer, title=Fix-or-Skip judge)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §1, and runs that file's §3 checks.
 
-The judge rules `[scout]` findings like the other lenses', so an in-goal scout is judged, and under auto-solve applied, with no human step.
+The judge rules `[scout]` findings exactly like `refactor`, `auto-review` and `metrics` ones, so an in-goal scout is judged and, under auto-solve, applied.
 
 On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: not run (merge fell back)`.
 
