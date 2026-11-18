@@ -104,7 +104,7 @@ If the human, after seeing the caller's package, names specific findings to appl
 
 Never do this as an unprompted default, and never as a repeating loop:
 
-- Dispatch a fresh `agent(subAgent=general-purpose, title=Apply review finding, model=sonnet, effort=medium)`.
+- The caller, in main, dispatches a fresh `agent(subAgent=general-purpose, title=Apply review finding, model=sonnet, effort=medium)`.
   - It writes the test, confirms it fails **RED** on the pre-fix code for the expected reason, then applies the fix and confirms **GREEN**.
 
 - A fix whose test was never shown RED first isn't trusted - re-dispatch.
