@@ -740,6 +740,14 @@ class TestRelativeScriptAfterOneLiteralCd:
         assert "before any later ;, ||, & or newline" in reason
         assert "call the script by its absolute path" in reason
 
+    def test_should_name_the_guards_subject_cap_and_last_message_rule_in_the_deny_message(self, tmp_path):
+        command = "cd /Users/brunoagostini/unix-utils && true; ./run-tests.py x.py; rc=$?; exit $rc"
+
+        reason = possible_commit_reason(tmp_path, command, cwd="/Users/brunoagostini/unix-utils")
+
+        assert "a subject of at most 64 characters" in reason
+        assert "Co-Authored-By: Claude ... as the last -m" in reason
+
 
 class TestHooksPathAndProgramKeys:
     def test_should_let_an_allowed_subcommand_through_when_hooks_path_holds_only_sample_hooks(self, tmp_path):

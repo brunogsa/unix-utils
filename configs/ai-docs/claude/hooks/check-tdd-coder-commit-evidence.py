@@ -289,7 +289,8 @@ PROSE_GUIDANCE = (
     "`git diff --cached --quiet && git add <paths> && git commit -m <message>`, or one plain "
     f"`git add [--] <paths>`, whose every path is a literal {' or '.join(suppression_patterns.PROSE_SUFFIXES)} "
     "file, with at least one -m or --message on the commit, no other option but -q, no pathspec "
-    "after git commit, and no other separator, redirect, glob, $, backtick, backslash or #"
+    "after git commit, and no other separator, redirect, glob, $, backtick, backslash or #. "
+    "The git guard also needs a subject of at most 64 characters and Co-Authored-By: Claude ... as the last -m"
 )
 
 # Only the agent's file writes bind its run label: a Bash
