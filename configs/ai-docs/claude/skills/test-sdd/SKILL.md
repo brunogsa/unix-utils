@@ -80,7 +80,7 @@ The marker never changes whether a task is checked - it is carried into the repo
 
 ## 3. Mint the verdict path
 
-Run `git branch --show-current` as its own call and replace each `/` in the branch name with `-` yourself. Then run `date "+verdict_test-sdd_<branch-slug>_%Y-%m-%d_%H:%M.md"` once, with that slug written literally, and treat the output as the file name, and set `$VERDICT_PATH` to that name inside `--out-dir` when it was given, otherwise in CWD.
+Run `git branch --show-current` alone, swap each `/` in the name for `-` yourself, then run `date "+verdict_test-sdd_<branch-slug>_%Y-%m-%d_%H:%M.md"` once with the slug typed in. Set `$VERDICT_PATH` to the output inside `--out-dir` when given, otherwise in CWD.
 
 Standalone (no `--out-dir`), never use `/tmp/`, since the user reads the file alongside the plan in their editor. With `--out-dir` the file lands in quality-gate's `<RUN_DIR>` on purpose, and the user reads the merged quality-gate verdict instead.
 
