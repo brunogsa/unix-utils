@@ -134,6 +134,11 @@ it_should_block_cp_copying_a_scratch_python_file_that_breaks_the_comment_format_
   assert_eq "should block cp -t src copying a /tmp scratch python file whose comment breaks the comment format rules into the repo" "2" "$HOOK_EXIT"
 }
 
+it_should_block_mv_moving_a_scratch_file_that_breaks_the_markdown_format_rules_onto_a_new_repo_markdown_file() {
+  run_hook "mv $scratch_dir/review-guide.md docs/review-guide.md"
+  assert_eq "should block mv moving a /tmp scratch file with hard-wrapped, gap-less bullets onto a new markdown file in the repo, since only cp is exempt" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -143,6 +148,7 @@ it_should_block_a_copy_run_through_a_local_script_named_cp_onto_a_repo_markdown_
 it_should_block_cp_onto_a_repo_markdown_file_when_the_shared_extension_list_is_missing
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_comment_format_rules_over_a_tracked_python_file
 it_should_block_cp_copying_a_scratch_python_file_that_breaks_the_comment_format_rules_into_a_target_directory_named_by_t
+it_should_block_mv_moving_a_scratch_file_that_breaks_the_markdown_format_rules_onto_a_new_repo_markdown_file
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
