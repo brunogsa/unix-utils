@@ -517,7 +517,7 @@ def apply_scouts(scouts_files, marked, start_branch):
         #       apply commits changed.
         if not lint_and_specs_green(finding.section_branch):    # 1y3
             halt(finding.section_branch, "validate branch", "red")   # 1y3
-        # 1y4 · Plain git push, NEVER --force; a rejection stops the chain.
+        # 1y4 · git push origin <branch>, NEVER --force; a rejection stops the chain.
         if not git_ok("push"):                              # 1y4
             halt(finding.section_branch, "push", "rejected")   # 1y4
         # 1y5 · Scouts branches can be stacked: merge up into each open child
@@ -603,7 +603,7 @@ flowchart TD
     n1r{"1r. Step 1 · Is lint plus the specs covering this branch's<br/>apply commits red?"}
     n1s{"1s. Step 1 · Is HEAD already equal to origin/&lt;branch&gt;?"}
     n1s1{"1s1. Step 1 · Is the tree clean apart from the never-stage list?<br/>A change left by a failed apply stops the chain"}
-    n1t{"1t. Step 1 · git push - NEVER --force, never asked in chat.<br/>Was it accepted?"}
+    n1t{"1t. Step 1 · git push origin &lt;branch&gt; - NEVER --force, never asked in chat.<br/>Was it accepted?"}
     n1u{"1u. Step 1 · Did 1t push, does a gate workflow exist, and is the PR's<br/>base the trunk it triggers on?"}
     n1v{"1v. Step 1 · Poll gh run list --workflow &lt;gate&gt; --commit &lt;pushed sha&gt;<br/>until it prints a run id (10-minute timeout; keying on the SHA<br/>keeps the previous commit's green run from counting). Then<br/>gh run watch &lt;id&gt; --exit-status in the background (a full gate<br/>outlives the Bash foreground cap) and WAIT for it. Did it pass?"}
     n1z["1z. Step 1 · Stop this branch's SUBTREE: mark the branch and every<br/>descendant stopped or skipped, record the branch, step, cause and<br/>conflicting files for the report. Branches already pushed stay pushed"]
@@ -620,8 +620,8 @@ flowchart TD
     n1y2b["1y2b. A section with no branch (e.g. local planning docs):<br/>apply in CWD, left uncommitted; annotate it"]
     n1y2c["1y2c. A branch: git checkout it, then apply through the same<br/>lens loop (nodes 21-18)"]
     n1y3{"1y3. Is lint plus the specs covering this branch's apply commits red?"}
-    n1y4{"1y4. git push, plain - NEVER --force. Was it accepted?"}
-    n1y5["1y5. gh pr list --base &lt;branch&gt; --state open. For each open child PR:<br/>git merge --no-edit the branch into it, then plain git push<br/>(scouts branches can be stacked). No child: nothing more"]
+    n1y4{"1y4. git push origin &lt;branch&gt; - NEVER --force. Was it accepted?"}
+    n1y5["1y5. gh pr list --base &lt;branch&gt; --state open. For each open child PR:<br/>git merge --no-edit the branch into it, then git push origin &lt;child branch&gt;<br/>(scouts branches can be stacked). No child: nothing more"]
     n1y6{"1y6. More marked scouts findings left?"}
   end
 

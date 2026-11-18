@@ -70,8 +70,9 @@ Otherwise step 0's persisted dirty-tree answer decides (`commit_now`, `proceed_w
 
 ```bash
 PR_BRANCH=$(gh pr view <n> --json headRefName -q .headRefName)
-CUR_BRANCH=$(git branch --show-current)
 ```
+
+Then, as its own call, run `git branch --show-current` - its output is `CUR_BRANCH`. The git guard blocks a `$( )` inside a command that holds a guarded subcommand, so never wrap it in a substitution; write the name literally in any later command.
 
 If `PR_BRANCH != CUR_BRANCH`, load [`references/branch-switch.md`](references/branch-switch.md): step 0's persisted branch answer decides whether to switch or abort.
 
@@ -190,7 +191,7 @@ Runs only when step 0's "Repo-green gate after changes?" is on - otherwise go st
 
 ## Step 8: Batch push (main)
 
-After all `apply` clusters are committed, run a single `git push` - no confirmation prompt. Step 5's debate close covered the push.
+After all `apply` clusters are committed, run a single `git push origin <CUR_BRANCH>` (the branch name written literally) - no confirmation prompt. Step 5's debate close covered the push.
 
 If the push is rejected (remote moved), abort and surface it - the commits stand. Never auto-rebase: the user resolves the divergence manually, then only the push is re-attempted, skipping step 7.
 

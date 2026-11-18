@@ -293,7 +293,7 @@ flowchart TD
   n20a["20a. Dispatch repo-green-runner<br/>mode=gate (background)<br/><br/>Fixes only batch-caused red<br/>(own 3-cycle/signature budget);<br/>never touches pre-existing red"]:::dispatch
   n20b{"20b. Gate verdict?<br/>GREEN / GREEN-WITH-EXCEPTIONS / HALT"}
   n20b1["20b1. Abort: stop before push<br/>surface surviving red set<br/>never hand-fix, never auto-retry"]
-  n21["21. Step 8: git push - single batch push<br/>no confirmation (step 5 debate close covered it)"]
+  n21["21. Step 8: git push origin &lt;branch&gt; - single batch push<br/>no confirmation (step 5 debate close covered it)"]
   n22{"22. Push rejected<br/>remote moved?"}
   n22a["22a. Abort: surface to user<br/>commits stand, never auto-rebase<br/>user resolves; only the push is re-attempted"]
   n23{"23. Step 9 &middot; More reply targets in<br/>clusters with a planned reply?<br/>(target = one thread_id, top-level, or review-summary)"}

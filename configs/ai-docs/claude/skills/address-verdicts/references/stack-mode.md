@@ -42,12 +42,12 @@ Also read every `verdict_scouts*.md` in CWD, with the same `[AI!]` heading test 
 - A finding in a section with no branch (e.g. "Local planning docs (uncommitted, no branch)") is applied in CWD and left uncommitted.
 
 - Each scouts branch is its own PR, so skip the tree walk and the merge forward from the parent branch.
-  - Check out the branch, apply through §3-§5, validate, then push with a plain `git push`, never force.
+  - Check out the branch, apply through §3-§5, validate, then push with `git push origin <branch>`, never force.
   - Why: scouts branches are independent PRs, so merging the trunk-ward neighbor in would drag unrelated changes between them.
 
 - After that push, run `gh pr list --base <branch> --state open`: scouts branches can themselves be stacked.
   - For each open child PR, merge the branch up into it, as the tree walk does.
-  - Push the child with a plain `git push`, never force.
+  - Push the child with `git push origin <child branch>`, never force.
   - With no open child, nothing more.
 
 - Quality-gate files keep the tree walk, merge-up, and CI watch in the rest of this file.
@@ -162,7 +162,7 @@ Walk the tree parent before children, siblings by PR number. Every "stop" below 
 7. Push.
    - The tree must be clean apart from the never-stage list; a change left by a failed apply → stop.
 
-   - `git push`, never `--force`, and never confirmed in chat: the human authorized marked-mode pushes without a confirmation.
+   - `git push origin <branch>`, never `--force`, and never confirmed in chat: the human authorized marked-mode pushes without a confirmation.
 
    - Skip it when HEAD equals `origin/<branch>`; a rejection stops the subtree.
 
