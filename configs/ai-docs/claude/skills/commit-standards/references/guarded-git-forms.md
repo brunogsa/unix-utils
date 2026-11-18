@@ -77,7 +77,7 @@ Each row's reason is the guard's own: it keeps lost work, a peer's staged files 
 | `cd /repo && git commit ...`, `W=/repo; git -C $W ...` | `git -C /repo commit ...` with the literal path |
 | `git add f && git commit ...` | The chain, starting with `git diff --cached --quiet` |
 | `git add .`, `git add -A` in the chain | Named paths |
-| An unquoted `*`, `?`, `[` or `{` in the chain's staging step, e.g. `git add configs/*`, `-l {1,2}` | Literal paths and hunk ids, or a quoted pattern such as `--include-matching "foo*"` |
+| An unquoted `*`, `?`, `[` or `{` in any guarded command or chain step, e.g. `git add configs/*`, `-l {1,2}`, `git push origin {feat/a,main}`, `git reset -- configs/*` | Literal paths and hunk ids, or a quoted pattern such as `--include-matching "foo*"` |
 | `git commit -a`, `--amend`, `--no-edit`, a pathspec | A new commit on named paths through the chain |
 | `git commit --no-verify`, `--no-gpg-sign` | Never run through the guard; when the user asks for one, tell them to run it themselves |
 | `git commit --trailer "Gate: metrics"` | A `Gate: metrics` line directly above the `Co-Authored-By` line, inside the last `-m` |

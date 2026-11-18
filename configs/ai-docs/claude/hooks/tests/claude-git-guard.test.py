@@ -252,6 +252,45 @@ def test_allows_a_staging_step_the_shell_passes_literally(repo, middle):
     assert_allowed(run_hook(f"{DIFF_CHECK} && {middle} && {COMMIT}", repo))
 
 
+# Every guarded command: the shell must not rewrite its words
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param("git push origin {feat/a,main}", id="push of a brace that expands to main too"),
+        pytest.param("git push origin ma[i]n", id="push of a bracket that matches a file named main"),
+        pytest.param("git push origin feat/*", id="push of every branch a star matches"),
+        pytest.param("git reset -- configs/*", id="reset that unstages every path a star matches"),
+        pytest.param("git restore --staged src/{a,b}.md", id="restore of paths a brace expands"),
+        pytest.param("git checkout -- src/?.md", id="checkout of paths a question mark matches"),
+        pytest.param("git branch -d feat/*", id="branch delete of every branch a star matches"),
+        pytest.param("git worktree remove wt*", id="worktree remove of a path a star matches"),
+        pytest.param(f'{DIFF_CHECK} && git add notes.txt && git commit -m fix* {TRAILER}',
+                     id="commit step of the chain with an unquoted star in its message"),
+    ],
+)
+def test_blocks_an_unquoted_glob_or_brace_in_any_guarded_command(repo, command):
+    result = run_hook(command, repo)
+    assert_blocked(result)
+    assert "quote or drop the glob" in result.stderr, result.stderr
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        pytest.param("git push origin feat/x", id="push of one literal branch"),
+        pytest.param("git restore configs/a.md", id="restore of one literal path"),
+        pytest.param(f"{DIFF_CHECK} && git-hunk stage 2a70dfa0 -l 4-11 && {COMMIT}",
+                     id="chain staging a literal line range"),
+        pytest.param(f'{DIFF_CHECK} && git add notes.txt && git commit -m "fix: match a*b {{x}}" {TRAILER}',
+                     id="commit message quoting a star and braces"),
+    ],
+)
+def test_allows_a_guarded_command_the_shell_passes_literally(repo, command):
+    assert_allowed(run_hook(command, repo))
+
+
 def test_block_message_names_the_line_selection_form_of_the_chain(repo):
     result = run_hook(f"{DIFF_CHECK} || git-hunk stage 2a70dfa0 -l 4-11 && {COMMIT}", repo)
     assert_blocked(result)

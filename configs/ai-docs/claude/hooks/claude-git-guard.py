@@ -330,10 +330,10 @@ def get_hunk_stage_operands(args):
     return args
 
 
-def check_staging_is_literal(middle, operators, text):
+def check_words_are_literal(tokens, text, subcommand):
     """Blocks a glob or brace pattern the shell would expand in
-    the chain's staging step, since git would then stage paths
-    or hunks the guard never saw.
+    any word of a guarded git command, since git would then get
+    branches, paths or hunks the guard never saw.
 
     A second tokenize pass, with the glob characters as
     punctuation, splits an unquoted one out of its word, while a
@@ -341,10 +341,10 @@ def check_staging_is_literal(middle, operators, text):
     glob characters reads the same either way, so it blocks.
     """
     glob_tokens = tokenize(text, punctuation_chars=OPERATOR_CHARS + GLOB_CHARS)
-    glob_segments, glob_operators = split_segments(glob_tokens)
-    has_glob_only_word = any(word and all(char in GLOB_CHARS for char in word) for word in middle)
-    if glob_operators != operators or glob_segments[1] != middle or has_glob_only_word:
-        block("the chain's staging step names literal paths or hunks: quote or drop the glob")
+    has_glob_only_word = any(word and all(char in GLOB_CHARS for char in word) for word in tokens)
+    if glob_tokens != tokens or has_glob_only_word:
+        block("a guarded git command names literal branches, paths or hunks: quote or drop the glob",
+              subcommand)
 
 
 def check_chain(segments, operators, cwd):
@@ -570,9 +570,8 @@ def check(command, cwd):
     found = guarded_subcommands(tokens)
     if not found:
         return
+    check_words_are_literal(tokens, text, found[0])
     check_shape(command, segments, operators, found[0], os.path.abspath(cwd or "."))
-    if operators:
-        check_staging_is_literal(segments[1], operators, text)
     if "commit" in found:
         check_commit_content(command, cwd or "")
 
