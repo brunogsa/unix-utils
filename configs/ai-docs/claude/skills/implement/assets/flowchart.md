@@ -363,6 +363,9 @@ def run_unit(unit):
             dispatch("pr-creator", batch_diff,               #      draft PR? 44d
                      update_existing=True)                    #      refreshes it under
                                                                 #      "Unexpected extras"
+    if answers.draft_pr:                                    # 44e · did 37 open a PR?
+        skill("code-review-guide", pr_number)               # 44f · main posts the guide,
+                                                            #       landed commits or not
 
     print_review_package()          # 45 · §8.4 step 2 - the package, closing with
                                     #      the review notification: base SHA + its
@@ -654,6 +657,8 @@ flowchart TD
     n44b{"44b. Re-push succeeded?<br/>(halts on 33's terms)"}
     n44c{"44c. Did 37 open a draft PR?"}
     n44d["44d. Refresh that PR's body through the same<br/>pr-creator dispatch: the gate commits land under its<br/>'Unexpected extras' section"]:::dispatch
+    n44e{"44e. Did 37 open a PR?<br/>Landed commits or not"}
+    n44f["44f. Main runs code-review-guide &lt;number&gt;:<br/>a guide comment on the final head commit.<br/>pr-creator cannot post it as a subagent"]:::skill
     n45["45. Step 8.4 · Print the review<br/>package, closing with the review notification:<br/>base SHA + its subject, then one line per unit -<br/>label · branch · commit count · PR URL when one<br/>exists; complete the remaining [Reminder]s"]
     n45a["45a. Step 8.4 · phase=presented - written HERE and<br/>nowhere earlier: set above the gates it would free the<br/>Stop hook with them unrun and a PR already open.<br/>Then DELETE this unit's state file; with the last<br/>unit's, also the .expected marker"]:::state
   end
@@ -755,9 +760,11 @@ flowchart TD
   n44 -->|"yes"| n44a --> n44b
   n44b -->|"no"| n47
   n44b -->|"yes"| n44c
-  n44c -->|"yes"| n44d --> n45
-  n44c -->|"no"| n45
-  n44 -->|"no, nothing landed"| n45
+  n44c -->|"yes"| n44d --> n44e
+  n44c -->|"no"| n44e
+  n44 -->|"no, nothing landed"| n44e
+  n44e -->|"yes"| n44f --> n45
+  n44e -->|"no"| n45
   n45 --> n45a --> n46
   n46 -->|"yes"| n18
   n46 -->|"no"| n49
