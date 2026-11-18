@@ -86,8 +86,8 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
   Never guess at content you haven't read, and never fabricate evidence to fill the gap.
 
 - Never spawn a subagent except in pipeline mode when the Wave 2 size gate or attempt counter selects its fan-out path.
-  - Then spawn the eight lens agents and the guide agent that path names; that spawn costs one of the four spawn-depth levels.
-  - `maxTurns: 128` (not the judges' usual 64) is sized for that pipeline run: seven waves plus waiting on nine agents does not fit a single-lens budget.
+  - Then spawn the eight lens agents that path names; that spawn costs one of the four spawn-depth levels.
+  - `maxTurns: 128` (not the judges' usual 64) is sized for that pipeline run: seven waves plus waiting on eight agents does not fit a single-lens budget.
 
   - `allowedSubagents` lists exactly those two types, so any other dispatch is denied before it runs.
   - Every other question you answer yourself - including each lens when the inline path is selected.

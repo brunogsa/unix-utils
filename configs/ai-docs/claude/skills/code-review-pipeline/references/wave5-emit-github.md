@@ -23,7 +23,7 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
 ## Build and POST the pending review
 
 4. Build `$work_dir/review-payload.json` with jq for the inline comments only, sourcing each `body` verbatim from its `$work_dir/wave5-comment-<n>.md`.
-   - **Leave the top-level `body` empty** - the Review Guide is delivered as a separate standalone PR comment in the guide-posting step below.
+   - **Leave the top-level `body` empty** - the review guide is a separate PR comment, posted by `/pr-review` through the `code-review-guide` skill.
      - Rationale: a guide in the body gets buried behind GitHub's review filter.
 
    - Every inline comment body gets the signature footer appended: two newlines + `gerado por IA, revisado pelo usuário`.
@@ -88,41 +88,3 @@ Read this only in **github mode**; local mode uses [`wave5-emit-local.md`](wave5
    - **If either check comes back wrong, stop: don't declare success** - report the actual state (or the mismatch) to the user.
      - Never call anything that submits a review (no `event` field on the POST, no follow-up call to `.../reviews/{id}/events`, no `gh pr review --comment/--approve/--request-changes`).
      - Submitting is the human's action alone.
-
-## Post the Review Guide as its own PR comment
-
-8. **Post the Review Guide as a standalone PR comment**, wrapped in a collapsed `<details>` block so it doesn't dominate the conversation feed but stays one click away.
-   - Its content is `$work_dir/wave2-guide.md`.
-   - Use the issue-comments endpoint (PR conversation comments share the issue API):
-
-   ```bash
-   short_sha=${commit_sha:0:7}
-   commit_url="https://github.com/$repo/pull/$pr_number/commits/$commit_sha"
-   jq -n --arg body "$guide_body" '{body: $body}' > "$work_dir/guide-payload.json"
-   gh api repos/"$repo"/issues/"$pr_number"/comments \
-     --method POST \
-     --input "$work_dir/guide-payload.json" \
-     > "$work_dir/guide-response.json"
-   guide_url=$(jq -r '.html_url' "$work_dir/guide-response.json")
-   ```
-
-   The `$guide_body` must follow this shape (PT-BR for github mode):
-
-   ```markdown
-   <details>
-   <summary><strong>Code review - guia de leitura</strong> (clique para expandir)</summary>
-
-   Este comentário acompanha a [revisão automática neste PR](<pr-files-url>), gerada a partir do commit [`<short_sha>`](<commit_url>) - commits posteriores podem deixar este guia desatualizado. Use ele pra localizar os hunks que valem mais atenção antes de mergulhar no diff inteiro.
-
-   <the full content of $work_dir/wave2-guide.md - every section `references/guide-writer.md` emitted, since that file owns the section list; on tiny_pr=true this is Wave 2's 2-sentence summary in place of the full guide>
-
-   </details>
-
-   gerado por IA, revisado pelo usuário
-   ```
-
-   - The commit stamp lets a reader tell a stale guide from a current one: it describes one head commit, and a later push changes the diff without touching the comment.
-
-   - Keep the blank lines around the guide content - GitHub renders Markdown (the guide's ```mermaid fences included) inside `<details>` only when a blank line separates it from the HTML tags.
-
-   Print both `review_url` (pending review) and `guide_url` (standalone comment) in Wave 6.

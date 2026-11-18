@@ -34,7 +34,14 @@ def pr_review(pr_url, issue_ref=None):                        # 1
     print(report.review_url, report.per_severity_counts,
           report.skipped_files, report.wave6_summary)
 
-    # 6 · submitting is the human's decision alone -- the review stays
+    # 6 · the guide runs in this session, never inside the orchestrator;
+    #     skipped when the report says abort (closed, merged or already reviewed PR).
+    #     No --metrics: github mode writes no metrics file.
+    if not report.aborted:
+        guide = run_skill("code-review-guide", pr_url)         # posts its own collapsed PT-BR comment
+        print(guide.comment_url)
+
+    # 7 · submitting is the human's decision alone -- the review stays
     #     PENDING until they act on <pr-url>/files
     return "PENDING review posted; human filters, edits, deletes or submits"
 ```
@@ -48,13 +55,18 @@ flowchart TD
   n3["3. Dispatch code-reviewer, title Run code-review pipeline<br/>(agent-pinned · background · serial):<br/>header in the prompt body; it reads<br/>code-review-pipeline/SKILL.md and runs Waves 0-6"]:::dispatch
   n4["4. Wait for its completion notification<br/>(never poll)"]
   n5["5. Print from its report: review URL,<br/>per-severity counts, skipped files,<br/>Wave 6 summary"]
-  n6(["6. Human opens &lt;pr-url&gt;/files to filter,<br/>edit, delete or submit --<br/>the review stays PENDING until then"]):::gate
+  n6{"6. Report says abort?<br/>(closed, merged or already reviewed PR)"}
+  n6a["6a. Run /code-review-guide &lt;pr-url&gt; in this session<br/>(no --metrics): posts its own collapsed<br/>PT-BR guide comment, then print that comment's URL"]:::skill
+  n7(["7. Human opens &lt;pr-url&gt;/files to filter,<br/>edit, delete or submit --<br/>the review stays PENDING until then"]):::gate
 
   n1 --> n2
   n2 --> n3
   n3 --> n4
   n4 --> n5
   n5 --> n6
+  n6 -->|"yes -- skip the guide"| n7
+  n6 -->|"no"| n6a
+  n6a --> n7
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

@@ -111,15 +111,15 @@ large_pr=false; [ "$diff_bytes" -gt 60000 ] && large_pr=true
 echo "$large_pr" > "$work_dir/large-pr.txt"
 ```
 
-If `added_lines < 100`, `tiny_pr=true`: Wave 2's guide step emits a 2-sentence summary instead of the full Review Guide, and Wave 3 is skipped entirely (see Wave 2 and Wave 3 below).
+If `added_lines < 100`, `tiny_pr=true`: Wave 3 is skipped entirely (see Wave 3 below).
 
-At this scale the whole diff fits comfortably in context, the full guide narrates little a 2-sentence summary doesn't already say, and the per-finding validator adds more cost than it saves.
+At this scale the whole diff fits comfortably in context, and the per-finding validator adds more cost than it saves.
 
 Otherwise leave `tiny_pr=false` and run the full pipeline.
 
 **Persist it to `$work_dir/tiny-pr.txt`** so Wave 2 can recover the flag from disk instead of trusting working memory after a mid-pipeline compaction.
 
-Without it, a resumed tiny PR reruns Wave 3's full validator pass and writes the long-form guide the flag exists to skip.
+Without it, a resumed tiny PR reruns Wave 3's full validator pass, which the flag exists to skip.
 
 If `diff_bytes > 60000`, `large_pr=true`: Wave 2 fans its eight lenses out to one subagent each instead of reviewing inline (see Wave 2).
 

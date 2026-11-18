@@ -45,8 +45,6 @@ Both callers also need the pipeline's reads - diff, rubrics, standards - kept ou
 - `Metrics` (local only, optional): `on` or `off`; absent reads as `off`. `on` makes Wave 1 run `measure-quality-metrics.py`.
   - `off` skips the run, since `/quality-gate` already measures in its own leg and `/auto-review --metrics` is the opt-in.
 
-- `Design sections` (github only, optional): `on` or `off`; absent reads as `off`. `on` adds the Arquitetura, Fluxo and Design de testes sections to the Review Guide - `/pr-review` passes `on`.
-
 **Load lazily, by wave; keep afterward** - they ground your validation and decisions:
 
 1. Read `~/.claude/skills/code-review-pipeline/references/review-principles.md` + `review-checklists.md` (Wave 0+)
@@ -77,14 +75,14 @@ This is where the `tiny_pr` flag (`added_lines < 100`) and the `large_pr` flag (
 
 ---
 
-## Wave 2 - Review + guide writer
+## Wave 2 - Review
 
 - **Resume check** (before anything else):
 
   - Read `$work_dir/tiny-pr.txt` and `$work_dir/large-pr.txt` and use them as `tiny_pr` / `large_pr` instead of any in-memory value;
     - a missing file reads as `false`, so a work dir from before the flag existed still resumes.
 
-  - Wave 1 persists them so a mid-pipeline compaction can't lose which path (guide length, whether Wave 3 runs, inline or fan-out) a resumed run takes.
+  - Wave 1 persists them so a mid-pipeline compaction can't lose which path (whether Wave 3 runs, inline or fan-out) a resumed run takes.
 
   - Bump the attempt counter: `n=$(cat "$work_dir/wave2-attempts.txt" 2>/dev/null); echo $(( ${n:-0} + 1 )) > "$work_dir/wave2-attempts.txt"`.
     - Every entry into Wave 2, first run or post-compaction resume, counts as one attempt.
@@ -133,21 +131,9 @@ Never merge with fewer than eight lens files, and never read the diff in this wi
 
 Dedup is **not** done at the merge - Wave 3 resolves overlaps with the full merged list in hand.
 
-**Guide writer:**
-
-- **Skip entirely when `Mode: local`** - go straight to Wave 3; local reports drop the guide (rationale in `references/local-review-template.md`).
-
-- **Resume check** (github mode only): if `$work_dir/wave2-guide.md` already exists, load it and skip straight to Wave 3.
-- **If `tiny_pr=true`**: skip `references/guide-writer.md`; emit a 2-sentence change summary instead. At <100 added lines the change speaks for itself.
-- **Else, on the inline path**: after the merge, read `references/guide-writer.md` and produce the guide it specifies - it owns the sections and budget, and reads `Design sections` from the header.
-
-- **Else, on the fan-out path**: never write the guide inline, since `guide-writer.md` re-reads the whole diff; dispatch the guide agent per "Guide writer on the fan-out path" in `references/wave2-fan-out.md`.
-
-- **Persist**: write the guide (or 2-sentence summary) to `$work_dir/wave2-guide.md`.
-
 Resolve placeholders in each reference file against Wave 1 paths and values.
 
-Artifact at the end of Wave 2: **one flat findings list + one Review Guide** (or 2-sentence summary when `tiny_pr=true`).
+Artifact at the end of Wave 2: **one flat findings list**. The PR's review guide is not written here: `/pr-review` runs the `code-review-guide` skill in the main session after this pipeline reports back.
 
 ---
 
@@ -213,8 +199,7 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 - **Clone fails (Wave 1, github-only - `gh repo clone` never runs in local mode)**: abort with a clear error and `work_dir`'s path - review can't proceed without the code on disk.
 
 - **No findings at all**:
-  - GH: skip the pending review entirely - don't post an empty review just to carry the guide.
-    - Still post the Review Guide as a standalone PR comment (Wave 5's guide-posting step) so the human gets the context.
+  - GH: skip the pending review entirely - don't post an empty review.
 
   - LOCAL: write `${out_file}` (the `./verdict_auto-review_<branch>_<timestamp>` file) with "no findings" under Findings.
 
@@ -228,7 +213,7 @@ Print a terminal summary using `references/wave6-summary-template.md`. Both mode
 
 - Don't submit the review, by any path (exact call list in `wave5-emit-github.md`) - submitting is the human's decision alone.
 
-- Don't include a changelog. The Review Guide replaces it.
+- Don't include a changelog. The separate `code-review-guide` comment that `/pr-review` posts replaces it.
 
 - Don't invent flags. The CLI surface is deliberately minimal.
 

@@ -26,8 +26,10 @@ def caller(arg):
     #     Both callers dispatch the same way: /auto-review needs the fresh context
     #     for bias, and both need the diff/rubric reads out of their own window.
     report = dispatch("code-reviewer", arg, background=True)
-    print(report)                                              # 23 · caller prints URL/path, counts, Wave 6 summary
-    # 24 · pending review (github) or verdict file (local) awaits a human read/submit.
+    print(report)                                              # 21 · caller prints URL/path, counts, Wave 6 summary
+    # 22 · pending review (github) or verdict file (local) awaits a human read/submit.
+    #      (/pr-review then runs the code-review-guide skill in its own session;
+    #      that is the caller's flow, outside this pipeline.)
 
 def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
     mode, target, language = parse_input_header(arg)          # 3
@@ -54,8 +56,8 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
         run_repo_wide_static_checks()
 
     # 7 · github computes+persists both flags here; local's script (6c) already
-    #     wrote them. tiny_pr shrinks the guide (13b) and skips Wave 3's validator
-    #     (14a); large_pr (diff > 60000 bytes) selects Wave 2's fan-out path (10).
+    #     wrote them. tiny_pr skips Wave 3's validator (13a); large_pr
+    #     (diff > 60000 bytes) selects Wave 2's fan-out path (10).
     persist(f"{work_dir}/tiny-pr.txt", added_lines_under_100(work_dir))
     persist(f"{work_dir}/large-pr.txt", diff_bytes_over_60000(work_dir))
 
@@ -87,14 +89,11 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
             # 10c · one message, background, ∥: one code-reviewer per remaining
             #       lens (agent-pinned), each given the resolved preamble
             #       placeholders, its single rubric path and its output path,
-            #       returning one line (path + count). The guide agent
-            #       (general-purpose · opus) rides in the same message when
-            #       github, not tiny_pr and wave2-guide.md is missing.
+            #       returning one line (path + count).
             #       The orchestrator never reads the diff on this path.
             #       On attempts >= 2, ListAgents first and skip lenses with a
             #       live agent -- a compaction mid-wait leaves them running.
-            dispatch_parallel([f"Review lens {lens}" for lens in remaining],
-                              guide_agent_if_needed(mode, tiny_pr))
+            dispatch_parallel([f"Review lens {lens}" for lens in remaining])
             wait_for_completion_notifications()
             # 10d · verify every expected file exists and parses as an array.
             bad = [lens for lens in remaining
@@ -115,72 +114,55 @@ def code_review_pipeline(arg):   # runs inside the code-reviewer orchestrator
     findings = merge_json(f"{work_dir}/wave2-lens-*.json")      # 12 · jq -s add
     persist(f"{work_dir}/wave2-findings.json", findings)
     # dedup is NOT done here -- eight lenses over the same diff can still flag
-    # one defect twice under two scope_tags; Wave 3 (14b) resolves overlaps.
+    # one defect twice under two scope_tags; Wave 3 (13b) resolves overlaps.
 
-    if mode == "local":                                       # 13
-        pass   # local skips the guide entirely -> Wave 3
-    elif exists(f"{work_dir}/wave2-guide.md"):                # 13a
-        pass   # already written -- resume, or the guide agent (10c) wrote it
-    elif tiny_pr:                                             # 13b
-        persist(f"{work_dir}/wave2-guide.md", two_sentence_summary())   # 13b1
-    elif fan_out:                                             # 13b2
-        # 13b2a · the guide agent dispatched at 10c owns the file; await it,
-        #         never re-read the diff here. Still missing: ListAgents,
-        #         re-dispatch once, then fall back to the 2-sentence summary.
-        wait_for_guide_or_fallback(f"{work_dir}/wave2-guide.md")
-    else:
-        # 13b2b · inline: github only; sections and budget per guide-writer.md.
-        persist(f"{work_dir}/wave2-guide.md", write_review_guide())
-
-    if exists(f"{work_dir}/wave3-findings.json"):             # 14
+    if exists(f"{work_dir}/wave3-findings.json"):             # 13
         pass   # already completed -- resume straight to Wave 4
-    elif tiny_pr:                                             # 14a
-        # 14a1 · tiny_pr skips the validator pass entirely -- at <100 added
+    elif tiny_pr:                                             # 13a
+        # 13a1 · tiny_pr skips the validator pass entirely -- at <100 added
         #        lines the change is in context and hallucinations are rare.
         persist(f"{work_dir}/wave3-findings.json", findings)
         persist(f"{work_dir}/wave3-drop-log.txt", "")
     else:
-        # 14b · Wave 3 dedup pre-pass: first step holding all 8 lens arrays at
+        # 13b · Wave 3 dedup pre-pass: first step holding all 8 lens arrays at
         #       once, so cross-lens overlap gets resolved here, not in Wave 2.
         findings = dedup_across_lenses(findings)
-        # 14c · per-finding validation: drop false positives, tighten line
+        # 13c · per-finding validation: drop false positives, tighten line
         #       anchors. Threshold LOW -- keep when in doubt. On the fan-out
         #       path read only each finding's anchored sed -n range, never
         #       the whole diff or file.
         findings = validate(findings)
         persist(f"{work_dir}/wave3-findings.json", f"{work_dir}/wave3-drop-log.txt")
 
-    if not exists(f"{work_dir}/wave4-findings.json"):         # 15
-        # 15a · Wave 4 · drop every finding anchored outside commentable-lines.txt.
+    if not exists(f"{work_dir}/wave4-findings.json"):         # 14
+        # 14a · Wave 4 · drop every finding anchored outside commentable-lines.txt.
         run("filter-off-diff-findings.sh")   # writes wave4-findings.json + wave4-drop-log.txt
         findings = load(f"{work_dir}/wave4-findings.json")
 
-    if not findings:                                          # 16 · the normal outcome
-        match mode:                                           # 16a
-            case "github": skip_pending_review()              # 16a1 · straight to 21
-            case "local":  write_verdict_file("no findings")  # 16a2 · straight to 22
+    if not findings:                                          # 15 · the normal outcome
+        match mode:                                           # 15a
+            case "github": skip_pending_review()              # 15a1 · straight to 20
+            case "local":  write_verdict_file("no findings")  # 15a2 · straight to 20
     else:
-        match mode:                                           # 17
+        match mode:                                           # 16
             case "github":
-                # 18 · body check (check-finding-bodies.py --findings-json,
+                # 17 · body check (check-finding-bodies.py --findings-json,
                 #      rewrite flagged bodies at most twice), then one single batch call.
                 post_pending_review(build("review-payload.json"))
-                if response.status == 422:                    # 19
-                    drop_unresolvable_anchors()               # 19a · retry once, same batch shape
-                    if retry().status == 422:                 # 19a1
-                        return stop(report=response.body)     # 19a1a
+                if response.status == 422:                    # 18
+                    drop_unresolvable_anchors()               # 18a · retry once, same batch shape
+                    if retry().status == 422:                 # 18a1
+                        return stop(report=response.body)     # 18a1a
 
-                # 20 · re-fetch and compare before touching anything else.
+                # 19 · re-fetch and compare before touching anything else.
                 if not (state_is_pending() and comments_match_payload()):
-                    # 20a · no GitHub cleanup without the human's go-ahead.
+                    # 19a · no GitHub cleanup without the human's go-ahead.
                     return stop("mismatch")
-                # 21 · standalone PR comment, from guide-payload.json
-                post_review_guide()
 
             case "local":
-                out_file = write(f"verdict_auto-review_{branch}_{ts}", to=CWD)   # 17a
+                out_file = write(f"verdict_auto-review_{branch}_{ts}", to=CWD)   # 16a
 
-    return terminal_summary()                                 # 22 · Wave 6, returned to the caller
+    return terminal_summary()                                 # 20 · Wave 6, returned to the caller
 ```
 
 ## Flowchart
@@ -205,7 +187,7 @@ flowchart TD
   n6c["6c. local: scripts/prep-local-context.sh --<br/>writes 8 artifacts to $work_dir:<br/>diff, changed-files.txt, commit-messages.txt,<br/>commentable-lines.txt, skipped-binary.txt,<br/>skipped-deleted.txt, tiny-pr.txt, large-pr.txt"]:::hook
   n6d["6d. local: repo-wide static checks --<br/>lint/typecheck/dead-code/circular,<br/>all test tiers, coverage"]:::hook
 
-  n7["7. tiny_pr = added_lines less than 100,<br/>large_pr = diff bytes over 60000,<br/>persisted to tiny-pr.txt + large-pr.txt<br/>(github computes here; local already<br/>wrote them via 6c). tiny_pr shrinks the<br/>guide (13b) and skips Wave 3 (14a);<br/>large_pr selects the fan-out path (10)"]:::state
+  n7["7. tiny_pr = added_lines less than 100,<br/>large_pr = diff bytes over 60000,<br/>persisted to tiny-pr.txt + large-pr.txt<br/>(github computes here; local already<br/>wrote them via 6c). tiny_pr skips<br/>Wave 3 (13a);<br/>large_pr selects the fan-out path (10)"]:::state
 
   n8["8. Wave 2 resume check, from disk only:<br/>read both flags (missing file = false),<br/>bump $work_dir/wave2-attempts.txt,<br/>list wave2-lens-*.json for the lenses<br/>still lacking a file. Never Read a<br/>tool-results/*.txt the compaction<br/>reminder names"]:::state
 
@@ -213,7 +195,7 @@ flowchart TD
   n10{"10. Fan out? large_pr, or<br/>attempts >= 2 with fewer<br/>than 8 lens files"}
   n10a["10a. Inline setup (once): read<br/>common-preamble.md, load code-standards<br/>+ CLAUDE.md; test-/doc-standards only<br/>when a remaining lens triggers them"]:::skill
   n10b["10b. Inline, one lens at a time (of 8:<br/>correctness, corner-cases, testing, security,<br/>design, ai-slop, docs, performance): read<br/>ONLY that rubric, walk the diff, tag findings<br/>scope_tag=&lt;lens&gt;, write wave2-lens-&lt;name&gt;.json<br/>BEFORE reading the next rubric"]:::state
-  n10c["10c. Fan out, one message, ∥ background:<br/>one code-reviewer per remaining lens<br/>(agent-pinned) with resolved preamble<br/>placeholders, its single rubric path and<br/>output path; returns one line (path + count).<br/>Guide agent (general-purpose · opus) rides<br/>along when github, not tiny_pr, guide missing.<br/>Orchestrator never reads the diff here.<br/>attempts &gt;= 2: ListAgents first, skip<br/>lenses with a live agent"]:::dispatch
+  n10c["10c. Fan out, one message, ∥ background:<br/>one code-reviewer per remaining lens<br/>(agent-pinned) with resolved preamble<br/>placeholders, its single rubric path and<br/>output path; returns one line (path + count).<br/>Orchestrator never reads the diff here.<br/>attempts &gt;= 2: ListAgents first, skip<br/>lenses with a live agent"]:::dispatch
   n10d["10d. Wait for every completion, then<br/>jq -e 'type==&quot;array&quot;' on each expected<br/>wave2-lens-&lt;name&gt;.json"]
   n10e{"10e. Any lens file missing<br/>or unparsable?"}
   n10e1["10e1. ListAgents: a live 'Review lens &lt;name&gt;'<br/>means still running, wait; otherwise<br/>re-dispatch that lens exactly once"]:::dispatch
@@ -224,46 +206,36 @@ flowchart TD
   n11a(["11a. Abort: expected 8 lens<br/>outputs, found fewer"])
   n12["12. jq -s 'add' merge into<br/>wave2-findings.json"]:::state
 
-  n13{"13. Mode local?"}
-  n13a{"13a. $work_dir/wave2-guide.md<br/>exists? (github only; the guide<br/>agent from 10c may have written it)"}
-  n13b{"13b. tiny_pr? (github, guide<br/>not yet written)"}
-  n13b1["13b1. Emit 2-sentence change summary<br/>persist wave2-guide.md"]
-  n13b2{"13b2. Fan-out path?"}
-  n13b2a["13b2a. Await the guide agent's<br/>wave2-guide.md (dispatched at 10c);<br/>never re-read the diff here. Still missing:<br/>ListAgents, re-dispatch once, then fall<br/>back to the 2-sentence summary"]
-  n13b2b["13b2b. Write Review Guide inline<br/>(github only; sections and budget<br/>per guide-writer.md)<br/>persist wave2-guide.md"]
+  n13{"13. $work_dir/wave3-findings.json<br/>exists?"}
+  n13a{"13a. tiny_pr? (not yet<br/>completed)"}
+  n13a1["13a1. Copy wave2-findings.json to<br/>wave3-findings.json verbatim,<br/>write empty wave3-drop-log.txt --<br/>skip the validator entirely"]
+  n13b["13b. Wave 3: dedup pre-pass across all<br/>8 lens arrays -- same path,<br/>overlapping lines, same underlying<br/>defect = duplicate; keep highest<br/>severity/confidence; log each drop"]
+  n13c["13c. Wave 3: per-finding validation --<br/>false-positive check, then line-range<br/>check; threshold LOW -- keep when in doubt.<br/>Fan-out path: read only each finding's<br/>anchored sed -n range, never the whole diff.<br/>persist wave3-findings.json + wave3-drop-log.txt"]
 
-  n14{"14. $work_dir/wave3-findings.json<br/>exists?"}
-  n14a{"14a. tiny_pr? (not yet<br/>completed)"}
-  n14a1["14a1. Copy wave2-findings.json to<br/>wave3-findings.json verbatim,<br/>write empty wave3-drop-log.txt --<br/>skip the validator entirely"]
-  n14b["14b. Wave 3: dedup pre-pass across all<br/>8 lens arrays -- same path,<br/>overlapping lines, same underlying<br/>defect = duplicate; keep highest<br/>severity/confidence; log each drop"]
-  n14c["14c. Wave 3: per-finding validation --<br/>false-positive check, then line-range<br/>check; threshold LOW -- keep when in doubt.<br/>Fan-out path: read only each finding's<br/>anchored sed -n range, never the whole diff.<br/>persist wave3-findings.json + wave3-drop-log.txt"]
+  n14{"14. $work_dir/wave4-findings.json<br/>exists?"}
+  n14a["14a. Wave 4: filter-off-diff-findings.sh<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json + wave4-drop-log.txt"]:::hook
 
-  n15{"15. $work_dir/wave4-findings.json<br/>exists?"}
-  n15a["15a. Wave 4: filter-off-diff-findings.sh<br/>(anchor outside commentable-lines.txt)<br/>persist wave4-findings.json + wave4-drop-log.txt"]:::hook
+  n15{"15. Any findings survive Wave 4?"}
+  n15a{"15a. Mode?"}
+  n15a1["15a1. Skip pending review"]
+  n15a2["15a2. Write verdict file:<br/>'no findings'"]:::state
 
-  n16{"16. Any findings survive Wave 4?"}
-  n16a{"16a. Mode?"}
-  n16a1["16a1. Skip pending review"]
-  n16a2["16a2. Write verdict file:<br/>'no findings'"]:::state
+  n16{"16. Mode?"}
 
-  n17{"17. Mode?"}
+  n17["17. check-finding-bodies.py --findings-json<br/>(rewrite flagged bodies, at most twice),<br/>build review-payload.json,<br/>POST pending review (single batch call)"]:::state
+  n18{"18. POST returned 422?"}
+  n18a["18a. Drop unresolvable anchors,<br/>retry once (same batch shape)"]
+  n18a1{"18a1. Retry also failed?"}
+  n18a1a(["18a1a. Stop: report 422 body to user"]):::gate
 
-  n18["18. check-finding-bodies.py --findings-json<br/>(rewrite flagged bodies, at most twice),<br/>build review-payload.json,<br/>POST pending review (single batch call)"]:::state
-  n19{"19. POST returned 422?"}
-  n19a["19a. Drop unresolvable anchors,<br/>retry once (same batch shape)"]
-  n19a1{"19a1. Retry also failed?"}
-  n19a1a(["19a1a. Stop: report 422 body to user"]):::gate
+  n19{"19. Re-fetched state is PENDING<br/>and comments match payload?"}
+  n19a(["19a. Stop: report mismatch,<br/>no GitHub cleanup without go-ahead"]):::gate
 
-  n20{"20. Re-fetched state is PENDING<br/>and comments match payload?"}
-  n20a(["20a. Stop: report mismatch,<br/>no GitHub cleanup without go-ahead"]):::gate
+  n16a["16a. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
 
-  n21["21. Post Review Guide as<br/>standalone PR comment<br/>(guide-payload.json)"]:::state
-
-  n17a["17a. Write verdict_auto-review_TIMESTAMP<br/>file to CWD"]:::state
-
-  n22["22. Wave 6: terminal summary,<br/>returned in the orchestrator's report"]
-  n23["23. Caller prints review URL / verdict path,<br/>per-severity counts, skipped files,<br/>Wave 6 summary from that report"]
-  n24(["24. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
+  n20["20. Wave 6: terminal summary,<br/>returned in the orchestrator's report"]
+  n21["21. Caller prints review URL / verdict path,<br/>per-severity counts, skipped files,<br/>Wave 6 summary from that report"]
+  n22(["22. Pending review (github) or verdict file (local)<br/>awaits human read/submit -- nothing auto-submits"]):::gate
 
   n1 --> n2
   n2 --> n3
@@ -304,57 +276,43 @@ flowchart TD
   n11 -->|"count == 8"| n12
   n12 --> n13
 
-  n13 -->|"yes, skip guide"| n14
-  n13 -->|"no, github"| n13a
-  n13a -->|"yes -- already written, resume"| n14
+  n13 -->|"yes -- already completed, resume"| n14
+  n13 -->|"no"| n13a
+  n13a -->|"yes"| n13a1
   n13a -->|"no"| n13b
-  n13b -->|"yes"| n13b1
-  n13b -->|"no"| n13b2
-  n13b2 -->|"yes"| n13b2a
-  n13b2 -->|"no"| n13b2b
-  n13b1 --> n14
-  n13b2a --> n14
-  n13b2b --> n14
+  n13a1 --> n14
+  n13b --> n13c
+  n13c --> n14
 
-  n14 -->|"yes -- already completed, resume"| n15
+  n14 -->|"yes -- skip Wave 4"| n15
   n14 -->|"no"| n14a
-  n14a -->|"yes"| n14a1
-  n14a -->|"no"| n14b
-  n14a1 --> n15
-  n14b --> n14c
-  n14c --> n15
+  n14a --> n15
 
-  n15 -->|"yes -- skip Wave 4"| n16
-  n15 -->|"no"| n15a
-  n15a --> n16
+  n15 -->|"none (normal outcome)"| n15a
+  n15 -->|"some"| n16
 
-  n16 -->|"none (normal outcome)"| n16a
-  n16 -->|"some"| n17
+  n15a -->|"github"| n15a1
+  n15a -->|"local"| n15a2
+  n15a1 --> n20
+  n15a2 --> n20
 
-  n16a -->|"github"| n16a1
-  n16a -->|"local"| n16a2
-  n16a1 --> n21
-  n16a2 --> n22
+  n16 -->|"github"| n17
+  n16 -->|"local"| n16a
 
-  n17 -->|"github"| n18
-  n17 -->|"local"| n17a
+  n17 --> n18
+  n18 -->|"no"| n19
+  n18 -->|"yes"| n18a
+  n18a --> n18a1
+  n18a1 -->|"yes"| n18a1a
+  n18a1 -->|"no"| n19
 
-  n18 --> n19
-  n19 -->|"no"| n20
-  n19 -->|"yes"| n19a
-  n19a --> n19a1
-  n19a1 -->|"yes"| n19a1a
-  n19a1 -->|"no"| n20
+  n19 -->|"yes"| n20
+  n19 -->|"no"| n19a
 
-  n20 -->|"yes"| n21
-  n20 -->|"no"| n20a
+  n16a --> n20
 
+  n20 --> n21
   n21 --> n22
-
-  n17a --> n22
-
-  n22 --> n23
-  n23 --> n24
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px

@@ -17,8 +17,6 @@ On attempts ≥ 2, run `ListAgents` before dispatching and skip every lens that 
 
 A compaction during the wait leaves those agents running while their files are still missing, so a blind re-dispatch reviews the same lens twice.
 
-When github mode also needs the guide (see "Guide writer on the fan-out path" below), its agent goes in the same dispatch message; it depends on Wave 1's files, not on the findings.
-
 The orchestrator never reads the diff on this path; the lens agents do, each in its own window.
 
 ## Verify the lens files
@@ -42,17 +40,3 @@ The count guard is the point of that block: an absent file and an empty array ar
 Without it, a lens skipped by mistake reads as a rubric that found nothing.
 
 Dedup is **not** done here. Eight lenses over the same diff can still flag one defect twice under two `scope_tag`s, so Wave 3 resolves overlaps with the full merged list in hand.
-
-## Guide writer on the fan-out path
-
-Applies in github mode with `tiny_pr=false`. Dispatch `agent(subAgent=general-purpose, title=Write review guide, model=opus)` in the background - in the lens dispatch message when both go out together -
-
-- telling it to read `references/guide-writer.md`, resolve its placeholders against the Wave 1 files and the input header's `Design sections` value, write the guide to `$work_dir/wave2-guide.md`, and return one line.
-
-- telling it to invoke the `mermaid-diagrams` skill when `Design sections` is `on`, since the Arquitetura and Fluxo sections carry diagrams it must validate before writing them.
-
-- `guide-writer.md` takes the diff as input, so running it inline re-reads the whole diff the fan-out exists to keep out of this window.
-  - `general-purpose` has no frontmatter, so the model is named on the call and effort inherits - acceptable for prose.
-
-- After the lens verification, if `$work_dir/wave2-guide.md` is still missing, give it the lens treatment: check `ListAgents` for a live `Write review guide` agent, then re-dispatch once.
-  - On a second failure write the 2-sentence summary inline instead of aborting - the guide is context for the human, not a gate the findings depend on.
