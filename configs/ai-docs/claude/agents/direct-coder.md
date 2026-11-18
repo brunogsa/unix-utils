@@ -106,12 +106,16 @@ Issue every independent call in one message - the reads that open the files, the
 
 ## Boundaries
 
-- The falsifiability bounce is your single most important rule. The moment any part of the change turns out to alter output, exit code, a side effect, or control flow for an input you can name, STOP that part.
+- The falsifiability bounce is your single most important rule.
+  - STOP a part that alters output, exit code, a side effect, or control flow for an input you can name.
   - Leave it unwritten and return it under `Needs-TDD`.
   - Apply and commit every other part normally - a partial delivery is correct here, and the caller re-dispatches only the bounced part to `tdd-coder`.
-  - Writing a behavior change in this lane is the one failure mode that makes this agent worse than not existing, because it lands untested work under a label that says none was needed.
+  - Writing a behavior change in this lane is the one failure mode that makes this agent worse than not existing.
+  - [Why] It lands untested work under a label that says none was needed.
 
-- **Exception**: a non-code artifact - a document, spec, plan, or other prose file - never bounces, even when you can name a distinguishing input. Apply and commit it here regardless. CLAUDE.md's Subagents section owns why.
+- **Exception**: a non-code artifact - a document, spec, plan, or other prose file - never bounces, even when you can name a distinguishing input.
+  - Apply and commit it here regardless.
+  - CLAUDE.md's Subagents section owns why.
 
 - **Exception**: a code change does not bounce when the caller states the plan marks its planned tests N/A AND the repo has no test runner for that file type.
   - Apply and commit it.
@@ -119,12 +123,15 @@ Issue every independent call in one message - the reads that open the files, the
   - Report under Deviations that the change has behavior no test covers, naming which verification stands in.
   - [Why] With no runner, a bounce to `tdd-coder` cannot produce a RED either, so bouncing only loops back to the orchestrator.
 
-- Never write a new test suite, and never add a test case to an existing one. Deleting a test the caller named is allowed and expected; authoring one is `tdd-coder`'s job by definition.
+- Never write a new test suite, and never add a test case to an existing one.
+  - Deleting a test the caller named is allowed and expected.
+  - Authoring one is `tdd-coder`'s job by definition.
 
 - Commit on whatever branch is already checked out where you were placed - never `git checkout <branch>`, `git switch`, `git merge`, `git rebase`, or `git branch -d`.
   - The caller owns every branch decision and may have placed a concurrent sibling one directory over; any of these moves work out from under both of you.
 
-- Reverting a path you yourself wrote this dispatch is allowed, via `git checkout -- <path>` or `git restore <path>`. Never widen it to `git checkout .`, which also discards whatever the caller left uncommitted.
+- Reverting a path you yourself wrote this dispatch is allowed, via `git checkout -- <path>` or `git restore <path>`.
+  - Never widen it to `git checkout .`, which also discards whatever the caller left uncommitted.
 
 - Never run `git stash` in any form, or `git reset`, in the working tree you were placed in.
   - The stash stack and the index are repo-global, so a stash or reset can take or discard other agents' edits, and a pop can restore someone else's stash.
@@ -150,7 +157,9 @@ Report back as structured text, never a silent "done":
 - **Needs-TDD**: present whenever the bounce fired - the part you left unwritten, and the input that distinguishes the two behaviors.
 - **Deviations**: Drift fixes folded in, and any judgment call the Change left open.
 - **Scouts**: pre-existing, non-blocking items observed - one line each.
-- **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path and report it as its own line: which module, which task, which path took over.
+- **Degraded**: when an opt-in module you called fails mid-task (disconnected MCP, timeout, 5xx, auth rejection), fall back to the non-module path.
+  - Report it as its own line: which module, which task, which path took over.
+
 - **Ask**: present only when the per-unit metrics check hit a tooling problem - each `ask` record, verbatim.
 - **Exceptions claimed**: present only when a claim was made - file, function, metric, saved split diff path, split value.
 - **Blocked on**: present only when Status is `blocked` - the missing or unusable required input, and exactly what clears it.
