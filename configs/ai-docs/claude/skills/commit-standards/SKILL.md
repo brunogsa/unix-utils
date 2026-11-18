@@ -1,6 +1,6 @@
 ---
 name: commit-standards
-description: "USE PROACTIVELY at two moments: planning commit boundaries when a task or sub-step ends, AND drafting a message or running git commit. Conventional format + one-logical-change decomposition, refactor isolation, tests/docs bundled."
+description: "USE PROACTIVELY when planning commit boundaries, drafting a message, running git commit/push/checkout, or after the git guard blocks a git command. Conventional format, one logical change per commit."
 user-invocable: false
 instructions-budget: 15
 ---
@@ -58,27 +58,24 @@ git-hunk stage <id> -l 3,5-7   # stage only lines 3 and 5-7
 - [Instruction] Format the subject as Conventional Commits (`type(scope): subject`), imperative, max 64 chars.
   - [Why] A uniform machine-parseable subject lets tooling group and changelog commits, readable in a one-line log.
 
-- [Instruction] Pass a multi-line commit message via HEREDOC, not a plain `-m "..."`.
-  - [Why] HEREDOC preserves line breaks, indentation, and blank lines across shells; `-m "..."` mangles multi-line text.
+- [Instruction] Pass the message as `-m` flags - subject, optional body, attribution - with a multi-line body as one `-m` holding real line breaks, never a HEREDOC or `$( )`.
+  - [Why] The git guard cannot inspect a command built at runtime, so it refuses any `$` or backtick and any `<<`.
+
+- [Instruction] End every commit with `Co-Authored-By: <current Claude model, as the harness instructs> <noreply@anthropic.com>` as its own last `-m`.
+  - [Why] The git guard rejects a commit without it, since the attribution is how a reader tells agent commits from human ones.
 
 - [Example]
 ```bash
-git commit -m "$(cat <<'EOF'
-   Commit message here.
+git commit -q -m "fix(sync): skip schools without a CNPJ" -m "A school with no CNPJ failed the whole batch, so one bad record blocked every other school.
 
-   Co-Authored-By: <current Claude model, as the harness instructs> <noreply@anthropic.com>
-   EOF
-)"
+A second paragraph goes inside the same quotes." -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
 ## How to commit
 
-- [Instruction] Commit in roughly one `git status + git diff` then `git add <paths> && git commit` - don't pad with extra inspection calls.
+- [Instruction] Commit in roughly one `git status + git diff` then the stage-and-commit chain below - don't pad with extra inspection calls.
   - [Why] We want frequent small commits, and those only stay cheap if each one's tool overhead and context noise stay minimal.
   - [Example] Don't inspect `git log` or prior commits to learn commit style - the format here is authoritative across all repos.
-
-- [Instruction] Don't stage with `git add -A` or `git add .`; specify paths explicitly.
-  - [Why] A blanket add risks sweeping in secrets or unrelated files that then ship in the commit.
 
 - [Instruction] The index is a repo-global singleton with no owner - before any operation reads then acts on it, the committer must own its current state or abort.
   - [Why] A repo-global index has no owner, so reading it now and acting later is racy - abort closes that gap.
@@ -86,24 +83,32 @@ git commit -m "$(cat <<'EOF'
 - [Instruction] The stager must not leave what it owns unowned - stage and commit in one uninterrupted chain, `git-hunk stage <id>` included, never as two separate tool calls.
   - [Why] A staged-but-uncommitted file is unowned - any session's next commit can claim it - one invocation closes the gap.
 
-  - [Example]
+- [Example]
 ```bash
-# Assert ownership of everything already staged - empty index, or exactly
-# your own paths - then act in the same invocation. The same shape covers
-# any other index-touching operation: amend, stash/pop, reset, a
-# pre-commit hook that re-stages.
-staged=$(git diff --cached --name-only) \
-  && { [ -z "$staged" ] || [ "$staged" = "configs/foo.txt" ]; } \
-  && git add configs/foo.txt && git commit -m "..."
+# The git guard allows exactly this chain. git diff --cached --quiet exits 1 when
+# anyone's files are already staged, so the chain stops before it stages anything:
+# leave their files alone, wait or report, never unstage them.
+git diff --cached --quiet && git add configs/foo.txt && git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
-# git-hunk splits belong inside the same guarded chain, never staged first
-# and committed later - a hunk-level commit can't use the pathspec form,
-# since `git commit <path>` recommits that path's whole working-tree
-# version and silently undoes the split:
-staged=$(git diff --cached --name-only) \
-  && { [ -z "$staged" ] || [ "$staged" = "configs/foo.txt" ]; } \
-  && git-hunk stage <id> && git commit -m "..."
+# A hunk-level commit puts git-hunk in place of git add, inside the same chain -
+# `git commit <path>` would recommit the path's whole working-tree version and
+# silently undo the split:
+git diff --cached --quiet && git-hunk stage a1b2c3 && git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
-- [Instruction] **Never pass `--no-verify` or `--no-gpg-sign` unless the user explicitly asks for it.**
-  - [Why] Hooks catch lint and security issues at commit time, so bypassing them just ships those issues.
+## Guarded git commands
+
+- [Instruction] Run each guarded git command alone, as `git -C <literal dir> <subcommand> <literal paths>`, never after `cd` or a variable, nor before a pipe or redirect.
+  - [Why] It guards lost work, peers' staged files, protected branches; it refuses `$` as it can't read a runtime-built command.
+
+- [Example]
+```bash
+# Bad: cd, a variable and a pipe each get refused
+cd $W && git push origin feat/x 2>&1 | tail -3
+# Good: one literal command; read its output, filter in a separate call
+git -C /Users/brunoagostini/unix-utils push origin feat/x
+```
+
+The guarded subcommands are `commit`, `push`, `reset`, `clean`, `checkout`, `restore`, `branch` and `worktree`.
+
+Open [`references/guarded-git-forms.md`](references/guarded-git-forms.md) before the first guarded command other than `commit` in a task, and whenever the guard blocks one: it lists each subcommand's allowed form and what to run in place of every blocked one.
