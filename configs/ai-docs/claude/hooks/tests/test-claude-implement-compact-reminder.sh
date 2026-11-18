@@ -242,7 +242,18 @@ it_should_hand_over_the_batch_end_directive_once_every_task_is_done() {
   assert_eq "should resume the batch-end procedure once the task loop has drained" \
     "yes" "$(says "Resume the §8 batch-end procedure")"
   assert_eq "should still order the push once the task loop has drained, the step a batch really did nearly drop" \
-    "yes" "$(says "git push -u origin HEAD")"
+    "yes" "$(says "git push -u origin <branch>")"
+}
+
+# The git guard allows a push only to a branch it can read
+# off the command line, so a push of HEAD is always blocked.
+it_should_order_a_push_that_names_the_branch_rather_than_head() {
+  local session_id
+  session_id=$(write_drained_task_loop_state "push-names-branch")
+  run_hook "{\"session_id\":\"$session_id\",\"source\":\"compact\"}"
+
+  assert_eq "should never order a push of HEAD, the form the git guard blocks" \
+    "no" "$(says "origin HEAD")"
 }
 
 # --- corner cases ---
@@ -254,7 +265,7 @@ it_should_hand_over_the_batch_end_directive_when_the_unit_records_no_tasks() {
   run_hook "{\"session_id\":\"$session_id\",\"source\":\"compact\"}"
 
   assert_eq "should read a unit with no tasks[] as having none unfinished, which is what phase gates means" \
-    "yes" "$(says "git push -u origin HEAD")"
+    "yes" "$(says "git push -u origin <branch>")"
 }
 
 it_should_still_remind_the_owner_when_the_payload_carries_an_empty_agent_id() {
@@ -309,6 +320,7 @@ it_should_still_remind_the_owner_when_a_main_session_started_with_agent_flag_com
 it_should_keep_the_owner_in_the_task_loop_while_a_task_is_unfinished
 it_should_keep_the_owner_in_the_task_loop_when_the_only_unfinished_task_is_blocked
 it_should_hand_over_the_batch_end_directive_once_every_task_is_done
+it_should_order_a_push_that_names_the_branch_rather_than_head
 it_should_hand_over_the_batch_end_directive_when_the_unit_records_no_tasks
 it_should_still_remind_the_owner_when_the_payload_carries_an_empty_agent_id
 it_should_stay_silent_when_the_owning_session_has_no_state_file
