@@ -106,7 +106,7 @@ git diff --cached --quiet && git-hunk stage a1b2c3 && git commit -q -m "fix(sync
 # Bad: cd, a variable and a pipe each get refused
 cd $W && git push origin feat/x 2>&1 | tail -3
 # Good: one literal command; read its output, filter in a separate call
-git -C /Users/brunoagostini/unix-utils push origin feat/x
+git -C /path/to/repo push origin feat/x
 ```
 
 The guarded subcommands are `commit`, `push`, `reset`, `clean`, `checkout`, `restore`, `branch` and `worktree`.
