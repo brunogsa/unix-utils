@@ -1347,6 +1347,12 @@ class TestAgentFileWiring:
 PROSE_MESSAGE = "-m 'docs(skills): reword the RED step' -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'"
 
 
+def prose_chain(paths, commit_options=PROSE_MESSAGE):
+    """The one commit chain the git guard allows: an empty index
+    check, a git add of paths, then git commit."""
+    return f"git diff --cached --quiet && git add {paths} && git commit {commit_options}"
+
+
 def prose_repo(tmp_path):
     """A repo of committed prose and code files, each edited
     since, plus a new .md file and a dir whose name ends in
@@ -1369,15 +1375,15 @@ class TestProseOnlyCommitWithNoEvidence:
     @pytest.mark.parametrize(
         "command",
         [
-            f"git commit SKILL.md notes.txt {PROSE_MESSAGE}",
-            f"git commit {PROSE_MESSAGE} -- SKILL.md",
-            f"git commit --message='docs: x' --trailer 'Co-Authored-By: Claude' -q -- SKILL.md",
+            prose_chain("SKILL.md"),
+            prose_chain("NEW.md notes.txt"),
+            prose_chain("SKILL.md", "-q --message 'docs: x' --message='Co-Authored-By: Claude'"),
             "git add -- NEW.md",
             "git add NEW.md SKILL.md",
         ],
-        ids=["paths-before-messages", "paths-after-double-dash", "long-options", "add-new-prose", "add-two-prose"],
+        ids=["chain-one-prose", "chain-new-and-edited-prose", "chain-long-options", "add-new-prose", "add-two-prose"],
     )
-    def test_should_let_a_commit_or_add_through_without_evidence_when_every_named_path_is_prose(
+    def test_should_let_the_guard_chain_or_an_add_through_without_evidence_when_every_staged_path_is_prose(
         self, tmp_path, command
     ):
         assert check_commit(tmp_path, command=command, cwd=str(prose_repo(tmp_path))) is None
@@ -1385,48 +1391,56 @@ class TestProseOnlyCommitWithNoEvidence:
     @pytest.mark.parametrize(
         "command",
         [
-            f"git commit SKILL.md lib.py {PROSE_MESSAGE}",
-            f"git commit {PROSE_MESSAGE} -- lib.py",
+            prose_chain("SKILL.md lib.py"),
+            prose_chain("lib.py"),
+            prose_chain("'*.md'"),
+            prose_chain("guide.md"),
+            prose_chain("':(glob)**/*.md'"),
+            prose_chain("$F"),
+            prose_chain("-- SKILL.md"),
+            f"git diff --cached --quiet -- SKILL.md && git add NEW.md && git commit {PROSE_MESSAGE}",
+            f"git diff --quiet && git add SKILL.md && git commit {PROSE_MESSAGE}",
+            f"git add SKILL.md && git commit {PROSE_MESSAGE}",
+            f"git diff --cached --quiet || git add SKILL.md && git commit {PROSE_MESSAGE}",
+            prose_chain("SKILL.md") + " && ./release.sh",
+            prose_chain("SKILL.md") + "; git commit -am x",
+            f"git diff --cached --quiet && git add SKILL.md && git -c core.hooksPath=/tmp/hooks commit {PROSE_MESSAGE}",
+            f"git diff --cached --quiet && git add SKILL.md && GIT_INDEX_FILE=/tmp/index git commit {PROSE_MESSAGE}",
+            prose_chain("SKILL.md", "-m \"$(./release.sh)\""),
+            prose_chain("SKILL.md", f"-a {PROSE_MESSAGE}"),
+            prose_chain("SKILL.md", f"--amend {PROSE_MESSAGE}"),
+            prose_chain("SKILL.md", f"-i {PROSE_MESSAGE}"),
+            prose_chain("SKILL.md", "-F notes.txt"),
+            prose_chain("SKILL.md", "-q"),
             f"git commit {PROSE_MESSAGE}",
-            f"git commit -a {PROSE_MESSAGE} -- SKILL.md",
-            f"git commit --amend {PROSE_MESSAGE} -- SKILL.md",
-            f"git commit -i {PROSE_MESSAGE} -- SKILL.md",
-            f"git commit {PROSE_MESSAGE} -- '*.md'",
-            f"git commit {PROSE_MESSAGE} -- guide.md",
-            f"git commit {PROSE_MESSAGE} -- ':(glob)**/*.md'",
-            f"git commit {PROSE_MESSAGE} -- SKILL.md && ./release.sh",
-            f"git commit {PROSE_MESSAGE} -- SKILL.md; git commit -am x",
-            "git commit -m \"$(./release.sh)\" -- SKILL.md",
-            f"git -c core.hooksPath=/tmp/hooks commit {PROSE_MESSAGE} -- SKILL.md",
-            f"GIT_INDEX_FILE=/tmp/index git commit {PROSE_MESSAGE} -- SKILL.md",
-            f"git commit {PROSE_MESSAGE} -- $F",
             "git add -A",
             "git add -- lib.py NEW.md",
-            "git commit -- SKILL.md",
-            "git commit --trailer 'Co-Authored-By: Claude' -- SKILL.md",
-            "git commit --trailer -m -- SKILL.md",
         ],
         ids=[
             "prose-and-code",
             "code-only",
-            "no-path-commits-the-index",
-            "all-tracked",
-            "amend",
-            "include-the-index",
             "glob-pathspec",
             "dir-named-like-prose",
             "pathspec-magic",
-            "and-chain",
+            "variable-path",
+            "add-option-in-chain",
+            "diff-of-one-path-misses-other-staged-files",
+            "diff-of-the-worktree-misses-the-index",
+            "no-diff-check-first",
+            "or-chain",
+            "fourth-step",
             "second-command",
-            "substitution-in-message",
             "dash-c-before-commit",
             "prefix-assignment",
-            "variable-path",
+            "substitution-in-message",
+            "all-tracked",
+            "amend",
+            "include-the-index",
+            "message-file",
+            "no-message-opens-the-editor",
+            "lone-commit-commits-the-whole-index",
             "add-all",
             "add-code",
-            "no-message-opens-the-editor",
-            "trailer-without-a-message-opens-the-editor",
-            "message-flag-as-a-trailer-value-opens-the-editor",
         ],
     )
     def test_should_still_deny_a_commit_or_add_that_can_reach_a_non_prose_file(self, tmp_path, command):
@@ -1440,9 +1454,8 @@ class TestProseOnlyCommitWithNoEvidence:
     def test_should_still_deny_a_prose_only_commit_in_a_repo_whose_config_runs_a_program(self, tmp_path, key):
         repo = prose_repo(tmp_path)
         git(repo, "config", key, "./release.sh")
-        command = f"git commit {PROSE_MESSAGE} --trailer 'x: y' -- SKILL.md"
 
-        possible_commit_reason(tmp_path, command, cwd=str(repo))
+        possible_commit_reason(tmp_path, prose_chain("SKILL.md"), cwd=str(repo))
 
     def test_should_still_deny_a_prose_only_commit_in_a_repo_with_an_active_hook(self, tmp_path):
         repo = prose_repo(tmp_path)
@@ -1450,12 +1463,36 @@ class TestProseOnlyCommitWithNoEvidence:
         hook.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         hook.chmod(0o755)
 
-        possible_commit_reason(tmp_path, f"git commit {PROSE_MESSAGE} -- SKILL.md", cwd=str(repo))
+        possible_commit_reason(tmp_path, prose_chain("SKILL.md"), cwd=str(repo))
 
-    def test_should_tell_a_denied_commit_that_a_prose_only_pathspec_commit_needs_no_evidence(self, tmp_path):
+    def test_should_tell_a_denied_commit_that_the_guard_chain_staging_only_prose_needs_no_evidence(self, tmp_path):
         reason = possible_commit_reason(tmp_path, COMMIT)
 
-        assert "prose" in reason
+        assert "`git diff --cached --quiet && git add <paths> && git commit -m <message>`" in reason
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            f"git commit SKILL.md notes.txt {PROSE_MESSAGE}",
+            f"git commit {PROSE_MESSAGE} -- SKILL.md",
+            prose_chain("SKILL.md", f"{PROSE_MESSAGE} --"),
+            prose_chain("SKILL.md", f"{PROSE_MESSAGE} --trailer 'Reviewed-by: Ana Souza'"),
+            prose_chain("SKILL.md", f"{PROSE_MESSAGE} --trailer='Reviewed-by: Ana Souza'"),
+            prose_chain("SKILL.md", f"--quiet {PROSE_MESSAGE}"),
+            prose_chain("SKILL.md", "-m'docs: x' -m'Co-Authored-By: Claude'"),
+        ],
+        ids=[
+            "paths-before-messages",
+            "paths-after-double-dash",
+            "trailing-double-dash",
+            "trailer",
+            "attached-trailer",
+            "long-quiet",
+            "attached-short-message",
+        ],
+    )
+    def test_should_deny_a_prose_only_commit_in_a_form_the_git_guard_blocks(self, tmp_path, command):
+        possible_commit_reason(tmp_path, command, cwd=str(prose_repo(tmp_path)))
 
 
 AWK_FENCE_COUNT = "awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\\. /' file.md | wc -l"

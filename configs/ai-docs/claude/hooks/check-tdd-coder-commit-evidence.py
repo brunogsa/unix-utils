@@ -264,22 +264,29 @@ SCREEN_GUIDANCE = (
 )
 
 # A prose-only call skips the evidence check, so it allows
-# only words whose meaning the screen can read off the text.
-PROSE_GIT_SUBCOMMANDS = frozenset({"commit", "add"})
-PROSE_COMMIT_VALUE_OPTIONS = frozenset({"-m", "--message", "--trailer"})
-PROSE_COMMIT_FLAGS = frozenset({"-q", "--quiet"})
+# only words whose meaning the screen can read off the text,
+# in a shape claude-git-guard.py also lets run.
+PROSE_MESSAGE_OPTIONS = frozenset({"-m", "--message"})
+ATTACHED_MESSAGE_PREFIX = "--message="
+PROSE_COMMIT_FLAGS = frozenset({"-q"})
 END_OF_OPTIONS = "--"
+CHAIN_SEPARATOR = "&&"
+
+# git diff --cached --quiet exits 1 when anything is staged,
+# which stops the chain, so its commit holds only the paths
+# its git add names.
+EMPTY_INDEX_CHECK = ["git", "diff", "--cached", "--quiet"]
 
 # A glob, brace list, tilde or expansion can turn into other
 # paths when the shell runs it, and a # can hide the rest of
 # a line from the word split but not from the shell.
 UNREADABLE_WORD = re.compile(r"[*?\[\]{}~$`\\]")
 PROSE_GUIDANCE = (
-    "A prose-only call needs no evidence: one plain `git commit <paths> -m <message>` or "
-    f"`git add <paths>` whose every path is a literal {' or '.join(suppression_patterns.PROSE_SUFFIXES)} "
-    "file, with at least one -m or --message on a commit, no option but -m, --message, --trailer, "
-    "-q or --, and no separator, redirect, "
-    "glob, $, backtick, backslash or #"
+    "A prose-only call needs no evidence: the git guard's chain "
+    "`git diff --cached --quiet && git add <paths> && git commit -m <message>`, or one plain "
+    f"`git add [--] <paths>`, whose every path is a literal {' or '.join(suppression_patterns.PROSE_SUFFIXES)} "
+    "file, with at least one -m or --message on the commit, no other option but -q, no pathspec "
+    "after git commit, and no other separator, redirect, glob, $, backtick, backslash or #"
 )
 
 # Only the agent's file writes bind its run label: a Bash
@@ -992,38 +999,47 @@ def get_label_problem(labels: list[str]) -> str | None:
     return None
 
 
-def get_commit_option_width(word: str) -> int | None:
-    # 0 marks a path, None an option no prose-only call takes.
-    if word in PROSE_COMMIT_VALUE_OPTIONS:
-        return 2
-    is_attached_value = is_message_option(word) or word.startswith("--trailer=")
-    if is_attached_value or word in PROSE_COMMIT_FLAGS:
-        return 1
-    return None if word.startswith("-") else 0
-
-
-def is_message_option(word: str) -> bool:
-    is_short_message = word.startswith("-m") and not word.startswith("--")
-    return is_short_message or word == "--message" or word.startswith("--message=")
-
-
-def get_commit_paths(arguments: list[str]) -> list[str] | None:
-    # git commit reads paths before and after its options, and
-    # every word after -- as a path. With no -m or --message
-    # it opens an editor, a program of its own, so no prose
-    # path applies.
-    paths = []
-    has_message = False
+def is_message_only_commit(arguments: list[str]) -> bool:
+    # Any pathspec, any other option, or no message at all
+    # (git then opens an editor, a program of its own) fails.
+    message_count = 0
     index = 0
-    while index < len(arguments) and arguments[index] != END_OF_OPTIONS:
-        width = get_commit_option_width(arguments[index])
-        if width is None:
-            return None
-        if width == 0:
-            paths.append(arguments[index])
-        has_message = has_message or (width > 0 and is_message_option(arguments[index]))
-        index += max(width, 1)
-    return paths + arguments[index + 1 :] if has_message else None
+    while index < len(arguments):
+        word = arguments[index]
+        if word in PROSE_MESSAGE_OPTIONS and index + 1 < len(arguments):
+            message_count += 1
+            index += 2
+        elif word.startswith(ATTACHED_MESSAGE_PREFIX):
+            message_count += 1
+            index += 1
+        elif word in PROSE_COMMIT_FLAGS:
+            index += 1
+        else:
+            return False
+    return message_count > 0
+
+
+def get_chain_segments(words: list[str]) -> list[list[str]]:
+    segments: list[list[str]] = [[]]
+    for word in words:
+        if word == CHAIN_SEPARATOR:
+            segments.append([])
+        else:
+            segments[-1].append(word)
+    return segments
+
+
+def get_prose_call_paths(words: list[str]) -> list[str] | None:
+    # The paths a lone git add or the guard's commit chain
+    # stages, or None for any other call.
+    segments = get_chain_segments(words)
+    if len(segments) == 1 and segments[0][:2] == ["git", "add"]:
+        return get_add_paths(segments[0][2:])
+    if len(segments) != 3:
+        return None
+    check, add, commit = segments
+    is_guard_chain = check == EMPTY_INDEX_CHECK and add[:2] == ["git", "add"] and commit[:2] == ["git", "commit"]
+    return add[2:] if is_guard_chain and is_message_only_commit(commit[2:]) else None
 
 
 def get_add_paths(arguments: list[str]) -> list[str]:
@@ -1043,13 +1059,12 @@ def is_prose_only_call(command: str, cwd: str | None) -> bool:
     # The raw text is split, not the heredoc-stripped one, so
     # every word the shell reads is checked here.
     words = get_shell_words(command)
-    if cwd is None or words is None or "#" in command or len(words) < 2:
+    if cwd is None or words is None or "#" in command:
         return False
-    is_one_plain_command = not any(is_separator(word) or UNREADABLE_WORD.search(word) for word in words)
-    if not is_one_plain_command or words[0] != "git" or words[1] not in PROSE_GIT_SUBCOMMANDS:
-        return False
-
-    paths = get_commit_paths(words[2:]) if words[1] == "commit" else get_add_paths(words[2:])
+    is_plain_text = not any(
+        (is_separator(word) and word != CHAIN_SEPARATOR) or UNREADABLE_WORD.search(word) for word in words
+    )
+    paths = get_prose_call_paths(words) if is_plain_text else None
     has_only_prose = bool(paths) and all(is_prose_path(path, cwd) for path in paths)
     return has_only_prose and has_dot_git_dir(cwd) and not runs_configured_program(cwd)
 
