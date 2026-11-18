@@ -18,7 +18,7 @@ Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 | `test-sdd` | planned tests the plan declared but the repo lacks | `[test-sdd]` |
 | `scout` | pending `[Scout]` tasks that belong to this branch, judged fresh | `[scout]` |
 
-A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less, never a reason to cut a gate short.
+The §3 legs target 30 minutes or less, never a reason to cut a gate short; judge, apply and total sit outside.
 
 Main records each phase with `scripts/quality-gate-clock.py mark <RUN_DIR> <phase> start|end`, using labels like `3-refactor`, `4.1-judge`, `6-apply-1`.
 
