@@ -49,6 +49,18 @@ LEGS_THEN_JUDGE_AND_APPLY_TSV = (
     "6-apply-1\tend\t2026-11-17T11:30:00\n"
 )
 
+NO_LEGS_TSV = (
+    "4.1-judge\tstart\t2026-11-17T10:00:00\n"
+    "4.1-judge\tend\t2026-11-17T10:15:00\n"
+)
+
+# 3-scout started but never ended, so the legs span has no end.
+UNCLOSED_LEG_TSV = (
+    "3-refactor\tstart\t2026-11-17T10:00:00\n"
+    "3-scout\tstart\t2026-11-17T10:01:00\n"
+    "3-refactor\tend\t2026-11-17T10:12:00\n"
+)
+
 
 class ClockCase(unittest.TestCase):
     def setUp(self):
@@ -161,6 +173,24 @@ class ReportTest(ClockCase):
         out = self.clock("report", run).stdout
 
         self.assertIn("| total | 10:00:00 | 11:30:00 | 90.0 |", out)
+
+    def test_run_without_review_legs_exits_1_legs_not_measured(self):
+        run = self.run_dir(tsv=NO_LEGS_TSV)
+
+        result = self.clock("report", run)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("§3 legs: not measured", result.stdout)
+        self.assertNotIn("target (under", result.stdout)
+
+    def test_review_leg_without_end_exits_1_legs_not_measured(self):
+        run = self.run_dir(tsv=UNCLOSED_LEG_TSV)
+
+        result = self.clock("report", run)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("§3 legs: not measured", result.stdout)
+        self.assertNotIn("target (under", result.stdout)
 
     def test_names_the_slowest_phase_below_the_table(self):
         run = self.run_dir(tsv=CLOSED_TSV)

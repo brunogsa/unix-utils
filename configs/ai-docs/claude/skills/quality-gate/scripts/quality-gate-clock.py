@@ -11,8 +11,10 @@
 # earliest 3-* start to the latest 3-* end, never the run total.
 #
 # stdin: unused
-# stdout: markdown table for report and history; mark is silent
-# exit: 0 on success; 1 when report has no timings to measure;
+# stdout: markdown table for report and history; mark is silent.
+#
+# exit: 0 on success; 1 when report has no timings, or no
+#   §3 legs span (no 3-* phase, or one without an end);
 #   2 on bad arguments or a missing RUN_DIR
 
 import argparse
@@ -235,7 +237,7 @@ def command_report(args, parser):
         },
         "unclosed": unclosed_phases(phases),
     })
-    return 0
+    return 1 if legs is None else 0
 
 
 def load_runs(last):
