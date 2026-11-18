@@ -79,6 +79,10 @@
 # checker of the file it lands as. A directory destination or
 # `-t DIR` lands it as DIR/<source basename>.
 #
+# The one exception: a bare system `cp` landing a file on a
+# markdown path is allowed unchecked, since a Write of it would
+# only be reported; the after-check hook reports what lands.
+#
 # With 2 or more sources, the last word is the destination
 # directory, which an earlier `mkdir` in the same command may
 # create.
@@ -139,6 +143,7 @@ export CLAUDE_BASH_WRITE_CMD="$CMD"
 # shellcheck source=lib/prose-format-extensions.sh
 . "$CLAUDE_HOOKS_DIR/lib/prose-format-extensions.sh" 2>/dev/null
 export CLAUDE_GUARDED_EXTENSIONS="${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-} ${PROSE_FORMAT_COMMENT_EXTENSIONS:-}"
+export CLAUDE_MARKDOWN_EXTENSIONS="${PROSE_FORMAT_MARKDOWN_EXTENSIONS:-}"
 python3 - <<'PYEOF'
 import ast
 import collections
@@ -173,6 +178,12 @@ split_into_pipelines = _parse_shell_command.split_into_pipelines
 # resolve.
 EXTENSION_LIST_PATH = os.path.join(os.environ['CLAUDE_HOOKS_DIR'], 'lib', 'prose-format-extensions.sh')
 GUARDED_EXTENSIONS = set(os.environ.get('CLAUDE_GUARDED_EXTENSIONS', '').split())
+
+# The extensions the prose-format hook checks as markdown. A
+# Write of a markdown file that breaks the format rules is only
+# reported, never blocked, so a `cp` onto one is not checked
+# here either; empty when the shared list could not be read.
+MARKDOWN_EXTENSIONS = set(os.environ.get('CLAUDE_MARKDOWN_EXTENSIONS', '').split())
 
 # Scratch homes the environment tells every session to write
 # into. A session scratchpad lives under one of these.
@@ -353,13 +364,21 @@ def has_in_place_flag(tokens):
     return False
 
 
-def guarded_extension(path):
+def file_extension(path):
+    """The lowercased extension of `path`'s file name, or None when it has none."""
     name = os.path.basename(path)
     if '.' not in name:
+        return None
+    return name.rsplit('.', 1)[-1].lower()
+
+
+def guarded_extension(path):
+    extension = file_extension(path)
+    if extension is None:
         return False
     if not GUARDED_EXTENSIONS:
         return True
-    return name.rsplit('.', 1)[-1].lower() in GUARDED_EXTENSIONS
+    return extension in GUARDED_EXTENSIONS
 
 
 def nearest_existing_ancestor(path):
@@ -821,6 +840,15 @@ def copy_destinations(exe, tokens, cwd):
     return writes
 
 
+def is_markdown_copy(tokens, destination):
+    """Whether a bare system `cp` lands a file on `destination`, a markdown path no source check holds back."""
+    # why: a cp stricter than the Write it is redirected to
+    # pushed agents to re-type whole files through Write. The
+    # after-check hook still reports what lands.
+    return (is_system_executable(tokens[0], 'cp')
+            and file_extension(destination) in MARKDOWN_EXTENSIONS)
+
+
 def format_report(source, destination):
     """The prose-format hook's report on `source` checked as if written to `destination`, or '' when it passes."""
     # why: the copy lands the source's text in the destination
@@ -1076,14 +1104,16 @@ for segment, is_piped_into in segments:
     for target, source, is_directory in copy_destinations(exe, tokens, cwd):
         if is_directory:
             record_directory_copy(guarded_tree_path(cwd, target))
-        else:
-            report_count = len(format_reports)
-            record_write(block_reason(cwd, target), None if source is None else [source])
-            is_failed_repo_move = (exe == 'mv' and source is not None
-                                   and len(format_reports) > report_count
-                                   and block_reason(cwd, source))
-            if is_failed_repo_move:
-                has_repo_move_block = True
+            continue
+        if is_markdown_copy(tokens, target):
+            continue
+        report_count = len(format_reports)
+        record_write(block_reason(cwd, target), None if source is None else [source])
+        is_failed_repo_move = (exe == 'mv' and source is not None
+                               and len(format_reports) > report_count
+                               and block_reason(cwd, source))
+        if is_failed_repo_move:
+            has_repo_move_block = True
     arguments = arguments_after(exe, tokens) if exe else []
     edited_files = in_place_edit_targets(exe, arguments, cwd)
     if edited_files and not is_plain_replace_all(exe, arguments):

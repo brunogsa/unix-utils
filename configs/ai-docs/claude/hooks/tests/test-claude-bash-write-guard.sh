@@ -389,10 +389,11 @@ it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_taskl
 
 # File-copy cases: cp, mv and install land a source's text in
 # their destination unchanged, the same as a cat copy, so the
-# same source check applies.
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
+# same source check applies - except a cp onto a markdown file,
+# which a Write would only report on, never block.
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
   run_hook "cp $scratch_dir/batch.md README.md"
-  assert_eq "should block cp copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
+  assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "0" "$HOOK_EXIT"
 }
 
 it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file() {
@@ -419,14 +420,14 @@ it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over
   assert_eq "should block install copying a /tmp scratch file whose prose breaks the markdown format rules over a tracked markdown file" "2" "$HOOK_EXIT"
 }
 
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory() {
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory() {
   run_hook "cp $scratch_dir/batch.md docs"
-  assert_eq "should block cp copying a /tmp scratch file whose prose breaks the markdown format rules into a repo directory, which writes docs/batch.md" "2" "$HOOK_EXIT"
+  assert_eq "should allow cp copying a /tmp scratch file whose prose breaks the markdown format rules into a repo directory, which writes docs/batch.md" "0" "$HOOK_EXIT"
 }
 
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t() {
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t() {
   run_hook "cp -t docs $scratch_dir/batch.md"
-  assert_eq "should block cp -t docs copying a /tmp scratch file whose prose breaks the markdown format rules into the repo" "2" "$HOOK_EXIT"
+  assert_eq "should allow cp -t docs copying a /tmp scratch file whose prose breaks the markdown format rules into the repo" "0" "$HOOK_EXIT"
 }
 
 # why: `644` is the mode, not a second source, so the copy
@@ -456,9 +457,9 @@ it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_dire
 
 # why: the guard runs before the command, so a directory an
 # earlier mkdir in the same command creates reads as missing.
-it_should_block_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates() {
+it_should_allow_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates() {
   run_hook "mkdir docs/new && cp $scratch_dir/batch.md $scratch_dir/draft docs/new"
-  assert_eq "should block cp copying two /tmp scratch files, one breaking the markdown format rules, into a repo directory an earlier mkdir in the same command creates" "2" "$HOOK_EXIT"
+  assert_eq "should allow cp copying two /tmp scratch files, one breaking the markdown format rules, into a repo directory an earlier mkdir in the same command creates" "0" "$HOOK_EXIT"
 }
 
 it_should_block_install_whose_unknown_flag_argument_could_be_a_second_source_over_a_tracked_markdown_file() {
@@ -469,9 +470,9 @@ it_should_block_install_whose_unknown_flag_argument_could_be_a_second_source_ove
 # why: macOS cp reads -S as a flag with no argument, so the
 # next token is a source there, while GNU cp takes it as -S's
 # backup suffix.
-it_should_block_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file() {
+it_should_allow_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file() {
   run_hook "cp -S $scratch_dir/batch.md docs/README.md"
-  assert_eq "should block cp -S copying a /tmp scratch file whose prose breaks the markdown format rules over a repo markdown file, as macOS cp does" "2" "$HOOK_EXIT"
+  assert_eq "should allow cp -S copying a /tmp scratch file whose prose breaks the markdown format rules over a repo markdown file, as macOS cp does" "0" "$HOOK_EXIT"
 }
 
 it_should_allow_cp_with_a_gnu_backup_suffix_copying_a_file_that_passes_the_format_rules_into_a_repo_directory() {
@@ -855,21 +856,21 @@ it_should_block_cat_piping_a_hard_wrapped_finding_file_into_write_atomically_ont
 it_should_allow_cat_piping_files_that_pass_the_format_rules_into_write_atomically
 it_should_allow_write_atomically_restoring_a_file_from_a_stdin_redirect
 it_should_allow_copying_a_scratch_file_that_breaks_the_format_rules_onto_a_tasklist
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_block_mv_moving_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_suggest_git_mv_when_it_blocks_an_in_repo_mv_of_a_markdown_file_that_breaks_the_format_rules
 it_should_block_install_copying_a_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
-it_should_block_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_repo_directory
+it_should_allow_cp_copying_a_scratch_file_that_breaks_the_format_rules_into_a_target_directory_named_by_t
 it_should_block_install_with_a_mode_copying_an_extensionless_scratch_file_that_breaks_the_format_rules_over_a_tracked_markdown_file
 it_should_allow_install_with_a_mode_copying_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
 it_should_block_cp_recursively_copying_a_scratch_directory_into_a_repo_directory
 it_should_block_mv_moving_a_scratch_directory_into_the_repo
 it_should_block_cp_archive_copying_a_source_named_by_a_variable_into_a_repo_directory
-it_should_block_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates
+it_should_allow_cp_copying_two_scratch_files_into_a_repo_directory_the_same_command_creates
 it_should_block_install_whose_unknown_flag_argument_could_be_a_second_source_over_a_tracked_markdown_file
 it_should_block_cp_recursively_copying_a_scratch_directory_the_same_command_creates_into_a_repo_directory
-it_should_block_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file
+it_should_allow_cp_with_s_copying_a_scratch_file_that_breaks_the_format_rules_over_a_repo_markdown_file
 it_should_allow_cp_with_a_gnu_backup_suffix_copying_a_file_that_passes_the_format_rules_into_a_repo_directory
 it_should_allow_mv_moving_a_file_that_passes_the_format_rules_over_a_tracked_markdown_file
 it_should_allow_install_copying_a_file_that_passes_the_format_rules_into_the_repo
