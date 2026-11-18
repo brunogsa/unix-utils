@@ -231,6 +231,7 @@ def command_report(args, parser):
         "run_dir": os.path.abspath(args.run_dir),
         "target_min": args.target_min,
         "total_min": round(total, 1),
+        "legs_min": None if legs is None else round(legs, 1),
         "phases": {
             p: None if (m := phase_minutes(e)) is None else round(m, 1)
             for p, e in phases.items()
@@ -266,12 +267,19 @@ def phase_stats_rows(runs):
     return rows
 
 
+def is_over_target(run):
+    """A run with no recorded §3 legs span counts as over the
+    target, so an unmeasured run never reads as fast."""
+    legs = run.get("legs_min")
+    return legs is None or legs > run["target_min"]
+
+
 def command_history(args, parser):
     runs = load_runs(args.last)
     if not runs:
         print("no runs recorded yet")
         return 0
-    over = sum(1 for r in runs if r["total_min"] > r["target_min"])
+    over = sum(1 for r in runs if is_over_target(r))
     median_total = statistics.median(r["total_min"] for r in runs)
     print("| phase | runs | median min | max min |")
     print("|---|---|---|---|")

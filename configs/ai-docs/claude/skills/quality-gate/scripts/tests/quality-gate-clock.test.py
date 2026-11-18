@@ -282,25 +282,51 @@ class ReportTest(ClockCase):
         self.assertEqual(mine["phases"]["6-apply-1"], 3.0)
         self.assertEqual(mine["unclosed"], [])
 
+    def test_ledger_line_records_the_review_legs_span(self):
+        run = self.run_dir(tsv=LEGS_THEN_JUDGE_AND_APPLY_TSV)
+
+        self.clock("report", run)
+
+        row = self.ledger_rows()[0]
+        self.assertEqual(row["legs_min"], 25.0)
+        self.assertEqual(row["total_min"], 90.0)
+
+    def test_ledger_line_records_an_unended_legs_span_as_null(self):
+        run = self.run_dir(tsv=UNCLOSED_LEG_TSV)
+
+        self.clock("report", run)
+
+        self.assertIsNone(self.ledger_rows()[0]["legs_min"])
+
 
 class HistoryTest(ClockCase):
-    def row(self, run_dir, total, phases, target=20):
+    # every ledger row below was recorded against this target
+    TARGET_MIN = 20
+
+    def row(self, run_dir, total, phases, legs):
         return {
             "ts": "2026-11-17T11:00:00",
             "repo": "r",
             "branch": "b",
             "run_dir": run_dir,
-            "target_min": target,
+            "target_min": self.TARGET_MIN,
             "total_min": total,
+            "legs_min": legs,
             "phases": phases,
             "unclosed": [k for k, v in phases.items() if v is None],
         }
 
     def test_medians_max_and_over_target_count(self):
         self.write_ledger([
-            self.row("a", 10.0, {"3-refactor": 4.0}),
-            self.row("b", 24.0, {"3-refactor": 10.0, "4.1-judge": 6.0}),
-            self.row("c", 30.0, {"3-refactor": 20.0, "4.1-judge": None}),
+            self.row("a", 10.0, {"3-refactor": 4.0}, legs=8.0),
+            self.row(
+                "b", 24.0, {"3-refactor": 10.0, "4.1-judge": 6.0},
+                legs=22.0,
+            ),
+            self.row(
+                "c", 30.0, {"3-refactor": 20.0, "4.1-judge": None},
+                legs=25.0,
+            ),
         ])
 
         result = self.clock("history")
@@ -314,21 +340,50 @@ class HistoryTest(ClockCase):
         # 4.1-judge: 2 runs, one unmeasured, so only 6.0 counts
         self.assertIn("| 4.1-judge | 2 | 6.0 | 6.0 |", out)
 
-        # totals 10/24/30: median 24.0, 2 over the 20 target
+        # totals 10/24/30: median 24.0
+        # legs 8/22/25: 2 over the 20 target
         self.assertIn("median total 24.0", out)
         self.assertIn("2 of 3 runs over target", out)
 
     def test_last_n_keeps_only_the_newest_runs(self):
         self.write_ledger([
-            self.row("a", 50.0, {"3-refactor": 40.0}),
-            self.row("b", 10.0, {"3-refactor": 4.0}),
-            self.row("c", 12.0, {"3-refactor": 6.0}),
+            self.row("a", 50.0, {"3-refactor": 40.0}, legs=45.0),
+            self.row("b", 10.0, {"3-refactor": 4.0}, legs=8.0),
+            self.row("c", 12.0, {"3-refactor": 6.0}, legs=10.0),
         ])
 
         out = self.clock("history", "--last", 2).stdout
 
         self.assertIn("| 3-refactor | 2 | 5.0 | 6.0 |", out)
         self.assertIn("0 of 2 runs over target", out)
+
+    def test_over_target_counts_the_legs_span_not_the_total(self):
+        # against the 20 target: legs 15 under, legs 24 over
+        long_run_fast_legs = self.row(
+            "a", 90.0, {"3-refactor": 15.0}, legs=15.0
+        )
+        short_run_slow_legs = self.row(
+            "b", 25.0, {"3-refactor": 24.0}, legs=24.0
+        )
+        self.write_ledger([long_run_fast_legs, short_run_slow_legs])
+
+        out = self.clock("history").stdout
+
+        self.assertIn("1 of 2 runs over target", out)
+
+    def test_run_without_a_measured_legs_span_counts_over_target(self):
+        unmeasured = self.row(
+            "a", 5.0, {"3-refactor": None}, legs=None
+        )
+        recorded_before_legs = self.row(
+            "b", 5.0, {"3-refactor": 4.0}, legs=4.0
+        )
+        del recorded_before_legs["legs_min"]
+        self.write_ledger([unmeasured, recorded_before_legs])
+
+        out = self.clock("history").stdout
+
+        self.assertIn("2 of 2 runs over target", out)
 
     def test_empty_ledger_says_no_runs_and_exits_0(self):
         self.write_ledger([])
