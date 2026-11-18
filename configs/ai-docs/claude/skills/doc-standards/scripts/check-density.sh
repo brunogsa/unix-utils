@@ -23,6 +23,12 @@
 # HTML-tag-only lines, link-only lines (a single "[text](url)"
 # with optional list/quote marker).
 #
+# Also skips code-span-only lines: one `...` span with an
+# optional list marker and nothing else.
+#
+# A code-span-only line is skipped because it holds a verbatim
+# identifier, such as a test title, that can't be split.
+#
 # Frontmatter is skipped because its keys are router/tooling
 # metadata, not prose: a `description:` scalar can't obey the
 # "split on a sentence boundary" remedy, and its real cap is the
@@ -138,6 +144,7 @@ check_one_file() {
     /^[[:space:]]*\|/                                             { next }
     /^[[:space:]]*<\/?[a-zA-Z][^>]*>[[:space:]]*$/                { next }
     /^[[:space:]]*([>*+-]|[0-9]+\.)?[[:space:]]*\[[^]]+\]\([^)]+\)[[:space:]]*\.?[[:space:]]*$/ { next }
+    /^[[:space:]]*(([-*+]|[0-9]+\.)[[:space:]]+)?`[^`]+`[[:space:]]*$/ { next }
     {
       is_bullet = ($0 ~ /^[[:space:]]*([-*+]|[0-9]+\.)[[:space:]]/)
       eff_mc = is_bullet ? bc : mc

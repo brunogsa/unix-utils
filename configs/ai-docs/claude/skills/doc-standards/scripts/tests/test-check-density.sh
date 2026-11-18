@@ -71,6 +71,16 @@ LONG_WORDCOUNT_LINE=$(printf 'word %.0s' $(seq 1 70))
 # chars/64 words) on both dimensions at once: flags as a bullet,
 # stays clean as prose.
 BETWEEN_CAPS_LINE=$(printf 'abcdefgh %.0s' $(seq 1 40))
+
+# 359 chars, 40 words - the text of one inline code span over
+# the bullet cap (256 chars/32 words) on both dimensions.
+CODE_SPAN_TEXT="${BETWEEN_CAPS_LINE% }"
+
+# 179 chars, 20 words - two of these spans on one bullet put it
+# over the bullet cap.
+HALF_CODE_SPAN_TEXT=$(printf 'abcdefgh %.0s' $(seq 1 20))
+HALF_CODE_SPAN_TEXT="${HALF_CODE_SPAN_TEXT% }"
+
 # 80 "abcdefgh " units = 720 chars, 80 words - over the prose
 # cap (512 chars/64 words) on both dimensions at once.
 OVER_PROSE_CAP_LINE=$(printf 'abcdefgh %.0s' $(seq 1 80))
@@ -172,6 +182,34 @@ it_should_skip_table_rows() {
   run_check
   assert_eq 'should skip table rows (stdout)' '' "$CHECK_OUT"
   assert_eq 'should skip table rows (exit code)' '0' "$CHECK_EXIT"
+}
+
+# A verbatim identifier, such as a test title quoted as one code
+# span, can't be split or shortened without breaking the rule
+# that requires it verbatim.
+it_should_skip_a_bullet_whose_whole_text_is_one_inline_code_span() {
+  new_fixture code-span-only.md "$(printf -- '- `%s`  \n' "$CODE_SPAN_TEXT")"
+  run_check
+  assert_eq 'should skip a bullet whose whole text is one inline code span (stdout)' '' "$CHECK_OUT"
+  assert_eq 'should skip a bullet whose whole text is one inline code span (exit code)' '0' "$CHECK_EXIT"
+}
+
+it_should_still_flag_a_bullet_with_prose_beside_its_inline_code_span() {
+  new_fixture code-span-with-prose.md "$(printf -- '- `%s` does X\n' "$CODE_SPAN_TEXT")"
+  run_check
+  assert_eq 'should still flag a bullet with prose beside its inline code span (stdout)' \
+    "$(printf '== %s\n1:370:43' "$FIXTURE")" "$CHECK_OUT"
+  assert_eq 'should still flag a bullet with prose beside its inline code span (exit code)' \
+    '1' "$CHECK_EXIT"
+}
+
+it_should_still_flag_a_bullet_holding_two_inline_code_spans() {
+  new_fixture two-code-spans.md "$(printf -- '- `%s` `%s`\n' "$HALF_CODE_SPAN_TEXT" "$HALF_CODE_SPAN_TEXT")"
+  run_check
+  assert_eq 'should still flag a bullet holding two inline code spans (stdout)' \
+    "$(printf '== %s\n1:365:41' "$FIXTURE")" "$CHECK_OUT"
+  assert_eq 'should still flag a bullet holding two inline code spans (exit code)' \
+    '1' "$CHECK_EXIT"
 }
 
 it_should_print_a_header_and_blank_line_between_multiple_hit_files() {
@@ -509,6 +547,9 @@ it_should_flag_a_line_only_once_max_chars_is_tightened_below_its_length
 it_should_skip_yaml_frontmatter_content
 it_should_skip_fenced_code_block_content
 it_should_skip_table_rows
+it_should_skip_a_bullet_whose_whole_text_is_one_inline_code_span
+it_should_still_flag_a_bullet_with_prose_beside_its_inline_code_span
+it_should_still_flag_a_bullet_holding_two_inline_code_spans
 it_should_print_a_header_and_blank_line_between_multiple_hit_files
 it_should_exit_2_when_no_files_given
 it_should_not_flag_a_prose_line_between_the_two_caps

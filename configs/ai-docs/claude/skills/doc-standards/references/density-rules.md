@@ -22,6 +22,7 @@ Verify with `~/.claude/skills/doc-standards/scripts/check-density.sh <file>`.
 - **Table rows** (lines starting with `|`) - tables wrap visually; raw markdown is wide by format.
 - **HTML-tag-only lines** (`<details>`, `</details>`, `<summary>…</summary>`) - structural wrappers, not content.
 - **Link-only lines** - a single `[text](url)` with optional list/quote marker is a citation pointer, not prose.
+- **Code-span-only lines** - a single `` `...` `` span with optional list marker and nothing else is a verbatim identifier, such as a test title, that can't be split.
 
 Char/word measurement strips `(https://…)` URL portions and remaining `[`/`]` brackets first, so `[label](url)` measures as `label` - the rendered density a reader actually sees.
 
