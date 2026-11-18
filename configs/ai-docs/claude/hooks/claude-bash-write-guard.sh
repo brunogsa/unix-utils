@@ -1139,7 +1139,7 @@ if blocked:
     if not GUARDED_EXTENSIONS:
         message.append('Every extension is guarded because the shared extension list could not be read: ' + EXTENSION_LIST_PATH)
     if format_reports:
-        message.append('A `cat`, `cp`, `mv` or `install` copy of existing files, or a `cat` of them piped into `write-atomically.py`, passes only when every source passes the destination format checker; these did not:')
+        message.append('A `cat`, `mv` or `install` copy of existing files, a `cp` onto a code file, or a `cat` of them piped into `write-atomically.py`, passes only when every source passes the destination format checker; these did not:')
         message.extend(format_reports)
     if has_repo_move_block:
         message.append('To rename a tracked file, use `git mv` instead: it is always allowed and rewrites no text.')

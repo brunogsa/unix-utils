@@ -139,6 +139,15 @@ it_should_block_mv_moving_a_scratch_file_that_breaks_the_markdown_format_rules_o
   assert_eq "should block mv moving a /tmp scratch file with hard-wrapped, gap-less bullets onto a new markdown file in the repo, since only cp is exempt" "2" "$HOOK_EXIT"
 }
 
+it_should_say_the_source_check_covers_cp_only_onto_a_code_file_when_it_blocks_a_cp() {
+  run_hook "cp $scratch_dir/settings.py src/settings.py"
+  local names_code_only_cp="no"
+  case "$HOOK_STDERR" in
+    *'a `cp` onto a code file'*) names_code_only_cp="yes" ;;
+  esac
+  assert_eq "should tell the agent, when it blocks a cp onto a python file, that the source check covers a cp only onto a code file" "yes" "$names_code_only_cp"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -149,6 +158,7 @@ it_should_block_cp_onto_a_repo_markdown_file_when_the_shared_extension_list_is_m
 it_should_block_cp_copying_a_scratch_file_that_breaks_the_comment_format_rules_over_a_tracked_python_file
 it_should_block_cp_copying_a_scratch_python_file_that_breaks_the_comment_format_rules_into_a_target_directory_named_by_t
 it_should_block_mv_moving_a_scratch_file_that_breaks_the_markdown_format_rules_onto_a_new_repo_markdown_file
+it_should_say_the_source_check_covers_cp_only_onto_a_code_file_when_it_blocks_a_cp
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
