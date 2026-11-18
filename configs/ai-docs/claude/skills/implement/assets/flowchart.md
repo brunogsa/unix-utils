@@ -620,7 +620,7 @@ flowchart TD
     n29["29. Step 5.4 · Advance: state file status=done<br/>(flipped BEFORE the verdict script, which picks by<br/>status - a passed task left pending is re-dispatched);<br/>plan [Done]; TaskCreate [Scout] items; TaskUpdate completed"]:::state
     n30{"30. Step 5.4 · implement-loop-state.py: verdict?<br/>ONLY this script sends a unit to the gates"}:::hook
     n31["31. Load references/batch-end-review.md"]:::skill
-    n32["32. Step 8.1 · git push -u origin &lt;branch(es)&gt; -<br/>ALWAYS, on every batch end, whatever pr.wanted says, and<br/>BEFORE either gate: two audited batches sat with the<br/>repo-green gate in_progress and no verdict, stranding 9<br/>and 16 local commits for ~40 hours because push waited<br/>behind it. A stacked unit pushes EVERY layer branch, in<br/>layer order, in one command; else just the unit's single<br/>branch. A pushed branch with no PR is the ordinary<br/>outcome, not a half-finished state. Record the SHA it<br/>pushed - step 44 reads it back"]:::gate
+    n32["32. Step 8.1 · git push -u origin &lt;branch&gt; -<br/>ALWAYS, on every batch end, whatever pr.wanted says, and<br/>BEFORE either gate: two audited batches sat with the<br/>repo-green gate in_progress and no verdict, stranding 9<br/>and 16 local commits for ~40 hours because push waited<br/>behind it. A stacked unit pushes EVERY layer branch, in<br/>layer order, one push per branch; else just the unit's single<br/>branch (name read from git branch --show-current). A pushed branch with no PR is the ordinary<br/>outcome, not a half-finished state. Record the SHA it<br/>pushed - step 44 reads it back"]:::gate
     n33{"33. Push succeeded?<br/>(no remote / rejected non-fast-forward /<br/>missing credentials)"}
     n33a["33a. Step 8.1 · check-plan-id-leaks.py --base &lt;BATCH_BASE_SHA&gt;<br/>until exit 0; commit and re-push a fix per printed line"]:::gate
   n34{"34. PR-label run?"}
@@ -650,7 +650,7 @@ flowchart TD
     n43b{"43b. Fix attempts left?"}
     n43c["43c. Step 8.3 · Dispatch tdd-coder to fix it<br/>(agent-pinned, 1h Monitor cap, attempt<br/>recorded); RE-RUN THE FULL SUITE"]:::dispatch
     n44{"44. Step 8.4 · Did 40-43 land any commit?<br/>git rev-list --count @{u}..HEAD &gt; 0, read off the<br/>tree and never from memory. Nothing landed: skip both<br/>halves below, since a no-op push and a body rewritten<br/>to say nothing each cost the reviewer a diff to<br/>discover that"}
-    n44a["44a. Step 8.4 · git push origin &lt;branch(es)&gt;, so the<br/>remote carries the gate fixes before anything<br/>describes them"]:::gate
+    n44a["44a. Step 8.4 · git push origin &lt;branch&gt; (one per branch), so the<br/>remote carries the gate fixes before anything<br/>describes them"]:::gate
     n44b{"44b. Re-push succeeded?<br/>(halts on 33's terms)"}
     n44c{"44c. Did 37 open a draft PR?"}
     n44d["44d. Refresh that PR's body through the same<br/>pr-creator dispatch: the gate commits land under its<br/>'Unexpected extras' section"]:::dispatch

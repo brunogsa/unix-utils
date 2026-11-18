@@ -36,11 +36,13 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
 - Branch doesn't exist yet (first time through) → count `PR-N`'s parents from its PR Breakdown entry's `Depends on:` field (already open from §1.1):
 
-  - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout --no-track -b <pr_branch> <base-branch>`.
+  - **Zero parents** (a second independent root reached after an earlier PR's batch already ran) → branch explicitly from the confirmed base branch (§1.2): `git checkout -b <pr_branch> <base-branch>`.
 
     - Never from current HEAD - HEAD may sit at an unrelated PR's tip.
 
-    - `--no-track` because the confirmed base is often the remote-tracking ref `origin/main`, and git would otherwise make it the new branch's upstream, so a later `git push` targets `main` or refuses.
+    - The confirmed base is often the remote-tracking ref `origin/main`, and git then makes it the new branch's upstream.
+
+    - The batch-end `git push -u origin <pr_branch>` resets the upstream to the branch's own remote copy, so no push targets `main`.
 
     - No parent to guard against or record.
 
@@ -64,7 +66,13 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
     The guard also blocks when HEAD carries a non-merge commit from none of the parent branches, so a branch cut from the wrong base never passes.
 
-    Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks; do not retry. Discard the half-built branch before stopping: `git checkout <parent-branch>` then `git branch -D <pr_branch>`, for the same reason as the diamond case below. Exit 2 (usage/parse error) surfaces the same way, discarding the branch identically.
+    Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks; do not retry.
+
+    Discard the half-built branch before stopping: `git checkout <parent-branch>` then `git branch -d <pr_branch>`, for the same reason as the diamond case below.
+
+    When `-d` refuses an unmerged branch, ask the user, since the guard blocks `-D`.
+
+    Exit 2 (usage/parse error) surfaces the same way, discarding the branch identically.
 
     Exit 0 → dispatch this PR's tasks.
 
@@ -80,9 +88,11 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
       - Read the conflict markers, reconcile the intent behind both sides, then `git add` the resolved paths.
 
-      - Close out the merge with `git commit --no-edit`, never a bare `git commit`.
+      - Close out the merge with `git commit -q -m "Merge <parent-label> into <PR-N>" -m "Co-Authored-By: <model> <noreply@anthropic.com>"`, never a bare `git commit`.
 
       - A bare `git commit` opens `$EDITOR` on the pending `MERGE_MSG`, and this run has no TTY - it would hang or error.
+
+      - The guard also refuses `--no-edit`, so the message goes in `-m`.
 
       - Never `git merge --abort`, never a blind `-X ours`/`-X theirs`, never an interactive handoff.
 
@@ -96,7 +106,7 @@ It covers resolving `<pr_branch>`, the existing-branch check for a branch alread
 
       Its ancestry check (`git merge-base --is-ancestor <parent_branch> HEAD`) cannot pass for the second and later parents until their commits land via merge. Calling it earlier would always fail, even when every parent is Done.
 
-      Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks. Discard the half-built branch before stopping: `git checkout <first-listed-parent-branch>` then `git branch -D <pr_branch>`.
+      Exit 1 surfaces the script's own stderr diagnostic verbatim and stops before dispatching any of this PR's tasks. Discard the half-built branch before stopping: `git checkout <first-listed-parent-branch>` then `git branch -d <pr_branch>` (when `-d` refuses an unmerged branch, ask the user, since the guard blocks `-D`).
 
       A left-over branch would let a later re-invocation's existing-branch check adopt it - silently dispatching tasks on a parent that never actually passed. Nothing is lost: a re-run redoes the same checkout, merges, and conflict resolution.
 

@@ -13,7 +13,8 @@ git checkout -b feat-part1 master        # part 1 off the default branch
 # ...commit...
 git checkout -b feat-part2 feat-part1    # part 2 off part 1
 # ...commit...
-git push -u origin feat-part1 feat-part2
+git push -u origin feat-part1
+git push -u origin feat-part2
 
 gh pr create --head feat-part1 --base master ...
 gh pr create --head feat-part2 --base feat-part1 ...   # base = PARENT branch
@@ -30,11 +31,14 @@ Cross-link the chain in each PR body (e.g. `Stack: #10 ← #11 ← #12 (this PR)
 New commits anywhere in the stack propagate upward with plain merges, parent before child:
 
 ```bash
-git checkout feat-part2 && git merge feat-part1
-git push origin feat-part1 feat-part2
+git checkout feat-part2
+git merge feat-part1
+git push origin feat-part2
 ```
 
 Merge, not rebase, is the default here: history stays append-only, so every push is plain and the server rejects any push that would drop someone else's commits.
+
+Run each command as its own call and push one branch per call, because the git guard accepts `origin` plus a single branch name and only a lone `git` command.
 
 No branch ref ever moves out from under another worktree or agent.
 
@@ -69,7 +73,8 @@ Retarget via REST, not `gh pr edit --base` - the same `gh pr edit` deprecation h
 
 ```bash
 git fetch origin
-git checkout feat-part2 && git merge origin/master
+git checkout feat-part2
+git merge origin/master
 git push origin feat-part2
 ```
 
@@ -92,7 +97,8 @@ If you do rewrite, propagate one **linear** leg at a time from its topmost branc
 ```bash
 git checkout feat-part2
 git rebase master --update-refs        # rewrites feat-part1 in the same pass
-git push --force-with-lease --force-if-includes origin feat-part1 feat-part2
+git push --force-with-lease origin feat-part1
+git push --force-with-lease origin feat-part2
 ```
 
 A fork in the stack is a second leg: rebase it onto the rewritten shared branch with `git rebase --onto <shared> <old-shared-tip> <leg-tip>`.

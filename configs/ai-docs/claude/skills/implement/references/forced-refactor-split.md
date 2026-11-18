@@ -42,7 +42,9 @@ Read `outcome` in the JSON.
 
 - **`moved`** - the commits now sit on the refactor branch and the feature branch was rebased.
 
-  - Push every branch in `needs_push` with `git push`, adding `--force-with-lease` where its `force_with_lease` is true.
+  - Push every branch in `needs_push` with its own call, `git push origin <branch>`, adding `--force-with-lease` before `origin` where its `force_with_lease` is true.
+
+  - One branch per call, because the git guard accepts `origin` plus a single branch name and refuses a bare `git push`.
 
   - Never use `--force`, which `configs/ai-docs/claude/hooks/claude-git-guard.sh` blocks and which can overwrite a remote change this run never saw.
 
