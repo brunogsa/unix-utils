@@ -20,10 +20,10 @@ SHIM = Path(__file__).resolve().parent.parent / "claude-git-guard.sh"
 BLOCK_FOOTER = "See the commit-standards skill."
 
 
-def run_shim(command, cwd):
+def run_shim(command, cwd, shim=SHIM):
     payload = {"tool_name": "Bash", "tool_input": {"command": command}, "cwd": str(cwd)}
     return subprocess.run(
-        ["bash", str(SHIM)],
+        ["bash", str(shim)],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
@@ -50,3 +50,18 @@ def test_allows_a_read_only_git_command(tmp_path):
     result = run_shim("git status", tmp_path)
 
     assert result.returncode == 0, result.stderr
+
+
+# Claude Code blocks a call only on exit 2, so a guard that
+# crashes with python's exit 1 would otherwise let it run.
+def test_blocks_the_call_keeping_the_error_when_the_python_guard_crashes(tmp_path):
+    shim = tmp_path / SHIM.name
+    shim.write_text(SHIM.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "claude-git-guard.py").write_text(
+        "raise RuntimeError('payload parser broke on a heredoc')\n", encoding="utf-8"
+    )
+
+    result = run_shim("git status", tmp_path, shim=shim)
+
+    assert result.returncode == 2
+    assert "payload parser broke on a heredoc" in result.stderr
