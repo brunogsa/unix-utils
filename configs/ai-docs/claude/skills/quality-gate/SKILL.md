@@ -20,11 +20,11 @@ Five legs, each a fresh-context reviewer; §4.1 merges them into one verdict in 
 
 A whole run (§1 through §7, apply included) targets 20 minutes of wall-clock or less, never a reason to cut a gate short.
 
-Main records each phase as it happens with `scripts/quality-gate-clock.py mark <RUN_DIR> <phase> start|end`, using labels like `3-refactor`, `4.1-judge`, `6-apply-1`.
+Main records each phase with `scripts/quality-gate-clock.py mark <RUN_DIR> <phase> start|end`, using labels like `3-refactor`, `4.1-judge`, `6-apply-1`.
 
-The phases are each §3 leg with its own end, §4.1, §4.2, and §6 with each `/address-verdicts` dispatch. `<RUN_DIR>` is minted at the top of §3, before any phase starts.
+The phases are each §3 leg with its own end, §4.1, §4.2, and §6 with each `/address-verdicts` dispatch. `<RUN_DIR>` is minted at the top of §3.
 
-§7 is not a phase: its report stops the clock, so a §7 mark would always read unclosed.
+§7 is not a phase: its report stops the clock, so a §7 mark would read unclosed.
 
 The marks outlive the session, so the user can see where time goes across runs.
 
@@ -37,7 +37,7 @@ The marks outlive the session, so the user can see where time goes across runs.
 - `spec` / `plan` - paths in either order, recognised by their `spec_`/`plan_` filename prefix. Omit either to discover it in CWD.
 
 - `--tasks <ids>` - comma-list of plan task ids (`1,2,5`) for the `test-sdd` leg.
-  - Omitted, it takes the ids `get-plan-tasks-for-branch.py` derives from the plan's PR entry for the current branch, else every task when no entry names it.
+  - Omitted, §3 derives the ids from the plan's PR entry for the current branch.
 
 - `--base-ref <ref>` - review from this ref instead of `origin/HEAD` (branch, tag, or SHA).
 
@@ -78,7 +78,6 @@ ls -1 spec_*.md plan_*.md 2>/dev/null
 - **More than one of a kind** → prompt with a numbered list and let the user pick; never guess.
 
 - **Under `--auto-solve` or `--report-only`, never prompt on a multi-match** → proceed without that kind, as a zero match resolves.
-  - See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
 
 Also resolve `<BASE_REF>`:
 
@@ -117,13 +116,13 @@ Spawn each leg as its own agent, all in the **same turn**, all in the background
   - Dispatch it only when the export printed a count above 0.
 
 - Run the `metrics-review` skill ([`../metrics-review/SKILL.md`](../metrics-review/SKILL.md)) in this session, in parallel with the other legs, with `<RUN_DIR>`, `<BASE_REF>`, HEAD and `<SESSION_ID>` pushed in; dispatch whether or not a plan resolved.
-  - Main runs it, since the inspector dispatch and the tooling asks are main's, and the skill dispatches the `code-reviewer` that follows [`metrics-lens.md`](../metrics-review/references/metrics-lens.md) in the background.
+  - Main runs it, since the inspector dispatch and tooling asks are main's; the skill dispatches the `code-reviewer` that follows [`metrics-lens.md`](../metrics-review/references/metrics-lens.md) in the background.
 
-  - Never pass the `refactor` and `auto-review` legs a `--metrics` flag: this leg already measures, and a second measurement is the duplicate that flag exists to avoid.
+  - Never pass the `refactor` and `auto-review` legs a `--metrics` flag: this leg already measures, so a second measurement would duplicate it.
 
 **Each leg performs its skill's reviewer role itself and never spawns a nested reviewer.** Carve-out: the auto-review leg's `code-review-pipeline` run may spawn its own lens agents (`agents/code-reviewer.md`).
 
-Tell each leg this, since its skill describes dispatching a reviewer ([`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md)).
+Tell each leg this, since its skill describes dispatching a reviewer. The rationale for this, the multi-match rule in §2 and why main assembles in §4.1 is in [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md).
 
 The `check-reviewer-writes.sh` hook backs report-only; its terms are in [`code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md).
 
@@ -140,15 +139,14 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 
 **No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform on every run.
 
-Record the source paths and the merged path in CWD. Run `git branch --show-current` as its own call, replace each `/` in the branch name with `-` yourself, then run `date "+verdict_quality-gate_<branch-slug>_%Y-%m-%d_%H:%M.md"` with that slug written literally, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
+Record the source paths and the merged path in CWD. Run `git branch --show-current` as its own call, swap each `/` in the name for `-` yourself, then run `date "+verdict_quality-gate_<branch-slug>_%Y-%m-%d_%H:%M.md"` with that slug written literally, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings fence-aware, since a finding may quote a `### 1.` line in a fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on `<tooling>` for k (0 with none): the `tooling_metrics_*.md` beside the rendered verdict, numbered as it numbers its deferred, tooling-ask and exception entries.
 
 Dispatch ONE `code-reviewer` (fresh context, foreground) with exactly those source paths (never a glob), k, `<RUN_DIR>/merged-findings.md`, and [`references/merge-review-verdicts.md`](references/merge-review-verdicts.md). It writes only that file, numbered from k+1.
 
-Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only tooling problems above `## Findings`. See [`references/dispatch-and-apply-rationale.md`](references/dispatch-and-apply-rationale.md) for why main assembles.
-
+Then assemble: `cat <tooling> <RUN_DIR>/merged-findings.md | ~/.claude/scripts/write-atomically.py <merged path>`, so the human reads only tooling problems above `## Findings`.
 Verify without reading the merged file into main:
 
 - It exists and is non-empty, and `check-finding-bodies.py` and the [`merge-review-verdicts.md`](references/merge-review-verdicts.md) prose checkers exit 0 on `<RUN_DIR>/merged-findings.md` alone.
@@ -162,15 +160,15 @@ Verify without reading the merged file into main:
 
 Then settle the scout tasks as [`scout-leg.md`](references/scout-leg.md) "Settle the tasks" says: delete each in-goal one the merged file carries, complete each already fixed, keep the rest, and write `<RUN_DIR>/scout-outcomes.md`.
 
-**Fail** → move the merged file into `<RUN_DIR>`, and move every source file except the scout files, and the rendered metrics verdict, back into CWD. Leave `scout-leg_<ts>.md` in `<RUN_DIR>` and change no scout task: they stay pending for the next gate run. Say so in §7.
+**Fail** → follow [`references/merge-check-failure.md`](references/merge-check-failure.md), which restores the sources and leaves the scout tasks pending.
 
 ### 4.2. Judge each finding Fix or Skip - auto-solve only
 
 Runs on auto-solve when §4.1 passed. Report-only and §4.1's fallback skip it.
 
-Main copies the merged file to `<RUN_DIR>/pre-judge.md`. Then it dispatches ONE `agent(subAgent=code-reviewer, title=Fix-or-Skip judge)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §1, and runs that file's §3 checks.
+Main copies the merged file to `<RUN_DIR>/pre-judge.md`, then dispatches ONE `agent(subAgent=code-reviewer, title=Fix-or-Skip judge)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §1, and runs that file's §3 checks.
 
-The judge rules `[scout]` findings exactly like `refactor`, `auto-review` and `metrics` ones, so an in-goal scout is judged, and under auto-solve applied, with no human step.
+The judge rules `[scout]` findings like the other lenses', so an in-goal scout is judged, and under auto-solve applied, with no human step.
 
 On §4.1's fallback under auto-solve, apply `test-sdd` only and report `judge: not run (merge fell back)`.
 
@@ -194,7 +192,7 @@ Print the composed list, one line per finding, before applying.
 
 **An empty apply list skips straight to §7.**
 
-**Applying is not this skill's job** - `/address-verdicts` is the apply step for every `verdict_*.md` on disk, whoever wrote it.
+**Applying is not this skill's job** - `/address-verdicts` applies every `verdict_*.md`.
 
 Resolve the repo's test command first, then invoke, **in this session**:
 
@@ -214,17 +212,15 @@ Resolve the repo's test command first, then invoke, **in this session**:
 
 ### 6.1. One fix review over every applied commit
 
-**Disabled since 2026-11-17: skip this step, and §7 reports `fix review: disabled`.** The user disabled it while finding out what makes a run slow. Delete this notice once the user has reviewed §7's per-phase timings and turns the review back on.
+**Disabled since 2026-11-17: skip this step, and §7 reports `fix review: disabled`.** It is off while the user finds what slows a run. Delete this notice once the user has reviewed §7's per-phase timings and turns the review back on.
 
-Skipped when the merged file has no unfenced `APPLIED (` line, or with no git.
-
-Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the foreground with [`references/fix-judge.md`](references/fix-judge.md) §4, then run main's checks and the append from that section. Its findings are reported, never applied.
+Once re-enabled, follow [`references/fix-judge.md`](references/fix-judge.md) §4 for when to skip, the dispatch, and the checks.
 
 ## 7. Close with a report
 
 **Open with the timing report**: mark the last open phase's `end` first, then paste the output of `scripts/quality-gate-clock.py report <RUN_DIR> --repo <repo name> --branch <branch>` verbatim. A non-zero exit reports `timing: not measured`, never an empty table, because a missing measurement must never read as a fast run.
 
-Tell the user that `scripts/quality-gate-clock.py history` shows where time goes across runs.
+Point the user to `scripts/quality-gate-clock.py history` for cross-run timings.
 
 Then read [`references/final-report.md`](references/final-report.md) and report every item it lists: the verdict file paths, metrics results, findings by outcome, judge and fix-review status, the scout leg, and what `/address-verdicts` skipped or failed.
 

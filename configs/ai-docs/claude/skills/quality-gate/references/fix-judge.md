@@ -76,6 +76,8 @@ None of these reads the merged file into main.
 
 ## 4. The fix review's brief
 
+Skip this review when the merged file has no unfenced `APPLIED (` line, or with no git. Otherwise dispatch ONE `agent(subAgent=code-reviewer, title=Fix review)` in the foreground with this section, then run main's checks and the append below. Its findings are reported, never applied.
+
 Inputs: the merged path; the applied SHAs; M, the merged file's finding count from `SKILL.md` §4.1's count awk. The SHAs come from:
 
 ```bash
