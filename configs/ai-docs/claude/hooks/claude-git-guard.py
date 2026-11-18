@@ -69,7 +69,7 @@ FORMS = {
     "branch": ["git branch [-a|-r|-l|-v|-vv|--show-current|--merged|--no-merged|--contains|--sort=|--format=]",
                "git branch <name> [<start>]  |  git branch -d|--delete <names>"],
     "worktree": ["git worktree add [-b <branch>] [--detach] <path> [<commit>]",
-                 "git worktree list [--porcelain]  |  remove <path>  |  prune [-n|--dry-run] [-v]"],
+                 "git worktree list [--porcelain]  |  remove <path>  |  unlock <path>  |  prune [-n|--dry-run] [-v]"],
 }
 
 
@@ -261,13 +261,14 @@ WORKTREE_ACTIONS = {
     "add": ({"--detach"}, {"-b"}, 1, 2),
     "list": ({"--porcelain"}, set(), 0, 0),
     "remove": (set(), set(), 1, 1),
+    "unlock": (set(), set(), 1, 1),
     "prune": ({"-n", "--dry-run", "-v"}, set(), 0, 0),
 }
 
 
 def check_worktree(args, _base_dir):
     if not args or args[0] not in WORKTREE_ACTIONS:
-        return "git worktree runs only add, list, remove or prune"
+        return "git worktree runs only add, list, remove, unlock or prune"
     flags, valued, fewest, most = WORKTREE_ACTIONS[args[0]]
     _, positionals, _ = parse_args(args[1:], flags, valued)
     return None if fewest <= len(positionals) <= most else f"wrong number of paths for git worktree {args[0]}"
