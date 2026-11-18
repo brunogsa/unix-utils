@@ -23,7 +23,7 @@ One example per subcommand, each verified against the guard.
 git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Why the change exists." -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
 # commit from a message file: write it first with the Write tool, since the guard reads it and refuses a missing file; the attribution is its last paragraph
-git commit -q -F /Users/brunoagostini/scratchpad/msg.txt
+git commit -q -F /path/to/msg.txt
 
 # commit chain: the only form that may use &&
 git diff --cached --quiet && git add configs/foo.txt && git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
@@ -53,13 +53,13 @@ git branch feat/new-branch origin/master
 git branch -d feat/new-branch
 
 # worktree: add, list, remove, prune
-git worktree add -b feat/new-branch /Users/brunoagostini/worktrees/feat-new-branch origin/master
+git worktree add -b feat/new-branch /path/to/worktree origin/master
 git worktree list
-git worktree remove /Users/brunoagostini/worktrees/feat-new-branch
+git worktree remove /path/to/worktree
 git worktree prune -n
 
 # another directory: -C is the only global option, and it takes a literal path
-git -C /Users/brunoagostini/unix-utils push origin feat/new-branch
+git -C /path/to/repo push origin feat/new-branch
 ```
 
 ## Blocked, and what to run instead
