@@ -181,8 +181,12 @@ What to write, how to evidence it, and how to format it: [`references/writing-st
 
   - The user reviews on GitHub, where the rendered body is the artifact they will judge; a chat-side approval would review a different one.
 
-  - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure: take that PR's number and continue into step 5 against it.
+  - **Branch already has an open PR** (`gh pr create` errors that one exists) → not a failure: take that PR's number, run the guide below, then step 5.
     - This is the "or update" half of the description; without it a re-run dead-ends, wasting steps 1-3's two paid dispatches.
+
+- **Post the review guide once the PR number is known** -- run `code-review-guide <number>` in main on a new or an already-open PR, before returning the URL.
+
+  - As a subagent (e.g. `pr-creator`), skip it and report "review guide not run": its POST needs main's permission UI.
 
 - Return the PR URL.
 

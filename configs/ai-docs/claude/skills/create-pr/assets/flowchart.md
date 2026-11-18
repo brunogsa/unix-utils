@@ -150,42 +150,52 @@ def create_pr():
     #      GitHub, which is the artifact they will actually judge.
     #      A <parent> run → base is the parent's head branch, per step 1.
     # 17a · an error saying the branch already has an open PR is NOT a failure:
-    #       take that PR's number and fall into step 5 against it. That is the
+    #       take that PR's number, run 18 against it, and fall into step 5. That is the
     #       "or update" half of this skill's description, and dead-ending here
     #       would waste the two agent dispatches steps 1-3 already paid for.
     n, already_existed = gh_pr_create_draft(final_path, base)
-    print(pr_url(n))                                       # 18
 
-    # 19 · Step 5 - two entry points: 17a above, or the user hand-editing the
+    # 18 · Both the new-PR path and 17a land here, once the PR number is known.
+    #      Main session only: the guide dispatches opus subagents and POSTs
+    #      through main's permission UI, which a subagent (pr-creator) cannot
+    #      render - there it is skipped, "review guide not run" is reported,
+    #      and the caller runs it. Only the number is passed; the guide finds
+    #      its own metrics file in cwd. It is a comment snapshot of one head
+    #      commit, so a re-run adds a new comment and never edits the old one.
+    if running_in_main_session():
+        invoke_skill("code-review-guide", n)
+    print(pr_url(n))                                       # 19
+
+    # 20 · Step 5 - two entry points: 17a above, or the user hand-editing the
     #      body on GitHub / asking for a change in chat.
     while already_existed or user_wants_a_change():
-        # 19a · this body is the only prose the main session ever writes, so
+        # 20a · this body is the only prose the main session ever writes, so
         #       its density cap, BLUF ordering, and collapse rules apply HERE.
         #       Steps 1-4 never need it: pr-writer and pr-finalizer each own
         #       their own gates.
         load_skill("doc-standards")
 
-        # 19b · skipped on the 17a entry, where the .final.md just composed IS
+        # 20b · skipped on the 17a entry, where the .final.md just composed IS
         #       the replacement, so pulling would overwrite it.
         if not already_existed:
-            # 19c · so a hand-edit made on GitHub survives the next push.
+            # 20c · so a hand-edit made on GitHub survives the next push.
             write(final_path, gh("pr", "view", n, "--json", "body"))
 
-        # 19d · edit the .final.md ONLY. The .ideal.md is deliberately left to
+        # 20d · edit the .final.md ONLY. The .ideal.md is deliberately left to
         #       drift, since re-deriving the final body would discard the
         #       user's own edits.
         edit(final_path)
 
-        # 19e · the local edit is cheap to revise; the pushed body notifies reviewers.
+        # 20e · the local edit is cheap to revise; the pushed body notifies reviewers.
         confirm_with_user()
 
-        # 19f · never `gh pr edit --body-file`. The REST body update and its
+        # 20f · never `gh pr edit --body-file`. The REST body update and its
         #       mandatory read-back come from the gh-cli-usage skill, which
         #       authors that hazard - a copy here would be a third that drifts.
         gh_patch_body_and_read_back(n, final_path)
         already_existed = False
 
-    return  # 20 · Done
+    return  # 21 · Done
 ```
 
 ## Flowchart
@@ -223,17 +233,18 @@ flowchart TD
   n15a["15a. Missing or empty -&gt; step 3's agent never finished.<br/>Re-dispatch pr-finalizer; never compose a replacement body here"]:::state
   n16["16. Only NOW push: git push -u origin &lt;branch&gt; when it has no<br/>upstream. The push is the run's first outward-facing act - it fires<br/>CI and makes the branch visible, while every step above only wrote<br/>local files, so a failed compose or gate leaves nothing on the remote"]:::gate
   n17{"17. gh pr create --draft --body-file &lt;final&gt; --base &lt;base-branch&gt;,<br/>with NO chat-side review gate - the user reviews the rendered body<br/>on GitHub, which is the artifact they will actually judge.<br/>A &lt;parent&gt; run -&gt; base is the parent's head branch, per step 1.<br/>Did it error that the branch already has an open PR?"}
-  n17a["17a. Branch already has an open PR -&gt; take its number and fall into<br/>step 5 against it. NOT a failure: this is the 'or update' half of the<br/>skill's description, and dead-ending here would waste the two agent<br/>dispatches steps 1-3 already paid for"]:::state
-  n18["18. Return the PR URL"]
+  n17a["17a. Branch already has an open PR -&gt; take its number and run 18<br/>against it, then fall into step 5. NOT a failure: this is the 'or update'<br/>half of the skill's description, and dead-ending here would waste the two<br/>agent dispatches steps 1-3 already paid for"]:::state
+  n18["18. Step 4 · Invoke the code-review-guide skill with only the PR number -<br/>it finds its own metrics file in cwd. Main session only: it dispatches opus<br/>subagents and POSTs through main's permission UI, which a subagent<br/>(pr-creator) cannot render - there it is skipped, 'review guide not run' is<br/>reported, and the caller runs it. A comment snapshot of one head commit,<br/>so a re-run adds a new comment and never edits the old one"]:::skill
+  n19["19. Return the PR URL"]
 
-  n19{"19. Step 5 · Does the user hand-edit the body on GitHub,<br/>or ask for a change in chat?"}
-  n19a["19a. Load doc-standards - this body is the only prose the main<br/>session ever writes, so its density cap, BLUF ordering, and<br/>collapse rules apply here. Steps 1-4 never need it: pr-writer<br/>and pr-finalizer each own their own gates"]:::skill
-  n19b{"19b. Did we arrive straight from step 4's already-exists branch?"}
-  n19c["19c. Pull GitHub's current body into the file first -<br/>gh pr view &lt;n&gt; --json body - so a hand-edit made<br/>there is not overwritten by the next push"]
-  n19d["19d. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
-  n19e["19e. Confirm with the user before writing to GitHub -<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
-  n19f["19f. REST body update + its mandatory read-back, taken from the<br/>gh-cli-usage skill which authors that hazard - never gh pr edit<br/>--body-file. Copying the command here would be a third copy that drifts"]
-  n20(["20. Done"])
+  n20{"20. Step 5 · Did step 4 find an already-open PR, or does the user<br/>hand-edit the body on GitHub or ask for a change in chat?"}
+  n20a["20a. Load doc-standards - this body is the only prose the main<br/>session ever writes, so its density cap, BLUF ordering, and<br/>collapse rules apply here. Steps 1-4 never need it: pr-writer<br/>and pr-finalizer each own their own gates"]:::skill
+  n20b{"20b. Did we arrive straight from step 4's already-exists branch?"}
+  n20c["20c. Pull GitHub's current body into the file first -<br/>gh pr view &lt;n&gt; --json body - so a hand-edit made<br/>there is not overwritten by the next push"]
+  n20d["20d. Edit ./pr_&lt;slug&gt;_pr&lt;N&gt;.final.md ONLY; the .ideal.md is<br/>deliberately left to drift, since re-deriving the final body<br/>would discard the user's own edits"]:::state
+  n20e["20e. Confirm with the user before writing to GitHub -<br/>the local edit is cheap to revise, the pushed body notifies reviewers"]:::gate
+  n20f["20f. REST body update + its mandatory read-back, taken from the<br/>gh-cli-usage skill which authors that hazard - never gh pr edit<br/>--body-file. Copying the command here would be a third copy that drifts"]
+  n21(["21. Done"])
 
   n1 --> n2
   n2 --> n3
@@ -259,17 +270,18 @@ flowchart TD
   n16 --> n17
   n17 -->|"no - new draft PR created"| n18
   n17 -->|"yes"| n17a
-  n17a --> n19a
+  n17a --> n18
   n18 --> n19
-  n19 -->|"yes"| n19a
-  n19 -->|"no"| n20
-  n19a --> n19b
-  n19b -->|"no - a change asked for after the push"| n19c
-  n19b -->|"yes - the .final.md just composed IS the replacement,<br/>so pulling would overwrite it with the body it replaces"| n19d
-  n19c --> n19d
-  n19d --> n19e
-  n19e --> n19f
-  n19f --> n19
+  n19 --> n20
+  n20 -->|"yes"| n20a
+  n20 -->|"no"| n21
+  n20a --> n20b
+  n20b -->|"no - a change asked for after the push"| n20c
+  n20b -->|"yes - the .final.md just composed IS the replacement,<br/>so pulling would overwrite it with the body it replaces"| n20d
+  n20c --> n20d
+  n20d --> n20e
+  n20e --> n20f
+  n20f --> n20
 
   classDef start fill:#fef3c7,stroke:#d97706,stroke-width:2px
   classDef gate fill:#fee2e2,stroke:#dc2626,stroke-width:2px
