@@ -111,13 +111,9 @@ Keep the file step 1 created -- never overwrite its resolved-answers comment.
 
 #### Default Template
 
-See `references/pr-template.md` for the full template. Guia de review template, time-estimate heuristic, file-role inference: [`references/reading-order-template.md`](references/reading-order-template.md) (PT-BR).
+See `references/pr-template.md` for the full template.
 
 A full worked example, including the derived appendix from step 1: [`references/pr-description-example.md`](references/pr-description-example.md).
-
-**Reading guide is qualitative, not taxonomic** -- each file entry describes what the reviewer *learns* there, not just role labels.
-- Open with a rationale paragraph, bold the densest file, close with a minimum-viable-read shortcut.
-- Layout + examples: [`references/decision-quality.md`](references/decision-quality.md).
 
 #### Writing Style
 

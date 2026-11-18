@@ -9,22 +9,6 @@ words-budget: 8192
 lines-budget: 1024
 ---
 
-<details>
-<summary><strong>Guia de review</strong> (~15 min)</summary>
-
-Ordem de leitura sugerida:
-
-1. `sge-client` - o contrato HTTP com o SGE (3 endpoints, host único, auth `x-api-key`): [`types.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/sge-client/src/types.ts), [`client.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/lib/src/sge-client/src/client.ts).
-2. [`classify-http-error.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/classify-http-error.ts) + [`errors/`](https://github.com/arco-cv/arco2-integrator/tree/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/errors) - a regra retryable/terminal.
-3. [`shared/mappers/`](https://github.com/arco-cv/arco2-integrator/tree/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/shared/mappers) - o de/para campo-a-campo (header, itens, school, brand→sistema, séries).
-4. [`index.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/index.ts) - **a peça central**: `translate` (monta e valida os 3 DTOs) e `publish` (3 chamadas em série, com guarda de integridade contra sucesso parcial).
-
-5. [`consumer.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sync-sales-agreement-pic-sge/consumer.ts) + [`sales-agreements.module.ts`](https://github.com/arco-cv/arco2-integrator/blob/feat/itgd-2947_sge-translator/core/src/modules/sales-agreements/sales-agreements.module.ts) - o wiring.
-
-Se estiver com pouco tempo: **`index.ts`**, **`items.mapper.ts`**, **`series.mapper.ts`**, **`classify-http-error.ts`** - concentram o principal.
-
-</details>
-
 ## Link do Jira
 
 - [ITGD-2947](https://arco-educacao.atlassian.net/browse/ITGD-2947)

@@ -52,15 +52,3 @@ Translate not just section headers but recurring body terms.
 - **Keep English**: engineering jargon (`passthrough`, `fan-out`, `trade-off`, `deploy`, `follow-up`, `default`, `cache`, `tab`).
 
 Inconsistent language across the ToC and body reads as imported boilerplate; mid-prose English code-switching breaks scanning.
-
-## Reading guide - qualitative, not taxonomic
-
-Each file entry describes what the reviewer *learns* there ("BFF contract", "passthrough mode + helpers", "self-contained, no URL state"), not just role labels ("controller", "use case").
-
-Layout:
-
-- **Open** - one paragraph explaining the reading order's rationale (why these files in this order - typically "feature X enables feature Y" or "contract first, consumers second").
-
-- **Bold the densest file** - e.g., `**The densest piece of this PR**`.
-- **Close** - minimum-viable-read shortcut: `If time is short, focus on N, M, K`.
-- **Translate the body** to the team's language at render time per the language rule.

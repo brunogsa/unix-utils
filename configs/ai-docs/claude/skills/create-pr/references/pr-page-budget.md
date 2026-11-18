@@ -7,14 +7,14 @@ Read before drafting a PR body. `pr-writer` and `pr-finalizer` load this; `SKILL
 **No content appears twice** -- each section answers one unique question.
 
 - **Each body section owns exactly one question** -- answers belong nowhere else.
-  - Review guide → order of reading? Context → why this PR? Changes → what's different?
+  - Context → why this PR? Changes → what's different?
 
   - Decisions → what chosen over what, why? Architecture → how pieces fit? Evidences → verification?
 
 - **A diagram outranks prose that restates it** -- no bullet repeats encoded flows.
   - Decision bullets add only what diagrams can't: why, discarded options, consequences.
 
-- **Review guide lists changed files** -- so Changes names behavior, not files.
+- **GitHub's Files changed tab lists the files** -- so Changes names behavior, not files.
 - **CRITICAL: Copy reused content verbatim** -- paste when moved; don't re-author.
   - Paraphrasing hides duplicates as new content.
 
@@ -38,15 +38,14 @@ Read before drafting a PR body. `pr-writer` and `pr-finalizer` load this; `SKILL
 **The ideal description fits 64 rendered lines** -- reviewers reach the end without scrolling.
 
 - **CRITICAL: Split those 64 lines across the sections** -- an overrun is recut per the cut order, never absorbed by a section still unwritten.
-  - Review guide: **1** - its collapsed `<summary>`, charged before the first heading, not to any section below.
   - Jira/Linear and related-PR links: **4**.
   - Context: **17** - the heading plus at most 4 paragraphs of at most 4 lines each.
-  - Changes: **9** - the heading plus 8 flat bullets, counting the two group labels.
+  - Changes: **10** - the heading plus 9 flat bullets, counting the two group labels.
   - Decisions: **18** - 3 headings plus 8 bullets for Functional and 7 for Technical.
   - Architecture: **5** - the heading plus at most 4 diagrams, every one left expanded.
   - Evidences: **5** - the heading, the counted-tests line, and up to 3 collapsed manual scenarios.
   - Appendix: **5** - the heading, at most 1 line of intro, and one collapsed block per subsection.
-  - The eight entries sum to exactly 64.
+  - The seven entries sum to exactly 64.
 
 - **Unused Functional allowance transfers to Technical decisions, and back** -- 3 functional decisions free 5 more lines for technical ones.
   - No other pair transfers -- only these two sections' split swings with the PR's product/implementation mix.

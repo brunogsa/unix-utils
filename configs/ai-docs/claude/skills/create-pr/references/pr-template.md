@@ -26,15 +26,6 @@ Script-extracted spec/plan sections therefore demote to `###`, and each level ne
 
 `extract-md-sections.sh` prints level-2 headings verbatim, so pasted unshifted a spec section outranks the very appendix containing it.]
 
-[Budget: 1 line - this collapsed `<summary>`. It goes FIRST, before any content, and its one line is charged before the first heading rather than to a section below it.
-
-This file owns the `<details>` wrapper and the summary label; `references/reading-order-template.md` supplies only what goes inside.]
-
-<details>
-<summary><strong>Review guide</strong> (estimated time: {min}-{max} min)</summary>
-[Generated per `references/reading-order-template.md` - translate the wrapper's label and the contents to the team's language as needed.]
-</details>
-
 ## Jira link
 [Budget: 4 lines. Bullet list of the ticket(s) this PR closes, plus any related PR - including the `Stacks on #<parent>` pointer on a stacked run, per `references/parent-arg.md`. The ticket is step 1's resolved ID.
 
@@ -50,11 +41,11 @@ Source it from the spec's Background + Goals when available, cross-referenced wi
 Always ground in commits, not just docs. This section carries the PR's summary - there is no separate Summary heading.]
 
 ## Changes
-[Budget: 9 lines - this heading plus 8 bullets, counting both group labels toward the 8.
+[Budget: 10 lines - this heading plus 9 bullets, counting both group labels toward the 9.
 
 A changelog, not a narrative - read like game patch notes: one flat line per change, no sub-bullets, no bold-topic prose.
 
-Each bullet names the BEHAVIOR that changed, never the file that changed; the review guide already lists the files.
+Each bullet names the BEHAVIOR that changed, never the file that changed; GitHub's "Files changed" tab already lists the files.
 
 Two groups, per the "Separate planned from incidental" rule in writing-style.md, which owns the group labels and what earns a bullet in each.
 
