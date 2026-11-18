@@ -37,9 +37,12 @@
 # tdd-coder's own preflight scripts never count.
 #
 # A prose-only call needs no evidence, since prose has no
-# behavior to test. It is one plain `git commit` or `git add`
-# naming only literal .md or .txt files, in a repo whose
-# config and hooks run no program of their own.
+# behavior to test. It stages only literal .md or .txt files,
+# in a repo whose config and hooks run no program of their
+# own.
+#
+# It is the git guard's chain `git diff --cached --quiet &&
+# git add <paths> && git commit -m ...`, or one plain git add.
 #
 # Known limits: a name built at run time - concatenated
 # strings, base64, an env var holding "commit" - passes the
@@ -270,7 +273,7 @@ PROSE_MESSAGE_OPTIONS = frozenset({"-m", "--message"})
 ATTACHED_MESSAGE_PREFIX = "--message="
 PROSE_COMMIT_FLAGS = frozenset({"-q"})
 END_OF_OPTIONS = "--"
-CHAIN_SEPARATOR = "&&"
+CHAIN_TEXT = " && "
 
 # git diff --cached --quiet exits 1 when anything is staged,
 # which stops the chain, so its commit holds only the paths
@@ -1019,20 +1022,22 @@ def is_message_only_commit(arguments: list[str]) -> bool:
     return message_count > 0
 
 
-def get_chain_segments(words: list[str]) -> list[list[str]]:
-    segments: list[list[str]] = [[]]
-    for word in words:
-        if word == CHAIN_SEPARATOR:
-            segments.append([])
-        else:
-            segments[-1].append(word)
+def get_chain_segments(command: str) -> list[list[str]] | None:
+    # The raw text is split, since the word split reads a quoted
+    # or escaped && as the same word as the operator. Such an &&
+    # stays inside its piece, where it fails as a separator.
+    segments = []
+    for piece in command.split(CHAIN_TEXT):
+        words = get_shell_words(piece)
+        if words is None or any(is_separator(word) or UNREADABLE_WORD.search(word) for word in words):
+            return None
+        segments.append(words)
     return segments
 
 
-def get_prose_call_paths(words: list[str]) -> list[str] | None:
+def get_prose_call_paths(segments: list[list[str]]) -> list[str] | None:
     # The paths a lone git add or the guard's commit chain
     # stages, or None for any other call.
-    segments = get_chain_segments(words)
     if len(segments) == 1 and segments[0][:2] == ["git", "add"]:
         return get_add_paths(segments[0][2:])
     if len(segments) != 3:
@@ -1058,13 +1063,10 @@ def is_prose_path(path: str, cwd: str) -> bool:
 def is_prose_only_call(command: str, cwd: str | None) -> bool:
     # The raw text is split, not the heredoc-stripped one, so
     # every word the shell reads is checked here.
-    words = get_shell_words(command)
-    if cwd is None or words is None or "#" in command:
+    if cwd is None or "#" in command or "\\" in command:
         return False
-    is_plain_text = not any(
-        (is_separator(word) and word != CHAIN_SEPARATOR) or UNREADABLE_WORD.search(word) for word in words
-    )
-    paths = get_prose_call_paths(words) if is_plain_text else None
+    segments = get_chain_segments(command)
+    paths = get_prose_call_paths(segments) if segments is not None else None
     has_only_prose = bool(paths) and all(is_prose_path(path, cwd) for path in paths)
     return has_only_prose and has_dot_git_dir(cwd) and not runs_configured_program(cwd)
 
