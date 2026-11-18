@@ -46,7 +46,7 @@ Read `outcome` in the JSON.
 
   - One branch per call, because the git guard accepts `origin` plus a single branch name and refuses a bare `git push`.
 
-  - Never use `--force`, which `configs/ai-docs/claude/hooks/claude-git-guard.sh` blocks and which can overwrite a remote change this run never saw.
+  - Never use `--force`, which `configs/ai-docs/claude/hooks/claude-git-guard.py` blocks and which can overwrite a remote change this run never saw.
 
   - That push replaces the next step's plain re-push for the feature branch.
 
