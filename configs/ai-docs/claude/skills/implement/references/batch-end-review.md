@@ -39,7 +39,7 @@ Delivered work reaches the remote before anything that can stall gets a turn - t
 
 ## The quality-gate tail (§8.2)
 
-**Entry: only when §1.2's quality-gate question was answered yes (`quality_gate.wanted: true`).** On no, skip this entire section - go straight to the repo-green gate (§8.3), and have the package state the quality gate was skipped by request, saying exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run; invoke `/quality-gate` manually later.
+**Entry: only when `quality_gate.wanted: true` (§1.2).** Otherwise skip to the repo-green gate (§8.3); the package then says exactly: "hard metrics not run (quality gate skipped by request)". No retroactive re-run; invoke `/quality-gate` manually later.
 
 This runs before §8.3's repo-green gate so that gate gets the last word, measuring a tree that already carries the `test-sdd` leg's written tests.
 
@@ -75,11 +75,11 @@ What this skill does with the result:
 
 With the tail behind it, set `phase: "tails"` - the Stop hook blocks on `tails` too, so the run cannot end before Finalize.
 
-The TaskList already carries this step as a `Batch-end` reminder seeded in §2.2 (only when `quality_gate.wanted`) - flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them here.
+The `Batch-end` reminder §2.2 seeded (only when `quality_gate.wanted`) tracks this step - flip that one entry. `/quality-gate` seeds its own per-finding entries underneath; don't duplicate them.
 
 ## Repo-green GATE, run by the repo-green-runner agent (§8.3)
 
-**Entry: only when §1.2's repo-green-gate question was answered yes (`repo_green_gate.wanted: true`).** On no, skip this entire section - go straight to Finalize (§8.4). Have the package (§8.4) state the gate was skipped by request, with no repo-green result to show.
+**Entry: only when `repo_green_gate.wanted: true` (§1.2).** Otherwise skip to Finalize (§8.4); the package then says the gate was skipped by request, with no repo-green result.
 
 Dispatch ONE fresh-context `agent(subAgent=repo-green-runner, title=Repo-green gate)`, handing it `mode: gate`, the repo's full lint + full test commands repo-wide, and the state file's `baseline.failures` + `baseline.log_path` + `baseline.inventory`.
 
