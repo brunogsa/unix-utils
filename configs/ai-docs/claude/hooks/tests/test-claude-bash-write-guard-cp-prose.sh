@@ -124,6 +124,16 @@ it_should_block_cp_onto_a_repo_markdown_file_when_the_shared_extension_list_is_m
   assert_eq "should block cp onto a repo markdown file when the shared extension list cannot be read" "2" "$HOOK_EXIT"
 }
 
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_comment_format_rules_over_a_tracked_python_file() {
+  run_hook "cp $scratch_dir/settings.py src/settings.py"
+  assert_eq "should block cp copying a /tmp scratch python file whose comment breaks the comment format rules over a tracked python file" "2" "$HOOK_EXIT"
+}
+
+it_should_block_cp_copying_a_scratch_python_file_that_breaks_the_comment_format_rules_into_a_target_directory_named_by_t() {
+  run_hook "cp -t src $scratch_dir/settings.py"
+  assert_eq "should block cp -t src copying a /tmp scratch python file whose comment breaks the comment format rules into the repo" "2" "$HOOK_EXIT"
+}
+
 setup_fixtures
 trap teardown_fixtures EXIT
 
@@ -131,6 +141,8 @@ it_should_allow_cp_copying_a_scratch_file_that_breaks_the_markdown_format_rules_
 it_should_allow_cp_copying_a_source_named_by_a_shell_variable_onto_a_new_repo_markdown_file
 it_should_block_a_copy_run_through_a_local_script_named_cp_onto_a_repo_markdown_file
 it_should_block_cp_onto_a_repo_markdown_file_when_the_shared_extension_list_is_missing
+it_should_block_cp_copying_a_scratch_file_that_breaks_the_comment_format_rules_over_a_tracked_python_file
+it_should_block_cp_copying_a_scratch_python_file_that_breaks_the_comment_format_rules_into_a_target_directory_named_by_t
 
 printf '\n%d passed, %d failed\n' "$pass_count" "$fail_count"
 [ "$fail_count" -eq 0 ]
