@@ -169,6 +169,38 @@ flowchart LR
   assert_contains "should name the mermaid-cli install command when mmdc is not installed" "npm install -g @mermaid-js/mermaid-cli" "$VERDICT_ERR"
 }
 
+# A bare `%%` line renders without a parse error, but mermaid
+# draws it as an extra node labelled `%%`, so GitHub shows a
+# diagram with a stray box. mmdc exits 0 on it.
+it_should_fail_a_flowchart_with_a_bare_percent_comment_line() {
+  local fixture
+  fixture=$(write_body "phantom-node" '## Architecture
+
+```mermaid
+flowchart LR
+    crm["CRM school event"] --> router["PIC brands router"]
+    %%
+    router --> erp["ERP hub consumer"]
+```')
+  run_script "$fixture"
+  assert_eq "should fail a flowchart with a bare %% comment line (exit code)" "3" "$VERDICT_EXIT"
+  assert_contains "should name the phantom %% node on stderr" "phantom" "$VERDICT_ERR"
+  assert_contains "should quote the %% label on stderr" "%%" "$VERDICT_ERR"
+}
+
+it_should_pass_a_flowchart_with_a_well_formed_percent_comment() {
+  local fixture
+  fixture=$(write_body "valid-comment" '## Architecture
+
+```mermaid
+flowchart LR
+    %% the router decides the brand
+    crm["CRM school event"] --> router["PIC brands router"]
+```')
+  run_script "$fixture"
+  assert_eq "should pass a flowchart with a well-formed %% comment" "0" "$VERDICT_EXIT"
+}
+
 it_should_exit_1_when_the_file_does_not_exist() {
   run_script "$work_dir/does-not-exist.md"
   assert_eq "should exit 1 when the file does not exist" "1" "$VERDICT_EXIT"
@@ -185,6 +217,8 @@ it_should_pass_a_valid_sequence_diagram
 it_should_pass_a_body_with_no_mermaid_diagram
 it_should_fail_a_body_whose_second_diagram_is_broken_after_a_valid_first_one
 it_should_fail_with_an_install_hint_when_mmdc_is_not_installed
+it_should_fail_a_flowchart_with_a_bare_percent_comment_line
+it_should_pass_a_flowchart_with_a_well_formed_percent_comment
 it_should_exit_1_when_the_file_does_not_exist
 it_should_exit_1_when_called_with_no_argument
 

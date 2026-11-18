@@ -25,7 +25,11 @@
 #   0  every mermaid block renders (or there is none).
 #   1  bad usage / file missing or unreadable (stderr).
 #
-#   3  a mermaid block failed to render (mmdc error on stderr).
+#   3  a mermaid block failed to render (mmdc error on stderr),
+#      or rendered a phantom node labelled "%%". A bare "%%"
+#      line or arrows inside a "%%" comment draw a stray box
+#      that mmdc does not reject.
+#
 #   4  mmdc is not on PATH - install it; never skip this gate.
 #
 # Examples:
@@ -71,6 +75,13 @@ trap 'rm -rf "$out_dir"' EXIT
 log="$out_dir/mmdc.log"
 
 if mmdc -i "$file" -o "$out_dir/rendered.md" >"$log" 2>&1; then
+    # mmdc writes rendered-<n>.svg per block. A node whose label
+    # starts with %% is a comment mermaid misread as a node.
+    phantom_svgs=$(grep -lE 'nodeLabel"[^>]*>(<p>)?%%' "$out_dir"/rendered-*.svg 2>/dev/null || true)
+    if [[ -n "$phantom_svgs" ]]; then
+        echo "FAIL: a mermaid block in $file renders a phantom node labelled %% (in $(basename "${phantom_svgs%%$'\n'*}")) - a bare %% comment line, or arrow tokens inside a %% comment." >&2
+        exit 3
+    fi
     echo "OK: every mermaid block in $file renders."
     exit 0
 fi
