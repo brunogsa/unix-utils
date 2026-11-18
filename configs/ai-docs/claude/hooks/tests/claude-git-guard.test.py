@@ -219,6 +219,39 @@ def test_blocks_any_other_git_hunk_stage_in_the_chain(repo, middle):
     assert_blocked(run_hook(f"{DIFF_CHECK} && {middle} && {COMMIT}", repo))
 
 
+# Chain middle step: the shell must not rewrite what it stages
+
+
+@pytest.mark.parametrize(
+    "middle",
+    [
+        pytest.param("git add configs/*", id="git add of every path a star matches"),
+        pytest.param("git add src/[ab].md", id="git add of a bracket pattern"),
+        pytest.param("git-hunk stage abc1234 def*", id="hunk ids a star matches"),
+        pytest.param("git-hunk stage a?c1234 -l 3", id="hunk id with a question-mark wildcard"),
+        pytest.param("git-hunk stage abc1234 -l {1,2}", id="line value a brace expands"),
+        pytest.param("git-hunk stage abc1234 --include-matching foo*", id="match pattern the shell expands"),
+    ],
+)
+def test_blocks_an_unquoted_glob_or_brace_in_the_chains_staging_step(repo, middle):
+    result = run_hook(f"{DIFF_CHECK} && {middle} && {COMMIT}", repo)
+    assert_blocked(result)
+    assert "quote or drop the glob" in result.stderr, result.stderr
+
+
+@pytest.mark.parametrize(
+    "middle",
+    [
+        pytest.param('git-hunk stage abc1234 --include-matching "foo*"', id="double-quoted match pattern"),
+        pytest.param("git-hunk stage abc1234 --exclude-matching 'a[b]'", id="single-quoted match pattern"),
+        pytest.param("git-hunk stage abc1234 --include-matching foo\\*", id="backslash-escaped match pattern"),
+        pytest.param("git add a/b.md c/d.md", id="git add of two literal paths"),
+    ],
+)
+def test_allows_a_staging_step_the_shell_passes_literally(repo, middle):
+    assert_allowed(run_hook(f"{DIFF_CHECK} && {middle} && {COMMIT}", repo))
+
+
 def test_block_message_names_the_line_selection_form_of_the_chain(repo):
     result = run_hook(f"{DIFF_CHECK} || git-hunk stage 2a70dfa0 -l 4-11 && {COMMIT}", repo)
     assert_blocked(result)

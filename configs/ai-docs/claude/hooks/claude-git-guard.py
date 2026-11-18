@@ -43,6 +43,7 @@ CONFIG_ROUTE = re.compile(r"alias\.|include(if)?\.|^(GIT_CONFIG\w*|HOME|XDG_CONF
 # A word the shell rewrites before running it: a variable, a
 # substitution, or a glob or brace pattern.
 REWRITTEN_CHARS = "$`*?[{"
+GLOB_CHARS = "*?[{"
 LITERAL_COMMANDS = {"git", "git-hunk"}
 OPERATOR_CHARS = "();<>|&\n"
 WRAPPERS = {"sh", "bash", "zsh", "eval"}
@@ -85,12 +86,12 @@ def block(rule, subcommand: str | None = "commit"):
     sys.exit(2)
 
 
-def tokenize(command, commenters=""):
+def tokenize(command, commenters="", punctuation_chars=OPERATOR_CHARS):
     """Split a command into shell words and operator tokens.
 
     Raises ValueError when the command does not parse.
     """
-    lexer = shlex.shlex(command, posix=True, punctuation_chars=OPERATOR_CHARS)
+    lexer = shlex.shlex(command, posix=True, punctuation_chars=punctuation_chars)
     lexer.whitespace = " \t\r"
     lexer.whitespace_split = True
     lexer.commenters = commenters
@@ -329,6 +330,23 @@ def get_hunk_stage_operands(args):
     return args
 
 
+def check_staging_is_literal(middle, operators, text):
+    """Blocks a glob or brace pattern the shell would expand in
+    the chain's staging step, since git would then stage paths
+    or hunks the guard never saw.
+
+    A second tokenize pass, with the glob characters as
+    punctuation, splits an unquoted one out of its word, while a
+    quoted or escaped one stays inside it. A word made only of
+    glob characters reads the same either way, so it blocks.
+    """
+    glob_tokens = tokenize(text, punctuation_chars=OPERATOR_CHARS + GLOB_CHARS)
+    glob_segments, glob_operators = split_segments(glob_tokens)
+    has_glob_only_word = any(word and all(char in GLOB_CHARS for char in word) for word in middle)
+    if glob_operators != operators or glob_segments[1] != middle or has_glob_only_word:
+        block("the chain's staging step names literal paths or hunks: quote or drop the glob")
+
+
 def check_chain(segments, operators, cwd):
     if operators != ["&&", "&&"]:
         block(f"the only chain allowed is: {COMMIT_CHAIN}")
@@ -553,6 +571,8 @@ def check(command, cwd):
     if not found:
         return
     check_shape(command, segments, operators, found[0], os.path.abspath(cwd or "."))
+    if operators:
+        check_staging_is_literal(segments[1], operators, text)
     if "commit" in found:
         check_commit_content(command, cwd or "")
 
