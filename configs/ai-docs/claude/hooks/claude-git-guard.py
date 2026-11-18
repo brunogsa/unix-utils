@@ -51,7 +51,11 @@ WHOLE_TREE = {".", "./"}
 PROTECTED_BRANCHES = {"main", "master", "head"}
 BRANCH_LISTING = {"-a", "--all", "-r", "--remotes", "-l", "--list", "-v", "-vv", "--verbose",
                   "--show-current", "--merged", "--no-merged", "--contains"}
-COMMIT_CHAIN = "git diff --cached --quiet && git add <paths> (or git-hunk stage <ids>) && git commit ..."
+COMMIT_CHAIN = ("git diff --cached --quiet && git add <paths>"
+                " (or git-hunk stage <ids> | git-hunk stage <id> -l <lines>) && git commit ...")
+
+# git-hunk stage options that pick lines inside one hunk.
+LINE_SELECTION_OPTIONS = {"-l", "--include-matching", "--exclude-matching"}
 ATTRIBUTION_RULE = ("git commit needs Co-Authored-By: Claude ... as its own last -m,"
                     " or as the last paragraph of the -F file")
 
@@ -311,6 +315,20 @@ def check_single(segment, first_guarded, cwd):
     check_form(subcommand, args, os.path.normpath(os.path.join(cwd, git_dir or ".")))
 
 
+def get_hunk_stage_operands(args):
+    """Return the hunk ids or paths git-hunk stage gets.
+
+    Drop one line-selection option and its value when it follows
+    exactly one operand; any other option stays, for the caller
+    to refuse."""
+    if len(args) != 3:
+        return args
+    operand, option, value = args
+    if option in LINE_SELECTION_OPTIONS and not value.startswith("-"):
+        return [operand]
+    return args
+
+
 def check_chain(segments, operators, cwd):
     if operators != ["&&", "&&"]:
         block(f"the only chain allowed is: {COMMIT_CHAIN}")
@@ -320,11 +338,12 @@ def check_chain(segments, operators, cwd):
     if (diff_sub, diff_args) != ("diff", ["--cached", "--quiet"]) or commit_sub != "commit":
         block("the chain must start with git diff --cached --quiet and end with git commit")
     if middle[:2] == ["git-hunk", "stage"]:
-        stage_dir, staged = commit_dir, middle[2:]
+        stage_dir, staged = commit_dir, get_hunk_stage_operands(middle[2:])
     else:
         add_sub, staged, stage_dir = read_git_segment(middle, "commit")
         if add_sub != "add" or any(path.startswith("-") or path in WHOLE_TREE for path in staged):
-            block("the chain's middle step must be git add <paths> or git-hunk stage <ids>, never . or an option")
+            block("the chain's middle step must be git add <paths>, git-hunk stage <ids>"
+                  " or git-hunk stage <id> -l <lines>, never . or another option")
     if not staged or any(arg.startswith("-") for arg in staged) or len({diff_dir, stage_dir, commit_dir}) != 1:
         block("the chain stages named paths or hunks, and every git step uses the same -C <dir>")
     check_form("commit", commit_args, os.path.normpath(os.path.join(cwd, commit_dir or ".")))

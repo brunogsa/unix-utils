@@ -175,6 +175,56 @@ def test_blocks_any_other_shape(repo, command):
     assert_blocked(run_hook(command, repo))
 
 
+# Chain middle step: git-hunk line selection inside one hunk
+
+
+@pytest.mark.parametrize(
+    "selection",
+    [
+        pytest.param("-l 4-11", id="line range"),
+        pytest.param("-l 3,5-7", id="line list"),
+        pytest.param("--include-matching xfail", id="only lines matching a pattern"),
+        pytest.param("--exclude-matching debug", id="every line except those matching a pattern"),
+    ],
+)
+def test_allows_staging_selected_lines_of_one_hunk_in_the_chain(repo, selection):
+    assert_allowed(run_hook(f"{DIFF_CHECK} && git-hunk stage 2a70dfa0 {selection} && {COMMIT}", repo))
+
+
+def test_allows_line_selection_in_a_chain_that_names_its_repository_with_C(repo):
+    command = (
+        f"git -C {repo} diff --cached --quiet && git-hunk stage 2a70dfa0 -l 4-11"
+        f' && git -C {repo} commit -q -m "{SUBJECT}" -m "Why the change exists." {TRAILER}'
+    )
+    assert_allowed(run_hook(command, repo))
+
+
+@pytest.mark.parametrize(
+    "middle",
+    [
+        pytest.param("git-hunk stage 2a70dfa0 d4e5f6 -l 4-11", id="line selection across two hunks"),
+        pytest.param("git-hunk stage -l 4-11", id="line selection with no hunk"),
+        pytest.param("git-hunk stage 2a70dfa0 -l", id="line option with no value"),
+        pytest.param("git-hunk stage 2a70dfa0 -l --dry-run", id="option given where the line value goes"),
+        pytest.param("git-hunk stage 2a70dfa0 -l 4-11 --dry-run", id="dry run that stages nothing"),
+        pytest.param("git-hunk stage 2a70dfa0 --dry-run", id="dry run alone"),
+        pytest.param("git-hunk stage 2a70dfa0 --regex --include-matching x", id="option outside line selection"),
+        pytest.param("git-hunk stage 2a70dfa0 -l 4-11 -l 20", id="two line-selection options"),
+        pytest.param("git-hunk stage 2a70dfa0 -l 4-11 d4e5f6", id="second hunk after the line selection"),
+        pytest.param("git-hunk stage 2a70dfa0 -l $LINES", id="line value from a variable"),
+        pytest.param("git-hunk stage 2a70dfa0 -l `cat lines`", id="line value from a backtick substitution"),
+    ],
+)
+def test_blocks_any_other_git_hunk_stage_in_the_chain(repo, middle):
+    assert_blocked(run_hook(f"{DIFF_CHECK} && {middle} && {COMMIT}", repo))
+
+
+def test_block_message_names_the_line_selection_form_of_the_chain(repo):
+    result = run_hook(f"{DIFF_CHECK} || git-hunk stage 2a70dfa0 -l 4-11 && {COMMIT}", repo)
+    assert_blocked(result)
+    assert "git-hunk stage <id> -l <lines>" in result.stderr, result.stderr
+
+
 # Per-subcommand allowed forms
 
 

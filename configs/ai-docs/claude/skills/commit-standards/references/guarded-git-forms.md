@@ -28,6 +28,9 @@ git commit -q -F /path/to/msg.txt
 # commit chain: the only form that may use &&
 git diff --cached --quiet && git add configs/foo.txt && git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 
+# commit chain staging only some lines of one hunk: one hunk id, then one of -l <lines>, --include-matching <pat> or --exclude-matching <pat>
+git diff --cached --quiet && git-hunk stage 2a70dfa0 -l 4-11 && git commit -q -m "fix(sync): skip schools without a CNPJ" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+
 # push: origin plus one plain branch name, never main, master or HEAD
 git push -u origin feat/cdpi-805-blank-business-model
 git push --force-with-lease origin feat/cdpi-805-blank-business-model
