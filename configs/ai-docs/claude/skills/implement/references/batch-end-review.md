@@ -182,9 +182,12 @@ PR-2 - branch `feat/parser/pr2` - 4 commits to review - https://github.com/<owne
    - **Then update the PR body**, only when `pr.wanted: true` and §8.1 opened one - via the `pr-creator` dispatch and REST-API path [`batch-end-pr.md`](batch-end-pr.md) owns.
      - The gate commits belong under its **"Unexpected extras"** section.
 
-3. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
+3. **Post the review guide when §8.1 opened a PR**, re-pushed or not: run `code-review-guide <number>` in main, since `pr-creator` cannot post it as a subagent.
+   - Why here: the guide snapshots one head commit, and the branch is now final.
 
-4. **Finalize the phase.**
+4. **Assemble the package** (contents under "The review package") and **print it** to chat, closing with the review notification.
+
+5. **Finalize the phase.**
    - Set `phase: "presented"`, then dispose of the state file with `trash <state-file>`, never `rm`.
    - It lives in `/tmp`, outside any git repo, the unrecoverable case `claude-rm-guard.sh` blocks `rm` on.
    - With the last unit's state file, also `trash /tmp/implement_<session_id>.expected` when it still exists.
