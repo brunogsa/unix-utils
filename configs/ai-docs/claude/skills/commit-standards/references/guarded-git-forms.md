@@ -52,10 +52,11 @@ git branch --show-current
 git branch feat/new-branch origin/master
 git branch -d feat/new-branch
 
-# worktree: add, list, remove, prune
+# worktree: add, list, remove, unlock, prune
 git worktree add -b feat/new-branch /path/to/worktree origin/master
 git worktree list
 git worktree remove /path/to/worktree
+git worktree unlock /path/to/worktree   # a finished agent's stale lock; then remove it
 git worktree prune -n
 
 # another directory: -C is the only global option, and it takes a literal path
