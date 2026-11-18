@@ -7,6 +7,8 @@
 #   quality-gate-clock.py history [--last N]
 #
 # report options: --target-min N, --repo NAME, --branch NAME.
+# --target-min (default 30) bounds the §3 legs span only: the
+# earliest 3-* start to the latest 3-* end, never the run total.
 #
 # stdin: unused
 # stdout: markdown table for report and history; mark is silent
@@ -23,7 +25,8 @@ from datetime import datetime
 from pathlib import Path
 
 TIMINGS_FILE = "timings.tsv"
-DEFAULT_TARGET_MIN = 20
+DEFAULT_TARGET_MIN = 30
+LEGS_PHASE_PREFIX = "3-"
 DEFAULT_HISTORY_RUNS = 10
 NOT_MEASURED = "not measured"
 
@@ -103,27 +106,52 @@ def phase_row(phase, entry):
     return "| " + " | ".join(cells) + " |"
 
 
-def target_verdict(total, target):
-    gap = abs(total - target)
-    side = "over" if total > target else "under"
-    return f"{total:.1f} / {target:g} target ({side} by {gap:.1f})"
+def target_verdict(minutes, target):
+    gap = abs(minutes - target)
+    side = "over" if minutes > target else "under"
+    return f"{minutes:.1f} / {target:g} target ({side} by {gap:.1f})"
+
+
+def legs_minutes(phases):
+    """Minutes from the earliest 3-* start to the latest
+    3-* end, or None when no 3-* phase exists or one lacks
+    an end, so a missing measurement never reads as fast."""
+    legs = [
+        entry
+        for phase, entry in phases.items()
+        if phase.startswith(LEGS_PHASE_PREFIX)
+    ]
+    if not legs or any(phase_minutes(e) is None for e in legs):
+        return None
+    first = min(e["start"] for e in legs)
+    last = max(e["end"] for e in legs)
+    return minutes_between(first, last)
+
+
+def legs_line(legs, target):
+    if legs is None:
+        return (
+            f"§3 legs: {NOT_MEASURED} (needs a {LEGS_PHASE_PREFIX}* "
+            "phase, every one with a start and an end)"
+        )
+    return f"§3 legs {target_verdict(legs, target)}"
 
 
 def render_report(marks, phases, target):
     stamps = [stamp for _, _, stamp in marks]
     first, last = min(stamps), max(stamps)
     total = minutes_between(first, last)
+    legs = legs_minutes(phases)
     lines = ["| phase | start | end | minutes |", "|---|---|---|---|"]
     lines += [phase_row(p, e) for p, e in phases.items()]
     lines.append(
-        f"| total | {first:%H:%M:%S} | {last:%H:%M:%S} | "
-        f"{target_verdict(total, target)} |"
+        f"| total | {first:%H:%M:%S} | {last:%H:%M:%S} | {total:.1f} |"
     )
-    lines += ["", slowest_line(phases)]
+    lines += ["", legs_line(legs, target), slowest_line(phases)]
     unclosed = unclosed_phases(phases)
     if unclosed:
         lines.append("unclosed: " + ", ".join(unclosed))
-    return "\n".join(lines), total
+    return "\n".join(lines), total, legs
 
 
 def unclosed_phases(phases):
@@ -192,7 +220,7 @@ def command_report(args, parser):
         print(f"timing: {NOT_MEASURED} (no {TIMINGS_FILE})")
         return 1
     phases = group_phases(marks)
-    text, total = render_report(marks, phases, args.target_min)
+    text, total, legs = render_report(marks, phases, args.target_min)
     print(text)
     record_run({
         "ts": now_iso(),

@@ -34,6 +34,21 @@ UNCLOSED_TSV = (
     "6-apply-1\tstart\t2026-11-17T10:06:00\n"
 )
 
+# The §3 legs 3-refactor (10:00:00-10:20:00) and 3-auto-review
+# (10:05:00-10:25:00) span 25.0 min together; the judge and the
+# apply after them stretch the whole run to 10:00:00-11:30:00,
+# a 90.0 min total.
+LEGS_THEN_JUDGE_AND_APPLY_TSV = (
+    "3-refactor\tstart\t2026-11-17T10:00:00\n"
+    "3-auto-review\tstart\t2026-11-17T10:05:00\n"
+    "3-refactor\tend\t2026-11-17T10:20:00\n"
+    "3-auto-review\tend\t2026-11-17T10:25:00\n"
+    "4.1-judge\tstart\t2026-11-17T10:25:00\n"
+    "4.1-judge\tend\t2026-11-17T10:40:00\n"
+    "6-apply-1\tstart\t2026-11-17T10:40:00\n"
+    "6-apply-1\tend\t2026-11-17T11:30:00\n"
+)
+
 
 class ClockCase(unittest.TestCase):
     def setUp(self):
@@ -119,7 +134,33 @@ class ReportTest(ClockCase):
         self.assertIn("| 3-refactor | 10:00:00 | 10:12:00 | 12.0 |", out)
         self.assertIn("| 4.1-judge | 10:10:00 | 10:24:18 | 14.3 |", out)
         self.assertLess(out.index("3-refactor"), out.index("4.1-judge"))
-        self.assertIn("24.3 / 20 target (over by 4.3)", out)
+        self.assertIn("| total | 10:00:00 | 10:24:18 | 24.3 |", out)
+
+    def test_target_judges_the_review_legs_span_not_the_run_total(self):
+        run = self.run_dir(tsv=LEGS_THEN_JUDGE_AND_APPLY_TSV)
+
+        result = self.clock("report", run)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        # default target is 30 min; the 90 min total is ignored
+        self.assertIn(
+            "§3 legs 25.0 / 30 target (under by 5.0)", result.stdout
+        )
+
+    def test_legs_span_over_the_target_reads_over(self):
+        run = self.run_dir(tsv=CLOSED_TSV)
+
+        out = self.clock("report", run, "--target-min", 10).stdout
+
+        self.assertIn("§3 legs 12.0 / 10 target (over by 2.0)", out)
+
+    def test_total_row_shows_the_run_length_without_a_target(self):
+        run = self.run_dir(tsv=LEGS_THEN_JUDGE_AND_APPLY_TSV)
+
+        out = self.clock("report", run).stdout
+
+        self.assertIn("| total | 10:00:00 | 11:30:00 | 90.0 |", out)
 
     def test_names_the_slowest_phase_below_the_table(self):
         run = self.run_dir(tsv=CLOSED_TSV)
@@ -140,7 +181,7 @@ class ReportTest(ClockCase):
         row = [x for x in out.splitlines() if "6-apply-1" in x][0]
         self.assertIn("no end", row)
         self.assertIn("not measured", row)
-        self.assertIn("6.0 / 20 target", out)
+        self.assertIn("§3 legs 6.0 / 30 target", out)
         self.assertIn("unclosed: 6-apply-1", out)
 
     def test_unclosed_phase_is_never_the_slowest_by_counting_zero(self):
