@@ -73,7 +73,7 @@ base=${BASE_REF:-$(git rev-parse --abbrev-ref --symbolic-full-name "@{upstream}"
 
 ### 2. Dispatch code-reviewer to detect opportunities
 
-**Before dispatch, mint the report path.** Run `date "+verdict_refactor_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"` once and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` - the user reviews it alongside the diff in their editor).
+**Before dispatch, mint the report path.** Run `git branch --show-current` as its own call and replace each `/` in the branch name with `-` yourself. Then run `date "+verdict_refactor_<branch-slug>_%Y-%m-%d_%H:%M.md"` once, with that slug written literally, and treat the output as `$VERDICT_PATH` in CWD (NOT `/tmp/` - the user reviews it alongside the diff in their editor).
 
 - The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance.
   - Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.

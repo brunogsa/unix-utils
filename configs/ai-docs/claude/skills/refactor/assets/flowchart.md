@@ -54,7 +54,8 @@ def refactor(arg):
     #     other basename at exit 2 - and it beats report_/findings_
     #     because the harness intercepts those before any hook runs.
     #     One file per invocation; never reuse a prior run's path.
-    VERDICT_PATH = sh('date "+verdict_refactor_$(git branch --show-current | tr \'/\' \'-\')_%Y-%m-%d_%H:%M.md"')
+    branch = sh('git branch --show-current')  # its own call: the git guard blocks $( ) beside git
+    VERDICT_PATH = sh('date "+verdict_refactor_' + branch.replace('/', '-') + '_%Y-%m-%d_%H:%M.md"')
 
     # ---- 7 · Step 2 - dispatch the reviewer. Report-only by
     #      construction: subAgent=refactor would silently turn this

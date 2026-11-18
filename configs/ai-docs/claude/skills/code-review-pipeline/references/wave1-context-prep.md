@@ -63,7 +63,8 @@ The fetcher logs one `issue-context:` line per reference on stderr; a reference 
 # Clone the PR head
 gh repo clone "$repo" "$work_dir/repo" -- --depth=50 --filter=blob:none
 git -C "$work_dir/repo" fetch origin "pull/$pr_number/head" --depth=50
-git -C "$work_dir/repo" checkout FETCH_HEAD
+# The guard blocks `$` beside checkout: write the work dir's literal path here.
+git -C /tmp/pr-review.<suffix>/repo checkout FETCH_HEAD
 ```
 
 Teardown: work dir stays in `/tmp` for macOS's periodic cleanup. On failure, print the path.
@@ -80,8 +81,9 @@ See the script's own `if`/`else` for the exact fallback and its failure message.
 
 ```bash
 work_dir=$(mktemp -d /tmp/auto-review.XXXXXX)
-branch="$(git branch --show-current | tr '/' '-')"
-out_base="./verdict_auto-review_${branch}_$(date +%Y-%m-%d_%H:%M)"
+# Run `git branch --show-current` as its own call first, then write its
+# output with each "/" replaced by "-" in place of <branch-slug> below.
+out_base="./verdict_auto-review_<branch-slug>_$(date +%Y-%m-%d_%H:%M)"
 
 bash ~/.claude/skills/code-review-pipeline/scripts/prep-local-context.sh \
   "$base_ref" "$work_dir"

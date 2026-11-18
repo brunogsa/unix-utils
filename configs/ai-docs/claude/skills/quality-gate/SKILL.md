@@ -106,7 +106,7 @@ Spawn each leg as its own agent, all in the **same turn**, all in the background
 
 - `agent(subAgent=code-reviewer, title=Auto-review pipeline)` - invokes the `auto-review` skill with `<BASE_REF>`, the resolved spec/plan paths and `<SESSION_ID>` pushed in.
 
-- **Scope the test-sdd leg** (plan resolved, no `--tasks`): main runs `~/.claude/scripts/get-plan-tasks-for-branch.py <plan> "$(git branch --show-current)"`.
+- **Scope the test-sdd leg** (plan resolved, no `--tasks`): main runs `git branch --show-current` as its own call, then `~/.claude/scripts/get-plan-tasks-for-branch.py <plan> <branch>` with the branch name written literally.
   - **Non-empty output** → pass it as the leg's `--tasks`.
   - **Empty output, exit 0** → no `--tasks`; §7 reads `test-sdd: every plan task (no PR entry names <branch>)`.
   - **Non-zero exit** → dispatch no test-sdd leg; §7 reads `test-sdd leg: FAIL (task scoping exited <rc>: <its stderr>)`, a failing outcome, never a clean one.
@@ -140,7 +140,7 @@ When each leg returns, confirm its file exists and is non-empty: `refactor` and 
 
 **No leg produced a file** → skip this step. Otherwise merge whatever exists, so shape and tags are uniform on every run.
 
-Record the source paths and the merged path in CWD: `date "+verdict_quality-gate_$(git branch --show-current | tr '/' '-')_%Y-%m-%d_%H:%M.md"`, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
+Record the source paths and the merged path in CWD. Run `git branch --show-current` as its own call, replace each `/` in the branch name with `-` yourself, then run `date "+verdict_quality-gate_<branch-slug>_%Y-%m-%d_%H:%M.md"` with that slug written literally, or `verdict_quality-gate_no-git_<ts>.md` with no git. Sources are the `refactor`, `auto-review`, `test-sdd` and `scout` files, the judge file, and `<RUN_DIR>/detector-edits.md` when main wrote one.
 
 Count findings fence-aware, since a finding may quote a `### 1.` line in a fence: ``awk '/^[[:space:]]*[`][`][`]/{f=!f} !f && /^### [0-9]+\. /' <file> | wc -l``.
 - Run it on each source, and on `<tooling>` for k (0 with none): the `tooling_metrics_*.md` beside the rendered verdict, numbered as it numbers its deferred, tooling-ask and exception entries.
