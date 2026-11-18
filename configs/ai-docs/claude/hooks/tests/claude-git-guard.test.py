@@ -14,6 +14,7 @@ Usage:
 """
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -90,6 +91,16 @@ def assert_blocked(result):
         pytest.param("echo it's done", id="unbalanced quote without git"),
         pytest.param("git status && echo it's done", id="unbalanced quote beside an unguarded git"),
         pytest.param("git log --oneline | head -5", id="unguarded git subcommand in a pipe"),
+        pytest.param("# check the tree first\ngit status", id="comment line before an unguarded git"),
+        pytest.param(
+            "cat <<'EOF'\npush to main later\ngit push origin main\nEOF", id="cat heredoc printed to the terminal"
+        ),
+        pytest.param("command -v git >/dev/null", id="lookup of the git binary"),
+        pytest.param('echo "the word aigitcommit appears here"', id="aigitcommit named inside a quoted echo"),
+        pytest.param("ls hooks | xargs basename", id="xargs running a tool other than git"),
+        pytest.param("grep -rn git configs", id="git as a search word"),
+        pytest.param("sudo git status", id="sudo before an unguarded git"),
+        pytest.param("wc -w <<< 'git commit -m x'", id="herestring that mentions git commit"),
     ],
 )
 def test_allows_commands_that_run_no_guarded_git(repo, command):
@@ -177,6 +188,8 @@ def test_blocks_any_other_shape(repo, command):
         "git push -u origin feature-x",
         "git push --set-upstream origin feature-x",
         "git push --force-with-lease origin feature-x",
+        "git -C /tmp/work push --force-with-lease origin feature-x",
+        "git push origin main-v2",
         "git reset",
         "git reset --soft HEAD~1",
         "git reset --mixed HEAD~1",
@@ -204,6 +217,7 @@ def test_blocks_any_other_shape(repo, command):
         "git branch feature-x origin/master",
         "git branch -d feature-x",
         "git branch --delete feature-x",
+        "git -C /tmp/work branch -d feature-x",
         "git worktree add ../wt",
         "git worktree add -b feature-x ../wt",
         "git worktree add --detach ../wt HEAD",
@@ -246,6 +260,15 @@ def test_allows_each_listed_form(repo, command):
         "git push --tags origin feature-x",
         "git push --no-verify origin feature-x",
         "git push --atomic origin feature-x",
+        "git push -o ci.skip origin feature-x",
+        "git push --push-option=ci.skip origin feature-x",
+        "git push --repo=origin feature-x",
+        "git push --receive-pack=/tmp/hook origin feature-x",
+        "git push origin --delete master",
+        "git push origin :master",
+        "git push origin feature-x:refs/heads/master",
+        "git push origin HEAD:main",
+        "git -C /tmp/work reset --hard",
         "git reset --hard",
         "git reset --merge HEAD~1",
         "git reset --keep HEAD~1",
@@ -310,6 +333,29 @@ def test_blocks_attribution_glued_onto_a_body_line(repo):
 def test_allows_message_file_whose_last_paragraph_is_the_trailer(repo):
     (repo / "msg.txt").write_text(f"{SUBJECT}\n\nExplain the change.\n\n{ATTRIBUTION}\n", encoding="utf-8")
     assert_allowed(run_hook("git commit -F msg.txt", repo))
+
+
+@pytest.mark.parametrize(
+    "message_option",
+    [
+        pytest.param("-F {path}", id="-F"),
+        pytest.param("--file {path}", id="--file"),
+    ],
+)
+def test_allows_message_file_given_by_absolute_path(repo, tmp_path_factory, message_option):
+    message_file = tmp_path_factory.mktemp("message") / "msg.txt"
+    message_file.write_text(f"{SUBJECT}\n\n{ATTRIBUTION}\n", encoding="utf-8")
+    command = f"git commit {message_option.format(path=message_file)}"
+    assert_allowed(run_hook(command, repo))
+
+
+def test_allows_a_message_that_names_git_push_in_its_subject(repo):
+    assert_allowed(run_hook(f'git commit -m "docs: mention git push in readme" {TRAILER}', repo))
+
+
+def test_allows_subject_of_exactly_64_characters(repo):
+    subject = "fix(git-guard): stop a commit whose subject is longer than a cap"
+    assert_allowed(run_hook(f'git commit -m "{subject}" {TRAILER}', repo))
 
 
 def test_blocks_subject_over_64_characters_with_the_lib_reason(repo):
@@ -401,6 +447,21 @@ def test_blocks_subject_over_64_characters_with_the_lib_reason(repo):
         pytest.param("P=push; git $P --force origin master", id="variable as the subcommand"),
         pytest.param("git $'push' --force origin master", id="ANSI-C quoted subcommand"),
         pytest.param("gi\\\nt push --force origin master", id="backslash-newline splitting git"),
+        pytest.param("alias g=git; g push --force origin master", id="shell alias for git"),
+        pytest.param(
+            "c(){ git push --force origin master; }; c", id="shell function wrapping git"
+        ),
+        pytest.param("cat <(git push --force origin master)", id="process substitution"),
+        pytest.param(
+            "cat notes.txt; bash <<EOF\ngit push --force origin master\nEOF", id="unquoted heredoc fed to bash"
+        ),
+        pytest.param("FOO=1 git push origin main", id="assignment prefix before git"),
+        pytest.param(
+            f"git config core.hooksPath /dev/null && {COMMIT}", id="git config switching hooks off before a commit"
+        ),
+        pytest.param(f"GIT_DIR=/tmp/other/.git {COMMIT}", id="GIT_DIR pointing the commit at another repository"),
+        pytest.param(f'git --git-dir=/tmp/other/.git commit -m "{SUBJECT}" {TRAILER}', id="--git-dir global option"),
+        pytest.param(f'git --work-tree=/tmp/other commit -m "{SUBJECT}" {TRAILER}', id="--work-tree global option"),
     ],
 )
 def test_blocks_each_way_around_the_guard(repo, command):
@@ -442,3 +503,50 @@ def test_blocks_checkout_of_an_existing_directory_and_names_the_safe_commands(re
 )
 def test_still_allows_near_misses(repo, command):
     assert_allowed(run_hook(command, repo))
+
+
+# Staged comment format, and a guard installed without its libs
+
+LONG_COMMENT = "# this standalone comment line runs well past the sixty-four character cap\n"
+
+
+def stage_script_after_a_first_commit(repo, text):
+    """Commit notes.txt, then stage f.sh holding text: the
+    format gate reads changed lines against HEAD, so it needs
+    a HEAD to exist."""
+    subprocess.run(["git", "-C", str(repo), "add", "notes.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "-c", "commit.gpgsign=false", "commit", "-q", "-m", "Add notes"], check=True
+    )
+    (repo / "f.sh").write_text(text, encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "f.sh"], check=True)
+
+
+def copy_hook_without_lib(tmp_path_factory, missing_lib):
+    """Copy the hook beside a lib/ holding every lib but
+    missing_lib; returns the copied hook's path."""
+    hooks_dir = tmp_path_factory.mktemp("hooks")
+    hook = hooks_dir / HOOK.name
+    shutil.copy(HOOK, hook)
+    shutil.copytree(HOOK.parent / "lib", hooks_dir / "lib", ignore=shutil.ignore_patterns(missing_lib))
+    return hook
+
+
+def test_blocks_a_commit_whose_staged_file_breaks_the_comment_format(repo):
+    stage_script_after_a_first_commit(repo, LONG_COMMENT)
+    assert_blocked(run_hook(COMMIT, repo))
+
+
+def test_allows_a_commit_whose_staged_file_respects_the_comment_format(repo):
+    stage_script_after_a_first_commit(repo, "# short comment\n")
+    assert_allowed(run_hook(COMMIT, repo))
+
+
+def test_allows_a_comment_format_violation_when_the_format_gate_is_not_installed(repo, tmp_path_factory):
+    stage_script_after_a_first_commit(repo, LONG_COMMENT)
+    hook = copy_hook_without_lib(tmp_path_factory, "check-staged-comment-format.sh")
+    payload = {"tool_name": "Bash", "tool_input": {"command": COMMIT}, "cwd": str(repo)}
+    result = subprocess.run(
+        [sys.executable, str(hook)], input=json.dumps(payload), capture_output=True, text=True, timeout=60
+    )
+    assert_allowed(result)

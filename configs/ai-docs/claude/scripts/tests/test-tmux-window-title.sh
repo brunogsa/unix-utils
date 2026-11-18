@@ -14,7 +14,7 @@
 # sibling suites under configs/ai-docs/claude/:
 #
 # - scripts/tests/test-statusline-tier.sh
-# - hooks/tests/test-claude-git-guard.sh
+# - hooks/tests/test-claude-implement-compact-reminder.sh
 
 # The script under test only acts inside tmux, so each test
 # runs against a PRIVATE tmux server on its own socket

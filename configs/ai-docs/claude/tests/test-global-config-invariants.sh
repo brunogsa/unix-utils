@@ -15,8 +15,8 @@
 #
 # No bats dependency by design - a handful of small checks
 # don't justify a new cross-platform test-runner dependency
-# in install.sh (same precedent as
-# configs/ai-docs/claude/hooks/tests/test-claude-git-guard.sh).
+# in install.sh (same precedent as the hook suite
+# hooks/tests/test-claude-implement-compact-reminder.sh).
 #
 # Each "describe(...)" comment below marks one test group;
 # bash has no native describe/it, so the group name lives in

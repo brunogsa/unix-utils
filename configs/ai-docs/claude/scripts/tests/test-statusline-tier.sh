@@ -13,7 +13,7 @@
 # No bats dependency by design - same precedent as these
 # sibling suites under configs/ai-docs/claude/:
 #
-# - hooks/tests/test-claude-git-guard.sh
+# - hooks/tests/test-claude-implement-compact-reminder.sh
 # - tests/test-global-config-invariants.sh
 
 # Every fixture below runs under a scratch $HOME plus explicit
