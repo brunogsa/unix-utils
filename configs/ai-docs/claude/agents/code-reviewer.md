@@ -4,7 +4,7 @@ description: Fresh-context judge for code changes: one review lens over a diff, 
 model: opus
 effort: high
 maxTurns: 128
-allowedSubagents: code-reviewer, general-purpose
+allowedSubagents: code-reviewer
 hooks:
   PreToolUse:
     - matcher: "Write|Edit|Bash"
@@ -89,7 +89,7 @@ Keep a follow-up turn for what a batch's own output revealed - a file a grep hit
   - Then spawn the eight lens agents that path names; that spawn costs one of the four spawn-depth levels.
   - `maxTurns: 128` (not the judges' usual 64) is sized for that pipeline run: seven waves plus waiting on eight agents does not fit a single-lens budget.
 
-  - `allowedSubagents` lists exactly those two types, so any other dispatch is denied before it runs.
+  - `allowedSubagents` lists only `code-reviewer`, the lens agents' type, so any other dispatch is denied before it runs.
   - Every other question you answer yourself - including each lens when the inline path is selected.
   - Never spawn a second opinion on your own verdict - a judge that outsources the judgment has returned nothing the caller can hold it to.
 
