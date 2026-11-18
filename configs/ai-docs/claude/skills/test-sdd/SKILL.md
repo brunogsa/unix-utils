@@ -36,8 +36,7 @@ Examples:
 
 ## When to invoke
 
-Direct `/test-sdd` invocation, with phrases like "are the planned tests there?" / "did we write the tests the plan asked for?" / "check the plan's test coverage".
-Or dispatch from another skill's flow, such as `/quality-gate`'s test leg.
+Direct `/test-sdd` invocation, with phrases like "are the planned tests there?" / "did we write the tests the plan asked for?" / "check the plan's test coverage". Or dispatch from another skill's flow, such as `/quality-gate`'s test leg.
 
 ## What it is, and what it is not
 
@@ -84,8 +83,7 @@ Run `git branch --show-current` alone, swap each `/` in the name for `-` yoursel
 
 Standalone (no `--out-dir`), never use `/tmp/`, since the user reads the file alongside the plan in their editor. With `--out-dir` the file lands in quality-gate's `<RUN_DIR>` on purpose, and the user reads the merged quality-gate verdict instead.
 
-The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes
-are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
+The branch name sits before the timestamp so multiple PRs run in series, each on its own branch, produce verdict files that stay distinguishable at a glance. Slashes are swapped for hyphens since a raw `/` in the branch name would create a subdirectory instead of a filename.
 
 The `verdict_` prefix is load-bearing, not cosmetic: `~/.claude/hooks/check-reviewer-writes.sh` auto-approves exactly that basename pattern and denies every other write.
 
@@ -97,8 +95,7 @@ Spawn a single `agent(subAgent=test-reviewer, title=Planned-test presence check)
 
 Fresh context is the point: the invoking session often wrote the tests under check, and a same-session read carries the bias CLAUDE.md's fresh-context rule guards against.
 
-Lead the prompt with the report-only preamble from [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), substituting `$VERDICT_PATH`.
-That file is the single source of truth for the contract wording.
+Lead the prompt with the report-only preamble from [`code-review-pipeline/references/code-reviewer-tail-pair.md`](../code-review-pipeline/references/code-reviewer-tail-pair.md), substituting `$VERDICT_PATH`. That file is the single source of truth for the contract wording.
 
 Push into the prompt: the resolved plan path, the resolved task-ids with their status markers, the resolved base ref, `$VERDICT_PATH`, §5's matching procedure, and §6's report schema.
 
@@ -220,10 +217,11 @@ Rules the schema depends on:
 - Findings are numbered from `1`, sequentially, with the number in the heading.
 
 - Keep that exact heading shape - `### N. [SEVERITY] <title>`.
-  `/quality-gate`'s apply step stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`.
-  This follows the same prefix-after-the-number convention `plan-status-markers` defines for plan headings.
+
+  `/quality-gate`'s apply step stamps `[Done]` right after the number, giving `### 1. [Done][HIGH] …`. This follows the same prefix-after-the-number convention `plan-status-markers` defines for plan headings.
 
 - **Zero findings of either kind** → write the file anyway, with a `## Findings` section reading `None - every planned test is present.`
+
   A run that produces no artifact leaves nothing to point at later.
 
 The subagent's return message must carry only the counts, the file path, and one title line per finding - return messages are capped and truncate long lists.
